@@ -499,7 +499,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 
 #ifndef NEW_OCI_INIT /* have to get charsetid & ncharsetid the old way */
-#ifdef OCI_ATTR_ENV_CHARSET_ID	/* Oracle 9.0+ */
+#if defined(OCI_ATTR_ENV_CHARSET_ID) && !defined(ORA_OCI_8)	/* Oracle 9.0+ */
     OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &charsetid, (ub4)0 ,
 			OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
     if (status != OCI_SUCCESS) {
