@@ -249,13 +249,20 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
     foreach(@_) { s:\Q$OH/lib/::g }
     print "Found direct-link candidates: @_\n";
     my $lib = ("@_" =~ m:lib(cl(ie)?ntsh)\.:) ? $1 : "oracle";
-    $linkwith_msg = "-l$lib.";
     my $syslibs = read_sysliblist();
     print "Oracle sysliblist: $syslibs\n";
     my $libdir = ora_libdir();
-    $opts{LIBS} = [ "-L$OH/$libdir -l$lib $syslibs" ];
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
     my @h_dirs = find_headers();
+    if ($client_version_full =~ /^8.0.6/ && $os eq 'hpux') {
+	$linkwith_msg = "-lextp -l$lib.";
+	$opts{LIBS} = [ "-L$OH/$libdir -lextp -l$lib $syslibs" ];
+	push @h_dirs, 'network/public';
+    }
+    else {
+	$linkwith_msg = "-l$lib.";
+	$opts{LIBS} = [ "-L$OH/$libdir -l$lib $syslibs" ];
+    }
     my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
     $opts{INC}  = "$inc -I$dbi_arch_dir";
 }
@@ -376,7 +383,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     $linkwith =~ s/-Y P,/-YP,/g if $Config{gccversion};
     $linkwith =~ s:-R /:-R/:g if $os eq 'solaris';
 
-    # modifications (mostly) by lbaxter@fleetcc.com
+    # modifications (mostly) by Lincoln Baxter
     if ( ($os eq 'hpux') && ($osvers > 10) && (
         $Config{'cc'} eq 'cc' or $Config{'gccversion'}) ) 
     {
@@ -412,14 +419,19 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
            $linkwith =~ s/$/ -lqsmashr/ if ( $linkwith !~ m/-lqsmshr/ );
         }
 
-        if ( $osvers >= 11 and
-             $linkwith =~ m/-lcl\b/ && $linkwith =~ m/-l:libcl.a/
-	) {  # from h.m.brand@hccnet.nl
+        if ( ($Config{'libswanted'} !~ m/\bcl\b/) or $Config{'libswanted'} !~ m/\bpthread\b/ ) {
+            print "Warning: Oracle is built with multi-threading libraries\n"
+                . "         You will most likely need to rebuild perl from sources\n"
+                . "         with the following libraries: -lcl -lpthread\n" ;
+        }
+
+       if ( $osvers >= 11 and
+            $linkwith =~ m/-lcl\b/ && $linkwith =~ m/-l:libcl.a/
+        ) {  # from h.m.brand@hccnet.nl
             print "Warning: Stripping -lcl from the link flags, because it\n",
                   "         seems to conflict with -l:libcl.a\n" ;
             $linkwith =~ s/\s*-lcl\b//g;
         }
-
         # Lincoln: Jay Strauss's Oracle 8.1.6 fix... I did this manually
         #          when I still had 8.1.6 to deal with (its in the README):
         #
@@ -455,10 +467,17 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	    $linkwith =~ s/\s*-l:libcl.a\b//g;
 	}
 
-        if (($linkwith !~ m/-lcl/) || ($linkwith !~ m/-lpthread/)) {
-            print "Warning: Oracle is built with multi-threading libraries\n"
-                . "         You will most likely need to rebuild perl from sources\n"
-                . "         with the following libraries: -lcl -lpthread\n" ;
+        #lincoln: this is bringing back everything we thought we removed... (like libcl.a)
+        #         I wonder if this should targetted less specifically than only HPUX 11
+        #         For now this should be relatively safe...
+        if ( $osvers >= 11 and
+            $linkwith =~ m/(`cat.*sysliblist`)/
+        ) {
+            print "Warning: Stripping $1 \n",
+                  "         from link command, because it contains libraries not \n",
+                  "         compiled with +z or +Z (PIC) causing link to fail.\n",
+                  "         Furthermore, we should have already grabbed these libraries\n";;
+            $linkwith =~ s/`cat.*sysliblist`//g;
         }
 
         my $ccf = join " ", map { $_ || '' } @Config{qw(ccflags ccldflags cccdlflags)};
@@ -805,6 +824,7 @@ sub read_sysliblist {
 	: (-f "$OH/rdbms/lib/sysliblist") ? read_file("$OH/rdbms/lib/sysliblist") : '';
     if ($os eq "hpux") {
        $syslibs =~ s/-l:lib(\w+).(sl|a)\b/-l$1/g;
+       $syslibs =~ s/\s*-ldld\b//g;
        $linkwith =~ m/-lcl\b/ or
            $syslibs =~ s/\s*-lcl\b//g;
     }
@@ -1477,6 +1497,9 @@ ORACLE_HOME = '.$OH.'
 		if ($os eq 'darwin') {
 			$m =  "NMEDIT = nmedit\n" . $m . 
 			      "\t\$(NMEDIT) -R ./hints/macos_bundle.syms \$(INST_DYNAMIC)\n";
+		}
+		elsif ($os eq 'hpux') {
+			$m =~ s/LD_RUN_PATH=(\S+)\s+(\S+)/$2 +b $1/;
 		}
 		return ($m);
 	}
