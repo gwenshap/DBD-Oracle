@@ -30,6 +30,7 @@ README.longs
 README.macosx
 README.sec
 README.utf8
+README.vms
 README.win32
 README.wingcc			Notes about building with mingw32 and cygwin32
 Todo
