@@ -170,7 +170,7 @@ sub show_test_data
     return $cnt;
 }
 
-sub table { 'dbd_ora__drop_me' ; }
+sub table { 'dbd_ora__drop_me'.($ENV{DBD_ORACLE_SEQ}||''); }
 sub drop_table
 {
     my ($dbh) = @_;
@@ -314,13 +314,7 @@ sub select_rows # 1 + numcols + rows * cols * 2
             my $is_utf8 = utf8::is_utf8( $res ) ? " (uft8)" : "";
 	    my $description = "row $row: column: $tcols->[$i][0] $is_utf8 $charname";
 
-            $error += not cmp_ok( byte_string($res), 'eq', byte_string($$trows[$cnt][$i]),
-
-		"byte_string test of $description"
-	    );
-	    $error += not cmp_ok( nice_string($res), 'eq', nice_string($$trows[$cnt][$i] ),
-		"nice_string test of $description"
-	    );
+	    $error += not cmp_ok_byte_nice($res, $$trows[$cnt][$i], $description);
             #$sth->trace(0) if $cnt >= 3 ;
         }
         if ( $error )
@@ -333,6 +327,18 @@ sub select_rows # 1 + numcols + rows * cols * 2
     my $trow_cnt = @$trows;
     cmp_ok( $cnt, '==', $trow_cnt, "number of rows fetched" );
 }
+
+sub cmp_ok_byte_nice {
+    my ($got, $expected, $description) = @_;
+    my $ok1 = cmp_ok( byte_string($got), 'eq', byte_string($expected),
+	"byte_string test of $description"
+    );
+    my $ok2 = cmp_ok( nice_string($got), 'eq', nice_string($expected),
+	"nice_string test of $description"
+    );
+    return $ok1 && $ok2;
+}
+
 sub create_table 
 {
     my ($dbh,$tdata,$drop) = @_;

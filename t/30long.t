@@ -18,7 +18,7 @@ push @test_sets, [ "NCLOB",	ORA_CLOB,	0 ] unless ORA_OCI() < 9.0 or $ENV{DBD_ALL
 push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] ;
 push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
 
-my $tests_per_set = 92;
+my $tests_per_set = 94;
 my $tests = @test_sets * $tests_per_set;
 plan tests => $tests;
 
@@ -182,9 +182,7 @@ sub run_long_tests
             #print "tmp->[0][1] = " .$tmp->[0][1] ."\n" ;
 	    for my $i (0..2) {
 		my $v = $tmp->[$i][1];
-		ok(length($v) == $out_len, "$type_name length $out_len (actually ".length($v).")");
-		ok($v eq substr($long_data[$i],0,$out_len),
-                    cdif($v, substr($long_data[$i],0,$out_len), "Len ".length($v)) );
+		cmp_ok_byte_nice($v, substr($long_data[$i],0,$out_len), "truncated to LongReadLen $out_len");
 		if ($type_name eq 'BLOB') {
 		    ok( !utf8::is_utf8($v), "BLOB non-UTF8");
 		}
@@ -240,7 +238,7 @@ sub run_long_tests
 
 
         SKIP: {
-            skip( "blob_read tests for LONGs - not currently supported", 13 )
+            skip( "blob_read tests for LONGs - not currently supported", 15 )
                 if ($type_name =~ /LONG/i) ;
 
             #$dbh->trace(4);
@@ -252,29 +250,38 @@ sub run_long_tests
             ok($sth = $dbh->prepare($sqlstr) ,"prepare $sqlstr" );
             ok($sth->execute, "execute $sqlstr" );
 
+
 	    print "fetch via fetchrow_arrayref\n";
             ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 1: $sqlstr"  );
-            ok($tmp->[1] eq $long_data[0], cdif($tmp->[1], $long_data[0]) );
+	    cmp_ok_byte_nice($tmp->[1], $long_data[0], "truncated to LongReadLen $out_len");
 
 	    print "read via blob_read_all\n";
-            cmp_ok(blob_read_all($sth, 1, \$p1, 4096) ,'==', length($long_data[0]), "blob_read_all = length(\$long_data[0])" );
+            cmp_ok(blob_read_all($sth, 1, \$p1, 4096) ,'==', length($long_data[0]),
+	    	"blob_read_all = length(\$long_data[0])" );
             ok($p1 eq $long_data[0], cdif($p1, $long_data[0]) );
 	    $sth->trace(0);
 
+
             ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 2: $sqlstr" );
-            cmp_ok(blob_read_all($sth, 1, \$p1, 12345) ,'==', length($long_data[1]), "blob_read_all = length(long_data[1])" );
+            cmp_ok(blob_read_all($sth, 1, \$p1, 12345) ,'==', length($long_data[1]),
+	    	"blob_read_all = length(long_data[1])" );
             ok($p1 eq $long_data[1], cdif($p1, $long_data[1]) );
+
 
             ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 3: $sqlstr"  );
             my $len = blob_read_all($sth, 1, \$p1, 34567);
 
 	    cmp_ok($len,'==', length($long_data[2]), "length of long_data[2] = $len" );
-	    ok($p1 eq $long_data[2], cdif($p1, $long_data[2]) ); # Oracle may return the right length but corrupt the string.
+	    cmp_ok_byte_nice($p1, $long_data[2], "3rd row via blob_read_all");
 
 	    print "result is ".(utf8::is_utf8($p1) ? "UTF8" : "non-UTF8")."\n";
-	    ok( !utf8::is_utf8($p1) == !$be_utf8,
-		"$type_name should be ".($be_utf8 ? "UTF8" : "non-UTF8") );
-        } #skip 13
+	    if ($be_utf8) {
+	        ok( utf8::is_utf8($p1), "result should be utf8");
+	    }
+	    else {
+	        ok( !utf8::is_utf8($p1), "result should not be utf8");
+	    }
+        } #skip
 
 
         SKIP: {

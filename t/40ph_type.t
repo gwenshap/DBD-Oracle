@@ -57,7 +57,7 @@ $_->{skip} or $tests+=8 for @tests;
 print "1..$tests\n";
 
 my ($sth,$tmp);
-my $table = "dbd_oracle_test__drop_me";
+my $table = "dbd_ora__drop_me" . ($ENV{DBD_ORACLE_SEQ}||'');
 
 # drop table but don't warn if not there
 eval {

@@ -15,7 +15,7 @@ $| = 1;
 my $t = 0;
 my $failed = 0;
 my %ocibug;
-my $table = "dbd_ora__drop_me";
+my $table = "dbd_ora__drop_me" . ($ENV{DBD_ORACLE_SEQ}||'');
 
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
