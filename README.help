@@ -298,7 +298,8 @@ $ORACLE_HOME/bin.  Try a more limited path and reinstall Oracle again.
 Environment: SGI IRIX 6  - Mark Duffield <duffield@ariad.com>
 
 Oracle only supports "-32" and "-mips2" compilation flags, not "-n32".
-Configure and build perl with -32 flag (see perl hints/irix_6.sh file).
+Configure and build perl with -32 flag (see perl hints/irix_6.sh file
+in the perl distribution).
 Rebuild DBI (which will now use the -32 flag).
 Rebuild DBD::Oracle (which will now use the -32 flag).
 

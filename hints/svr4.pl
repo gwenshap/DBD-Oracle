@@ -1,8 +1,22 @@
-# From: Alan Burlison <aburlison@cix.compulink.co.uk>
-# Date: Thu, 17 Aug 95 16:54 BST-1
+my $archname = $Config::Config{archname} || die;
+$att{LIBS}      ||= [];
+$att{LIBS}->[0] ||= '';
 
 # Some SVR4 systems may need to link against -lc to pick up things like
-$att{LIBS} = [ '-lsocket -lnsl -lm -ldl -lc' ];
+# fpsetmask and ecvt.
+my @libs = qw(-lsocket -lnsl -lm -ldl);
+
+# modified by Davide Migliavacca <davide.migliavacca@inferentia.it>
+if ($archname eq 'RM400-svr4') {
+	@libs = qw(-lucb);
+}
+
+push @libs, '-lc';
+
+warn "SVR4 LIBS attribute defaulted to '$att{LIBS}->[0]' for '$archname'";
+$att{LIBS}->[0] .= " ".join(" ", @libs);	# append libs
+warn "SVR4 LIBS attribute updated   to '$att{LIBS}->[0]'";
+
 
 __END__
 
@@ -16,8 +30,6 @@ Mime-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 
 On Fri, 18 Aug 1995, Tim Bunce wrote:
-
-> 
 > > From: Alan Burlison <aburlison@cix.compulink.co.uk>
 > > 
 > > Tim,
@@ -29,7 +41,7 @@ On Fri, 18 Aug 1995, Tim Bunce wrote:
 > > 
 > > # Some SVR4 systems may need to link against -lc to pick up things like
 > > $att{LIBS} = [ '-lsocket -lnsl -lm -ldl -lc' ];
-> > 
+>
 > Umm, 'some', 'may', 'things like'. Care to clarify?
 > 
 > Why _exactly_ is this needed, and why doesn't MakeMaker do this already?

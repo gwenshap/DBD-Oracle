@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.29 1998/12/28 00:04:37 timbo Exp $
+   $Id: dbdimp.h,v 1.30 1999/03/10 20:42:24 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -113,6 +113,7 @@ struct imp_sth_st {
     OCISvcCtx	*svchp;		/* copy of dbh pointer	*/
     OCIStmt	*stmhp;
     ub2 	stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
+    U16		auto_lob;
     int  	has_lobs;
     lob_refetch_t *lob_refetch;
 #else
@@ -201,6 +202,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     bool is_inout;
 
     IV  maxlen;		/* max possible len (=allocated buffer)	*/
+    sb4 maxlen_bound;	/* and Oracle bind has been called	*/
 
 #ifdef OCI_V8_SYNTAX
     OCIBind *bndhp;
@@ -239,7 +241,7 @@ int oci_error _((SV *h, OCIError *errhp, sword status, char *what));
 char *oci_stmt_type_name _((int stmt_type));
 char *oci_status_name _((sword status));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
-void ora_free_lob_refetch _((imp_sth_t *imp_sth));
+void ora_free_lob_refetch _((SV *sth, imp_sth_t *imp_sth));
 int post_execute_lobs _((SV *sth, imp_sth_t *imp_sth, ub4 row_count));
 
 #define OCIAttrGet_stmhp(imp_sth, p, l, a) \

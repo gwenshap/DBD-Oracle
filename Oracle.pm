@@ -1,7 +1,7 @@
 
-#   $Id: Oracle.pm,v 1.65 1998/12/28 00:04:37 timbo Exp $
+#   $Id: Oracle.pm,v 1.66 1999/03/10 20:42:24 timbo Exp $
 #
-#   Copyright (c) 1994,1995,1996,1997,1998 Tim Bunce
+#   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file,
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.59';
+$DBD::Oracle::VERSION = '0.60';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -31,7 +31,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.65 $, 10);
+    my $Revision = substr(q$Revision: 1.66 $, 10);
 
     require_version DBI 1.02;
 
@@ -67,7 +67,13 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	$ENV{PERL_BADFREE} = 0;
     }
 
-    1;
+	#sub AUTOLOAD {
+	#	(my $constname = $AUTOLOAD) =~ s/.*:://;
+	#	my $val = constant($constname);
+	#	*$AUTOLOAD = sub { $val };
+	#	goto &$AUTOLOAD;
+	#}
+
 }
 
 
@@ -88,8 +94,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    next unless defined $d;
 	    next unless open(FH, "<$d/oratab");
 	    $drh->log_msg("Loading $d/oratab\n") if $debug;
-	    while (<FH>) {
-		next unless m/^\s*(\w+)\s*:\s*(.*?)\s*:/;
+	    my $ot;
+	    while (defined($ot = <FH>)) {
+		next unless $ot =~ m/^\s*(\w+)\s*:\s*(.*?)\s*:/;
 		$dbnames{$1} = $2;	# store ORACLE_HOME value
 		$drh->log_msg("Found $1 \@ $2.\n") if $debug;
 	    }
@@ -145,38 +152,34 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	if (DBD::Oracle::ORA_OCI() >= 8) {
 	    $dbname = $1 if !$dbname && $user =~ s/\@(.*)//;
 	}
-	elsif ($dbname) {
+	elsif ($dbname) {	# OCI 7 handling below
 
 	    # We can use the 'user/passwd@machine' form of user.
 	    # $TWO_TASK and $ORACLE_SID will be ignored in that case.
-
 	    if ($dbname =~ /@/){	# Implies an Sql*NET connection
-
 		$user = "$user/$auth$dbname";
 		$auth = "";
 	    }
 	    elsif ($dbname =~ /:/){	# Implies an Sql*NET connection
-
 		$user = "$user/$auth".'@'.$dbname;
 		$auth = "";
 	    }
 	    else {
-
 		# Is this a NON-Sql*NET connection (ORACLE_SID)?
 		# Or is it an alias for an Sql*NET connection (TWO_TASK)?
 		# Sadly the 'user/passwd@machine' form only works
 		# for Sql*NET connections.
-
 		load_dbnames($drh) unless %dbnames;
-
-		if (exists $dbnames{$dbname}) {	# known name
-		    my $dbhome = $dbnames{$dbname};	# local=>ENV, remote=>0
+		if (exists $dbnames{$dbname}) {		# known name
+		    my $dbhome = $dbnames{$dbname};	# local=>ORACLE_HOME, remote=>0
 		    if ($dbhome) {
-			warn "Changing $ORACLE_ENV for $dbname to $dbhome (to match oratab entry)"
-			    if ($ENV{$ORACLE_ENV} and $dbhome ne $ENV{$ORACLE_ENV});
 			$ENV{ORACLE_SID}  = $dbname;
-			$ENV{$ORACLE_ENV} = $dbhome;
 			delete $ENV{TWO_TASK};
+			if ($attr && $attr->{ora_oratab_orahome}) {
+			    warn "Changing $ORACLE_ENV for $dbname to $dbhome (to match oratab entry)"
+				if ($ENV{$ORACLE_ENV} and $dbhome ne $ENV{$ORACLE_ENV});
+			    $ENV{$ORACLE_ENV} = $dbhome;
+			}
 		    }
 		    else {
 			$user .= '@'.$dbname;	# it's a known TNS alias
@@ -188,7 +191,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    }
 	}
 
-	warn "$ORACLE_ENV not set!\n" unless $ENV{$ORACLE_ENV};
+	warn "$ORACLE_ENV environment variable not set!\n"
+		if !$ENV{$ORACLE_ENV} and $^O ne "MSWin32";
 
 	# create a 'blank' dbh
 
@@ -858,11 +862,11 @@ or just use the corresponding integer values (112 and 113).
 
 To make scripts work with both Oracle7 and Oracle8, the Oracle7
 DBD::Oracle will treat the LOB ora_types as LONGs without error.
-So any code you may have now that looks like
+So in any code you may have now that looks like
 
   $sth->bind_param($idx, $value, { ora_type => 8 });
 
-should change the 8 (LONG type) to ORA_CLOB or ORA_BLOB
+you could change the 8 (LONG type) to ORA_CLOB or ORA_BLOB
 (or 112 or 113).
 
 One further wrinkle: for inserts and updates of LOBs DBD::Oracle has

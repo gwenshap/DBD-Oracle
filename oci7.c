@@ -1,5 +1,5 @@
 /*
-   $Id: oci7.c,v 1.5 1998/12/28 00:04:37 timbo Exp $
+   $Id: oci7.c,v 1.6 1999/03/10 20:42:24 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -244,6 +244,9 @@ dbd_describe(h, imp_sth)
 	else if (fbh->dbtype == 2 && fbh->prec == 0) {
 	    fbh->prec = 38;
 	}
+	else if ((fbh->dbtype == 1 || fbh->dbtype == 96) && fbh->prec == 0) {
+	    fbh->prec = fbh->dbsize;
+	}
 
 	/* Is it a LONG, LONG RAW, LONG VARCHAR or LONG VARRAW?		*/
 	/* If so we need to implement oraperl truncation hacks.		*/
@@ -323,6 +326,8 @@ dbd_st_fetch(sth, imp_sth)
 	    if (imp_sth->eod_errno != 1403) {	/* was not just end-of-fetch	*/
 		ora_error(sth, imp_sth->cda, imp_sth->eod_errno, "cached ofetch error");
 	    } else {				/* is simply no more data	*/
+		dTHR; 				/* for DBIc_ACTIVE_off		*/
+		DBIc_ACTIVE_off(imp_sth);	/* eg finish			*/
 		sv_setiv(DBIc_ERR(imp_sth), 0);	/* ensure errno set to 0 here	*/
 		if (debug >= 2)
 		    fprintf(DBILOGFP, "    dbd_st_fetch no-more-data, rc=%d, rpc=%ld\n",
@@ -400,8 +405,11 @@ dbd_st_fetch(sth, imp_sth)
 		/* but it'll only be accessible via prior bind_column()	*/
 		sv_setpvn(sv, (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl],
 			  fb_ary->arlen[cache_entry]);
-		if (ora_dbtype_is_long(fbh->dbtype))	/* double check */
-		    hint = ", LongReadLen too small and/or LongTruncOk not set";
+		if (ora_dbtype_is_long(fbh->dbtype)) {	/* double check */
+		    hint = (DBIc_LongReadLen(imp_sth) > 65535)
+			 ? ", LongTruncOk not set and/or LongReadLen too small or > 65535 max"
+			 : ", LongTruncOk not set and/or LongReadLen too small";
+		}
 	    }
 	    else {
 		SvOK_off(sv);	/* set field that caused error to undef	*/

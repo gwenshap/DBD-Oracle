@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.72 1998/12/28 00:04:37 timbo Exp $
+# $Id: Makefile.PL,v 1.73 1999/03/10 20:42:24 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -96,8 +96,10 @@ my $ORACLE_ENV  = ($os eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 my $OH = $ENV{$ORACLE_ENV} || '';
 $OH =~ s:\\:/:g               if $os eq 'MSWin32';
 ($OH = unixify $OH) =~ s:/$:: if $os eq 'VMS';
-die "$ORACLE_ENV environment variable must be set.\n" unless $OH;
-die "$ORACLE_ENV environment variable ($OH) not valid.\n" unless -d $OH;
+die "The $ORACLE_ENV environment variable must be set.\n"
+	unless $OH;
+die "The $ORACLE_ENV environment variable value ($OH) is not valid.\n"
+	unless -d $OH;
 
 print "Using Oracle in $OH\n";
 
@@ -156,12 +158,12 @@ elsif ($os eq 'MSWin32') {
     my %OCILIB;
     find( sub {
 	$File::Find::prune = 1 if -d $_ && $_ !~ /^\./;
-	return unless /^OCI.*\.LIB$/i;
+	return unless /^(OCI|ORA).*\.LIB$/i;
 	print "Found $OCIDIR/lib/$oci_compiler_dir/$_ library\n";
 	$OCILIB{uc($_)} = $_;
     }, "$OH/$OCIDIR/lib/$oci_compiler_dir" ) if $OCIDIR;
     # sort the version numbered libs into assending order
-    my @OCILIB = sort grep { /OCI\d\d+\./i } keys %OCILIB;
+    my @OCILIB = sort grep { /(OCI|ORA)\d\d+\./i } keys %OCILIB;
     # prefer the non-versioned library if present
     push @OCILIB, "OCI.LIB"    if $OCILIB{'OCI.LIB'};
     # opt_8 means DISABLE use of OCI 8 API
@@ -339,6 +341,9 @@ print "\nLinking with $linkwith_msg\n" if $linkwith_msg;
 print "\n";
 
 WriteMakefile(%opts);
+
+print "\n***  If you have problems, read the README and README.help files   ***\n";
+print   "     (Of course, you have read README by now anyway, haven't you?)\n\n";
 
 exit 0;
 

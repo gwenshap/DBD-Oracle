@@ -246,21 +246,22 @@ http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
 ===============================================================================
 Some platforms on which the DBI and DBD::Oracle modules run:
 
-	Solaris 1 and 2
-	Windows NT (using Perl5.004)
-	HP-UX 9 and 10
-	Unisys U6000/300
-	SCO 3
-	Sequent DYNIX/ptx 2
-	Motorola M88100 (SVR3.2)
-	DEC UNIX 3.2
-	DEC Alpha
-	DG/UX 5.4
-	OSF/1
-	SGI IRIX 5 & 6
 	AIX 3 & 4
+	DEC Alpha
+	DEC UNIX 3.2
+	DG/UX 5.4
+	HP-UX 9 and 10
+	Linux (on platforms supported by Oracle 8)
+	Motorola M88100 (SVR3.2)
+	OSF/1
 	Pyramid SMP DC/OSx
+	SCO 3
+	SGI IRIX 5 & 6
+	Sequent DYNIX/ptx 2
+	Solaris 1 and 2
+	Unisys U6000/300
 	VMS
+	Windows NT (using Perl5.004)
 	and others
 
 (please let me know if your system is not listed).

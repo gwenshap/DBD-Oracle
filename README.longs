@@ -24,12 +24,13 @@ Thanks to Jurgen Botz <jbotz@reference.com>
 ----------------------------------------------------------------------
 Example for reading LONG fields via blob_read:
  
+	$ora_trunc = 1;	# truncation on initial fetch is ok
     my $sql = "SELECT long_field FROM table_name WHERE id = :1";
     my $csr = ora_open($lda, $sql) or die $ora_errstr;
     ora_bind($csr, $id) or die $ora_errstr;
     # ora_fetch() needs to be called in an array context
     my (@data) = ora_fetch($csr);
-	die $ora_errstr if $ora_errno;
+	die $ora_errstr if $ora_errno and $ora_errno != 1406;
     my $blob = '';
     my $lump = 4096; # use benchmarks to get best value for you
     my $offset = 0;

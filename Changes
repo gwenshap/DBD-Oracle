@@ -1,3 +1,24 @@
+
+Changes in DBD::Oracle 0.60, 10th March 1999
+
+  Fetching all records now resets Active flag as it should.
+  Finally fixed "Can't bind unknown placeholder" (hopefully :-).
+  Fixed placeholder parser to ignore comments, thanks to JD Laub.
+  Fixed placeholder parser to ignore double-quotes strings.
+  No longer changes ORACLE_HOME to match oratab, by default.
+  Fixes for OCI 8:
+    Fixed selection of very large numbers (132 digits).
+    Fixed small memory leak in parameter binding.
+    Fixed small memory leak in prepare of statements using LOBs.
+    Fixed binding empty strings.
+    Fixed OCILobRead error when fetching of zero length LOBs.
+    Fixed OCILobWrite of zero length to use OCILobTrim instead.
+    Treat SUCCESS_WITH_INFO from OCIStmtExecute as SUCCESS.
+    Enabled OCI_CRED_EXT login thanks to Alan Burlison & Jeremy Brinkley.
+  Modified hints/svr4.pl - SVR4 users please test.
+  Updated Alan Burlison's ora_explain Tk tool to version 1.0.
+  Documented dbms_msgpipe_get and dbms_msgpipe_ack methods.
+
 Changes in DBD::Oracle 0.59 (Oraperl 1.37), 27th December 1998
 
   Fixed detection of ambiguous LOB-param-to-table-field assignment

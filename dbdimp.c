@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.47 1998/12/28 00:04:37 timbo Exp $
+   $Id: dbdimp.c,v 1.48 1999/03/10 20:42:24 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -175,6 +175,7 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
 
 #ifdef OCI_V8_SYNTAX
     D_imp_drh_from_dbh;
+    ub4 cred_type;
 
     if (!imp_drh->envhp) {
 	/* OCI_OBJECT needed for OCIDescribeAny of table with LOBs	*/
@@ -212,15 +213,20 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
                  (ub4) 0, OCI_ATTR_SERVER, imp_dbh->errhp);
 
     OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->authp, OCI_HTYPE_SESSION);
-    OCIAttrSet(imp_dbh->authp, OCI_HTYPE_SESSION,
-                 uid, strlen(uid),
-                 (ub4) OCI_ATTR_USERNAME, imp_dbh->errhp);
-    OCIAttrSet(imp_dbh->authp, OCI_HTYPE_SESSION,
-                 (strlen(pwd)) ? pwd : NULL, strlen(pwd),
-                 (ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp);
-
+    if (*uid == '\0' && *pwd == '\0') {
+	cred_type = OCI_CRED_EXT;
+    }
+    else {
+        OCIAttrSet(imp_dbh->authp, OCI_HTYPE_SESSION,
+                   uid, strlen(uid),
+                   (ub4) OCI_ATTR_USERNAME, imp_dbh->errhp);
+        OCIAttrSet(imp_dbh->authp, OCI_HTYPE_SESSION,
+                   (strlen(pwd)) ? pwd : NULL, strlen(pwd),
+                   (ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp);
+	cred_type = OCI_CRED_RDBMS;
+    }
     ret=OCISessionBegin( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,
-		OCI_CRED_RDBMS, (ub4) OCI_DEFAULT);
+		cred_type, (ub4) OCI_DEFAULT);
     if (ret != OCI_SUCCESS) {
 	oci_error(dbh, imp_dbh->errhp, ret, "OCISessionBegin");
 	OCIServerDetach(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT );
@@ -485,6 +491,7 @@ dbd_preparse(imp_sth, statement)
     char *statement;
 {
     bool in_literal = FALSE;
+    char in_comment = '\0';
     char *src, *start, *dest;
     phs_t phs_tpl;
     SV *phs_sv;
@@ -500,16 +507,63 @@ dbd_preparse(imp_sth, statement)
     memset(&phs_tpl, 0, sizeof(phs_tpl));
     phs_tpl.imp_sth = imp_sth;
     phs_tpl.ftype = 1;	/* VARCHAR2 */
+    phs_tpl.maxlen_bound = -1;	/* not yet bound */
 
     src  = statement;
     dest = imp_sth->statement;
     while(*src) {
-	if (*src == '\'')
-	    in_literal = ~in_literal;
-	if ((*src != ':' && *src != '?') || in_literal) {
+
+	if (in_comment) {
+	    /* 981028-jdl on mocha.  Adding all code which deals with           */
+	    /*  in_comment variable (its declaration plus 2 code blocks).       */
+	    /*  Text appearing within comments should be scanned for neither    */
+	    /*  placeholders nor for single quotes (which toggle the in_literal */
+	    /*  boolean).  Comments like "3:00" demonstrate the former problem, */
+	    /*  and contractions like "don't" demonstrate the latter problem.   */
+	    /* The comment style is stored in in_comment; each style is */
+	    /* terminated in a different way.                          */
+	    if (in_comment == '-' && *src == '\n') {
+		in_comment = '\0';
+	    }
+	    else if (in_comment == '/' && *src == '*' && *(src+1) == '/') {
+		*dest++ = *src++; /* avoids asterisk-slash-asterisk issues */
+		in_comment = '\0';
+	    }
 	    *dest++ = *src++;
 	    continue;
 	}
+
+	if (in_literal) {
+	    if (*src == in_literal)
+		in_literal = 0;
+	    *dest++ = *src++;
+	    continue;
+	}
+
+	/* Look for comments: '-- oracle-style' or C-style	*/
+	if ((*src == '-' && *(src+1) == '-') ||
+	    (*src == '/' && *(src+1) == '*'))
+	{
+	    in_comment = *src;
+	    /* We know *src & the next char are to be copied, so do */
+	    /*  it.  In the case of C-style comments, it happens to */
+	    /*  help us avoid slash-asterisk-slash oddities.        */
+	    *dest++ = *src++;
+	    *dest++ = *src++;
+	    continue;
+	}
+
+	if (*src != ':' && *src != '?') {
+
+	    if (*src == '\'' || *src == '"')
+		in_literal = *src;
+
+	    *dest++ = *src++;
+	    continue;
+	}
+
+	/* only here for : or ? outside of a comment or literal	*/
+
 	start = dest;			/* save name inc colon	*/ 
 	*dest++ = *src++;
 	if (*start == '?') {		/* X/Open standard	*/
@@ -601,10 +655,14 @@ ora_sql_type(imp_sth, name, sql_type)
     char *name;
     int sql_type;
 {
+    /* XXX should detect DBI reserved standard type range here */
+
     switch (sql_type) {
     case SQL_NUMERIC:
     case SQL_DECIMAL:
     case SQL_INTEGER:
+    case SQL_BIGINT:
+    case SQL_TINYINT:
     case SQL_SMALLINT:
     case SQL_FLOAT:
     case SQL_REAL:
@@ -615,9 +673,22 @@ ora_sql_type(imp_sth, name, sql_type)
     case SQL_CHAR:
 	return 5;	/* Oracle CHAR		*/
 
+    case SQL_BINARY:
+    case SQL_VARBINARY:
+	return 23;	/* Oracle RAW		*/
+
+    case SQL_LONGVARBINARY:
+	return 24;	/* Oracle LONG RAW	*/
+
+    case SQL_LONGVARCHAR:
+	return 8;	/* Oracle LONG		*/
+
+    case SQL_DATE:
+    case SQL_TIME:
+    case SQL_TIMESTAMP:
     default:
 	if (DBIc_WARN(imp_sth) && imp_sth && name)
-	    warn("SQL type %d for '%s' is not fully supported, bound as VARCHAR instead");
+	    warn("SQL type %d for '%s' is not fully supported, bound as SQL_VARCHAR instead");
 	return ora_sql_type(imp_sth, name, SQL_VARCHAR);
     }
 }
@@ -666,7 +737,7 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 	/* pre-upgrade high to reduce risk of SvPVX realloc/move	*/
 	(void)SvUPGRADE(phs->sv, SVt_PVNV);
 	/* ensure room for result, 28 is magic number (see sv_2pv)	*/
-	SvGROW(phs->sv, (phs->maxlen < 28) ? 28 : phs->maxlen+1/*for null*/);
+	SvGROW(phs->sv, ((phs->maxlen < 28) ? 28 : phs->maxlen)+1/*for null*/);
     }
     else {
 	/* phs->sv is copy of real variable, upgrade to at least string	*/
@@ -787,24 +858,27 @@ dbd_rebind_ph(sth, imp_sth, phs)
     }
 
 #ifdef OCI_V8_SYNTAX
-    status = OCIBindByName(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
-	    (text*)phs->name, strlen(phs->name),
-	    phs->progv, phs->maxlen,
-	    phs->ftype, &phs->indp,
-	    NULL,	/* ub2 *alen_ptr not needed with OCIBindDynamic */
-	    &phs->arcode,
-	    0,		/* max elements that can fit in allocated array	*/
-	    NULL,	/* (ptr to) current number of elements in array	*/
-	    OCI_DATA_AT_EXEC);
-    if (status != OCI_SUCCESS) {
+    if (phs->maxlen > phs->maxlen_bound) {
+	status = OCIBindByName(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+		(text*)phs->name, strlen(phs->name),
+		phs->progv,
+		phs->maxlen ? phs->maxlen : 1,	/* else bind "" fails	*/
+		phs->ftype, &phs->indp,
+		NULL,	/* ub2 *alen_ptr not needed with OCIBindDynamic */
+		&phs->arcode,
+		0,		/* max elements that can fit in allocated array	*/
+		NULL,	/* (ptr to) current number of elements in array	*/
+		OCI_DATA_AT_EXEC);
+	if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
 	return 0;
-    }
-    status = OCIBindDynamic(phs->bndhp, imp_sth->errhp,
-		    (dvoid *)phs, dbd_phs_in, (dvoid *)phs, dbd_phs_out);
-    if (status != OCI_SUCCESS) {
+	}
+	status = OCIBindDynamic(phs->bndhp, imp_sth->errhp,
+			(dvoid *)phs, dbd_phs_in, (dvoid *)phs, dbd_phs_out);
+	if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
 	return 0;
+	}
     }
 
 #else
@@ -824,6 +898,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
 	return 0;
     }
 #endif
+    phs->maxlen_bound = phs->maxlen ? phs->maxlen : 1;
     if (dbis->debug >= 3)
  	fprintf(DBILOGFP, "       bind %s done\n", phs->name);
     return 1;
@@ -843,24 +918,23 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 {
     SV **phs_svp;
     STRLEN name_len;
-    char *name;
+    char *name = Nullch;
     char namebuf[30];
     phs_t *phs;
 
     /* check if placeholder was passed as a number	*/
 
-    if (!SvNIOK(ph_namesv) && !SvPOK(ph_namesv)) {
-	SvPV(ph_namesv, na);	/* force SvPOK */
+    if (SvGMAGICAL(ph_namesv))	/* eg if from tainted expression */
+	mg_get(ph_namesv);
+    if (!SvNIOKp(ph_namesv)) {
+	name = SvPV(ph_namesv, name_len);
     }
-    if (SvNIOK(ph_namesv) || (SvPOK(ph_namesv) && isDIGIT(*SvPVX(ph_namesv)))) {
+    if (SvNIOKp(ph_namesv) || (name && isDIGIT(name[0]))) {
 	sprintf(namebuf, ":p%d", (int)SvIV(ph_namesv));
 	name = namebuf;
 	name_len = strlen(name);
     }
-    else {		/* use the supplied placeholder name directly */
-	name = SvPV(ph_namesv, name_len);
-	/* could check for leading colon here */
-    }
+    assert(name != Nullch);
 
     if (SvTYPE(newvalue) > SVt_PVLV) /* hook for later array logic	*/
 	croak("Can't bind a non-scalar value (%s)", neatsvpv(newvalue,0));
@@ -910,10 +984,6 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 		if (sql_type)
 		    croak("Can't specify both TYPE (%d) and ora_type (%d) for %s",
 			    sql_type, ora_type, phs->name);
-#ifndef OCI_V8_SYNTAX	/* treat Oracle8 LOBS as simple LONGs for Oracle7 */
-		if (ora_type==112 || ora_type==113)
-		    ora_type = 8;
-#endif
 		phs->ftype = ora_type;
 	    }
 	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_field",9, 0)) != NULL) {
@@ -922,6 +992,11 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	}
 	if (sql_type)
 	    phs->ftype = ora_sql_type(imp_sth, phs->name, sql_type);
+
+#ifndef OCI_V8_SYNTAX	/* treat Oracle8 LOBS as simple LONGs for Oracle7 */
+	if (phs->ftype==112 || phs->ftype==113)
+	    phs->ftype = 8;
+#endif
 
 	/* some types require the trailing null included in the length.	*/
 	phs->alen_incnull = (phs->ftype==SQLT_STR || phs->ftype==SQLT_AVC);
@@ -1031,7 +1106,7 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		/* we don't AutoCommit on select so LOB locators work */
 		(DBIc_has(imp_dbh,DBIcf_AutoCommit) && !is_select)
 			? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT);
-    if (status != OCI_SUCCESS) {
+    if (status != OCI_SUCCESS && status != OCI_SUCCESS_WITH_INFO) {
 	oci_error(sth, imp_sth->errhp, status, "OCIStmtExecute");
 	return -2;
     }
@@ -1332,7 +1407,7 @@ dbd_st_destroy(sth, imp_sth)
     {
 	sword status;
 	if (imp_sth->lob_refetch)
-	    ora_free_lob_refetch(imp_sth);
+	    ora_free_lob_refetch(sth, imp_sth);
 	status = OCIHandleFree(imp_sth->stmhp, OCI_HTYPE_STMT);
 	if (status != OCI_SUCCESS)
 	    oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
@@ -1417,11 +1492,14 @@ dbd_st_FETCH_attrib(sth, imp_sth, keysv)
 	return Nullsv;	
 
     if (!imp_sth->done_desc && !dbd_describe(sth, imp_sth)) {
+	STRLEN lna;
 	/* dbd_describe has already called ora_error()		*/
 	/* we can't return Nullsv here because the xs code will	*/
 	/* then just pass the attribute name to DBI for FETCH.	*/
-	croak("Describe failed during %s->FETCH(%s)",
-		SvPV(sth,na), key);
+	croak("Describe failed during %s->FETCH(%s): %ld: %s",
+		SvPV(sth,na), key, (long)SvIV(DBIc_ERR(imp_sth)),
+		SvPV(DBIc_ERRSTR(imp_sth),lna)
+	);
     }
 
     i = DBIc_NUM_FIELDS(imp_sth);

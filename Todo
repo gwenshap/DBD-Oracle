@@ -1,7 +1,11 @@
+PRECISION for oci7 on VARCHAR etc
+
+Detect "Error while trying to retrieve text for error ORA-XXXX"
+and add "refer to oracle docs or use 'oerr ora XXXX'".
+
+blob_read for oci8
 
 connect(..., { ora_module_name => $0 });
-
-prepare("insert .. into ... RETURNING foo INTO :bar")
 
 bind_param(... { TYPE => SQL_* }) esp SQL_LONGVARCHAR etc
 

@@ -38,7 +38,7 @@ if ($dbh->err && ($dbh->err==900 || $dbh->err==6553 || $dbh->err==600)) {
 
 print "1..$tests\n";
 
-my($csr, $p1, $p2);
+my($csr, $p1, $p2, $tmp);
 #DBI->trace(4,"trace.log");
 
 
@@ -149,6 +149,24 @@ ok(0, $p1 eq 'null!');
 $csr->finish;
 
 
+ok(0, $csr = $dbh->prepare(q{
+    begin
+	:out := nvl(upper(:in), 'null');
+    end;
+}), 1);
+#$csr->trace(3);
+my $out;
+ok(0, $csr->bind_param_inout(':out', \$out, 1000), 1);
+
+ok(0, $csr->bind_param(':in', "foo"), 1);
+ok(0, $csr->execute, 1);
+ok(0, $out eq "FOO");
+
+ok(0, $csr->bind_param(':in', ""), 1);
+ok(0, $csr->execute, 1);
+ok(0, $out eq "null");
+
+
 # --- test out buffer being too small
 ok(0, $csr = $dbh->prepare(q{
     begin
@@ -158,10 +176,12 @@ ok(0, $csr = $dbh->prepare(q{
 #$csr->trace(3);
 undef $p1;	# force buffer to be freed
 ok(0, $csr->bind_param_inout(':arg', \$p1, 20), 1);
-# Fails with:
+# Execute fails with:
 #	ORA-06502: PL/SQL: numeric or value error
 #	ORA-06512: at line 3 (DBD ERROR: OCIStmtExecute)
-ok(0, !defined $csr->execute, 1);
+$tmp = $csr->execute;
+#$tmp = undef if DBD::Oracle::ORA_OCI()==8; # because BindByName given huge max len
+ok(0, !defined $tmp, 1);
 # rebind with more space - and it should work
 ok(0, $csr->bind_param_inout(':arg', \$p1, 200), 1);
 ok(0, $csr->execute, 1);
@@ -239,7 +259,7 @@ $dbh->disconnect;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 49 }
+BEGIN { $tests = 57 }
 # end.
 
 __END__
