@@ -1493,7 +1493,7 @@ many misconceptions about Unicode and you may be holding some of them.
 
 Perl began implementing Unicode with version 5.6, but the implementaion
 was not finalized until version 5.8 and later. If you plan to use Unicode
-you are strong urged to use perl 5.8.2 or later and to I<carefully> read
+you are strongly urged to use perl 5.8.2 or later and to I<carefully> read
 the perl documention on Unicode:
 
    perldoc perluniintro    # in perl 5.8 or later
@@ -1564,7 +1564,18 @@ When DBD::Oracle is built in this environment the -DNEW_OCI_INIT will be
 seen on the compiler command line.  If you do not see this you have not
 got the requisite environment.
 
-XXX need a run-time way to check that.
+XXX need a run-time way to check that. 
+
+LAB: yes we do! it would solve some of the problems I saw in my testing
+today.  I was wondering if we could #define something, and store it maybe as
+a static float in dbdimp.c. We may also want a way to understand the server
+version number, so we can turn things off, it it is not high enough.
+
+BTW: My ace DBA at work promised me an 8.1.7 sandbox I can test
+with tomorrow, to see what happens when we use a 9.2 client talking to
+a 8.1.7 database. 
+
+end XXX
 
 B<Fetching Data>
 
@@ -1578,10 +1589,25 @@ in the previous section.
 When pulling data from Oracle, DBD::Oracle is conservative about setting
 the UTF8 flag on the returned string.  If the string does not look like it
 contains UTF8 data, the utf8 attribute will not be set.
-XXX "look like"?
+
+XXX "look like"? 
+
+LAB: well thats a good point.  Look at line 487 and following
+in oci8.c.  What this means is, if it discovers a byte in the byte string which 
+has the high bit set. (ANDs with 0x80) then it assumes it is dealing with 
+a UTF8 string. and turns on the flag.  We (or I anyway) inherited 
+this routine.  At first I was suspicious, but I now beleive it does no 
+harm... EXCEPT possibly in the case of 8bit characters, although the 
+21nhars.t test tests this with an 8bit charset successfully. So I am 
+not very worried about this case.
 
 XXX should we always and only set SvUTF8_on if the csid is a UTF8 csid,
-and ignore all other issues?
+and ignore all other issues?  
+
+LAB: I don't think so now.  I am inclined to worry about possible 
+performance issues related to this.  And the code works as it is.
+I think we should just describe (as I did above) what "looks like" means,
+perhaps as for feedback on any issues that users think might be arising.
 
 
 B<Sending Data using Placeholders>
@@ -1608,15 +1634,26 @@ DBD::Oracle will implicitly set SQLCS_NCHAR for you on insert.
 B<Sending Data using SQL>
 
 XXX if the $statement is SvUTF8(sv) then we should set SQLCS_NCHAR
-on the relevant calls?
+on the relevant calls?  
+
+LAB: By $statement are you referring what is prepared,
+or are you refering to the values passed to execute().  The former
+is probably not very useful, and I think I did the latter.
+Look at line 1533 of dbdimp.c  AND t/24implicit_utf8.t which tests this.
+
+end XXX
+
 
 B<When NLS_LANG Is Not Set>
 
 If NLS_LANG is not set, then DBD::Oracle will initialize the OCI
-environment with UTF8 (csid=871) as the default national character set.
-XXX should use AL32UTF8 if available.
+environment with UTF8 (csid=871) as the default national 
+character set.
 
-This will possibly get you what you want, but it is strongly recomended
+XXX should use AL32UTF8 if available. LAB: I just tried to
+change it and it broke the 30long.t pretty badly.  XXX
+
+This may possibly get you what you want, but it is strongly recomended
 that you always explicitly set NLS_LANG to the required value. That way all
 Oracle tools you may use will be in sync.
 

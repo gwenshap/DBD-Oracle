@@ -436,9 +436,9 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
             }
             /* HACK for when NLS_LANG is NOT set... use the utf8 ncharsetid  */
             if ( 1 && (ncharsetid==1) ) {
-                ncharsetid = utf8_csid; /* NLS_LANG was not set... default it */
+                ncharsetid = utf8_csid; /* NLS_LANG was not set... default it (lab: al32utf8 BREAKS 30long.t) */
                 if ( DBIS->debug >= 1 )
-                   PerlIO_printf(DBILOGFP,"NLS_LANG was not set or invalid, using ncharsetid=%d\n" ,utf8_csid ); 
+                   PerlIO_printf(DBILOGFP,"NLS_LANG was not set or invalid, using ncharsetid=%d\n" ,ncharsetid ); 
             }
 
 	    /*{
