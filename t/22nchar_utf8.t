@@ -120,7 +120,7 @@ SKIP: {
        ok($sel_sth->bind_col( $colnum++, \$idx  ), 'bind_col ch_col' ); 
        ok($sel_sth->bind_col( $colnum++, \$ch_col  ), 'bind_col ch_col' ); 
        ok($sel_sth->bind_col( $colnum++, 
-                              \$nch_col ), 'bind_col nch_col (implicit)' ); 
+                              \$nch_col ), 'bind_col nch_col' ); 
                               #\$nch_col ,{ ora_csform => $csform } ), 'bind ncl_col ora_csform => SQLCS_NCHAR' );
        ok($sel_sth->bind_col( $colnum++ ,\$dt ),   'bind_col dt' );
     }
@@ -236,8 +236,8 @@ sub check_ncharset
     #warn Dumper( $paramsH );
     print "Database character set is " .$paramsH->{NLS_CHARACTERSET} ."\n";
     print "Database NCHAR character set is " .$paramsH->{NLS_NCHAR_CHARACTERSET} ."\n";
-    if ( $paramsH->{NLS_NCHAR_CHARACTERSET} ne 'UTF8' ) {
-        print "Database NCHAR character set is not 'UTF8'\n" #  ."Some of these tests will likely fail\n"
+    if ( $paramsH->{NLS_NCHAR_CHARACTERSET} !~ m/UTF/ ) {
+        print "Database NCHAR character set is not UTF8 or AL16UTF16\n" #  ."Some of these tests will likely fail\n"
         ;
         return 0;
     }
@@ -251,7 +251,9 @@ sub show_nls_info
        return "\nsetting NLS_LANG=AMERICAN_AMERICA.UTF8 for $0\n";
 
    } else {
-       return "\nNLS_LANG=" .$ENV{NLS_LANG}. "\n" ;
+       my $ret = "\nNLS_LANG=" .$ENV{NLS_LANG}. "\n" ;
+       $ret .= "NLS_NCHAR=" .$ENV{NLS_NCHAR} ."\n" if $ENV{NLS_NCHAR};
+       return $ret;
    }
 }
 

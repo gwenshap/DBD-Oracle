@@ -1238,10 +1238,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    return 0;
 	}
 
-#ifdef OCI_ATTR_CHARSET_ID
-        /* lab sure we always just do this? 
-         * I think so...
-         */
+#ifdef OCI_ATTR_CHARSET_ID /* lab: without this, it BREAKS! */
         if ( 1 || (fbh->dbtype == 1) ) {
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csid, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
@@ -1362,15 +1359,14 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 			--datalen;
 		}
 		sv_setpvn(sv, p, (STRLEN)datalen);
-#ifdef OCI_ATTR_CHARSET_ID /* */
-                if ( (fbh->dbtype==1) && (fbh->csform) && (fbh->csid==871) )
+#if 0 /*def OCI_ATTR_CHARSET_ID /* */
+                if ( (fbh->dbtype==1) && (fbh->csform) ) /* && (fbh->csid==871) ) */
                 { 
-                    /* PerlIO_printf(DBILOGFP, "*** (lab) trying to convert sv for for field # %d to utf8\n" ,i+1 ); */
                     DBD_SET_UTF8(sv);
                 } 
 #endif
 
-#ifdef LAB_SKIP_THIS /*UTF8_SUPPORT*/
+#if 1 /*def LAB_SKIP_THIS /*UTF8_SUPPORT*/
 		DBD_SET_UTF8(sv);
 #endif
 	    }

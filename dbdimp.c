@@ -37,8 +37,13 @@ int ora_fetchtest;	/* intrnal test only, not thread safe */
 int is_extproc = 0;
 
 #ifdef UTF8_SUPPORT
+ub2 charsetid = 0;
+ub2 ncharsetid = 0;
+int database_is_widemode = 0;
 int cs_is_utf8 = 0;
 int utf8_csid = 871;
+int al32utf8_csid = 873;
+int al16utf16_csid = 2000;
 #endif
 
 static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
@@ -365,8 +370,6 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	}
 	else {		/* Normal connect. */
 
-             ub2 charsetid = 0;
-             ub2 ncharsetid = 0;
              size_t rsize = 0;
 
 	    imp_drh->proc_handles = 0;
@@ -378,14 +381,13 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
             OCINlsEnvironmentVariableGet_log_stat( &charsetid, 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
-                    "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
+                    "OCINlsEnvironmentVariableGet. (database charset) Check ORACLE_HOME and NLS settings etc.");
                 return 0;
             }
-
             OCINlsEnvironmentVariableGet_log_stat( &ncharsetid, 0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
-                    "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
+                    "OCINlsEnvironmentVariableGet. (database Ncharset) Check ORACLE_HOME and NLS settings etc.");
                 return 0;
             }
 
@@ -395,17 +397,60 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                     "OCIEnvNlsCreate. Check ORACLE_HOME and NLS settings etc.");
                 return 0;
             }
-            /* PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"UTF8\") returns %d\n", 
-            *          OCINlsCharSetNameToId(imp_drh->envhp, "UTF8") );
-            *  PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"AL32UTF8\") returns %d\n", 
-            *          OCINlsCharSetNameToId(imp_drh->envhp, "AL32UTF8") );
-            */    
+                
+
+            /* get the possible utf8/16 character set ids */
             utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "UTF8");
-	    if (status != OCI_SUCCESS) {
-	 	oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
-	 	return 0;
+            al32utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "AL32UTF8");
+            al16utf16_csid = OCINlsCharSetNameToId(imp_drh->envhp, "AL16UTF16");
+            if ( 0 || DBIS->debug >= 3 )
+                PerlIO_printf(DBILOGFP,"      utf8_csid=%d al32utf8_csid=%d al16utf16_csid=%d\n", 
+                                              utf8_csid,   al32utf8_csid,   al16utf16_csid );
+#if 0
+            database_is_widemode = ( charsetid == utf8_csid )
+                       || ( charsetid == al32utf8_csid )
+                       || ( charsetid == al16utf16_csid )
+                       ;
+#endif
+            /* Nota Bene: while NLS_LANG and NLS_NCHAR are supposed distinct if they are both
+             * used, I can find no way to distinquish them.  So for now we will use the 
+             * ncharsetid as the id most likely to be a UTF8 charset.  If it becomes possible to
+             * distinquish later, we can get smarter.
+             */
+
+            cs_is_utf8 = ( ncharsetid == utf8_csid )
+                       || ( ncharsetid == al32utf8_csid )
+                       || ( ncharsetid == al16utf16_csid )
+                       /* || database_is_widemode */
+                       ;
+            if ( cs_is_utf8 ) utf8_csid = ncharsetid;
+            if ( 0 || (DBIS->debug >= 3) )
+                PerlIO_printf(DBILOGFP,"      charsetid=%d ncharsetid=%d cs_is_utf8=%d database_is_widemode=%d\n", 
+                                              charsetid,   ncharsetid,   cs_is_utf8,   database_is_widemode );
+
+#if 0
+            {
+                ub2 csid = 0;
+                ub2 ncsid = 0;
+
+                OCIAttrGet_log_stat(imp_dbh->envhp, OCI_DTYPE_PARAM, &csid, (ub4)0 ,
+                                    OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
+                if (status != OCI_SUCCESS) {
+                    oci_error(dbh, imp_dbh->errhp, status,
+                              "OCIAttrGet. Failed to get charset id.");
+                    return 0;
+                }
+
+                OCIAttrGet_log_stat(imp_dbh->envhp, OCI_DTYPE_PARAM, &ncsid, (ub4)0 ,
+                                    OCI_ATTR_ENV_NCHARSET_ID, imp_dbh->errhp, status);
+                if (status != OCI_SUCCESS) {
+                    oci_error(dbh, imp_dbh->errhp, status,
+                              "OCIAttrGet. Failed to get ncharset id.");
+                    return 0;
+                }
+                PerlIO_printf(DBILOGFP,"XXXXXX csid=%d ncsid=%d\n" ,csid ,ncsid );
             }
-            cs_is_utf8 = ( ncharsetid == utf8_csid );
+#endif
 
 #else /* (the old init code) NEW_OCI_INIT */
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
@@ -420,6 +465,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 		oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCIEnvInit");
 		return 0;
 	    }
+
 #endif /* NEW_OCI_INIT */
         }
     }
@@ -1423,21 +1469,48 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
      *    $dbh->{ora_ph_csform} = 2;	# default all future ph to SQLCS_NCHAR
      */
     
-    if ( rebind_ok && phs->csform != SQLCS_IMPLICIT ) {
-	sword status;
+    if ( rebind_ok ) 
+    {
+        /* set csform implicitly if sv is UTF8 and it is not already set ... */
+        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && cs_is_utf8  /* && column supports utf8? */ ) {
+            if (0 || DBIS->debug >= 2) {
+                PerlIO_printf(DBILOGFP, "      sv was UTF8, implicitly setting phs->csform=%d\n" ,SQLCS_NCHAR ); 
+            }
+            phs->csform = SQLCS_NCHAR;
+        }
 
-	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
-	    &phs->csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
-	if ( status != OCI_SUCCESS ) {
-	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet")); 
-	    rebind_ok = 0;
-	}
+        if ( phs->csform != SQLCS_IMPLICIT ) {
+            sword status;
 
-	if (DBIS->debug >= 2) {
-	    PerlIO_printf(DBILOGFP, "       bind %s <== %s (type %ld, csform %d)\n",
-	                  name, neatsvpv(newvalue,0), (long)sql_type, phs->csform );
+            OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
+                &phs->csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
+            if ( status != OCI_SUCCESS ) {
+                oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)")); 
+                rebind_ok = 0;
+            }
 
-	}
+            if (DBIS->debug >= 2) {
+                PerlIO_printf(DBILOGFP, "       bind %s <== %s (type %ld, csform %d)\n",
+                              name, neatsvpv(newvalue,0), (long)sql_type, phs->csform );
+
+            }
+
+#if 0
+            OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND
+                &utf8_csid (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID imp_sth->errhp, status);
+            if ( status != OCI_SUCCESS ) {
+                oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet")); 
+                rebind_ok = 0;
+            }
+#endif
+
+            OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
+                neatsvpv(newvalue,0), (ub4)phs->maxlen, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
+            if ( status != OCI_SUCCESS ) {
+                oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)")); 
+                rebind_ok = 0;
+            }
+        }
     }
 
 #endif /* LAB_UNICODE_SUPPORT */
