@@ -2404,7 +2404,72 @@ name, but I thank them all. Many are named in the Changes file.
 
 See also L<DBI/ACKNOWLEDGEMENTS>.
 
+=head1 CONTRIBUTING
+
+If you'd like DBD::Oracle to do something new or different the best way
+to make that happen is to do it yourself and send me a patch to the
+source code that shows the changes.
+
+=head2 How to create a patch using Subversion
+
+The DBD::Oracle source code is maintained using Subversion (a replacement
+for CVS, see L<http://subversion.tigris.org/>). To access the source
+you'll need to install a Subversion client. Then, to get the source
+code, do:
+
+  svn checkout http://svn.perl.org/modules/dbd-oracle/trunk
+
+If it prompts for a username and password use your perl.org account
+if you have one, else just 'guest' and 'guest'. The source code will
+be in a new subdirectory called C<trunk>.
+
+After making your changes you can generate a patch file, but before
+you do, make sure your source is still upto date using:
+
+  svn update http://svn.perl.org/modules/dbd-oracle/trunk
+
+If you get any conflicts reported you'll need to fix them first.
+Then generate the patch file from within the C<trunk> directory using:
+
+  svn diff > foo.patch
+
+Read the patch file, as a sanity check, and then email it to dbi-dev@perl.org.
+
+=head2 How to create a patch without Subversion
+
+Unpack a fresh copy of the distribution:
+
+  tar xfz DBD-Oracle-1.40.tar.gz
+
+Rename the newly created top level directory:
+
+  mv DBD-Oracle-1.40 DBD-Oracle-1.40.your_foo
+
+Edit the contents of DBD-Oracle-1.40.your_foo/* till it does what you want.
+
+Test your changes and then remove all temporary files:
+
+  make test && make distclean
+
+Go back to the directory you originally unpacked the distribution:
+
+  cd ..
+
+Unpack I<another> copy of the original distribution you started with:
+
+  tar xfz DBD-Oracle-1.40.tar.gz
+
+Then create a patch file by performing a recursive C<diff> on the two
+top level directories:
+
+  diff -r -u DBD-Oracle-1.40 DBD-Oracle-1.40.your_foo > DBD-Oracle-1.40.your_foo.patch
+
+=head2 Speak before you patch
+
+For anything non-trivial or possibly controversial it's a good idea
+to discuss (on dbi-dev@perl.org) the changes you propose before
+actually spending time working on them. Otherwise you run the risk
+of them being rejected because they don't fit into some larger plans
+you may not be aware of.
+
 =cut
-
-
-
