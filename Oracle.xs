@@ -40,8 +40,8 @@ void
 ORA_OCI()
     CODE:
     SV *sv = sv_newmortal();
-    sv_setnv(sv, floor(atof(ORA_OCI_VERSION)));
-    sv_setpv(sv, ORA_OCI_VERSION);
+    sv_setnv(sv, atof(ORA_OCI_VERSION));	/* 9.1! see docs */
+    sv_setpv(sv, ORA_OCI_VERSION);		/* 9.10.11.12    */
     SvNOK_on(sv); /* dualvar hack */
     ST(0) = sv;
 

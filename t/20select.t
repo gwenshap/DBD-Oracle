@@ -35,7 +35,7 @@ my $utf8_test = ($] >= 5.006)
 	&& ($dbh->ora_can_unicode() & 2);
 print "Including unicode test\n" if $utf8_test;
 
-unless(create_test_table("str CHAR(10)")) {
+unless(create_test_table("str CHAR(10)", 1)) {
     warn "Unable to create test table ($DBI::errstr)\nTests skiped.\n";
     print "1..0\n";
     exit 0;

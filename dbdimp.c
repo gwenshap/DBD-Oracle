@@ -1883,7 +1883,8 @@ ora_free_templob(sth, imp_sth, lobloc)
     imp_sth_t *imp_sth; 
     OCILobLocator *lobloc;
 {
-    boolean is_temporary;
+#ifndef ORA_OCI_8
+    boolean is_temporary = 0;
     sword status;
     OCILobIsTemporary_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &is_temporary, status);
     if (status != OCI_SUCCESS) {
@@ -1901,6 +1902,7 @@ ora_free_templob(sth, imp_sth, lobloc)
             return;
         }
     }
+#endif
 }
 
 

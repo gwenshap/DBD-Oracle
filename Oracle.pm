@@ -1103,10 +1103,13 @@ number of the OCI client library used, so DBD::Oracle has to go digging
 (and sometimes has to more or less guess).  The ORA_OCI constant
 holds the result of that process.
 
-In numeric context returns the major version integer (8, 9, 10 etc).
-In string context returns "I<major>.I<minor>". Note that "9.10" is
-a later (greater) version than "9.9" but would compare as a numerically
-lower value.
+In string context ORA_OCI returns the full "A.B.C.D" version string.
+
+In numeric context ORA_OCI returns the major.minor version number
+(8.1, 9.2, 10.0 etc).  But note that version numbers are not actually
+floating point and so if Oracle ever makes a release that has a two
+digit minor version, such as C<9.10> it will have a lower numeric
+value than the preceeding C<9.9> release. So use with care.
 
 The contents and format of ORA_OCI are subject to change (it may,
 for example, become a I<version object> in later releases).

@@ -174,7 +174,8 @@ if ($os eq 'VMS') {
     my $OCIINCLUDE = join " ",	vmsify("$OH/rdbms/"),
 				vmsify("$OH/rdbms/demo/"),
 				vmsify("$OH/rdbms/demo/oci_demo/"),
-				vmsify("$OH/rdbms/public");
+				vmsify("$OH/rdbms/public"),
+				vmsify("$OH/netconfig/demo/"); # eg nzt.h in 8.1.7 on VMS
     $opts{INC}  = "$OCIINCLUDE $dbi_arch_dir";
     $opts{OBJECT} = 'oracle.obj dbdimp.obj oci7.obj oci8.obj' if $] < 5.005;
 }
@@ -567,11 +568,12 @@ $opts{DEFINE} .= ($os ne 'VMS')
 	? " -DORA_OCI_VERSION=\\\"$client_version_full\\\""
 	: " -DORA_OCI_VERSION=\"$client_version_full\"";
 # force additional special behavior for oci 8.  For now, this means
-# providing OciLobWriteAppend
+# emulating OciLobWriteAppend
 # use this if, for some reason the default handling for this function
 # doesn't work or you are building a binary release for distribution
 # to machines with older client libraries.
-$opts{DEFINE} .= " -DORA_OCI_8" if $::opt_V && $client_version == 8.0;
+$opts{DEFINE} .= " -DORA_OCI_8" if ($::opt_V && $client_version == 8.0)
+				or ($^O eq 'VMS' && $client_version < 9.0); # OCILobIsTemporary
 
 
 # Set some private WriteMakefile options if this is 'me' :-)
@@ -1213,7 +1215,7 @@ sub read_file {
 sub find_bin{
     my $bin = shift;
     my $path_sep = $Config{path_sep};
-    foreach (split(/$path_sep/, $ENV{PATH})){
+    foreach (split(/\Q$path_sep/, $ENV{PATH})){
 	return "$_/$bin" if -x "$_/$bin";
     }
     return undef;
@@ -1262,8 +1264,13 @@ sub get_client_version {
 	# Output is in the following format:
 	#   DEFINE _SQLPLUS_RELEASE = "902000400" (CHAR)       Representing 9.2.0.4.0
 	#   DEFINE _SQLPLUS_RELEASE = "1001000200" (CHAR)      Representing 10.1.0.2.0
-	my $sqlplus_release = `echo DEFINE _SQLPLUS_RELEASE | $sqlplus_exe -S /nolog 2>&1`;
-	if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)" \(CHAR\)$/) {
+	open FH, ">define.sql" or warn "Can't create define.sql: $!";
+	print FH "DEFINE _SQLPLUS_RELEASE\nQUIT\n";
+	close FH;
+	my $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
+	unlink "define.sql";
+	print $sqlplus_release;
+	if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
 	    $client_version_full = sprintf("%d.%d.%d.%d", $1, $2, $3, $4);
 	}
     }

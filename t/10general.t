@@ -85,11 +85,11 @@ ok(!$dbh->ping);
 
 my $ora_oci = DBD::Oracle::ORA_OCI(); # dualvar
 printf "ORA_OCI = %d (%s)\n", $ora_oci, $ora_oci;
-ok($ora_oci);
+ok("$ora_oci");
 ok($ora_oci >= 8);
-is($ora_oci+0, int($ora_oci));
 my @ora_oci = split(/\./, $ora_oci,-1);
 ok(scalar @ora_oci >= 2);
-is($ora_oci[0], $ora_oci+0);
+ok(scalar @ora_oci == grep { DBI::looks_like_number($_) } @ora_oci);
+is($ora_oci[0], int($ora_oci));
 
 exit 0;

@@ -22,8 +22,8 @@
 
   Changed some utf8 internals for LOBs.
   Changed ORA_OCI constant from being just 7 or 8 to being a dualvar:
-    in numeric context returns the major version number (8, 9, 10 etc)
-    in string context returns "major.minor" version string.
+    in numeric context returns the major.minor version number (8.1, 9.2 etc)
+    in string context it returns the full "major.minor.foo.bar" version string.
   Changed some SUCCESS_WITH_INFO situtions to be treated as a "warning"
     by setting $DBI::err to "0" (and so trigger PrintWarn in DBI >= 1.43)
     eg "ORA-28011: the account will expire soon; change your password now"
