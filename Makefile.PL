@@ -171,7 +171,10 @@ my $linkwith_msg = "";
 my $need_ldlp_env;
 
 if ($os eq 'VMS') {
-    my $OCIINCLUDE = vmsify("$OH/rdbms/") ." ". vmsify("$OH/rdbms/demo/oci_demo/");
+    my $OCIINCLUDE = join " ",	vmsify("$OH/rdbms/"),
+				vmsify("$OH/rdbms/demo/"),
+				vmsify("$OH/rdbms/demo/oci_demo/"),
+				vmsify("$OH/rdbms/public");
     $opts{INC}  = "$OCIINCLUDE $dbi_arch_dir";
     $opts{OBJECT} = 'oracle.obj dbdimp.obj oci7.obj oci8.obj' if $] < 5.005;
 }
@@ -560,7 +563,9 @@ $opts{DEFINE} .= ' -DUTF8_SUPPORT' if ($] >= 5.006);
 
 # Use OCIEnvNlsCreate if available for best unicode behaviour
 $opts{DEFINE} .= ' -DNEW_OCI_INIT' if $client_version >= 9.2;
-$opts{DEFINE} .= " -DORA_OCI_VERSION=\\\"$client_version\\\"";
+$opts{DEFINE} .= ($os ne 'VMS')
+	? " -DORA_OCI_VERSION=\\\"$client_version\\\""
+	: " -DORA_OCI_VERSION=\"$client_version\"";
 # force additional special behavior for oci 8.  For now, this means
 # providing OciLobWriteAppend
 # use this if, for some reason the default handling for this function
@@ -1224,7 +1229,9 @@ sub find_headers {
 	$h_dir{$dir} = $_;
 	$h_file{$_} = $dir;
 	print "Found $dir/$_\n" if $::opt_d;
-    }, "$OH/rdbms" );
+    }, "$OH/rdbms",
+       "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0)
+    );
     @h_dir = keys %h_dir;
     print "Found header files in @h_dir.\n" if @h_dir;
     if (!$h_file{'oratypes.h'} || !$h_file{'ocidfn.h'}) {
@@ -1281,13 +1288,16 @@ sub get_client_version {
 	}
     }
     if (!$client_version_full) {
-	print "I'm having trouble finding your Oracle version number\n"
+	print "I'm having trouble finding your Oracle version number... trying harder\n"
 	    unless $force_version;
 	if ( $OH =~ m![^\d\.]((?:8|9|10)\.\d+\.\d+)! ) { #decode it from $OH if possible
 	    $client_version_full = $1;
 	}
 	elsif ( "$OH/" =~ m!\D(8|9|10)(\d)(\d?)\D!) { # scary but handy
 	    $client_version_full = join ".", $1, $2, ($3||'0');
+	}
+	elsif ( "$OH/" =~ m!/10g!) { # scary but handy
+	    $client_version_full = "10.0.0.0";
 	}
     }
 
@@ -1308,8 +1318,9 @@ sub get_client_version {
 WARNING: I could not determine Oracle client version so I'll just
 default to version $client_version_full. Some features of DBD::Oracle may not work.
 Oracle version based logic in Makefile.PL may produce erroneous results.
-You can use "perl Makefile.PL -V X.Y" to specify a your client version.
+You can use "perl Makefile.PL -V X.Y" to specify a your client version.\n
 };
+	sleep 2;
     }
 
     # hack up a simple floating point form of the version: 8.1.6.2 => 8.1

@@ -17,6 +17,7 @@
   Fixed seg fault returning LOB Locators reported by Raj Chandran.
   Fixed binding to allow overloaded scalars (not for 'inout' params).
   Fixed setting of $DBI::err to 0 triggering PrintWarn in DBI >= 1.41.
+  Fixed some edge cases in row cache sizing.
 
   Changed some utf8 internals for LOBs.
   Changed ORA_OCI constant from being just 7 or 8 to being a dualvar:
@@ -50,6 +51,7 @@
     Fixed Oracle version detection on clients thanks to Marko Asplund.
     Fixed Oracle 10 version detection on clients thanks to Andy Hassall.
     Fixed HP-UX 64bit build issues thanks to Weiguo Sun.
+    Fixed VMS build issues thanks to Jakob Snoer.
     Fixed suprious warning from Makefile.PL thanks to Marko Asplund.
     Fixed compiler warnings thanks to Robert Baron.
     Fixed oci.def for Cygwin by adding OCILobWriteAppend thanks to Gert-Jan Paulissen.

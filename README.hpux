@@ -20,6 +20,9 @@ be used with mod_perl and Apache.
 
 See Appendices for exact build configurations used by me an others.
 
+For HPUX 11 on Itanium see also
+http://www.nntp.perl.org/group/perl.dbi.users/23840
+
 =head1  First things First
 
 The reason you are even reading this file is because you want to connect 

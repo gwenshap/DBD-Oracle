@@ -232,12 +232,20 @@ Otherwise read on.
    Therefore, the solution is to build your own perl. I leave it up to
    you whether you want to replace the system perl or not. At least
    Perl 5.8.x comes with instructions as to how to replace the system
-   perl on MacOS X, and what the caveats and risks are. I used 5.8.4
-   and it worked perfectly fine.
+   perl on MacOS X, and what the caveats and risks are. I used 5.8.4,
+   installed in /usr/local, and it worked perfectly fine.
 
    The key when configuring your custom build of perl is to disable
    multi-threading (usethreads, useithreads, and usemultiplicity
-   options).
+   options). More precisely, do not enable them, as they are disabled
+   by default, at least up to version 5.8.5. You can check whether
+   threads are enabled or not by passing -V to ther Perl interpreter:
+
+   $ /path/to/your/perl -V | grep usethreads
+
+   You need to see a line saying, among other things,
+   usethreads=undef. If you see usethreads=define then multi-threading
+   is enabled.
 
 2) If you choose not to replace the system perl, make sure that when
    you build DBI and DBD::Oracle you provide the full path to your own

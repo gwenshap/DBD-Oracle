@@ -332,15 +332,16 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
     }
     else {
       /* set initial cache size by memory */
+      /* [I'm not now sure why this is here - from a patch sometime ago - Tim] */
       ub4 cache_mem;
+      IV cache_mem_iv;
       D_imp_dbh_from_sth ;  
       D_imp_drh_from_dbh ;
 
-      if      (SvOK(imp_drh -> ora_cache_o)) cache_mem = -SvIV(imp_drh -> ora_cache_o);
-      else if (SvOK(imp_drh -> ora_cache))   cache_mem = -SvIV(imp_drh -> ora_cache);
-      else                        cache_mem = -imp_dbh->RowCacheSize;
-      if (cache_mem <= 0)
-	cache_mem = 10 * 1460;
+      if      (SvOK(imp_drh->ora_cache_o)) cache_mem_iv = -SvIV(imp_drh -> ora_cache_o);
+      else if (SvOK(imp_drh->ora_cache))   cache_mem_iv = -SvIV(imp_drh -> ora_cache);
+      else                                 cache_mem_iv = -imp_dbh->RowCacheSize;
+      cache_mem = (cache_mem_iv <= 0) ? 10 * 1460 : cache_mem_iv;
       OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
 	&cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
 	imp_sth->errhp, status);
@@ -1034,8 +1035,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     /* Ought to be for COMPAT mode only but was relaxed before LongReadLen existed */
     long_readlen = (SvOK(imp_drh -> ora_long) && SvUV(imp_drh->ora_long)>0)
 				? SvUV(imp_drh->ora_long) : DBIc_LongReadLen(imp_sth);
-    if (long_readlen < 0)		/* trap any sillyness */
-	long_readlen = 80;		/* typical oracle app default	*/
 
     if (imp_sth->stmt_type != OCI_STMT_SELECT) { /* XXX DISABLED, see num_fields test below */
 	if (DBIS->debug >= 3)
@@ -1245,9 +1244,13 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     else if (SvOK(imp_drh->ora_cache))   imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
     else                        imp_sth->cache_rows = imp_dbh->RowCacheSize;
     if (imp_sth->cache_rows >= 0) {	/* set cache size by row count	*/
+	ub4 cache_mem  = 0; /* so memory isn't the limit */
 	ub4 cache_rows = calc_cache_rows((int)num_fields,
 				est_width, imp_sth->cache_rows, has_longs);
 	imp_sth->cache_rows = cache_rows;	/* record updated value */
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
+	    imp_sth->errhp, status);
 	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
 		&cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
 		imp_sth->errhp, status);
@@ -1257,16 +1260,14 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	}
     }
     else {				/* set cache size by memory	*/
-	ub4 cache_mem  = -imp_sth->cache_rows;
+	ub4 cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
 	ub4 cache_rows = 100000;	/* set high so memory is the limit */
 	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-		    &cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
-		    imp_sth->errhp, status);
-        if (! status) {
-	      OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-		    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
-		    imp_sth->errhp, status);
-	}
+	    &cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
+	    imp_sth->errhp, status);
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
+	    imp_sth->errhp, status);
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status,
 		"OCIAttrSet OCI_ATTR_PREFETCH_ROWS/OCI_ATTR_PREFETCH_MEMORY");
