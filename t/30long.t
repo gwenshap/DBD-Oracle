@@ -6,65 +6,39 @@ use DBD::Oracle qw(:ora_types SQLCS_NCHAR );
 use strict;
 use Test::More;
 
+*BAILOUT = sub { die "@_\n" } unless defined &BAILOUT;
+
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
-
-my $utf8_test ; #= (($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i)) ? 1 : 0;
 
 my @test_sets;
 push @test_sets, [ "LONG",	0,		0 ];
 push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
-#warn "LONG tests disabled for now";
 push @test_sets, [ "NCLOB",	ORA_CLOB,	0 ] ;
 push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
 push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] ;
 
+my $tests_per_set = 85;
+my $tests = @test_sets * $tests_per_set;
+plan tests => $tests;
+
 $| = 1;
-my $t = 0;
 my $table = table();
-
-
-
-my ($dbh);
+my $utf8_test;	# set per test_set below
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-
-sub array_test {
-    my ($dbh) = @_;
-    return 0;	# XXX disabled
-    eval {
-	$dbh->{RaiseError}=1;
-	$dbh->trace(0);
-	my $sth = $dbh->prepare(qq{
-	   UPDATE $table set idx=idx+1 RETURNING idx INTO ?
-	});
-	my ($a,$b);
-	$a = [];
-	$sth->bind_param_inout(1,\$a, 2);
-	$sth->execute;
-	print "a=$a\n";
-	print "a=@$a\n";
-    };
-    die "RETURNING array: $@";
-}
 
 # Set size of test data (in 10KB units)
 #	Minimum value 3 (else tests fail because of assumptions)
 #	Normal  value 8 (to test old 64KB threshold well)
 my $sz = 8;
 
-my $tests_per_set = 82;
-my $tests = @test_sets * $tests_per_set;
-plan tests => $tests;
-#lab print "1..$tests\n";
-
 my($p1, $p2, $tmp, @tmp);
 
-$dbh = db_handle();
+my $dbh = db_handle() or BAILOUT("Can't connect to database: $DBI::errstr");
 show_db_charsets($dbh) if $dbh;
 
 foreach (@test_sets) {
     my ($type_name, $type_num, $test_no_type) = @$_;
-    #next if $type_name eq 'LONG';
     $utf8_test = use_utf8_data($dbh,$type_name);
     print qq(
     =========================================================================
@@ -78,12 +52,13 @@ sub use_utf8_data
 {
     my $want_utf8 = (($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i)) ? 1 : 0;
     my ( $dbh, $type_name ) = @_;
-    #return 0 if not $utf8_test;
+    return 0 if not $want_utf8;
     return 1 if ( $type_name =~ m/CLOB/i and db_is_utf8($dbh) and $want_utf8 );
-    return 1 if ( $type_name =~ m/NCLOB/i and nchar_is_utf8($dbh) ); #and $want_utf8 );
+    return 1 if ( $type_name =~ m/NCLOB/i and nchar_is_utf8($dbh) and $want_utf8 );
     return 1 if ( $type_name =~ m/BLOB/i and $want_utf8 );
     return 0;
 }
+
 sub run_long_tests 
 {
     my ($type_name, $type_num) = @_;
@@ -91,14 +66,13 @@ sub run_long_tests
     SKIP: 
     { #it all
 
-        skip "Unable to connect to database" unless $dbh;
-
         # relationships between these lengths are important # e.g.
         my %long_data;
         my $long_data2 = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
         my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
         my $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
-        if ( $utf8_test ) { #use_utf8_data($dbh,$type_name)) { #}
+
+        if ( $utf8_test ) { # make $long_data0 be UTF8
             my $utf_x = "0\x{263A}xyX"; #lab: the ubiquitous smiley face
             $long_data0 = ($utf_x x 2048) x (1    );        # 10KB  < 64KB
             if (length($long_data0) > 10240) {
@@ -108,13 +82,9 @@ sub run_long_tests
                 $long_data0 .= $utf_z foreach (1..2047);
             }
             if ($type_name =~ /BLOB/) {
-                # convert string from utf-8 to byte encoding
+                # convert string from utf-8 to byte encoding XXX
                 $long_data0 = pack "C*", (unpack "C*", $long_data0);
             }
-            # else  #lab
-            #    diag "\n\nsetting dbh->{ora_ph_csform} = SQLCS_NCHAR\n\n" ;
-            #    $dbh->{ora_ph_csform} = SQLCS_NCHAR;
-            #
         }
 
         # special hack for long_data0 since RAW types need pairs of HEX
@@ -151,10 +121,10 @@ sub run_long_tests
         ok( $sth = $dbh->prepare( $sqlstr ), "prepare: $sqlstr" ); 
         my $bind_attr = { ora_type => $type_num };
         $bind_attr->{ora_csform} = SQLCS_NCHAR
-		if $utf8_test; #use_utf8_data($dbh,$type_name);  #$type_name =~ /NCLOB/ and nchar_is_utf8($dbh);
+		if $type_name =~ /^NCLOB/; # XXX do by default internally?
+		#if $utf8_test; #use_utf8_data($dbh,$type_name);  #$type_name =~ /NCLOB/ and nchar_is_utf8($dbh);
 		#if $utf8_test and $type_name =~ /NCLOB/ ;
 
-        $sth->trace(0);
         $sth->bind_param(2, undef, $bind_attr )
 		or die "$type_name: $DBI::errstr" if $type_num;
 
@@ -162,7 +132,7 @@ sub run_long_tests
         ok($sth->execute(41, $long_data{41} = $long_data1 ), "insert long data 41" );
         ok($sth->execute(42, $long_data{42} = $long_data2 ), "insert long data 42" );
         ok($sth->execute(43, $long_data{43} = undef), "insert long data undef 43" ); # NULL
-        $sth->trace(0);
+
         array_test($dbh);
 
         print " --- fetch $type_name data back again -- truncated - LongTruncOk == 1\n";
@@ -176,7 +146,6 @@ sub run_long_tests
 
         $sqlstr = "select * from $table order by idx";
         ok($sth = $dbh->prepare($sqlstr), "prepare: $sqlstr" );
-	skip "Can't continue" unless $sth;
         ok($sth->execute, "execute: $sqlstr" );
         ok($tmp = $sth->fetchall_arrayref, "fetch_arrayerf for $sqlstr" );
 
@@ -249,7 +218,7 @@ sub run_long_tests
 
 
         SKIP: {
-            skip( "blob_read tests for LONGs - not currently supported", 11 )
+            skip( "blob_read tests for LONGs - not currently supported", 12 )
                 if ($type_name =~ /LONG/i) ;
 
             #$dbh->trace(4);
@@ -279,11 +248,11 @@ sub run_long_tests
 
 	    cmp_ok($len,'==', length($long_data2), "length of long_data2 = $len" );
 	    ok($p1 eq $long_data2, cdif($p1, $long_data2) ); # Oracle may return the right length but corrupt the string.
-        } #skip 11
+        } #skip 12
 
 
         SKIP: {
-            skip( "ora_auto_lob tests for $type_name" ."s - not supported" ,11*4 )
+            skip( "ora_auto_lob tests for $type_name" ."s - not supported", 7+(13*3) )
                 if not ( $type_name =~ /LOB/i );
 
             print " --- testing ora_auto_lob to access $type_name LobLocator\n\n";
@@ -307,63 +276,56 @@ sub run_long_tests
                 my $data = sprintf $data_fmt, $idx; #create a little data
                 print "length of data to be written at offset 1: " .length($data) ."\n" ;
                 ok($dbh->func($lob_locator, 1, $data, 'ora_lob_write') ,"ora_lob_write" );
-
             }
+	    is($ll_sth->rows, 4);
 
-            print " --- round again to check contents after lob write updates...\n";
-            SKIP: { #28
-                ok($ll_sth->execute,"execute (again 1) $sqlstr" );
-                while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
-                    print "$idx locator: ".DBI::neat($lob_locator)."\n";
-                    if ( not defined $long_data{$idx} ) {
-                        last; #for( my $i=0; $i<7; $i++) { ok(1,"end of loop"); }
-                    } else {
+            print " --- round again to check contents after $type_name write updates...\n";
+	    ok($ll_sth->execute,"execute (again 1) $sqlstr" );
+	    while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
+		print "$idx locator: ".DBI::neat($lob_locator)."\n";
+                next if !defined($lob_locator) && $idx == 43;
+		print "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
 
-                        print "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
+		my $content = $dbh->func($lob_locator, 1, 20, 'ora_lob_read');
+		print "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
+		ok($content,"content is true" );
+		print "$idx content: ".nice_string($content)."\n"; #.DBI::neat($content)."\n";
+		cmp_ok(length($content) ,'==', 20 ,"lenth(content)" );
 
-                        my $content = $dbh->func($lob_locator, 1, 20, 'ora_lob_read');
-                        print "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
-                        ok($content,"content is true" );
-                        print "$idx content: ".nice_string($content)."\n"; #.DBI::neat($content)."\n";
-                        cmp_ok(length($content) ,'==', 20 ,"lenth(content)" );
+		# but prefix has been overwritten:
+		my $data = sprintf $data_fmt, $idx;
+		ok(substr($content,0,length($data)) eq $data ,"length(content)=length(data)" );
 
-                        # but prefix has been overwritten:
-                        my $data = sprintf $data_fmt, $idx;
-                        ok(substr($content,0,length($data)) eq $data ,"length(content)=length(data)" );
+		# ora_lob_length agrees:
+		my $len = $dbh->func($lob_locator, 'ora_lob_length');
+		ok(!$DBI::err ,"DBI::errstr" );
+		cmp_ok($len ,'==', length($long_data{$idx}) ,"length(long_data{idx}) = length of locator data" );
 
-                        # ora_lob_length agrees:
-                        my $len = $dbh->func($lob_locator, 'ora_lob_length');
-                        ok(!$DBI::err ,"DBI::errstr" );
-                        cmp_ok($len ,'==', length($long_data{$idx}) ,"length(long_data{idx}) = length of locator data" );
+		# now trim the length
+		$dbh->func($lob_locator, $idx, 'ora_lob_trim');
+		ok(!$DBI::err, "DBI::errstr" );
 
-                        # now trim the length
-                        $dbh->func($lob_locator, $idx, 'ora_lob_trim');
-                        ok(!$DBI::err, "DBI::errstr" );
+		# and append some text
+		$dbh->func($lob_locator, "12345", 'ora_lob_append');
+		ok(!$DBI::err ,"DBI::errstr" );
+		if ($DBI::err && $DBI::errstr =~ /ORA-24801:/) {
+		    warn " If you're using Oracle < 8.1.7 then the OCILobWriteAppend error is probably\n";
+		    warn " due to Oracle bug #886191 and is not a DBD::Oracle problem\n";
+	       }
+	    } #while fetchrow
+	    is($ll_sth->rows, 4);
 
-                        # and append some text
-                        $dbh->func($lob_locator, "12345", 'ora_lob_append');
-                        ok(!$DBI::err ,"DBI::errstr" );
-                        if ($DBI::err && $DBI::errstr =~ /ORA-24801:/) {
-                            warn " If you're using Oracle < 8.1.7 then the OCILobWriteAppend error is probably\n";
-                            warn " due to Oracle bug #886191 and is not a DBD::Oracle problem\n";
-                       }
-                   }
-                } #while fetchrow
-            }
-            print " --- round again to check the length...\n";
-
-               ok($ll_sth->execute ,"execute (again 2) $sqlstr" );
-               while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
-                   print "$idx locator: ".DBI::neat($lob_locator)."\n";
-                   if ( not defined $lob_locator ) {
-                      last; # ok(1,"end of loop"); ok(1,"end of loop");
-                   } else { #skip "lob_locator not defined" ,2 if not defined $lob_locator;
-                       my $len = $dbh->func($lob_locator, 'ora_lob_length');
-                       #lab: possible logic error here w/resp. to len
-                       ok(!$DBI::err ,"DBI::errstr" );
-                       cmp_ok( $len ,'==', $idx + 5 ,"len == idx+5" );
-                  }
-               }
+            print " --- round again to check the $type_name length...\n";
+	    ok($ll_sth->execute ,"execute (again 2) $sqlstr" );
+	    while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
+	       print "$idx locator: ".DBI::neat($lob_locator)."\n";
+               next if !defined($lob_locator) && $idx == 43;
+	       my $len = $dbh->func($lob_locator, 'ora_lob_length');
+	       #lab: possible logic error here w/resp. to len
+	       ok(!$DBI::err ,"DBI::errstr" );
+	       cmp_ok( $len ,'==', $idx + 5 ,"len == idx+5" );
+	    }
+	    is($ll_sth->rows, 4);
 
         } #skip for LONG types
 
@@ -382,6 +344,27 @@ END {
 exit 0;
 
 # end.
+
+
+sub array_test {
+    my ($dbh) = @_;
+    return 0;	# XXX disabled
+    eval {
+	$dbh->{RaiseError}=1;
+	$dbh->trace(0);
+	my $sth = $dbh->prepare(qq{
+	   UPDATE $table set idx=idx+1 RETURNING idx INTO ?
+	});
+	my ($a,$b);
+	$a = [];
+	$sth->bind_param_inout(1,\$a, 2);
+	$sth->execute;
+	print "a=$a\n";
+	print "a=@$a\n";
+    };
+    die "RETURNING array: $@";
+}
+
 
 sub print_substrs
 {
@@ -419,9 +402,7 @@ sub blob_read_all {
     my $offset = 0;
     my @frags;
     while (1) {
-        #$sth->trace(3);
 	my $frag = $sth->blob_read($field_idx, $offset, $lump);
-        $sth->trace(0);
 	last unless defined $frag;
 	my $len = length $frag;
 	last unless $len;
