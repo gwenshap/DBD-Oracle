@@ -1305,7 +1305,9 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     occurs only if the database character set is not Unicode.
 */
 /* Well all I can say is this is required with Oracle 9.2 
-   So it would seem we have to make this version specific?
+   So it would seem we have to make this version specific.
+   I put this back but, protected it with NEW_OCI_INIT
+   -- lab
 */
 #ifdef NEW_OCI_INIT
         if ( 1 && (fbh->dbtype == 1) ) {
@@ -1320,7 +1322,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
             ub2 csform = fbh->csform;
 #endif
             if (DBIS->debug >= 3)
-               PerlIO_printf(DBILOGFP, "lab    calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
+               PerlIO_printf(DBILOGFP, "    calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
 
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csid, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
