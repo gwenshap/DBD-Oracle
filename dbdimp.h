@@ -218,15 +218,11 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 extern int ora_fetchtest;
 
 #ifdef UTF8_SUPPORT
-extern ub2 utf8_csid;
 extern ub2 charsetid;
 extern ub2 ncharsetid;
-extern ub2 cs_is_utf8;
+extern ub2 utf8_csid;
 extern ub2 al32utf8_csid;
 extern ub2 al16utf16_csid;
-
-int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
-
 
 #define CS_IS_UTF8( cs ) \
    (  ( cs == utf8_csid ) || ( cs == al32utf8_csid ) )
@@ -248,12 +244,8 @@ int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
 #define CSFORM_IMPLIES_UTF8(csform) \
     CS_IS_UTF8( CSFORM_IMPLIED_CSID( csform ) )
 
-#define DBD_SET_UTF8_FORM(sv,csform) \
-    (CSFORM_IMPLIES_UTF8(csform) ? SvUTF8_on(sv) : 0)
-
 #else /* UTF8_SUPPORT */
-#define DBD_SET_UTF8_FORM(sv,csform)   0
-#define UTF8_FIXUP_CSID(csid,csform,where)   0
+#define UTF8_FIXUP_CSID(csid,csform,where)
 #endif /* UTF8_SUPPORT */
 
 

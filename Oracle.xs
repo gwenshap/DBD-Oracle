@@ -153,14 +153,17 @@ ora_lob_write(dbh, locator, offset, data)
         return;
     }
 #ifdef OCI_ATTR_CHARSET_ID
+    /* Effectively only used so AL32UTF8 works properly */
     OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
 	ST(0) = &sv_undef;
         return;
     }
-    UTF8_FIXUP_CSID( csid ,csform ,"ora_lob_write" );
-#endif
+#endif /* OCI_ATTR_CHARSET_ID */
+    /* if data is utf8 but charset isn't then switch to utf8 csid */
+    csid = (SvUTF8(data) && !CS_IS_UTF8(csid)) ? utf8_csid : CSFORM_IMPLIED_CSID(csform);
+
     OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset,
 	    bufp, (ub4)data_len, OCI_ONE_PIECE,
@@ -204,19 +207,21 @@ ora_lob_append(dbh, locator, data)
         return;
     }
 #ifdef OCI_ATTR_CHARSET_ID
+    /* Effectively only used so AL32UTF8 works properly */
     OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
 	ST(0) = &sv_undef;
         return;
     }
-    UTF8_FIXUP_CSID( csid ,csform ,"ora_lob_append" );
-#endif
+#endif /* OCI_ATTR_CHARSET_ID */
+    /* if data is utf8 but charset isn't then switch to utf8 csid */
+    csid = (SvUTF8(data) && !CS_IS_UTF8(csid)) ? utf8_csid : CSFORM_IMPLIED_CSID(csform);
 #if !defined(ORA_OCI_8) && defined(OCI_HTYPE_DIRPATH_FN_CTX) /* Oracle is >= 9.0 */
     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 			       &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
 			       NULL, NULL,
-			       (ub2)0, csform , status);
+			       csid, csform, status);
     if (status != OCI_SUCCESS) {
        oci_error(dbh, imp_dbh->errhp, status, "OCILobWriteAppend");
        ST(0) = &sv_undef;
@@ -238,7 +243,7 @@ ora_lob_append(dbh, locator, data)
 			    &amtp, startp,
 			    bufp, (ub4)data_len, OCI_ONE_PIECE,
 			    NULL, NULL,
-			    (ub2)0, csform , status);
+			    csid, csform , status);
        if (status != OCI_SUCCESS) {
 	  oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
 	  ST(0) = &sv_undef;
@@ -283,20 +288,10 @@ ora_lob_read(dbh, locator, offset, length)
 	dest_sv = &sv_undef;
         return;
     }
-#ifdef OCI_ATTR_CHARSET_ID 
-    OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
-    if (status != OCI_SUCCESS) {
-        oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
-	dest_sv = &sv_undef;
-        return;
-    }
-    UTF8_FIXUP_CSID( csid ,csform ,"ora_lob_read" );
-#endif
     OCILobRead_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset, /* offset starts at 1 */
 	    bufp, (ub4)bufp_len,
 	    0, 0, (ub2)0, csform, status);
-
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobRead");
         dest_sv = &sv_undef;
@@ -304,7 +299,9 @@ ora_lob_read(dbh, locator, offset, length)
     else {
         SvCUR(dest_sv) = amtp; /* always bytes here */
         *SvEND(dest_sv) = '\0';
-	DBD_SET_UTF8_FORM(dest_sv,csform);
+	if (CSFORM_IMPLIES_UTF8(csform))
+	    SvUTF8_on(dest_sv);
+
     }
     ST(0) = dest_sv;
 

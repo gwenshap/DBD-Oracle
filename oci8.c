@@ -549,7 +549,8 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	    }
 	}
 	sv_setpvn(dest_sv, p, (STRLEN)datalen);
-	DBD_SET_UTF8_FORM(dest_sv,fbh->csform);
+	if (CSFORM_IMPLIES_UTF8(fbh->csform))
+	    SvUTF8_on(dest_sv);
     } else {
 #else
     {
@@ -733,8 +734,8 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
     SvCUR_set(dest_sv, byte_destoffset+amtp);
     *SvEND(dest_sv) = '\0'; /* consistent with perl sv_setpvn etc	*/
     SvPOK_on(dest_sv);
-    if (ftype == 112)
-	DBD_SET_UTF8_FORM(dest_sv,csform);
+    if (ftype == 112 && CSFORM_IMPLIES_UTF8(csform))
+	SvUTF8_on(dest_sv);
 
     return 1;
 }
@@ -757,6 +758,8 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
     	typename = "CLOB";
     else if (ftype == 113)
     	typename = "BLOB";
+    else if (ftype == 114)
+    	typename = "BFILE";
     else {
 	oci_error(sth, imp_sth->errhp, OCI_ERROR,
 	"blob_read not currently supported for non-LOB types with OCI 8 "
@@ -839,8 +842,8 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	    sv_set_undef(dest_sv);	/* signal error */
 	    return 0;
 	}
-	if (ftype == 112)
-	    DBD_SET_UTF8_FORM(dest_sv,csform);
+	if (ftype == 112 && CSFORM_IMPLIES_UTF8(csform))
+	    SvUTF8_on(dest_sv);
     }
     else {
 	assert(amtp == 0);
@@ -935,22 +938,12 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
     if (loblen > 0) {
 	ub1  csform = 0;
-	ub2  csid = 0;
 	OCILobCharSetForm_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &csform, status );
         if (status != OCI_SUCCESS) {
             oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
             sv_set_undef(dest_sv);
             return 0;
         }
-#ifdef OCI_ATTR_CHARSET_ID
-	OCILobCharSetId_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &csid, status );
-        if (status != OCI_SUCCESS) {
-            oci_error(sth, imp_sth->errhp, status, "OCILobCharSetId");
-            sv_set_undef(dest_sv);
-            return 0;
-        }
-        UTF8_FIXUP_CSID( csid ,csform ,"fetch_func_auto_lob" );
-#endif /* OCI_ATTR_CHARSET_ID */
 
 	if (fbh->dbtype == 114) {
 	    OCILobFileOpen_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
@@ -984,8 +977,8 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	/* tell perl what we've put in its dest_sv */
 	SvCUR(dest_sv) = amtp;
 	*SvEND(dest_sv) = '\0';
-	if (fbh->ftype != 113) /* Don't set UTF8 on BLOBs */
-	    DBD_SET_UTF8_FORM(dest_sv,csform);
+	if (fbh->ftype == 112 && CSFORM_IMPLIES_UTF8(csform)) /* Don't set UTF8 on BLOBs */
+	    SvUTF8_on(dest_sv);
 	ora_free_templob(sth, imp_sth, lobloc);
     }
     else {			/* LOB length is 0 */
@@ -1448,7 +1441,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 			--datalen;
 		}
 		sv_setpvn(sv, p, (STRLEN)datalen);
-		DBD_SET_UTF8_FORM(sv, fbh->csform); /* XXX */
+		if (CSFORM_IMPLIES_UTF8(fbh->csform))
+		    SvUTF8_on(sv);
 	    }
 
 	} else if (rc == 1405) {	/* field is null - return undef	*/
@@ -1464,7 +1458,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 		    /* but it'll only be accessible via prior bind_column()	*/
 		    sv_setpvn(sv, (char*)&fb_ary->abuf[0],
 			  fb_ary->arlen[0]);
-		    DBD_SET_UTF8_FORM(sv,fbh->csform);
+		    if (CSFORM_IMPLIES_UTF8(fbh->csform))
+			SvUTF8_on(sv);
 		}
 		if (ora_dbtype_is_long(fbh->dbtype))	/* double check */
 		    hint = ", LongReadLen too small and/or LongTruncOk not set";
@@ -1736,7 +1731,8 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	    lob_cols_hv = newHV();
 	sv = newSViv(col_dbtype);
 	(void)sv_setpvn(sv, col_name, col_name_len);
-	DBD_SET_UTF8_FORM(sv, SQLCS_IMPLICIT); 
+	if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT))
+	    SvUTF8_on(sv);
 	(void)SvIOK_on(sv);   /* "what a wonderful hack!" */
 	hv_store(lob_cols_hv, col_name,col_name_len, sv,0);
 	OCIDescriptorFree(colhd, OCI_DTYPE_PARAM);
@@ -1949,8 +1945,6 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	imp_fbh_t *fbh = &lr->fbh_ary[i];
 	int rc = fbh->fb_ary->arcode[0];
 	phs_t *phs = (phs_t*)fbh->special;
-        ub1 csform = 0;
-        ub2 csid = SQLCS_IMPLICIT;
 	ub4 amtp;
 
         SvUPGRADE(phs->sv, SVt_PV);	/* just in case */
@@ -1961,22 +1955,20 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	}
 	else if (amtp > 0) {	/* since amtp==0 & OCI_ONE_PIECE fail (OCI 8.0.4) */
             if( ! fbh->csid ) {
+		ub1 csform = SQLCS_IMPLICIT;
+		ub2 csid = 0;
                 OCILobCharSetForm_log_stat( imp_sth->envhp, errhp, (OCILobLocator*)fbh->desc_h, &csform, status );
-                if (status != OCI_SUCCESS) {
+                if (status != OCI_SUCCESS)
                     return oci_error(sth, errhp, status, "OCILobCharSetForm");
-                }
 #ifdef OCI_ATTR_CHARSET_ID
+		/* Effectively only used so AL32UTF8 works properly */
                 OCILobCharSetId_log_stat( imp_sth->envhp, errhp, (OCILobLocator*)fbh->desc_h, &csid, status );
-                if (status != OCI_SUCCESS) {
+                if (status != OCI_SUCCESS)
                     return oci_error(sth, errhp, status, "OCILobCharSetId");
-                }
-		/* if data is utf8 but charset isn't then switch to utf8 csid */
-		if (SvUTF8(phs->sv) && !CS_IS_UTF8(csid))
-		    csid = utf8_csid; /* not al32utf8_csid here on purpose */
-                UTF8_FIXUP_CSID( csid, csform, "post_execute_lobs" );
 #endif /* OCI_ATTR_CHARSET_ID */
-
-                fbh->csid = csid; /* for information only */
+		/* if data is utf8 but charset isn't then switch to utf8 csid */
+		csid = (SvUTF8(phs->sv) && !CS_IS_UTF8(csid)) ? utf8_csid : CSFORM_IMPLIED_CSID(csform);
+                fbh->csid = csid;
                 fbh->csform = csform;
             }
 

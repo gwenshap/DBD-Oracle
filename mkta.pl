@@ -16,8 +16,10 @@ use DBD::Oracle qw(ORA_OCI);
 my @sid = DBI->data_sources('Oracle');
 s/^dbi:Oracle://i for @sid;
 
+# set TEST_FILES env var to override which tests are run
 my $opt_full = 0;
 my $opt_dir = "mkta";
+my $opt_tf = $ENV{TEST_FILES};
 
 my $seq = 0;
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
@@ -47,10 +49,14 @@ sub mkta_sid_cs {
     }
     mkdir $opt_dir, 0771 unless -d $opt_dir;
     print "$sid: testing with @$charsets ...\n";
+
+    system("make") == 0
+        or die "$0 aborted - make failed\n";
     system("rm -f $opt_dir/$sid-*-*.log");
 
     for my $ochar (@$charsets) {
         for my $nchar (@$charsets) {
+	    next if $nchar eq ''; # because empty acts same as ochar
 	    my ($tag, $fh) = start_test($sid, $ochar, $nchar);
 	    $running{$tag} = $fh;
 	    push @run, $tag;
@@ -65,7 +71,7 @@ sub mkta_sid_cs {
 	push @fail, $tag if $?;
 	delete $running{$tag};
     }
-    warn "$sid: completed.\n";
+    print "$sid: completed.\n";
     print "\n";
 }
 
@@ -76,12 +82,14 @@ sub start_test {
     local $ENV{DBD_ORACLE_SEQ} = ++$seq; # unique id for parallel runs
     my $tag = join "-", map { $_ || "unset" } ($sid, $ochar, $nchar);
     my $fh = gensym();
-    open $fh, "make test > $opt_dir/$tag.log 2>&1 && rm $opt_dir/$tag.log |";
+    my @make_opts;
+    push @make_opts, "TEST_FILES='$opt_tf'" if $opt_tf;
+    open $fh, "make test @make_opts > $opt_dir/$tag.log 2>&1 && rm $opt_dir/$tag.log |";
     return ($tag, $fh);
 }
 
 
-warn "Skipped due to $_: @{ $skipped{$_} }\n" for keys %skipped;
+print "Skipped due to $_: @{ $skipped{$_} }\n" for keys %skipped;
 
-warn "Failed: @fail\n" if @fail;
-
+print "Failed: @fail\n" if @fail;
+print "done.\n"
