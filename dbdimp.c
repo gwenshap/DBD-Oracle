@@ -1520,9 +1520,9 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 
     /*
      * API:
-     *	  $sth->bind_param(1, $value, { ora_csform => 2 }); # 2 = SQLCS_NCHAR
+     *	  $sth->bind_param(1, $value, { ora_csform => SQLCS_NCHAR });
      * also
-     *    $dbh->{ora_ph_csform} = 2;	# default all future ph to SQLCS_NCHAR
+     *    $dbh->{ora_ph_csform} = SQLCS_NCHAR;	# default all future ph to SQLCS_NCHAR
      */
     
     if ( rebind_ok )  /* here we set csform and csid if specified by user or utf8 input found */
@@ -1537,7 +1537,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 
         if ( phs->csform != SQLCS_IMPLICIT ) {
             sword status;
-
+	    /* docs say must set OCI_ATTR_CHARSET_FORM before OCI_ATTR_CHARSET_ID */
             OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
                 &phs->csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
             if ( status != OCI_SUCCESS ) {

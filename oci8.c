@@ -1101,7 +1101,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
         fbh->csid = 0; fbh->csform = 0; /* just to be sure */
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->csid,   0, OCI_ATTR_CHARSET_ID,   status);
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->csform, 0, OCI_ATTR_CHARSET_FORM, status);
-	/* PerlIO_printf(DBILOGFP, "*** (lab) got charset id = %d csform = %d for column %d\n", fbh->csid, fbh->csform, i ); */
 #endif
 	/* OCI_ATTR_PRECISION returns 0 for most types including some numbers		*/
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->prec,   0, OCI_ATTR_PRECISION, status);
@@ -1299,54 +1298,27 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    ++num_errors;
 	}
 
-#ifdef OCI_ATTR_CHARSET_ID /* lab: without this, it BREAKS! 
-                              but we will use the charsetid we got at 
-                              startup... */
-/* does not seem to be needed, and the OCIAttrSet OCI_ATTR_CHARSET_FORM
-	was failing anyway in my tests using Oracle 9.0.1
-*/
-/* But the docs say:
-    When you bind or define SQL NCHAR datatypes, you should set the
-    OCI_ATTR_CHARSET_FORM attribute to SQLCS_NCHAR. Otherwise, you can
-    lose data because the data is converted to the database character
-    set before converting to or from the national character set. This
-    occurs only if the database character set is not Unicode.
-*/
-/* Well all I can say is this is required with Oracle 9.2 
-   So it would seem we have to make this version specific.
-   I put this back but, protected it with NEW_OCI_INIT
-   -- lab
-*/
-#ifdef NEW_OCI_INIT
+#ifdef OCI_ATTR_CHARSET_ID
         if ( 1 && (fbh->dbtype == 1) ) {
-#define USE_NLS_NCHAR
-#ifdef USE_NLS_NCHAR
-            ub2 csid = ( fbh->csform == 2 ) ? ncharsetid : charsetid; 
+            ub2 csid = ( fbh->csform == SQLCS_NCHAR ) ? ncharsetid : charsetid; 
             ub1 csform = fbh->csform;
-            /* ub2 csform = ((fbh->csform == 2) && cs_is_utf8) ? fbh->csform : 1 ; */
-            /* ub2 csform = (fbh->csform == 2) ? fbh->csform : 1 ; */
-#else
-            ub2 csid = fbh->csid;  
-            ub2 csform = fbh->csform;
-#endif
+	    /* docs say must set OCI_ATTR_CHARSET_FORM before OCI_ATTR_CHARSET_ID */
             if (DBIS->debug >= 3)
                PerlIO_printf(DBILOGFP, "    calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
-
-            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csid, 
-                                 (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
-	    if (status != OCI_SUCCESS) {
-		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_ID");
-		++num_errors;
-	    }
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csform, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
             if (status != OCI_SUCCESS) {
                 oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");
                 ++num_errors;
             }
+            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csid, 
+                                 (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
+	    if (status != OCI_SUCCESS) {
+		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_ID");
+		++num_errors;
+	    }
         }
-#endif
-#endif /* NEW_OCI_INIT */
+#endif /* OCI_ATTR_CHARSET_ID */
 
 	if (fbh->ftype == 108) {
 	    oci_error(h, NULL, OCI_ERROR, "OCIDefineObject call needed but not implemented yet");
