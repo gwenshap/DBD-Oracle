@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.46 1996/07/10 02:27:52 timbo Exp $
+# $Id: Makefile.PL,v 1.47 1996/07/26 21:09:53 timbo Exp $
 
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
 
@@ -57,20 +57,22 @@ print "Using Oracle in $OH\n";
 
 # --- What Oracle is installed...
 
-# Todo: validate we have the right stuff installed
-warn "Warning: OCI (Pro*C) does not appear to be installed.\n"
+warn "\nWARNING: Oracle OCI (Pro*C) does not appear to be installed.\n"
+	."You must install Pro*C before you can build DBD::Oracle properly.\n\n"
     unless (-f "$OH/lib/libocic.a" and -f "$OH/rdbms/demo/oratypes.h")
 	or (-f "$OH/precomp/demo/proc/proc.mk");	# 7.3.x
+# Todo: validate we have all the right stuff installed
+
+# Using -m to specify oracle.mk might work but is NOT supported.
+my $procmk = $::opt_m || "$OH/proc/lib/proc.mk";
+$procmk = "$OH/precomp/demo/proc/proc.mk" unless -f $procmk; # 7.3.x
+$procmk = "$OH/proc16/lib/proc16.mk"      unless -f $procmk;
+die "Unable to locate proc.mk (use -m /path/to/proc.mk to specify)\n"
+    unless -f $procmk;
 
 my @mkfiles;
-my $oraclemk = $::opt_m || "$OH/proc/lib/proc.mk";
-$oraclemk = "$OH/precomp/demo/proc/proc.mk" unless -f $oraclemk; # 7.3.x
-$oraclemk = "$OH/proc16/lib/proc16.mk"      unless -f $oraclemk;
-die "Unable to locate proc.mk (use -m /path/to/proc.mk to specify)\n"
-    unless -f $oraclemk;
-
 my $linkwith = fetch_oci_macros();
-my $libhome  = expand_mkvars($MK{LIBHOME}, 0, 0);
+my $libhome  = expand_mkvars($MK{LIBHOME}, 0, 0) || "$OH/lib";
 $linkwith    = expand_mkvars($linkwith, 0, 0);
 $linkwith =~ s/-Y P,/-YP,/g if $Config{'cc'} =~ /gcc/;
 $linkwith =~ s:-R /:-R/:g if $Config{osname} eq 'solaris';
@@ -82,10 +84,13 @@ $linkwith_s =~ s!([/\w.]+)/lib(\w+).a!-L$1 -l$2!g;
 # extract object files, keep for use later
 my @linkwith_o;
 push @linkwith_o, $1 while $linkwith_s =~ s/(\S+\.[oa])\b//;
+# also extract AIX .exp files since they confuse MakeMaker
+push @linkwith_o, $1 while $linkwith_s =~ s/(-bI:\S+\.exp)\b//;
 
 if ($::opt_s) {
-	warn "Searching for symbol '$::opt_s' in $libhome ...\n";
-	system(qq{	cd $libhome; for i in lib*.[as]* *.o;
+	warn "Searching for symbol '$::opt_s' in $OH ...\n";
+	my $dlext = $Config{dlext};
+	system(qq{	cd $OH; for i in lib/*.[ao] lib/*.$dlext */lib/*.[ao];
 				do echo "  searching \$i ..."; nm \$i | grep $::opt_s;
 				done
 			});
@@ -93,7 +98,7 @@ if ($::opt_s) {
 	exit;
 }
 
-if ($Config{osname} eq 'solaris' and $Config{osvers} == 2.5
+if ($Config{osname} eq 'solaris' and $Config{osvers} >= 2.3
 		and $linkwith_s =~ /-lthread/) {
 	warn "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
 	warn "Deleting -lthread from link list as a possible workround.\n";
@@ -131,8 +136,8 @@ warn "WARNING: Your GNU C compiler is very old. Please upgrade.\n"
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($ENV{LOGNAME} eq 'timbo' and $ENV{S_ARCH_SW}){  # a reasonable guess
     $Verbose = 1;
-    $opts{INST_LIB}     = '$(INSTALLSITELIB)';
-    $opts{INST_ARCHLIB} = '$(INSTALLSITEARCH)';
+    # $opts{INST_LIB}     = '$(INSTALLSITELIB)';
+    # $opts{INST_ARCHLIB} = '$(INSTALLSITEARCH)';
 	$opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith'
 	    . ' -Wbad-function-cast -Wcast-qual' if $Config{cc} eq 'gcc';
 }
@@ -228,12 +233,12 @@ ORACLE_HOME = '.$ENV{ORACLE_HOME}.'
 
 sub fetch_oci_macros {
 
-    # Read $oraclemk makefile, extract macro definitions from it
+    # Read $procmk makefile, extract macro definitions from it
     # and store them in $MK, @MK and %MK.
 
     # Don't include the following definitions in the generated
     # makefile (note that %MK stills gets these values).
-    my @edit = qw(SHELL CC CFLAGS ASFLAGS RCC LDFLAGS AR ECHO EXE OBJS);
+    my @edit = qw(SHELL CC CFLAGS CCFLAGS OPTIMIZE ASFLAGS RCC LD LDFLAGS AR ECHO EXE OBJS);
     my %edit; @edit{@edit} = ('$_ = ""') x @edit;
 
     $edit{COMPOBJS} = q{
@@ -246,7 +251,7 @@ sub fetch_oci_macros {
     my $mkver = 0;
     my $linkwith = '';
     my $lastline = '';
-    my @lines = read_inc_file($oraclemk);
+    my @lines = read_inc_file($procmk);
     for(1; $_ = shift(@lines); $lastline = $_){
 	# Join split lines but retain backwack and newlines:
 	$_ .= shift(@lines) while(m/\\[\r\n]+$/);
@@ -294,7 +299,7 @@ sub fetch_oci_macros {
 	$linkwith = '$(PROLDLIBS)';
     }
     unless ($linkwith){
-	die "ERROR parsing $oraclemk: Unable to determine what to link with.\n";
+	die "ERROR parsing $procmk: Unable to determine what to link with.\n";
     }
     $MK = join("\n", @MK);
 	print "Using @mkfiles ".($MK{mkver} ? "(version $MK{mkver})" : '')."\n";

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.20 1996/07/10 02:27:52 timbo Exp $
+   $Id: dbdimp.c,v 1.21 1996/07/26 21:05:34 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -520,14 +520,14 @@ dbd_describe(h, imp_sth)
     I32 num_fields;
     int i = 0;
 
+    if (imp_sth->done_desc)
+	return 1;	/* success, already done it */
+    imp_sth->done_desc = 1;
+
     if (!f_cbufl) {
 	f_cbufl_max = 120;
 	New(1, f_cbufl, f_cbufl_max, sb4);
     }
-
-    if (imp_sth->done_desc)
-	return 1;	/* success, already done it */
-    imp_sth->done_desc = 1;
 
     /* Get number of fields and space needed for field names	*/
     while(++i) {	/* break out within loop		*/
@@ -775,10 +775,17 @@ dbd_st_finish(sth)
 {
     D_imp_sth(sth);
     /* Cancel further fetches from this cursor.                 */
-    /* We don't close the cursor till DESTROY.                  */
-    /* The application may re execute it.			*/
+    /* We don't close the cursor till DESTROY (dbd_st_destroy). */
+    /* The application may re execute(...) it.                  */
     if (DBIc_ACTIVE(imp_sth) && ocan(imp_sth->cda) ) {
-        ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "ocan error");
+	/* oracle 7.3 code can core dump looking up an error message	*/
+	/* if we have logged out of the database. This typically	*/
+	/* happens during global destruction. This should catch most:	*/
+	if (dirty && imp_sth->cda->rc == 3114)
+	    ora_error(sth, NULL, imp_sth->cda->rc,
+		"ORA-03114: not connected to ORACLE (ocan)");
+	else
+	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "ocan error");
 	return 0;
     }
     DBIc_ACTIVE_off(imp_sth);

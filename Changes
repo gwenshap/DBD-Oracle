@@ -1,3 +1,10 @@
+Changes in DBD::Oracle 0.37 (Oraperl 1.28), 25th July 1996
+
+	Fixed Makefile.PL for Oracle 7.3.2.
+	Fixed $num_fields = ora_fetch($csr) before first fetch for
+		queries with bind vars.
+	Fixed occasional core dump on global destruct.
+
 Changes in DBD::Oracle 0.36 (Oraperl 1.28), 10th July 1996
 
 	Fixed bind_param ora_type attribute.

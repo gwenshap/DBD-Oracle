@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.xs,v 1.40 1996/05/20 21:30:26 timbo Exp $
+   $Id: Oracle.xs,v 1.41 1996/07/26 21:08:14 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -228,6 +228,8 @@ fetchrow(sth)
     if (DBIc_COMPAT(imp_sth) && GIMME == G_SCALAR) {	/* XXX Oraperl	*/
 	/* This non-standard behaviour added only to increase the	*/
 	/* performance of the oraperl emulation layer (Oraperl.pm)	*/
+	if (!imp_sth->done_desc && !dbd_describe(sth, imp_sth))
+		XSRETURN_UNDEF;
 	XSRETURN_IV(DBIc_NUM_FIELDS(imp_sth));
     }
     av = dbd_st_fetch(sth);

@@ -19,10 +19,10 @@ DBD::Oracle  --  an Oracle 7 interface for Perl 5.
 *BEFORE* BUILDING, TESTING AND INSTALLING this you will need to:
 
     Build, test and install Perl 5 (at least 5.002beta2).
-    It is very important to test it and install it!
+    It is very important to TEST it and INSTALL it!
 
     Build, test and install the DBI module (at least DBI 0.69).
-    It is very important to test it and install it!
+    It is very important to TEST it and INSTALL it!
 
     Remember to *read* the DBI README file!
 
@@ -260,14 +260,14 @@ the core file and then send it to me along with the other information
 requested in the 'If you have problems' section.
 
 -------------------------------------------------------------------------------
-HP-UX: Terry Greenlaw <z50816@mip.lasc.lockheed.com>
+HP-UX 9.x: Terry Greenlaw <z50816@mip.lasc.lockheed.com>
 
 I traced a problem with "ld: Invalid loader fixup needed" to the file
 libocic.a. On HP-UX it contains position-dependant code and cannot be
 used to generate dynamic load libraries. The only shared library that
 Oracle ships under HP-UX is liboracle.sl which replaces libxa.a,
 libsql.a, libora.a, libcvg.a, and libnlsrtl.a. The OCI stuff still
-appears to only link statically under HU-UX.
+appears to only link statically under HU-UX 9.x [10.x is okay].
 
 You'll need to build DBD::Oracle statically linked into the perl binary.
 See the static linking notes below.
