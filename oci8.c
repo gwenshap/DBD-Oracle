@@ -16,8 +16,6 @@
 #include <utf8.h>
 #endif
 
-#ifdef OCI_V8_SYNTAX
-
 #define sv_set_undef(sv) if (SvROK(sv)) sv_unref(sv); else SvOK_off(sv)
 
 DBISTATE_DECLARE;
@@ -1878,5 +1876,3 @@ ora_free_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     imp_sth->lob_refetch = NULL;
 }
 
-
-#endif

@@ -82,7 +82,6 @@ $::opt_s = '';	# Find a symbol in oracle libs, Don't build a Makefile
 $::opt_S = '';	# Find a symbol in oracle & system libs, Don't build a Makefile
 $::opt_v = 0;	# be more verbose
 $::opt_d = 0;	# much more verbose for debugging
-$::opt_8 = 0;	# disable use of OCI 8 (where available)
 $::opt_f = 0;	# include text of oracle's .mk file within generated Makefile
 $::opt_F = 0;	# force - ignore errors
 $::opt_W = 0;	# just write a basic default Makefile (won't build)
@@ -267,8 +266,6 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
       my @OCILIB = sort grep { /(OCI|ORA)\d\d+\./i } keys %OCILIB;
       # prefer the non-versioned library if present
       push @OCILIB, "OCI.LIB"    if $OCILIB{'OCI.LIB'};
-      # opt_8 means DISABLE use of OCI 8 API
-      push @OCILIB, "OCIW32.LIB" if $OCILIB{'OCIW32.LIB'} && $::opt_8;
       my $OCILIB = pop @OCILIB || '';
       $OCILIB =~ s/\.LIB$//i;
   
@@ -592,14 +589,6 @@ $opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{gccversion} eq 'gcc';
 $opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
 
 $opts{DEFINE} .= ' -DCAN_USE_PRO_C' if $::opt_ProC;
-
-if ($::opt_8) {
-    $opts{DEFINE} .= ' -DNO_OCI8';
-    print "\n******************************************************\n";
-    print "OCI7 will not be supported in future releases of DBD::Oracle$BELL\n";
-    print "******************************************************\n";
-    sleep 10;
-}
 
 $opts{DEFINE} .= ' -DUTF8_SUPPORT' if ($] >= 5.006);
 
@@ -968,7 +957,8 @@ sub fetch_oci_macros {
 	    "  because it is not already set in the environment\n",
 	    "  and it can cause ORA-01019 errors.\n";
 	$_ = '';
-    } unless $ENV{ORA_NLS} || $ENV{ORA_NLS33} || $ENV{ORA_NLS32};
+    } unless $ENV{ORA_NLS} || $ENV{ORA_NLS33} || $ENV{ORA_NLS32}
+	|| 1; # Old problem? Let's try without it for a while
 
     $edit{COMPOBJS} = q{
 	# Firstly a Solaris specific edit:

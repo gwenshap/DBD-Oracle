@@ -38,32 +38,12 @@
 #endif
 
 
-/* This is slightly backwards because we want to auto-detect OCI8  */
-/* and thus the existance of oci.h while still working for Oracle7 */
-#include <oratypes.h>
-#include <ocidfn.h>
-
-#if defined(SQLT_NTY) && !defined(NO_OCI8)	/* === use Oracle 8 === */
-
 /* ori.h uses 'dirty' as an arg name in prototypes so we use this */
 /* hack to prevent ori.h being read (since we don't need it)	  */
 #define ORI_ORACLE
-
 #include <oci.h>
-
-#else						/* === use Oracle 7 === */
-
-#ifdef CAN_PROTOTYPE
-# include <ociapr.h>
-#else
-# include <ocikpr.h>
-#endif
-
-#ifndef HDA_SIZE
-#define HDA_SIZE 512
-#endif
-
-#endif						/* === ------------ === */
+#include <oratypes.h>
+#include <ocidfn.h>
 
 /* ------ end of Oracle include files ------ */
 

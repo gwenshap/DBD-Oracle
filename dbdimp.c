@@ -2,7 +2,7 @@
    vim: sw=4:ts=8
    $Id: dbdimp.c,v 1.83 2004/02/26 01:32:01 timbo Exp $
 
-   Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
+   Copyright (c) 1994-2004  Tim Bunce  Ireland
 
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file,
@@ -17,7 +17,7 @@
 
 #include "Oracle.h"
 
-#if defined(CAN_USE_PRO_C) && defined(OCI_V8_SYNTAX)
+#if defined(CAN_USE_PRO_C)
 /* #include <sql2oci.h>     for SQL_SINGLE_RCTX but causes clashes */
 #if !defined(SQL_SINGLE_RCTX)
 /* http://download-west.oracle.com/docs/cd/B10501_01/appdev.920/a97269/pc_01int.htm#1174 */
@@ -42,9 +42,6 @@ int cs_is_utf8;
 
 static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
 static int ora_sigchld_restart = 1;
-#ifndef OCI_V8_SYNTAX
-static int set_sigint_handler  = 0;
-#endif
 
 typedef struct sql_fbh_st sql_fbh_t;
 struct sql_fbh_st {
@@ -234,11 +231,9 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     SV *        shared_dbh_priv_sv ;
     STRLEN 	shared_dbh_len  = 0 ;
 #endif
-#ifdef OCI_V8_SYNTAX
     struct OCIExtProcContext *this_ctx;
     ub4 use_proc_connection = 0;
     SV **use_proc_connection_sv;
-#endif
     D_imp_drh_from_dbh;
 
 
@@ -272,12 +267,10 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
             int l = DBH_DUP_LEN ;
             memcpy (((char *)imp_dbh) + DBH_DUP_OFF, ((char *)shared_dbh) + DBH_DUP_OFF, DBH_DUP_LEN) ;
 	    shared_dbh -> refcnt++ ;
-#ifdef OCI_V8_SYNTAX
 	    imp_dbh -> shared_dbh_priv_sv = shared_dbh_priv_sv ;
 	    imp_dbh -> shared_dbh         = shared_dbh ;
 	    if (DBIS->debug >= 2)
 		PerlIO_printf(DBILOGFP, "    dbd_db_login: use shared Oracle database handles.\n");
-#endif
        } else {
             shared_dbh = NULL ;
        }
@@ -287,8 +280,6 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     /* Check if we should re-use a ProC connection and not connect ourselves. */
     DBD_ATTRIB_GET_IV(attr, "ora_use_proc_connection", 23,
 		      use_proc_connection_sv, use_proc_connection);
-
-#ifdef OCI_V8_SYNTAX
 
     imp_dbh->get_oci_handle = oci_db_handle;
 
@@ -516,82 +507,6 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 			   (ub4) OCI_ATTR_SESSION, imp_dbh->errhp, status);
 	} /* use_proc_connection */
     }
-#else
-    if (DBIS->debug >= 6 )
-	dump_env_to_trace();
-
-    if(use_proc_connection)
-	croak("ora_use_proc_connection attribute not available with OCI_V7.");
-
-    imp_dbh->lda = &imp_dbh->ldabuf;
-    imp_dbh->hda = &imp_dbh->hdabuf[0];
-    /* can give duplicate free errors (from Oracle) if connect fails	*/
-    status = orlon(imp_dbh->lda, imp_dbh->hda, (text*)uid,-1, (text*)pwd,-1,0);
-
-    if (status) {
-	int rc = imp_dbh->lda->rc;
-	char buf[100];
-	char *msg;
-	switch(rc) {	/* add helpful hints to some errors */
-	case    0: msg = "login failed, check your config, e.g. ORACLE_HOME/bin in your PATH/Registry etc";  break;
-	case 1019: msg = "login failed, probably a symptom of a deeper problem"; break;
-	default:   msg = "login failed"; break;
-	}
-	if (ora_login_nomsg) {
-	    /* oerhms in ora_error may hang or corrupt memory (!) after a connect */
-	    /* failure in some specific versions of Oracle 7.3.x. So we provide a */
-	    /* way to skip the message lookup if ora_login_nomsg is true (set via */
-	    /* env var above). */
-	    sprintf(buf, 
-		"ORA-%05d: (Text for error %d not fetched. Use 'oerr ORA %d' command.)",
-		rc, rc, rc);
-	    msg = buf;
-	}
-	ora_error(dbh,	ora_login_nomsg ? NULL : imp_dbh->lda, rc, msg);
-	return 0;
-    }
-
-    if (!set_sigint_handler) {
-	set_sigint_handler = 1;
-	/* perl's sign handler is sighandler */
-	/* osnsui(??, sighandler, NULL?) */
-	/* OCI8: osnsui(word *handlp, void (*astp), char * ctx)
-	** osnsui: Operating System dependent Network Set User-side
-	** Interrupt. Add an interrupt handling procedure astp. 
-	** Whenever a user interrupt(such as a ^C) occurs, call astp
-	** with argument ctx. Put in *handlp handle for this 
-	** handler so that it may be cleared with osncui.
-	** Note that there may be many handlers; each should 
-	** be cleared using osncui. An error code is 
-	** returned if an error occurs.
-	*/
-    }
-
-#ifdef SA_RESTART
-#ifndef SIGCLD
-#define SIGCLD SIGCHLD
-#endif
-    /* If orlon has installed a handler for SIGCLD, then reinstall it	*/
-    /* with SA_RESTART.  We only do this if connected ok since I've	*/
-    /* seen the process loop after being interrupted after connect failed. */
-    if (ora_sigchld_restart) {
-	struct sigaction act;
-	if (sigaction( SIGCLD, (struct sigaction*)0, &act ) == 0
-		&&  (act.sa_handler != SIG_DFL && act.sa_handler != SIG_IGN)
-		&&  (act.sa_flags & SA_RESTART) == 0) {
-	    /* XXX we should also check that act.sa_handler is not the perl handler */
-	    act.sa_flags |= SA_RESTART;
-	    sigaction( SIGCLD, &act, (struct sigaction*)0 );
-	    if (DBIS->debug >= 3)
-		warn("dbd_db_login: sigaction errno %d, handler %lx, flags %lx",
-			errno,act.sa_handler,act.sa_flags);
-	    if (DBIS->debug >= 2)
-		PerlIO_printf(DBILOGFP, "    dbd_db_login: set SA_RESTART on Oracle SIGCLD handler.\n");
-	}
-    }  
-#endif	/* HAS_SIGACTION */
-
-#endif	/* OCI_V8_SYNTAX */
 
 dbd_db_login6_out:
     DBIc_IMPSET_on(imp_dbh);	/* imp_dbh set up now			*/
@@ -622,15 +537,10 @@ dbd_db_commit(dbh, imp_dbh)
     SV *dbh;
     imp_dbh_t *imp_dbh;
 {
-#ifdef OCI_V8_SYNTAX
     sword status;
     OCITransCommit_log_stat(imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
     if (status != OCI_SUCCESS) {
 	oci_error(dbh, imp_dbh->errhp, status, "OCITransCommit");
-#else
-    if (ocom(imp_dbh->lda)) {
-	ora_error(dbh, imp_dbh->lda, imp_dbh->lda->rc, "commit failed");
-#endif
 	return 0;
     }
     return 1;
@@ -644,20 +554,12 @@ dbd_st_cancel(sth, imp_sth)
     SV *sth;
     imp_sth_t *imp_sth;
 {
-#ifdef OCI_V8_SYNTAX
     sword status;
     status = OCIBreak(imp_sth->svchp, imp_sth->errhp);
     if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCIBreak");
 	return 0;
     }
-#else
-    D_imp_dbh_from_sth;
-    if (obreak(imp_dbh->lda)) {
-	ora_error(sth, imp_dbh->lda, imp_dbh->lda->rc, "obreak");
-	return 0;
-    }
-#endif
     return 1;
 }
 
@@ -668,15 +570,10 @@ dbd_db_rollback(dbh, imp_dbh)
     SV *dbh;
     imp_dbh_t *imp_dbh;
 {
-#ifdef OCI_V8_SYNTAX
     sword status;
     OCITransRollback_log_stat(imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
     if (status != OCI_SUCCESS) {
 	oci_error(dbh, imp_dbh->errhp, status, "OCITransRollback");
-#else
-    if (orol(imp_dbh->lda)) {
-	ora_error(dbh, imp_dbh->lda, imp_dbh->lda->rc, "rollback failed");
-#endif
 	return 0;
     }
     return 1;
@@ -705,7 +602,6 @@ dbd_db_disconnect(dbh, imp_dbh)
     /* Oracle will commit on an orderly disconnect.	*/
     /* See DBI Driver.xst file for the DBI approach.	*/
 
-#ifdef OCI_V8_SYNTAX
     if (refcnt == 1 && !imp_dbh->proc_handles) {
         sword s_se, s_sd;
 	OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,
@@ -716,12 +612,6 @@ dbd_db_disconnect(dbh, imp_dbh)
 	if (s_se || s_sd)
 	    return 0;
     }
-#else
-    if (ologof(imp_dbh->lda)) {
-	ora_error(dbh, imp_dbh->lda, imp_dbh->lda->rc, "disconnect error");
-	return 0;
-    }
-#endif
     /* We don't free imp_dbh since a reference still exists	*/
     /* The DESTROY method is the only one to 'free' memory.	*/
     /* Note that statement objects may still exists for this dbh!	*/
@@ -736,34 +626,28 @@ dbd_db_destroy(dbh, imp_dbh)
 {
     dTHX ;	
     int refcnt = 1 ;
+    sword status;
 	
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
-	if (DBIc_IMPSET(imp_dbh) && imp_dbh->shared_dbh) {
-		SvLOCK (imp_dbh->shared_dbh_priv_sv) ;
-		refcnt = imp_dbh -> shared_dbh -> refcnt-- ;
-	}
+    if (DBIc_IMPSET(imp_dbh) && imp_dbh->shared_dbh) {
+	SvLOCK (imp_dbh->shared_dbh_priv_sv) ;
+	refcnt = imp_dbh -> shared_dbh -> refcnt-- ;
+    }
 #endif
 
     if (refcnt == 1) {
-    if (DBIc_ACTIVE(imp_dbh))
-	dbd_db_disconnect(dbh, imp_dbh);
-    if (is_extproc) goto dbd_db_destroy_out;
-#ifdef OCI_V8_SYNTAX
-    if (!imp_dbh->proc_handles)
-    {   sword status;
-	OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
-	OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
-	OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+	if (DBIc_ACTIVE(imp_dbh))
+	    dbd_db_disconnect(dbh, imp_dbh);
+	if (is_extproc)
+	    goto dbd_db_destroy_out;
+	if (!imp_dbh->proc_handles)
+	{   sword status;
+	    OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
+	    OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+	    OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+	}
     }
-#else
-    /* Nothing in imp_dbh to be freed	*/
-#endif
-    }
-#ifdef OCI_V8_SYNTAX
-        {   sword status; /* error handle is not shared, so always free it */
-	    OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
-        }
-#endif
+    OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 dbd_db_destroy_out:
     DBIc_IMPSET_off(imp_dbh);
 }
@@ -782,13 +666,6 @@ dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)
     int on = SvTRUE(valuesv);
 
     if (kl==10 && strEQ(key, "AutoCommit")) {
-#ifndef OCI_V8_SYNTAX
-	if ( (on) ? ocon(imp_dbh->lda) : ocof(imp_dbh->lda) ) {
-	    ora_error(dbh, imp_dbh->lda, imp_dbh->lda->rc, "ocon/ocof failed");
-	    /* XXX um, we can't return FALSE and true isn't acurate so we croak */
-	    croak(SvPV(DBIc_ERRSTR(imp_dbh),na));
-	}
-#endif	/* OCI V8 handles this as OCIExecuteStmt	*/
 	DBIc_set(imp_dbh,DBIcf_AutoCommit, on);
     }
     else if (kl==12 && strEQ(key, "RowCacheSize")) {
@@ -1084,9 +961,7 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 {
     STRLEN value_len;
     int at_exec = 0;
-#ifdef OCI_V8_SYNTAX
     at_exec = (phs->desc_h == NULL);
-#endif
 
     if (!SvPOK(phs->sv)) {	/* normalizations for special cases	*/
 	if (SvOK(phs->sv)) {	/* ie a number, convert to string ASAP	*/
@@ -1150,24 +1025,7 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
     phs->maxlen  = ((IV)SvLEN(phs->sv))-1; /* avail buffer space (64bit safe) */
     if (phs->maxlen < 0)		/* can happen with nulls	*/
 	phs->maxlen = 0;
-
-#ifdef OCI_V8_SYNTAX
     phs->alen = value_len + phs->alen_incnull;
-#else
-    if (value_len + phs->alen_incnull <= UB2MAXVAL) {
-	phs->alen = value_len + phs->alen_incnull;
-	*alen_ptr_ptr = &phs->alen;
-	if (((IV)phs->alen) > phs->maxlen && phs->indp != -1)
-	    croak("panic: dbd_rebind_ph alen %ld > maxlen %ld (incnul %d)",
-			phs->alen,phs->maxlen, phs->alen_incnull);
-    }
-    else {
-	phs->alen = 0;
-	*alen_ptr_ptr = NULL; /* Can't use alen for long LONGs (>64k) */
-	if (phs->is_inout)
-	    croak("Can't bind LONG values (>%ld) as in/out parameters", (long)UB2MAXVAL);
-    }
-#endif
 
     if (DBIS->debug >= 3) {
 	UV neatsvpvlen = (UV)DBIc_DBISTATE(imp_sth)->neatsvpvlen;
@@ -1182,7 +1040,6 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 }
 
 
-#ifdef OCI_V8_SYNTAX
 /*
  * Rebind an "in" cursor ref to its real statement handle
  * This allows passing cursor refs as "in" to pl/sql (but only if you got the
@@ -1218,7 +1075,6 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	PerlIO_printf(DBILOGFP, "    pp_rebind_ph_rset_in: END\n");
     return 2;
 }
-#endif
 
 
 int
@@ -1230,15 +1086,16 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	SV *sth_i;
 	HV *init_attr = newHV();
 	int count;
+	sword status;
+
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP, "       bind %s - allocating new sth...\n", phs->name);
-#ifdef OCI_V8_SYNTAX
-    /* extproc deallocates everything for us */
-    if (is_extproc) return 1;
 
-    {
-	sword status;
-	if (!phs->desc_h || 1) { /* XXX phs->desc_t != OCI_HTYPE_STMT) { */
+	/* extproc deallocates everything for us */
+	if (is_extproc)
+	    return 1;
+
+	if (!phs->desc_h || 1) { /* XXX phs->desc_t != OCI_HTYPE_STMT) */
 	    if (phs->desc_h) {
 		OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);
 		phs->desc_h = NULL;
@@ -1257,30 +1114,6 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	    oci_error(sth, imp_sth->errhp, status, "OCIBindByName SQLT_RSET");
 	    return 0;
 	}
-    }
-#else
-    {
-	Cda_Def *cda;
-	assert(phs->ftype == 102);	/* SQLT_CUR */
-	Newz(0, cda, 1, Cda_Def);
-	if (oopen(cda, imp_dbh->lda, (text*)0, -1, -1, (text*)0, -1)) {
-	    ora_error(sth, cda, cda->rc, "oopen error for cursor");
-	    Safefree(cda);
-	    return 0;
-	}
-	if (obndra(imp_sth->cda, (text *)phs->name, -1,
-	    (ub1*)cda, (sword)-1, /* cast reduces max size */
-	    (sword)phs->ftype, -1, 0, 0, &phs->arcode, 0, (ub4 *)0, (text *)0, -1, -1)
-	) {
-	    D_imp_dbh_from_sth;
-	    ora_error(sth, imp_dbh->lda, imp_sth->cda->rc, "obndra failed for cursor");
-	    Safefree(cda);
-	    return 0;
-	}
-	phs->progv = (void*)cda;
-	phs->maxlen = -1;
-    }
-#endif
 	ENTER;
 	SAVETMPS;
 	PUSHMARK(SP);
@@ -1311,7 +1144,6 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	    PerlIO_printf(DBILOGFP, "       bind %s - initialising new %s for cursor 0x%lx...\n",
 		phs->name, neatsvpv(sth_csr,0), (unsigned long)phs->progv);
 
-#ifdef OCI_V8_SYNTAX
 	/* copy appropriate handles from parent statement	*/
 	imp_sth_csr->envhp = imp_sth->envhp;
 	imp_sth_csr->errhp = imp_sth->errhp;
@@ -1324,13 +1156,6 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 
 	/* force stmt_type since OCIAttrGet(OCI_ATTR_STMT_TYPE) doesn't work! */
 	imp_sth_csr->stmt_type = OCI_STMT_SELECT;
-#else
-
-	imp_sth_csr->cda = (void*)phs->progv;
-	imp_sth_csr->cda->ft = 4;	/* persuade dbd_describe it's a SELECT	*/
-	phs->progv = NULL;		/* tell phs that we own it now		*/
-
-#endif
 
 	DBIc_IMPSET_on(imp_sth_csr);
 
@@ -1339,30 +1164,9 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	if (!dbd_describe(sth_csr, imp_sth_csr)) {
 	    return 0;
 	}
-#ifndef OCI_V8_SYNTAX
-	imp_sth_csr->cda->rpc= 0;	/* nothing already fetched into cache	*/
-#endif
     }
     return 1;
 }
-
-
-#ifndef OCI_V8_SYNTAX
-static int 
-dbd_rebind_ph_cursor(sth, imp_sth, phs) 
-    SV *sth;
-    imp_sth_t *imp_sth;
-    phs_t *phs;
-{
-    assert(phs->ftype == 102);
-    phs->out_prepost_exec = pp_exec_rset;
-    if (DBIS->debug >= 3)
- 	PerlIO_printf(DBILOGFP, "       bind %s to cursor (at execute)\n", phs->name);
-    return 2;
-}
-#endif
-
-
 
 
 static int 
@@ -1379,7 +1183,6 @@ dbd_rebind_ph(sth, imp_sth, phs)
 		phs->name, phs->ftype);
 
     switch (phs->ftype) {
-#ifdef OCI_V8_SYNTAX
     case SQLT_CLOB:
     case SQLT_BLOB:
 	    done = dbd_rebind_ph_lob(sth, imp_sth, phs);
@@ -1387,11 +1190,6 @@ dbd_rebind_ph(sth, imp_sth, phs)
     case SQLT_RSET:
 	    done = dbd_rebind_ph_rset(sth, imp_sth, phs);
 	    break;
-#else
-    case 102:	/* SQLT_CUR */
-	    done = dbd_rebind_ph_cursor(sth, imp_sth, phs);
-	    break;
-#endif
     default:
 	    done = dbd_rebind_ph_char(sth, imp_sth, phs, &alen_ptr);
     }
@@ -1405,7 +1203,6 @@ dbd_rebind_ph(sth, imp_sth, phs)
 	return 0;	 /* the rebind failed	*/
     }
 
-#ifdef OCI_V8_SYNTAX
     if (phs->maxlen > phs->maxlen_bound) {
 	sword status;
 	int at_exec = (phs->desc_h == NULL);
@@ -1436,27 +1233,6 @@ dbd_rebind_ph(sth, imp_sth, phs)
 	}
     }
 
-#else
-    /* Since we don't support LONG VAR types we must check	*/
-    /* for lengths too big to pass to obndrv as an sword.	*/
-    if (phs->maxlen > MINSWORDMAXVAL && sizeof(sword)<4)	/* generally 32K	*/
-	croak("Can't bind %s, value is too long (%ld bytes, max %d)",
-		    phs->name, phs->maxlen, MINSWORDMAXVAL);
-
-    {
-    sword progvl = (alen_ptr) ? phs->maxlen : SvCUR(phs->sv);
-    if (obndra(imp_sth->cda, (text *)phs->name, -1,
-	    (ub1*)phs->progv, (progvl) ? progvl : 1,
-	    (sword)phs->ftype, -1,
-	    &phs->indp, alen_ptr, &phs->arcode,
-	    0, (ub4 *)0,
-	    (text *)0, -1, -1)) {
-	D_imp_dbh_from_sth;
-	ora_error(sth, imp_dbh->lda, imp_sth->cda->rc, "obndra failed");
-	return 0;
-    }
-    }
-#endif
     phs->maxlen_bound = phs->maxlen ? phs->maxlen : 1;
     if (DBIS->debug >= 3)
 	PerlIO_printf(DBILOGFP, "       bind %s done with ftype %d\n",
@@ -1558,18 +1334,9 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	if (sql_type)
 	    phs->ftype = ora_sql_type(imp_sth, phs->name, (int)sql_type);
 
-#ifndef OCI_V8_SYNTAX
-	/* treat Oracle8 LOBS as simple LONGs for Oracle7 	*/
-	if (phs->ftype==112 || phs->ftype==113)
-	    phs->ftype = 8;
-	/* treat Oracle8 SQLT_RSET as SQLT_CUR for Oracle7	*/
-	if (phs->ftype==116)
-	    phs->ftype = 102;
-#else
 	/* treat Oracle7 SQLT_CUR as SQLT_RSET for Oracle8	*/
 	if (phs->ftype==102)
 	    phs->ftype = 116;
-#endif
 
 	/* some types require the trailing null included in the length.	*/
 	/* SQLT_STR=5=STRING, SQLT_AVC=97=VARCHAR	*/
@@ -1730,7 +1497,6 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
     int debug = DBIS->debug;
     int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
 
-#ifdef OCI_V8_SYNTAX
     D_imp_dbh_from_sth;
     sword status;
     int is_select = (imp_sth->stmt_type == OCI_STMT_SELECT);
@@ -1738,18 +1504,6 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
     if (debug >= 2)
 	PerlIO_printf(DBILOGFP, "    dbd_st_execute %s (out%d, lob%d)...\n",
 	    oci_stmt_type_name(imp_sth->stmt_type), outparams, imp_sth->has_lobs);
-#else
-
-    if (!imp_sth->done_desc) {
-	/* describe and allocate storage for results (if any needed)	*/
-	if (!dbd_describe(sth, imp_sth))
-	    return -2; /* dbd_describe already called ora_error()	*/
-    }
-    if (debug >= 2)
-	PerlIO_printf(DBILOGFP,
-	    "    dbd_st_execute (for sql f%d after oci f%d, out%d)...\n",
-		imp_sth->cda->ft, imp_sth->cda->fc, outparams);
-#endif
 
     if (outparams) {	/* check validity of bind_param_inout SV's	*/
 	int i = outparams;
@@ -1806,8 +1560,6 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	}
     }
 
-#ifdef OCI_V8_SYNTAX
-
     OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
 		(ub4)(is_select ? 0 : 1),
 		0, 0, 0,
@@ -1850,52 +1602,6 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	if (!post_execute_lobs(sth, imp_sth, row_count))
 	    return -2; /* post_insert_lobs already called oci_error()	*/
     }
-
-#else
-
-    /* reset cache counters */
-    imp_sth->in_cache   = 0;
-    imp_sth->next_entry = 0;
-    imp_sth->eod_errno  = 0;
-
-    /* Trigger execution of the statement */
-    if (DBIc_NUM_FIELDS(imp_sth) > 0) {  	/* is a SELECT	*/
-	/* The number of fields is used because imp_sth->cda->ft is unreliable.	*/
-	/* Specifically an update (5) may change to select (4) after odesc().	*/
-	if (oexfet(imp_sth->cda, (ub4)imp_sth->cache_rows, 0, 0)
-		&& imp_sth->cda->rc != 1403 /* other than no more data */ ) {
-		char * hint = "oexfet error";
-		if (imp_sth->cda->rc == 932)	/* inconsistent data types */
-			hint = "oexfet error, e.g., can't select LOB fields using DBD::Oracle built for Oracle 7";
-	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, hint);
-	    return -2;
-	}
-	DBIc_ACTIVE_on(imp_sth);
-	imp_sth->in_cache = imp_sth->cda->rpc;	/* cache loaded */
-	if (imp_sth->cda->rc == 1403)
-	    imp_sth->eod_errno = 1403;
-    }
-    else {					/* NOT a select */
-	if (oexec(imp_sth->cda)) {
-	    char *msg = "oexec error";
-	    switch(imp_sth->cda->rc) {
-	    case 3108:
-		msg = "perhaps you're using Oracle 8 functionality but this DBD::Oracle was built for Oracle 7";
-		break;
-	    }
-	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, msg);
-	    return -2;
-	}
-    }
-    row_count = imp_sth->cda->rpc;
-
-    if (debug >= 2)
-	PerlIO_printf(DBILOGFP,
-	    "    dbd_st_execute complete (rc%d, w%02x, rpc%ld, eod%d, out%d)\n",
-		imp_sth->cda->rc,  imp_sth->cda->wrn,
-		(long)row_count, imp_sth->eod_errno,
-		imp_sth->has_inout_params);
-#endif
 
     if (outparams) {	/* check validity of bound output SV's	*/
 	int i = outparams;
@@ -1944,7 +1650,6 @@ dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
     bufsv = SvRV(destrv);
     sv_setpvn(bufsv,"",0);	/* ensure it's writable string	*/
 
-#ifdef OCI_V8_SYNTAX
 #ifdef UTF8_SUPPORT
     if (ftype == 112 && cs_is_utf8) {
       return ora_blob_read_mb_piece(sth, imp_sth, fbh, bufsv, 
@@ -1952,38 +1657,14 @@ dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
     }
 
 #endif /* UTF8_SUPPORT */
-#endif /* ifdef OCI_V8_SYNTAX */
 
     SvGROW(bufsv, (STRLEN)destoffset+len+1); /* SvGROW doesn't do +1	*/
 
-#ifdef OCI_V8_SYNTAX
     retl = ora_blob_read_piece(sth, imp_sth, fbh, bufsv,
 				 offset, len, destoffset);
     if (!SvOK(bufsv))	/* ora_blob_read_piece recorded error */
 	return 0;
     ftype = ftype;	/* no unused */
-
-#else
-
-    if (len > 65535) {
-	warn("Oracle OCI7 doesn't allow blob_read to reliably fetch chunks longer than 65535 bytes");
-	len = 65535;
-    }
-
-    switch (fbh->ftype) {
-	case 94: ftype =  8;	break;
-	case 95: ftype = 24;	break;
-    }
-
-    /* The +1 on field was a mistake that's too late to fix :-(	*/
-    if (oflng(imp_sth->cda, (sword)field+1,
-	    ((ub1*)SvPVX(bufsv)) + destoffset, len,
-	    ftype, &retl, offset)) {
-	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oflng error");
-	/* XXX database may have altered the buffer contents	*/
-	return 0;
-    }
-#endif
 
     if (DBIS->debug >= 3)
 	PerlIO_printf(DBILOGFP,
@@ -2003,7 +1684,6 @@ dbd_st_rows(sth, imp_sth)
     SV *sth;
     imp_sth_t *imp_sth;
 {
-#ifdef OCI_V8_SYNTAX
     ub4 row_count = 0;
     sword status;
     OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
@@ -2012,17 +1692,6 @@ dbd_st_rows(sth, imp_sth)
 	return -1;
     }
     return row_count;
-#else
-    /* spot common mistake of checking $h->rows just after ->execute	*/
-    if (   imp_sth->in_cache > 0		 /* has unfetched rows	*/
-	&& imp_sth->in_cache== imp_sth->cda->rpc /* NO rows fetched yet	*/
-	&& DBIc_WARN(imp_sth)	/* provide a way to disable warning	*/
-    ) {
-	warn("$h->rows count is incomplete before all rows fetched.\n");
-    }
-    /* imp_sth->in_cache should always be 0 for non-select statements	*/
-    return imp_sth->cda->rpc - imp_sth->in_cache;	/* fetched rows	*/
-#endif
 }
 
 
@@ -2033,6 +1702,7 @@ dbd_st_finish(sth, imp_sth)
 {
     dTHR;
     D_imp_dbh_from_sth;
+    sword status;
 
     if (DBIc_DBISTATE(imp_sth)->debug >= 6)
         PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_finish\n");
@@ -2056,28 +1726,12 @@ dbd_st_finish(sth, imp_sth)
     if (!DBIc_ACTIVE(imp_dbh))		/* no longer connected	*/
 	return 1;
 
-#ifdef OCI_V8_SYNTAX
-{   sword status;
     OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0,
 		OCI_FETCH_NEXT, OCI_DEFAULT, status);
     if (status != OCI_SUCCESS && status != OCI_SUCCESS_WITH_INFO) {
 	oci_error(sth, imp_sth->errhp, status, "Finish OCIStmtFetch");
 	return 0;
     }
-}
-#else
-    if (ocan(imp_sth->cda)) {
-	/* oracle 7.3 code can core dump looking up an error message	*/
-	/* if we have logged out of the database. This typically	*/
-	/* happens during global destruction. This should catch most:	*/
-	if (dirty && imp_sth->cda->rc == 3114)
-	    ora_error(sth, NULL, imp_sth->cda->rc,
-		"ORA-03114: not connected to ORACLE (ocan)");
-	else
-	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "ocan error");
-	return 0;
-    }
-#endif
     return 1;
 }
 
@@ -2089,28 +1743,16 @@ ora_free_fbh_contents(fbh)
     if (fbh->fb_ary)
 	fb_ary_free(fbh->fb_ary);
     sv_free(fbh->name_sv);
-#ifdef OCI_V8_SYNTAX
     if (fbh->desc_h)
 	OCIDescriptorFree_log(fbh->desc_h, fbh->desc_t);
-#endif
 }
 
 void
 ora_free_phs_contents(phs)
     phs_t *phs;
 {
-#ifdef OCI_V8_SYNTAX
     if (phs->desc_h)
 	OCIDescriptorFree_log(phs->desc_h, phs->desc_t);
-#else
-    if (phs->ftype == 102 && phs->progv) {	/* SQLT_CUR */
-	/* should not normally happen since new child sth takes	*/
-	/* ownership of the cursor and sets phs->progv to NULL.	*/
-	oclose((Cda_Def*)phs->progv);
-	Safefree(phs->progv);
-	phs->progv = NULL;
-    }
-#endif
     sv_free(phs->ora_field);
     sv_free(phs->sv);
 }
@@ -2123,30 +1765,17 @@ dbd_st_destroy(sth, imp_sth)
 {
     int fields;
     int i;
+    sword status;
     dTHX ;
 
     if (DBIc_DBISTATE(imp_sth)->debug >= 6)
 	PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_destroy\n");
 
-#ifdef OCI_V8_SYNTAX
-    {
-	sword status;
-	if (imp_sth->lob_refetch)
-	    ora_free_lob_refetch(sth, imp_sth);
-	OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
-	if (status != OCI_SUCCESS)
-	    oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
-    }
-#else
-    oclose(imp_sth->cda);	/* ignore error ? */
-    if (imp_sth->cda != &imp_sth->cdabuf) {
-	/* we assume that the cda was allocated for a ref cursor	*/
-	/* bound to a placeholder on a different statement.		*/
-	/* We own the cda buffer now so we need to free it.		*/
-	Safefree(imp_sth->cda);
-    }
-    imp_sth->cda = NULL;
-#endif
+    if (imp_sth->lob_refetch)
+	ora_free_lob_refetch(sth, imp_sth);
+    OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
+    if (status != OCI_SUCCESS)
+	oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
 
     /* Free off contents of imp_sth	*/
 
@@ -2291,14 +1920,12 @@ dbd_st_FETCH_attrib(sth, imp_sth, keysv)
 	while(--i >= 0)
 	    av_store(av, i, newSViv(ora2sql_type(imp_sth->fbh+i).prec));
 
-#ifndef OCI_V8_SYNTAX
 #ifdef XXX
     } else if (kl==9 && strEQ(key, "ora_rowid")) {
 	/* return current _binary_ ROWID (oratype 11) uncached	*/
 	/* Use { ora_type => 11 } when binding to a placeholder	*/
 	retsv = newSVpv((char*)&imp_sth->cda->rid, sizeof(imp_sth->cda->rid));
 	cacheit = FALSE;
-#endif
 #endif
 
     } else if (kl==17 && strEQ(key, "ora_est_row_width")) {
@@ -2360,10 +1987,8 @@ ora2sql_type(imp_fbh_t* fbh) {
     case SQLT_BIN:  sql_fbh.dbtype = SQL_BINARY;        break; /* raw */
     case SQLT_LBI:  sql_fbh.dbtype = SQL_LONGVARBINARY; break; /* long raw */
     case SQLT_AFC:  sql_fbh.dbtype = SQL_CHAR;          break; /* Ansi fixed char */
-#ifdef OCI_V8_SYNTAX
     case SQLT_CLOB: sql_fbh.dbtype = SQL_CLOB;		break;
     case SQLT_BLOB: sql_fbh.dbtype = SQL_BLOB;		break;
-#endif
 #ifdef SQLT_TIMESTAMP_TZ
     case SQLT_DATE:		sql_fbh.dbtype = SQL_DATE;			break;
     case SQLT_TIME:		sql_fbh.dbtype = SQL_TIME;			break;

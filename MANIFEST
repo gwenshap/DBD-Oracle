@@ -41,7 +41,6 @@ hints/macos_syms.pl
 hints/svr4.pl
 lib/DBD/Oracle/GetInfo.pm
 oci.def		OCI.DLL export declarations
-oci7.c
 oci8.c
 ocitrace.h
 ora_explain.PL

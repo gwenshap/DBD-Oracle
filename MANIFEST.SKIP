@@ -1,5 +1,5 @@
 ^DBD-Oracle-.*
-\B\.svn\b
+\.svn\b
 \.orig$
 \..*.swp$
 ^.pure

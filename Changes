@@ -1,3 +1,4 @@
+  NOTE: This release no longer supports the old Oracle 7 OCI interface.
 
   Fixed build32/build64 Makefile.PL bug spotted by Sean Kelly.
   Fixed Oracle version detection on clients thanks to Marko Asplund.
