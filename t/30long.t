@@ -2,7 +2,7 @@
 # vim:ts=8:sw=4
 
 use DBI;
-use DBD::Oracle qw(:ora_types SQLCS_NCHAR ORA_OCI);
+use DBD::Oracle qw(:ora_types SQLCS_NCHAR SQLCS_IMPLICIT ORA_OCI);
 use strict;
 use Test::More;
 
@@ -15,8 +15,8 @@ my @test_sets;
 push @test_sets, [ "LONG",	0,		0 ];
 push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
 push @test_sets, [ "NCLOB",	ORA_CLOB,	0 ] unless ORA_OCI() < 9.0 or $ENV{DBD_ALL_TESTS};
-push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
 push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] ;
+push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
 
 my $tests_per_set = 92;
 my $tests = @test_sets * $tests_per_set;
@@ -144,8 +144,8 @@ sub run_long_tests
         my $sqlstr = "insert into $table values (?, ?, SYSDATE)" ;
         ok( $sth = $dbh->prepare( $sqlstr ), "prepare: $sqlstr" ); 
         my $bind_attr = { ora_type => $type_num };
-        $bind_attr->{ora_csform} = SQLCS_NCHAR
-		if $type_name =~ /^NCLOB/; # XXX do by default internally?
+	# The explicit SQLCS_IMPLICIT is needed in some odd cases
+        $bind_attr->{ora_csform} = ($type_name =~ /^NCLOB/) ? SQLCS_NCHAR : SQLCS_IMPLICIT;
 
         $sth->bind_param(2, undef, $bind_attr )
 		or die "$type_name: $DBI::errstr" if $type_num;
