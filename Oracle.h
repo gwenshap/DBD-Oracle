@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.h,v 1.14 1998/12/28 00:04:37 timbo Exp $
+   $Id: Oracle.h,v 1.16 1999/06/05 03:23:07 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -47,10 +47,12 @@ int      dbd_st_blob_read _((SV *sth, imp_sth_t *imp_sth,
 		int field, long offset, long len, SV *destrv, long destoffset));
 int	 dbd_st_STORE_attrib _((SV *sth, imp_sth_t *imp_sth, SV *keysv, SV *valuesv));
 SV	*dbd_st_FETCH_attrib _((SV *sth, imp_sth_t *imp_sth, SV *keysv));
-
-int      dbd_describe _((SV *sth, imp_sth_t *imp_sth));
 int	 dbd_bind_ph  _((SV *sth, imp_sth_t *imp_sth,
-		SV *param, SV *value, SV *attribs, int is_inout, IV maxlen));
+		SV *param, SV *value, IV sql_type, SV *attribs, int is_inout, IV maxlen));
 #endif
+
+int    dbd_describe _((SV *sth, imp_sth_t *imp_sth));
+ub4    ora_blob_read_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
+                   long offset, long len, long destoffset));
 
 /* end of Oracle.h */

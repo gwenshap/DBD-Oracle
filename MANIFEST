@@ -12,6 +12,8 @@ README.login
 README.longs
 README.win32
 README.explain
+README.wingcc	Notes about building with mingw32 and cygwin32
+oci.def		OCI.DLL export declarations
 Todo
 dbdimp.c
 dbdimp.h
@@ -31,5 +33,7 @@ oraperl.ex/tabinfo.pl
 oraperl.ph	Old oraperl file included for completeness of emulation
 t/base.t
 t/general.t
+t/long.t
 t/plsql.t
+t/reauth.t
 test.pl

@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.37 1998/06/01 18:34:16 timbo Exp $
+# $Id: Oraperl.pm,v 1.39 1999/06/05 03:23:07 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -25,7 +25,7 @@ require 5.002;
 use DBI 0.84;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.37 $, 10);
+$VERSION = substr(q$Revision: 1.39 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -58,7 +58,7 @@ if (!$safe) {
 $drh = DBI->install_driver('Oracle');
 if ($drh) {
     print "DBD::Oracle driver installed as $drh\n" if $debug;
-    $drh->debug($debug);
+    $drh->trace($debug);
     $drh->{CompatMode} = 1;
     $drh->{Warn}       = 0;
 }
@@ -98,6 +98,7 @@ sub ora_login {
 }
 sub ora_logoff {
     my($dbh) = @_;
+    return if !$dbh;
     local($Oraperl::prev_warn) = $SIG{'__WARN__'} || 0; # must be local
     local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
     $dbh->disconnect();
@@ -187,9 +188,9 @@ sub ora_autocommit {
 sub ora_version {
     my($sw)  = DBI->internal;
     print "\n";
-    print "Oraperl Emulation Interface version $Oraperl::VERSION\n";
-    print "Oracle Driver $Oraperl::drh->{Version}\n";
-    print "$sw->{Attribution}, version $sw->{Version}\n\n";
+    print "Oraperl emulation interface version $Oraperl::VERSION\n";
+    print "$Oraperl::drh->{Attribution}\n";
+    print "$sw->{Attribution}\n\n";
 }
 
 

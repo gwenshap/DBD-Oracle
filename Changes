@@ -1,4 +1,32 @@
-Changes in DBD::Oracle 0.61, 26th March 1999
+Changes in DBD::Oracle 1.01 8th June 1999
+
+  Enhanced diagnostics in t/long.t test suite.
+  Removed byte with high-bit set from t/long.t test data.
+  Disable finish if database disconnected or perl is terminating.
+  Made t/general.t work with other NLS settings.
+  Added Cygwin support thanks to Alexander Smishlajev.
+  Fixed 'undeclared identifier' error building with old Oracle's.
+
+Changes in DBD::Oracle 1.00 4th June 1999
+
+  Increased default row cache size for improved performance.
+  Added OCI8 binding of cursors! Sponsored by cp.net.
+  Added OCI7 binding of cursors! (Was easier after OCI8 work :-)
+  Added OCI8 blob_read (only for LOBs not LONGs) thanks to Jim Lawson.
+  Added OCI8 re-authentication thanks to John Tobey.
+  Added t/long.t test script for LONG/LONG RAW/CLOB/BLOB handling.
+  Length of fetched LONG RAW string now 2 * LongReadLen for OCI7 & 8.
+  Fixed LONG fetches being one byte longer than LongReadLen.
+  Fixed OCI8 non-reporting of LobWrite error.
+  Fixed OCI8 "LongReadLen too small and/or LongTruncOk not set" hint.
+  Fixed OCI7 probable cursor leak.
+  Fixed ping method to be more robust. This should fix
+    the "morning bug" problem with Apache::DBI.
+  Fixed t/general.t core dump thanks to Donald Buczek.
+  Fixed ora_check_sql prepare attribute (for selects).
+  Fetch errors (non-row level) now turn off the Active attribute.
+
+Changes in DBD::Oracle 0.61, 9th April 1999
 
   Fixed execute() always returning 0 rows! (with OCI 7).
   Fixed $sth->bind_param(..., SQL_CHAR);

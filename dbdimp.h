@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.30 1999/03/10 20:42:24 timbo Exp $
+   $Id: dbdimp.h,v 1.34 1999/06/08 00:15:02 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -34,6 +34,11 @@
 #ifndef A_OSF
 #define A_OSF
 #endif
+#endif
+
+/* egcs-1.1.2 does not have _int64 */
+#if defined(__MINGW32__) || defined(__CYGWIN32__)
+#define _int64 long long
 #endif
 
 /* This is slightly backwards because we want to auto-detect OCI8  */
@@ -83,8 +88,6 @@ struct imp_drh_st {
 struct imp_dbh_st {
     dbih_dbc_t com;		/* MUST be first element in structure	*/
 
-    Lda_Def ldabuf;
-    Lda_Def *lda;		/* points to ldabuf	*/
 #ifdef OCI_V8_SYNTAX
     OCIEnv *envhp;		/* copy of drh pointer	*/
     OCIError *errhp;
@@ -92,6 +95,8 @@ struct imp_dbh_st {
     OCISvcCtx *svchp;
     OCISession *authp;
 #else
+    Lda_Def ldabuf;
+    Lda_Def *lda;		/* points to ldabuf	*/
     ub1     hdabuf[HDA_SIZE];
     ub1     *hda;		/* points to hdabuf	*/
 #endif
@@ -120,6 +125,7 @@ struct imp_sth_st {
     Cda_Def *cda;	/* normally just points to cdabuf below */
     Cda_Def cdabuf;
 #endif
+    int  	disable_finish; /* fetched cursors can core dump in finish */
 
     /* Input Details	*/
     char      *statement;	/* sql (see sth_scan)		*/
@@ -217,6 +223,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     sb2 indp;		/* null indicator			*/
     char *progv;
 
+    int (*out_prepost_exec)_((SV *, imp_sth_t *, phs_t *, int pre_exec));
     SV	*ora_field;	/* from attribute (for LOB binds)	*/
     int alen_incnull;	/* 0 or 1 if alen should include null	*/
     char name[1];	/* struct is malloc'd bigger as needed	*/
@@ -234,6 +241,7 @@ void ora_free_fbh_contents _((imp_fbh_t *fbh));
 int ora_dbtype_is_long _((int dbtype));
 int calc_cache_rows _((int num_fields, int est_width, int cache_rows, int has_longs));
 fb_ary_t *fb_ary_alloc _((int bufl, int size));
+int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
 
 #ifdef OCI_V8_SYNTAX
 
@@ -243,6 +251,7 @@ char *oci_status_name _((sword status));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 void ora_free_lob_refetch _((SV *sth, imp_sth_t *imp_sth));
 int post_execute_lobs _((SV *sth, imp_sth_t *imp_sth, ub4 row_count));
+ub4 ora_parse_uid _((imp_dbh_t *imp_dbh, char **uidp, char **pwdp));
 
 #define OCIAttrGet_stmhp(imp_sth, p, l, a) \
 	OCIAttrGet(imp_sth->stmhp, OCI_HTYPE_STMT, (dvoid*)(p), (l), (a), imp_sth->errhp)
@@ -263,6 +272,7 @@ sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 sb4 dbd_phs_out _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
              dvoid **bufpp, ub4 **alenpp, ub1 *piecep,
              dvoid **indpp, ub2 **rcodepp));
+int dbd_rebind_ph_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 
 #else	/* is OCI 7 */

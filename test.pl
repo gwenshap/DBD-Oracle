@@ -4,7 +4,7 @@ use ExtUtils::testlib;
 
 die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 
-# $Id: test.pl,v 1.34 1998/12/19 23:19:56 timbo Exp $
+# $Id: test.pl,v 1.2 1999/06/08 00:15:02 timbo Exp $
 #
 # Copyright (c) 1995-1998, Tim Bunce
 #
@@ -19,7 +19,7 @@ die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.34 $}."\n";
+print q{Oraperl test application $Revision: 1.2 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^(Bad|Duplicate) free/)
@@ -31,18 +31,23 @@ my $os = $Config{osname};
 $opt_d = 0;		# debug
 $opt_l = 0;		# log
 $opt_n = 5;		# num of loops
-$opt_m = 0;		# count for mem leek test
-$opt_c = 1;		# do cache test
+$opt_m = 0;		# do mem leek test
+$opt_c = undef;		# set RowCacheSize for some tests
 $opt_p = 1;		# do perf test
-&Getopts('m:d:n:clp ') || die "Invalid options\n";
+$opt_f = 0;		# do fetch test
+&Getopts('md:n:f:c:lp ') || die "Invalid options\n";
 
 $ENV{PERL_DBI_DEBUG} = 2 if $opt_d;
-$ENV{ORACLE_HOME} = '/usr/oracle' unless $ENV{ORACLE_HOME};
+#$ENV{ORACLE_HOME} ||= '/usr/oracle' unless ($^O eq 'MSWin32');
 
 $dbname = $ARGV[0] || '';	# if '' it'll use TWO_TASK/ORACLE_SID
 $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 
 eval 'use Oraperl; 1' || die $@ if $] >= 5;
+
+&test_extfetch_perf($opt_f) if $opt_f;
+
+&test_leak(100) if $opt_m;
 
 &ora_version;
 
@@ -54,7 +59,6 @@ print "\nConnecting\n",
 print " as '$dbuser' (via ORACLE_USERID env var or default - recommend name/passwd\@dbname)\n";
 printf("(ORACLE_SID='%s', TWO_TASK='%s')\n", $ENV{ORACLE_SID}||'', $ENV{TWO_TASK}||'');
 printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os eq 'MSWin32';
-
 
 {	# test connect works first
     local($l) = &ora_login($dbname, $dbuser, '');
@@ -94,9 +98,7 @@ $start = time;
 rename("test.log","test.olog") if $opt_l;
 eval 'DBI->_debug_dispatch(3,"test.log");' if $opt_l;
 
-&test_fetch_perf() if $opt_p;
-
-&test3($opt_m) if $opt_m;
+&test_intfetch_perf() if $opt_p;
 
 &test1();
 
@@ -114,7 +116,7 @@ $csr2 = &ora_open($lda2, "select 42 from dual") || die "ora_open: $ora_errno: $o
 &ora_logoff($lda2) || warn "ora_logoff($lda2): $ora_errno: $ora_errstr\n";
 print "done.\n";
 
-&test_cache() if $opt_c;
+&test_cache();
 
 $dur = time - $start;
 print "\nTest complete ($dur seconds).\n";
@@ -143,7 +145,9 @@ sub test1 {
     {
 	#$lda->trace(2);
 	local($csr) = &ora_open($lda,
-	    "select to_number('7.2')	num_t,
+	    "select to_number('7.2', '9D9',
+			'NLS_NUMERIC_CHARACTERS =''.,'''
+		    )		num_t,
 		    SYSDATE	date_t,
 		    USER	char_t,
 		    ROWID	rowid_t,
@@ -211,28 +215,33 @@ sub test1 {
 }
 
 
-sub test2 {
-    local($l) = &ora_login($dbname, $dbuser, '')
-			|| die "ora_login: $ora_errno: $ora_errstr\n";
-    local($c) = &ora_open($l, "select 42,42,42,42,42,42,42 from dual")
-			|| die "ora_open: $ora_errno: $ora_errstr\n";
-    local(@row);
-    @row = &ora_fetch($c);
-    &ora_close($c)	|| warn "ora_close($c):  $ora_errno: $ora_errstr\n";
+sub test2 {		# also used by test_leak()
+    my $skip_sth = shift;
+    local($l) = &ora_login($dbname, $dbuser, '');
+    warn "ora_login: $ora_errno: $ora_errstr\n" if $ora_errno;
+    return unless $l;
+    unless ($skip_sth) {
+	local($c) = &ora_open($l, "set transaction read only")#"select 42,42,42,42,42,42,42 from dual")
+			    || die "ora_open: $ora_errno: $ora_errstr\n";
+	local(@row);
+	@row = &ora_fetch($c);
+	&ora_close($c)	|| warn "ora_close($c):  $ora_errno: $ora_errstr\n";
+    }
     &ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
 }
 
 
-sub test3 {
+sub test_leak {
     local($count) = @_;
-    local($ps) = (-d '/proc') ? "ps -p " : "ps -l";
+    local($ps) = (-d '/proc') ? "ps -lp " : "ps -l";
     local($i) = 0;
-
+    print "\nMemory leak test:\n";
     while(++$i <= $count) {
 	system("echo $i; $ps$$") if (($i % 10) == 0);
-	&test2();
+	&test2(1);
     }
     system("echo $i; $ps$$") if (($i % 10) == 0);
+    print "Done.\n\n";
 }
 
 
@@ -272,7 +281,7 @@ sub count_fetch {
 }
 
 
-sub test_fetch_perf {
+sub test_intfetch_perf {
     print "\nTesting internal row fetch overhead.\n";
     local($lda) = &ora_login($dbname, $dbuser, '')
 		    || die "ora_login: $ora_errno: $ora_errstr\n";
@@ -290,6 +299,52 @@ sub test_fetch_perf {
     printf("%d per clock second, %d per cpu second\n\n",
 	    $max/($td->real  ? $td->real  : 1),
 	    $max/($td->cpu_a ? $td->cpu_a : 1));
+}
+
+sub test_extfetch_perf {
+    my $max = shift;
+    print "\nTesting external row fetch overhead.\n";
+    my $rows = 0;
+    my $dbh = DBI->connect("dbi:Oracle:$dbname", $dbuser, '', { RaiseError => 1 });
+    #$dbh->trace(2);
+    $dbh->{RowCacheSize} = $::opt_c if defined  $::opt_c;
+    my $fields = (0) ? "*" : "object_name, status, object_type";
+    my $sth = $dbh->prepare(q{
+	select all * from all_objects o1
+	union all select all * from all_objects o1
+	union all select all * from all_objects o1
+	union all select all * from all_objects o1
+	union all select all * from all_objects o1
+	union all select all * from all_objects o1
+	union all select all * from all_objects o1
+	union all select all * from all_objects o1
+	union all select all * from all_objects o1
+	--, all_objects o2
+	--where o1.object_id <= 400 and o2.object_id <= 400
+    }, { ora_check_sql => 1 });
+
+    require Benchmark;
+    $t0 = new Benchmark;
+    $sth->execute;
+    $sth->trace(0);
+    $sth->fetchrow_arrayref;	# fetch one before starting timer
+    $td = Benchmark::timediff((new Benchmark), $t0);
+    printf("Execute: ".Benchmark::timestr($td)."\n");
+
+    print "Fetching data with RowCacheSize $dbh->{RowCacheSize}...\n";
+    $t1 = new Benchmark;
+    1 while $sth->fetchrow_arrayref && ++$rows < $max;
+    $td = Benchmark::timediff((new Benchmark), $t1);
+    printf("$rows fetches: ".Benchmark::timestr($td)."\n");
+    printf("%d per clock second, %d per cpu second\n",
+	    $rows/($td->real  ? $td->real  : 1),
+	    $rows/($td->cpu_a ? $td->cpu_a : 1));
+    my $ps = (-d '/proc') ? "ps -lp " : "ps -l";
+    system("echo Process memory size; $ps$$");
+    print "\n";
+    $sth->finish;
+    $dbh->disconnect;
+    exit 1;
 }
 
 

@@ -47,6 +47,9 @@ ok(0, $sth->{Active});
 1 while ($sth->fetch);	# fetch through to end
 ok(0, !$sth->{Active});
 
+# so following test works with other NLS settings/locations
+ok(0, $dbh->do("ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '.,'"), 1);
+
 ok(0, $tmp = $dbh->selectall_arrayref(q{
 	select 1 * power(10,-130) "smallest?",
 	       9.9999999999 * power(10,125) "biggest?"
@@ -57,6 +60,14 @@ my @tmp = @{$tmp->[0]};
 ok(0, $tmp[0] <= 1e-130,    $tmp[0]);
 ok(0, $tmp[1] >= 9.99e+125, $tmp[1]);
 
+
+eval {
+	$dbh->{RaiseError} = 1;
+	$dbh->do("some invalid sql statement");
+};
+ok(0, $@ =~ /DBD::Oracle::db do failed:/, "eval error: ``$@'' expected 'do failed:'");
+$dbh->{RaiseError} = 0;
+
 # ---
 
 ok(0,  $dbh->ping);
@@ -65,7 +76,7 @@ $dbh->{PrintError} = 0;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 14 }
+BEGIN { $tests = 16 }
 # end.
 
 __END__

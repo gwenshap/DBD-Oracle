@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.68 1999/04/09 14:07:35 timbo Exp $
+#   $Id: Oracle.pm,v 1.75 1999/06/08 00:15:02 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
@@ -8,9 +8,9 @@
 #   with the exception that it cannot be placed on a CD-ROM or similar media
 #   for commercial distribution without the prior approval of the author.
 
-require 5.002;
+require 5.003;
 
-$DBD::Oracle::VERSION = '0.61';
+$DBD::Oracle::VERSION = '1.01';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -25,13 +25,14 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	ora_types => [ qw(
 	    ORA_VARCHAR2 ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
 	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_MLSLABEL ORA_NTY
-	    ORA_CLOB ORA_BLOB
+	    ORA_CLOB ORA_BLOB ORA_RSET
 	) ],
     );
+    @EXPORT_OK = ('ORA_OCI');
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.68 $, 10);
+    my $Revision = substr(q$Revision: 1.75 $, 10);
 
     require_version DBI 1.02;
 
@@ -44,6 +45,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub driver{
 	return $drh if $drh;
 	my($class, $attr) = @_;
+	my $oci = DBD::Oracle::ORA_OCI();
 
 	$class .= "::dr";
 
@@ -54,7 +56,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    'Version' => $VERSION,
 	    'Err'    => \$DBD::Oracle::err,
 	    'Errstr' => \$DBD::Oracle::errstr,
-	    'Attribution' => 'Oracle DBD by Tim Bunce',
+	    'Attribution' => "DBD::Oracle $VERSION using OCI$oci by Tim Bunce",
 	    });
 
 	$drh;
@@ -89,47 +91,72 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	local *FH;
 	my $d;
 
+	if (($^O eq 'MSWin32') or ($^O =~ /cygwin/i)) {
+	  # XXX experimental, will probably change
+	  $drh->log_msg("Fetching ORACLE_SID from Registry.\n") if $debug;
+	  my($hkey, $sid, $home);
+	  eval q{
+	    require Win32::TieRegistry;
+	    $Win32::TieRegistry::Registry->Delimeter("/");
+	    $hkey= $Win32::TieRegistry::Registry->{"LMachine/Software/Oracle/"};
+	  };
+	  eval q{
+	    require Tie::Registry;
+	    $Tie::Registry::Registry->Delimeter("/");
+	    $hkey= $Tie::Registry::Registry->{"LMachine/Software/Oracle/"};
+	  } unless $hkey;
+	  if ($hkey) {
+	    $sid = $hkey->{ORACLE_SID};
+	    $home= $hkey->{ORACLE_HOME};
+	  } else {
+	    eval q{
+	      my $reg_key;
+	      require Win32::Registry;
+	      $main::HKEY_LOCAL_MACHINE->Open('SOFTWARE\ORACLE', $reg_key);
+	      $reg_key->GetValues( $hkey );
+	      $sid = $hkey->{ORACLE_SID}[2];
+	      $home= $hkey->{ORACLE_HOME}[2];
+	    };
+	  };
+	  $home= $ENV{$ORACLE_ENV} unless $home;
+	  $dbnames{$sid} = $home if $sid and $home;
+	  $drh->log_msg("Found $sid \@ $home.\n") if $debug;
+	  $oracle_home =$home unless $oracle_home;
+	};
+
 	# get list of 'local' database SIDs from oratab
 	foreach $d (qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
 	    next unless defined $d;
 	    next unless open(FH, "<$d/oratab");
-	    $drh->log_msg("Loading $d/oratab\n") if $debug;
+	    $drh->trace_msg("Loading $d/oratab\n") if $debug;
 	    my $ot;
 	    while (defined($ot = <FH>)) {
 		next unless $ot =~ m/^\s*(\w+)\s*:\s*(.*?)\s*:/;
 		$dbnames{$1} = $2;	# store ORACLE_HOME value
-		$drh->log_msg("Found $1 \@ $2.\n") if $debug;
+		$drh->trace_msg("Found $1 \@ $2.\n") if $debug;
 	    }
 	    close FH;
 	    last;
 	}
 
 	# get list of 'remote' database connection identifiers
-	foreach $d ($ENV{TNS_ADMIN}, "$oracle_home/network/admin", '/var/opt/oracle') {
-	    next unless defined $d;
-	    next unless open(FH, "<$d/tnsnames.ora");
-	    $drh->log_msg("Loading $d/tnsnames.ora\n") if $debug;
+	foreach $d ( $ENV{TNS_ADMIN},
+	  "$oracle_home/net80/admin",
+	  "$oracle_home/network/admin",
+	  '/var/opt/oracle'
+	) {
+	    next unless $d && open(FH, "<$d/tnsnames.ora");
+	    $drh->trace_msg("Loading $d/tnsnames.ora\n") if $debug;
 	    while (<FH>) {
 		next unless m/^\s*([-\w\.]+)\s*=/;
 		my $name = $1;
-		$drh->log_msg("Found $name. ".($dbnames{$name} ? "(oratab entry overridden)" : "")."\n")
+		$drh->trace_msg("Found $name. ".($dbnames{$name} ? "(oratab entry overridden)" : "")."\n")
 		    if $debug;
 		$dbnames{$name} = 0; # exists but false (to distinguish from oratab)
 	    }
 	    close FH;
 	    last;
 	}
-
-	eval q{	# XXX experimental, will probably change
-	    $drh->log_msg("Fetching ORACLE_SID from Registry.\n") if $debug;
-	    require Tie::Registry;
-	    $Tie::Registry::Registry->Delimeter("/");
-	    my $hkey= $Tie::Registry::Registry->{"LMachine/Software/Oracle/"};
-	    my $sid = $hkey->{ORACLE_SID};
-	    my $home= $hkey->{ORACLE_HOME} || $ENV{ORACLE_HOME};
-	    $dbnames{$sid} = $home if $sid and $home;
-	    $drh->log_msg("Found $sid \@ $home.\n") if $debug;
-	} if ($^O eq "MSWin32");
 
 	$dbnames{0} = 1;	# mark as loaded (even if empty)
     }
@@ -243,12 +270,16 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
     sub ping {
 	my($dbh) = @_;
-	# we know that Oracle 7 prepare does a describe so this will
-	# actually talk to the server and is this a valid and cheap test.
-	my $sth =  $dbh->prepare("select SYSDATE from DUAL");
-	# But Oracle 8 doesn't talk to server unless we describe the query
-	return 1 if $sth && $sth->{NUM_OF_FIELDS};
-	return 0;
+	my $ok = 0;
+	local $SIG{__WARN__} = sub { } if $dbh->{PrintError};
+	eval {
+	    # we know that Oracle 7 prepare does a describe so this will
+	    # actually talk to the server and is this a valid and cheap test.
+	    my $sth =  $dbh->prepare("select SYSDATE from DUAL /* ping */");
+	    # But Oracle 8 doesn't talk to server unless we describe the query
+	    $ok = $sth && $sth->{NUM_OF_FIELDS};
+	};
+	return ($@) ? 0 : $ok;
     }
 
 
@@ -258,8 +289,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# The SYS/SYSTEM should probably be a decode that
 	# prepends 'SYSTEM ' to TABLE_TYPE.
 	my $sth = $dbh->prepare("select
-		NULL		TABLE_QUALIFIER,
-		at.OWNER	TABLE_OWNER,
+		NULL		TABLE_CAT,
+		at.OWNER	TABLE_SCHEM,
 		at.TABLE_NAME,
 		tc.TABLE_TYPE,
 		tc.COMMENTS	REMARKS
@@ -816,12 +847,13 @@ You can find more examples in the t/plsql.t file in the DBD::Oracle
 source directory.
 
 
-=head1 Oracle 8 Issues
+=head1 Using DBD::Oracle with Oracle 8 - Features and Issues
 
 DBD::Oracle version 0.55 onwards can be built to use either the Oracle 7
 or Oracle 8 OCI (Oracle Call Interface) API functions. The new Oracle 8
 API is used by default and offers several advantages, including support
-for LOB types. Here's a quote from the Oracle OCI documentation:
+for LOB types and cursor binding. Here's a quote from the Oracle OCI
+documentation:
 
   The Oracle8 OCI has several enhancements to improve application
   performance and scalability. Application performance has been improved
@@ -829,32 +861,35 @@ for LOB types. Here's a quote from the Oracle OCI documentation:
   scalability improvements have been facilitated by reducing the amount
   of state information that needs to be retained on the server side.
 
-(Note that the use of Oracle 8 OCI represents a major amount of
-rewriting of the internals of the drivers. There are bound to be some
-minor problems.)
+=head2 Prepare postponed till execute
 
 The DBD::Oracle module will avoid an explicit 'describe' operation
 prior to the execution of the statement unless the application requests
 information about the results (such as $sth->{NAME}). This reduces
-communication with the server and increases performance.
+communication with the server and increases performance. However, it also
+means that SQL errors are not detected until C<execute()> is called
+(instead of C<prepare()> as now).
+
+=head2 Handling LOBs
 
 When fetching LOBs, they are treated just like LONGs and are subject to
 $sth->{LongReadLen} and $sth->{LongTruncOk}. Note that with OCI 7
-DBD::Oracle pre-allocates the whole amount (LongReadLen) before
+DBD::Oracle pre-allocates the whole buffer (LongReadLen) before
 constructing the returned column.  With OCI 8 it grows the buffer to
 the amount needed for the largest LOB to be fetched so far.
 
-When inserting or updating LOBs some *major* magic has to be performed
+When inserting or updating LOBs some I<major> magic has to be performed
 behind the scenes to make it transparent.  Basically the driver has to
 refetch the newly inserted 'LOB Locators' before being able to write to
-them.  However, it works, and I've made it as fast as possible (just
-one extra server-round-trip per insert or update after the first).
-For the time being, only single-row LOB updates are supported.
+them.  However, it works, and I've made it as fast as possible, just
+one extra server-round-trip per insert or update after the first.
+For the time being, only single-row LOB updates are supported. Also
+passing LOBS to PL/SQL blocks doesn't work.
 
 To insert or update a large LOB, DBD::Oracle has to know in advance
 that it is a LOB type. So you need to say:
 
-  $sth->bind_param($idx, $value, { ora_type => ORA_CLOB });
+  $sth->bind_param($field_num, $lob_value, { ora_type => ORA_CLOB });
 
 The ORA_CLOB and ORA_BLOB constants can be imported using
 
@@ -869,49 +904,70 @@ So in any code you may have now that looks like
   $sth->bind_param($idx, $value, { ora_type => 8 });
 
 you could change the 8 (LONG type) to ORA_CLOB or ORA_BLOB
-(or 112 or 113).
+(112 or 113).
 
-One further wrinkle: for inserts and updates of LOBs DBD::Oracle has
-to be able to tell which parameters relate to which table field.  In
-all cases where it can possibly work it out for itself, it does,
+One further wrinkle: for inserts and updates of LOBs, DBD::Oracle has
+to be able to tell which parameters relate to which table fields.
+In all cases where it can possibly work it out for itself, it does,
 however, if there are multiple LOB fields of the same type in the table
 then you need to tell it which field each LOB param relates to:
 
   $sth->bind_param($idx, $value, { ora_type=>ORA_CLOB, ora_field=>'foo' });
 
+=head2 Binding Cursors
 
-=head1 Oracle on Linix
+Cursors can now be returned from PL/SQL blocks. Either from stored
+procedures or from direct C<OPEN> statements, as show below:
 
-To join the oracle-on-linux mailing list, see:
+  use DBI;
+  use DBD::Oracle qw(:ora_types);
+  $dbh = DBI->connect(...);
+  $sth1 = $dbh->prepare(q{
+      BEGIN OPEN :cursor FOR
+          SELECT table_name, tablespace_name
+          FROM user_tables WHERE tablespace_name = :space
+      END;
+  });
+  $sth1->bind_param(":space", "USERS");
+  my $sth2;
+  $sth1->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
+  $sth1->execute();
+  # $sth2 is now a valid DBI statement handle for the cursor
+  while ( @row = $sth2->fetchrow_array ) { ... }
+
+The only special requirement is the use of C<bind_param_inout()> with an
+attribute hash parameter that specifies C<ora_type> as C<ORA_RSET>.
+If you don't do that you'll get an error from the C<execute()> like:
+"ORA-06550: line X, column Y: PLS-00306: wrong number or types of
+arguments in call to ...".
+
+=head1 Oracle Related Links
+
+=head2 Oracle on Linux
 
   http://www.datamgmt.com/maillist.html
   http://www.eGroups.com/list/oracle-on-linux
   http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
-  mailto:oracle-on-linux-subscribe@egroups.com
   ftp://oracle-ftp.oracle.com/server/patch_sets/LINUX
 
-=head1 Commercial Oracle Tools
+=head2 Free Oracle Tools and Links
+
+  ora_explain supplied and installed with DBD::Oracle.
+
+  http://vonnieda.org/oracletool/
+
+=head2 Commercial Oracle Tools and Links
 
 Assorted tools and references for general information.
 No recommendation implied.
 
-ora_explain supplied and installed with DBD::Oracle.
+  http://www.platinum.com/products/oracle.htm
+  http://www.SoftTreeTech.com
+  http://www.databasegroup.com
 
-PL/Vision from RevealNet and Steven Feuerstein.
-
-Platinum Technology: http://www.platinum.com/products/oracle.htm
-
-SoftTree Technologies: http://www.SoftTreeTech.com
-
+Also PL/Vision from RevealNet and Steven Feuerstein, and
 "Q" from Savant Corporation.
 
-http://www.databasegroup.com
-
-
-=head1 BUGS
-
-For $sth->{SCALE} and $sth->{PRECISION} Oracle always returns 0. Both
-with Oracle 7 and Oracle 8 OCI. Any idea why?
 
 =head1 SEE ALSO
 
@@ -923,7 +979,7 @@ DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
 
 =head1 COPYRIGHT
 
-The DBD::Oracle module is Copyright (c) 1995,1996,1997,1998 Tim Bunce. England.
+The DBD::Oracle module is Copyright (c) 1995,1996,1997,1998,1999 Tim Bunce. England.
 The DBD::Oracle module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself with the exception that it
 cannot be placed on a CD-ROM or similar media for commercial distribution

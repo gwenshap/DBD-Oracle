@@ -14,6 +14,9 @@ sub ok ($$;$) {
 }
 
 use DBI;
+use DBD::Oracle qw(ORA_RSET);
+use strict;
+
 $| = 1;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
@@ -36,6 +39,7 @@ if ($dbh->err && ($dbh->err==900 || $dbh->err==6553 || $dbh->err==600)) {
 	exit 0;
 }
 
+my $tests;
 print "1..$tests\n";
 
 my($csr, $p1, $p2, $tmp);
@@ -228,23 +232,46 @@ $dbh->{PrintError} = 0;
 #$dbh->trace(0);
 
 # --- test cursor variables
-$csr = $dbh->prepare(q{
-    begin
-	:var := :var * 2;
-    end;
-});
-ok(0, $csr);
-my $out_csr = $dbh->prepare(q{select 42 from dual}); # sacrificial csr XXX
-ok(0, $out_csr);
-if (0) {
-    ok(0, $csr->bind_param_inout(':var', \$out_csr, 100, { ora_type => 102 }));
-    ok(0, $csr->execute());
+if (1) {
+    my $cur_query = q{
+	SELECT object_name, owner FROM all_objects
+	WHERE object_name LIKE :p1 ORDER BY object_name, owner
+    };
+    my $cur1 = 42;
+    #$dbh->trace(4);
+    my $parent = $dbh->prepare(qq{
+	BEGIN OPEN :cur1 FOR $cur_query; END;
+    });
+    ok(0, $parent);
+    ok(0, $parent->bind_param(":p1", "V%"));
+    ok(0, $parent->bind_param_inout(":cur1", \$cur1, 0, { ora_type => ORA_RSET } ));
+    ok(0, $parent->execute());
+    my @r;
+    push @r,$cur1->fetchrow_array;
+    push @r,$cur1->fetchrow_array;
+    push @r,$cur1->fetchrow_array;
+    $cur1->finish;
+    #$dbh->trace(0); $parent->trace(0);
+    my $s1 = $dbh->selectall_arrayref($cur_query, undef, "V%");
+    my @s1 = map { @$_ } @{$s1}[0..2];
+    ok(0, "@r" eq "@s1", "r=(@r), s=(@s1)");
+
+    # --- test rebind and execute
+    my $cur1_str = "$cur1";
+    #$dbh->trace(4); $parent->trace(4);
+    ok(0, $parent->bind_param(":p1", "U%"));
+    ok(0, $parent->execute());
+    ok(0, "$cur1" ne $cur1_str);	# must be ref to new handle object
+    @r = ();
+    push @r,$cur1->fetchrow_array;
+    push @r,$cur1->fetchrow_array;
+    push @r,$cur1->fetchrow_array; $cur1->finish;
+    #$dbh->trace(0); $parent->trace(0); $cur1->trace(0);
+    my $s2 = $dbh->selectall_arrayref($cur_query, undef, "U%");
+    my @s2 = map { @$_ } @{$s2}[0..2];
+    ok(0, "@r" eq "@s2", "r=(@r), s=(@s2)");
 }
-else {
-    ok(0,1);
-    ok(0,1);
-}
-# at this point $out_csr should be a handle on a new oracle cursor
+
 
 
 # --- To do
@@ -259,7 +286,7 @@ $dbh->disconnect;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 57 }
+BEGIN { $tests = 62 }
 # end.
 
 __END__

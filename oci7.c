@@ -1,5 +1,5 @@
 /*
-   $Id: oci7.c,v 1.6 1999/03/10 20:42:24 timbo Exp $
+   $Id: oci7.c,v 1.10 1999/06/05 03:23:07 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -103,7 +103,7 @@ dbd_describe(h, imp_sth)
 #define FT_SELECT 4
 #endif
     if (imp_sth->cda->ft != FT_SELECT) {
-	if (dbis->debug >= 2)
+	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP,
 		"    dbd_describe skipped for non-select (sql f%d, lb %ld, csr 0x%lx)\n",
 		imp_sth->cda->ft, (long)long_buflen, (long)imp_sth->cda);
@@ -111,7 +111,7 @@ dbd_describe(h, imp_sth)
 	return 1;
     }
 
-    if (dbis->debug >= 2)
+    if (DBIS->debug >= 3)
 	fprintf(DBILOGFP,
 	    "    dbd_describe (for sql f%d after oci f%d, lb %ld, csr 0x%lx)...\n",
 	    imp_sth->cda->ft, imp_sth->cda->fc, (long)long_buflen, (long)imp_sth->cda);
@@ -223,6 +223,7 @@ dbd_describe(h, imp_sth)
 	imp_fbh_t *fbh = &imp_sth->fbh[i-1];
 	fb_ary_t  *fb_ary;
 	int dbtype;
+	int alen_incnull;
 
 	fbh->imp_sth = imp_sth;
 	fbh->name    = (char*)cbuf_ptr;
@@ -236,8 +237,7 @@ dbd_describe(h, imp_sth)
 
 	/* Now define the storage for this field data.			*/
 
-	if (fbh->dbtype==23 || fbh->dbtype==24) {	/* RAW types */
-	    /* is this the right thing to do? what about longraw? XXX	*/
+	if (fbh->dbtype==23) {		/* RAW type			*/
 	    fbh->dbsize *= 2;
 	    fbh->disize *= 2;
 	}
@@ -253,10 +253,12 @@ dbd_describe(h, imp_sth)
 	/* This may change in a future release.				*/
 	/* Note that ora_dbtype_is_long() returns alternate dbtype to use	*/
 	if ( (dbtype = ora_dbtype_is_long(fbh->dbtype)) ) {
-	    fbh->dbsize = long_buflen;
-	    fbh->disize = long_buflen;
+	    long lbl = (fbh->dbtype==24) ? long_buflen * 2 : long_buflen;
+	    fbh->dbsize = lbl;
+	    fbh->disize = lbl;
 	    fbh->ftype  = dbtype;	/* get long in non-var form	*/
-	    imp_sth->t_dbsize += long_buflen;
+	    imp_sth->t_dbsize += lbl;
+	    alen_incnull = 0;
 
 	} else {
 	    /* for the time being we fetch everything (except longs)	*/
@@ -264,12 +266,13 @@ dbd_describe(h, imp_sth)
 	    fbh->ftype = 5;		/* oraperl used 5 'STRING'	*/
 	    /* dbsize can be zero for 'select NULL ...'			*/
 	    imp_sth->t_dbsize += fbh->dbsize;
+	    alen_incnull = 1;
 	}
 
 	fbh->fb_ary = fb_ary = fb_ary_alloc(
-			fbh->disize+1,	/* +1: STRING null terminator   */
-			imp_sth->cache_rows
-		    );
+	    fbh->disize + alen_incnull,	/* +1: STRING null terminator   */
+	    imp_sth->cache_rows
+	);
 
 	/* DEFINE output column variable storage */
 	if (odefin(imp_sth->cda, i, fb_ary->abuf, fb_ary->bufl,
@@ -278,12 +281,12 @@ dbd_describe(h, imp_sth)
 	    warn("odefin error on %s: %d", fbh->name, imp_sth->cda->rc);
 	}
 
-	if (dbis->debug >= 2)
+	if (DBIS->debug >= 2)
 	    dbd_fbh_dump(fbh, i, 0);
     }
     imp_sth->est_width = est_width;
 
-    if (dbis->debug >= 2)
+    if (DBIS->debug >= 3)
 	fprintf(DBILOGFP,
 	"    dbd_describe'd %d columns (Row bytes: %d max, %d est avg. Cache: %d rows)\n",
 	(int)num_fields, imp_sth->t_dbsize, est_width, imp_sth->cache_rows);
@@ -303,7 +306,7 @@ dbd_st_fetch(sth, imp_sth)
     SV *	sth;
     imp_sth_t *imp_sth;
 {
-    int debug = dbis->debug;
+    int debug = DBIS->debug;
     int num_fields;
     int ChopBlanks;
     int err = 0;
@@ -323,13 +326,14 @@ dbd_st_fetch(sth, imp_sth)
 
 	if (imp_sth->eod_errno) {
     end_of_data:
+	    { dTHR; 				/* for DBIc_ACTIVE_off		*/
+	      DBIc_ACTIVE_off(imp_sth);		/* eg finish			*/
+	    }
 	    if (imp_sth->eod_errno != 1403) {	/* was not just end-of-fetch	*/
 		ora_error(sth, imp_sth->cda, imp_sth->eod_errno, "cached ofetch error");
 	    } else {				/* is simply no more data	*/
-		dTHR; 				/* for DBIc_ACTIVE_off		*/
-		DBIc_ACTIVE_off(imp_sth);	/* eg finish			*/
 		sv_setiv(DBIc_ERR(imp_sth), 0);	/* ensure errno set to 0 here	*/
-		if (debug >= 2)
+		if (debug >= 3)
 		    fprintf(DBILOGFP, "    dbd_st_fetch no-more-data, rc=%d, rpc=%ld\n",
 			imp_sth->cda->rc, imp_sth->cda->rpc);
 	    }
@@ -407,8 +411,8 @@ dbd_st_fetch(sth, imp_sth)
 			  fb_ary->arlen[cache_entry]);
 		if (ora_dbtype_is_long(fbh->dbtype)) {	/* double check */
 		    hint = (DBIc_LongReadLen(imp_sth) > 65535)
-			 ? ", LongTruncOk not set and/or LongReadLen too small or > 65535 max"
-			 : ", LongTruncOk not set and/or LongReadLen too small";
+			 ? ", DBI attribute LongTruncOk not set and/or LongReadLen too small or > 65535 max"
+			 : ", DBI attribute LongTruncOk not set and/or LongReadLen too small";
 		}
 	    }
 	    else {
@@ -417,8 +421,8 @@ dbd_st_fetch(sth, imp_sth)
 	    ++err;	/* 'fail' this fetch but continue getting fields */
 	    /* Some should probably be treated as warnings but	*/
 	    /* for now we just treat them all as errors		*/
-	    sprintf(buf,"ofetch error on field %d (of %d), ora_type %d%s",
-			i+1, num_fields, fbh->dbtype, hint);
+	    sprintf(buf,"ORA-%05d error on field %d of %d, ora_type %d%s",
+			rc, i+1, num_fields, fbh->dbtype, hint);
 	    ora_error(sth, imp_sth->cda, rc, buf);
 	}
 
@@ -452,6 +456,11 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 {
     D_imp_dbh_from_sth;
     ub4   oparse_lng   = 1;  /* auto v6 or v7 as suits db connected to	*/
+
+    if (!DBIc_ACTIVE(imp_dbh)) {
+        ora_error(sth, NULL, -1, "Database disconnected");
+        return 0;
+    }
 
     imp_sth->done_desc = 0;
 
@@ -502,7 +511,7 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 	imp_sth->cda = NULL;
 	return 0;
     }
-    if (dbis->debug >= 2)
+    if (DBIS->debug >= 3)
 	fprintf(DBILOGFP, "    dbd_st_prepare'd sql f%d\n", imp_sth->cda->ft);
 
     /* Describe and allocate storage for results.		*/
@@ -512,6 +521,17 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 
     DBIc_IMPSET_on(imp_sth);
     return 1;
+}
+
+int
+ora_db_reauthenticate(dbh, imp_dbh, uid, pwd)
+    SV *dbh;
+    imp_dbh_t *imp_dbh;
+    char *	uid;
+    char *	pwd;
+{
+    ora_error(dbh, NULL, 1, "reauthenticate not possible when using Oracle OCI 7");
+    return 0;
 }
 
 #endif

@@ -3,8 +3,8 @@ $att{LIBS}      ||= [];
 $att{LIBS}->[0] ||= '';
 
 # Some SVR4 systems may need to link against -lc to pick up things like
-# fpsetmask and ecvt.
-my @libs = qw(-lsocket -lnsl -lm -ldl);
+# fpsetmask, sys_nerr and ecvt.
+my @libs = qw(-lsocket -lnsl -lm -ldl);	# general svr4 default
 
 # modified by Davide Migliavacca <davide.migliavacca@inferentia.it>
 if ($archname eq 'RM400-svr4') {
@@ -13,9 +13,9 @@ if ($archname eq 'RM400-svr4') {
 
 push @libs, '-lc';
 
-warn "SVR4 LIBS attribute defaulted to '$att{LIBS}->[0]' for '$archname'";
+warn "$^O LIBS attribute defaulted to '$att{LIBS}->[0]' for '$archname'";
 $att{LIBS}->[0] .= " ".join(" ", @libs);	# append libs
-warn "SVR4 LIBS attribute updated   to '$att{LIBS}->[0]'";
+warn "$^O LIBS attribute updated   to '$att{LIBS}->[0]'";
 
 
 __END__

@@ -1,4 +1,10 @@
-wanr when oracle .mk files redefine a macro with a different value.
+warn when oracle .mk files redefine a macro with a different value.
+
+warn (trace_msg?) if ORACLE_HOME changes after first connect
+relates to Apache::DBI scenario where changing ORACLE_HOME
+upsets existing connections.
+
+fetchall_arrayref in C (start with XS version in DBI for all drivers?)
 
 PRECISION for oci7 on VARCHAR etc
 

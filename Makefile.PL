@@ -1,4 +1,8 @@
-# $Id: Makefile.PL,v 1.75 1999/04/09 14:07:35 timbo Exp $
+# $Id: Makefile.PL,v 1.79 1999/06/08 00:15:02 timbo Exp $
+
+##
+##  You should not need to edit this file.
+##
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -14,7 +18,7 @@ use strict;
 # For those not using Dynamic loading this means building a
 # new static perl in the DBI directory by saying 'make perl'
 # and then using _that_ perl to make this one.
-use DBI 1.02;
+use DBI 1.08;
 use DBI::DBD;	# DBD creation tools
 
 
@@ -43,7 +47,7 @@ my %opts = (
     OBJECT => '$(O_FILES)',
     DEFINE => '',
     DIR  => [],
-    clean => {	FILES=> 'Oracle.xsi' },
+    clean => {         FILES	=> 'Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def' },
     dist  => {	DIST_DEFAULT	=> 'clean distcheck disttest ci tardist',
 		PREOP		=> '$(MAKE) -f Makefile.old distdir',
 		COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
@@ -96,7 +100,34 @@ print "\n Configuring DBD::Oracle ...\n
 my $ORACLE_ENV  = ($os eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 my $OH = $ENV{$ORACLE_ENV} || '';
-$OH =~ s:\\:/:g               if $os eq 'MSWin32';
+
+if (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
+  # Win32::TieRegistry is prefered, but it requires Win32API::Registry
+  # which is not available in mingw or cygwin
+  eval q{
+      require Win32::TieRegistry;
+      $Win32::TieRegistry::Registry->Delimeter("/");
+      my $hkey= $Win32::TieRegistry::Registry->{"LMachine/Software/Oracle/"};
+      $OH= $hkey->{ORACLE_HOME};
+  } unless $OH;
+  # older name of Win32::TieRegistry
+  eval q{
+      require Tie::Registry;
+      $Tie::Registry::Registry->Delimeter("/");
+      my $hkey= $Tie::Registry::Registry->{"LMachine/Software/Oracle/"};
+      $OH= $hkey->{ORACLE_HOME};
+  } unless $OH;
+  # Win32::Registry imports some symbols into main::
+  # this is not commonly wanted thing, so try this as a last resort
+  eval q{
+    require Win32::Registry;
+    my($reg_key, $hkey);
+    $main::HKEY_LOCAL_MACHINE->Open('SOFTWARE\\ORACLE', $reg_key);
+    $reg_key->GetValues( $hkey );
+    $OH= $hkey->{ORACLE_HOME}[2];
+  } unless $OH;
+  $OH =~ s:\\:/:g;
+};
 ($OH = unixify $OH) =~ s:/$:: if $os eq 'VMS';
 die "The $ORACLE_ENV environment variable must be set.\n"
 	unless $OH;
@@ -143,10 +174,10 @@ my $need_ldlp_env;
 if ($os eq 'VMS') {
     my $OCIINCLUDE = vmsify("$OH/rdbms/") ." ". vmsify("$OH/rdbms/demo/oci_demo/");
     $opts{INC}  = "$OCIINCLUDE $dbi_arch_dir";
-    $opts{OBJECT} = 'oracle.obj dbdimp.obj';
+    $opts{OBJECT} = 'oracle.obj dbdimp.obj oci7.obj oci8.obj' if $] < 5.005;
 }
 
-elsif ($os eq 'MSWin32') {
+elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
     my $oci_compiler_dir = ($Config{cc} eq 'bcc32' ? "BORLAND" : "MSVC");
 
     my $OCIDIR = "";
@@ -157,40 +188,45 @@ elsif ($os eq 'MSWin32') {
     }, $OH );
     print "Using OCI directory '$OCIDIR'\n";
 
-    my %OCILIB;
-    find( sub {
+    if ($Config{cc} =~ /gcc/i) {
+      $opts{LIBS} = [ "-loci" ];
+      print "Using liboci.a  (did you build it?)\n";
+    } else {
+      my %OCILIB;
+      find( sub {
 	$File::Find::prune = 1 if -d $_ && $_ !~ /^\./;
 	return unless /^(OCI|ORA).*\.LIB$/i;
 	print "Found $OCIDIR/lib/$oci_compiler_dir/$_ library\n";
 	$OCILIB{uc($_)} = $_;
-    }, "$OH/$OCIDIR/lib/$oci_compiler_dir" ) if $OCIDIR;
-    # sort the version numbered libs into assending order
-    my @OCILIB = sort grep { /(OCI|ORA)\d\d+\./i } keys %OCILIB;
-    # prefer the non-versioned library if present
-    push @OCILIB, "OCI.LIB"    if $OCILIB{'OCI.LIB'};
-    # opt_8 means DISABLE use of OCI 8 API
-    push @OCILIB, "OCIW32.LIB" if $OCILIB{'OCIW32.LIB'} && $::opt_8;
-    my $OCILIB = pop @OCILIB || '';
-    $OCILIB =~ s/\.LIB$//i;
-
-    die qq{
-    Unable to find required Oracle OCI files for the build.  Please check
-    that you have your OCI installed in your oracle home ($OH) 
-    directory and that it has the following files (and probably more):
-
+      }, "$OH/$OCIDIR/lib/$oci_compiler_dir" ) if $OCIDIR;
+      # sort the version numbered libs into assending order
+      my @OCILIB = sort grep { /(OCI|ORA)\d\d+\./i } keys %OCILIB;
+      # prefer the non-versioned library if present
+      push @OCILIB, "OCI.LIB"    if $OCILIB{'OCI.LIB'};
+      # opt_8 means DISABLE use of OCI 8 API
+      push @OCILIB, "OCIW32.LIB" if $OCILIB{'OCIW32.LIB'} && $::opt_8;
+      my $OCILIB = pop @OCILIB || '';
+      $OCILIB =~ s/\.LIB$//i;
+  
+      die qq{
+      Unable to find required Oracle OCI files for the build.  Please check
+      that you have your OCI installed in your oracle home ($OH) 
+      directory and that it has the following files (and probably more):
+  
 	$OH\\$OCIDIR\\include\\oratypes.h
 	$OH\\$OCIDIR\\lib\\$oci_compiler_dir\\$OCILIB.lib
-
-    Please install OCI or send comments back to dbi-users\@fugue.com
-    if you have an OCI directory other than $OCIDIR.  
-
-    } unless  (-e "$OH/$OCIDIR/include/oratypes.h" 
-	    && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib");
-
-    print "Using $OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib\n";
+  
+      Please install OCI or send comments back to dbi-users\@fugue.com
+      if you have an OCI directory other than $OCIDIR.  
+  
+      } unless  (-e "$OH/$OCIDIR/include/oratypes.h" 
+	      && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib");
+  
+      print "Using $OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib\n";
+      $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir $OCILIB" ];
+    };
 
     my $OCIINCLUDE = "-I$OH/$OCIDIR/include -I$OH/rdbms/demo";
-    $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir $OCILIB" ];
     $opts{INC}  = "$OCIINCLUDE -I$dbi_arch_dir";
 }
 
@@ -251,7 +287,9 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     # delete problematic crt?.o on solaris
     $linkwith_s = del_crtobj($linkwith_s) if $os eq 'solaris';
     $linkwith_s =~ s/-l:lib(\w+)\.sl\b/-l$1/g;	# for hp-ux
-    $linkwith_s .= " -lc" if $Config{archname} eq 'i386-dynixptx';
+	# this kind of stuff should be in a ./hints/* file:
+    $linkwith_s .= " -lc" if $Config{osname} eq 'dynixptx'
+						  or $Config{archname} =~ /-pc-sco3\.2v5/;
     if ($os eq 'solaris' and $osvers >= 2.3 and $linkwith_s =~ /-lthread/) {
 	print "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
 	print "Deleting -lthread from link list as a possible workround.\n";
@@ -310,7 +348,7 @@ print "WARNING: Your GNU C compiler is very old. Please upgrade.\n"
 
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($ENV{S_ARCH_SW} && $ENV{LOGNAME} eq 'timbo'){  # a reasonable guess
-    $opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith -pedantic -Wtraditional'
+    $opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith -Wtraditional'
 	. ' -Wbad-function-cast -Wcast-qual' if $Config{cc} eq 'gcc';
 	$::opt_g = '-g';
     $opts{dynamic_lib}->{OTHERLDFLAGS} ||= '';
@@ -339,6 +377,7 @@ print "  CLIBS:    $MK{CLIBS}\n"                     if $MK{CLIBS};
 print "           [".mkvar('CLIBS',0,1,0).   "]\n\n" if $MK{CLIBS};
 if ($mk_target_rules{build}) {
     my $rules = join "\n", '', @{ $mk_target_rules{build} };
+    $rules = expand_mkvars($rules, 0, 0, 1, 1) if $rules =~ /^\s*\$\(\w+\)\s*$/;
 print "  build:    $rules\n";
 print "           [".expand_mkvars($rules,0,1,0).   "]\n\n";
 }
@@ -688,7 +727,7 @@ sub expand_shellescape {
 }
 
 sub expand_mkvars { 
-    my($string, $strip, $backtick, $level) = @_;
+    my ($string, $strip, $backtick, $level, $maxlevel) = @_;
     $level ||= 1;
     local($_) = $string;
     print "$level Expanding $_\n" if $::opt_d;
@@ -698,7 +737,7 @@ sub expand_mkvars {
 	$MK{$vname} = (mkvar($vname, 1, $backtick, $level+1)) ? $vT : $vF
     /xge; # can recurse
     s/\$\( (\w+) \)/
-	mkvar("$1", $strip, $backtick, $level+1)
+	mkvar("$1", $strip, $backtick, $level+1, $maxlevel)
     /xge; # can recurse
     s/`(.*?[^\\])`/expand_shellescape("$1", $level+1)/esg if $backtick; # can recurse
     s/\s*\\\n\s*/ /g;	# merge continuations
@@ -709,8 +748,8 @@ sub expand_mkvars {
 
 
 sub mkvar { 
-    my($var, $strip, $backtick, $level) = @_;
-    my $default = $strip ? '' : "\$($var)";
+    my($var, $strip, $backtick, $level, $maxlevel) = @_;
+    my  $default = $strip ? '' : "\$($var)";
     print "$level Variable: $var\n" if $::opt_d;
     return '$(LIBHOME)' if $var eq 'LIBHOME' && !$strip; # gets noisy
     return $ENV{$ORACLE_ENV} if $var eq 'ORACLE_HOME';
@@ -726,7 +765,8 @@ sub mkvar {
 	return "\$($var)";
     }
     local($MK_expanding{$var}) = 1;
-    return expand_mkvars($val, $strip, $backtick, $level+1); # can recurse
+    return $val if $maxlevel && $level >= $maxlevel;
+    return expand_mkvars($val, $strip, $backtick, $level+1, $maxlevel); # can recurse
 }
 
 
@@ -884,6 +924,35 @@ $(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt $(INST_ARCHAUTODIR)
 	join('',@m);
     }
 
+}
+
+
+sub check_oratclsh {
+    # check for the SUID/SGID bits on ORACLE_HOME/bin/oratclsh
+    # if set, this allows a user to fork a root shell!
+    # Get the octal portion of perms that indicates
+    # SUID and SGID, and warn if either is set
+
+    my $tclfile = "$ENV{$ORACLE_ENV}/bin/oratclsh"; 
+    return unless -e $tclfile;
+
+    my $mode = (stat($tclfile))[2];
+    my @bits;
+    push @bits, "SUID" if $mode & 04000 and $mode & 00111;
+    push @bits, "SGID" if $mode & 02000 and $mode & 00111;
+    return unless @bits;
+    my $bits = join " and ", @bits;
+
+    warn qq{
+    WARNING - YOUR ORACLE INSTALLATION HAS A SECURITY PROBLEM.
+    An Oracle component, probably "Inteligent Agent", has installed
+    a copy of oratclsh that is $bits.
+    This warning and the problem it refers to are not related to
+    the DBI or DBD::Oracle modules in any way.  This security check
+    has been done for your information. Please contact your DBA or
+    Oracle about the problem. Please do NOT contact myself or dbi-users.
+};
+    sleep 10;
 }
 
 __END__

@@ -20,9 +20,9 @@ From: James Cooper <pixel@coe.missouri.edu>
 >      In other words are their some oracle shared objects, etc. I need ?
 
 I don't have experience with Solaris, but on IRIX 5.3, I simply installed
-SQL*Net (ORACLE_HOME/network/admin/*) and the OCI libraries which are in
-ORACLE_HOME/lib. You'll also need the header files from
-ORACLE_HOME/sqllib/public/*.h and ORACLE_HOME/rdbms/demo/*.h (you won't
+SQL*Net ($ORACLE_HOME/network/admin/*) and the OCI libraries which are in
+$ORACLE_HOME/lib. You'll also need the header files from
+$ORACLE_HOME/sqllib/public/*.h and $ORACLE_HOME/rdbms/demo/*.h (you won't
 need them all, but you can get rid of them after DBD::Oracle compiles).
 
 [You'll probably need at least ocommon in addition to network. But if you
@@ -36,7 +36,7 @@ headers (make sure to keep SQL*Net!)
 Other than that, getting it working isn't too hard.  If you're not
 familiar with SQL*Net, let me know.  I'm no expert, but I know the basics.
 The main thing is to have a good tnsnames.ora file in
-ORACLE_HOME/network/admin
+$ORACLE_HOME/network/admin
 
 -------------------------------------------------------------------------------
 From: Jon Meek <meekj@Cyanamid.COM>
@@ -125,9 +125,9 @@ contains no reference to any dynamic Oracle library.
  >      In other words are their some oracle shared objects, etc. I need ?
 
 I don't have experience with Solaris, but on IRIX 5.3, I simply installed
-SQL*Net (ORACLE_HOME/network/admin/*) and the OCI libraries which are in
-ORACLE_HOME/lib. You'll also need the header files from
-ORACLE_HOME/sqllib/public/*.h and ORACLE_HOME/rdbms/demo/*.h (you won't
+SQL*Net ($ORACLE_HOME/network/admin/*) and the OCI libraries which are in
+$ORACLE_HOME/lib. You'll also need the header files from
+$ORACLE_HOME/sqllib/public/*.h and $ORACLE_HOME/rdbms/demo/*.h (you won't
 need them all, but you can get rid of them after DBD::Oracle compiles).
 
 So just put that stuff on your client box and install DBI and DBD::Oracle

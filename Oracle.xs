@@ -20,6 +20,7 @@ constant()
     ORA_NTY	 = 108
     ORA_CLOB	 = 112
     ORA_BLOB	 = 113
+    ORA_RSET	 = 116
     ORA_OCI = 0
     CODE:
     if (!ix) {
@@ -84,3 +85,14 @@ ora_fetch(sth)
 	fprintf(DBILOGFP, "    !! ERROR: %s %s",
 	    neatsvpv(DBIc_ERR(imp_sth),0), neatsvpv(DBIc_ERRSTR(imp_sth),0));
 
+
+MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::db
+
+void
+reauthenticate(dbh, uid, pwd)
+    SV *	dbh
+    char *	uid
+    char *	pwd
+    CODE:
+    D_imp_dbh(dbh);
+    ST(0) = ora_db_reauthenticate(dbh, imp_dbh, uid, pwd) ? &sv_yes : &sv_no;
