@@ -139,16 +139,22 @@ print "Using Oracle in $OH\n";
 # We'll try to dig up some Oracle version information. Not essential.
 my @inspdver;
 my %inspdver = ( RDBMS => 0, rdbms_ver => 0 );
-if ($os ne 'VMS' and $os ne 'MSWin32' ) {
 
-    if (-x "$OH/bin/sqlplus") {
+if ($os ne 'VMS' ) {
+   my $sqlplus = "$OH/bin/sqlplus";
+   if ($os eq 'Win32') {
+      $sqlplus .= ".exe";
+      $sqlplus =~ s#/#\\#g;
+   }
+
+    if (-x $sqlplus) {
 	# Try to use the _SQLPLUS_RELEASE predefined variable from sqlplus
 	# Documented in the SQL*Plus reference guide:
 	#  http://download-west.oracle.com/docs/cd/B12037_01/server.101/b12170/ch13.htm#i2675128
 	# Output is in the following format:
 	#   DEFINE _SQLPLUS_RELEASE = "902000400" (CHAR)       Representing 9.2.0.4.0
 	#   DEFINE _SQLPLUS_RELEASE = "1001000200" (CHAR)      Representing 10.1.0.2.0
-	my $sqlplus_release = `echo DEFINE _SQLPLUS_RELEASE | $OH/bin/sqlplus -S /nolog 2>&1`;
+	my $sqlplus_release = `echo DEFINE _SQLPLUS_RELEASE | $sqlplus -S /nolog 2>&1`;
 	if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)" \(CHAR\)$/) {
 	    $inspdver{RDBMS} = sprintf("%d.%d.%d.%d", $1, $2, $3, $4);
 	}
