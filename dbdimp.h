@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.42 2001/08/29 11:32:51 timbo Exp $
+   $Id: dbdimp.h,v 1.43 2001/08/30 15:48:36 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -255,6 +255,7 @@ void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));
 int oci_error _((SV *h, OCIError *errhp, sword status, char *what));
 char *oci_stmt_type_name _((int stmt_type));
 char *oci_status_name _((sword status));
+char * oci_hdtype_name _((ub4 hdtype));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 void ora_free_lob_refetch _((SV *sth, imp_sth_t *imp_sth));
 void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));

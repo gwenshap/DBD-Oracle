@@ -1,7 +1,7 @@
 /*
-   $Id: oci8.c,v 1.31 2001/08/29 16:37:58 timbo Exp $
+   $Id: oci8.c,v 1.32 2001/08/30 15:48:36 timbo Exp $
 
-   Copyright (c) 1998  Tim Bunce
+   Copyright (c) 1998,1999,2000,2001  Tim Bunce
 
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file,
@@ -76,6 +76,51 @@ oci_stmt_type_name(int stmt_type)
     sv_grow(sv, 50);
     sprintf(SvPVX(sv),"(STMT TYPE %d)", stmt_type);
     return SvPVX(sv);
+}
+
+
+char *
+oci_hdtype_name(ub4 hdtype)
+{
+    SV *sv;
+    switch (hdtype) {
+    /* Handles */
+    case OCI_HTYPE_ENV:                 return "OCI_HTYPE_ENV";
+    case OCI_HTYPE_ERROR:               return "OCI_HTYPE_ERROR";
+    case OCI_HTYPE_SVCCTX:              return "OCI_HTYPE_SVCCTX";
+    case OCI_HTYPE_STMT:                return "OCI_HTYPE_STMT";
+    case OCI_HTYPE_BIND:                return "OCI_HTYPE_BIND";
+    case OCI_HTYPE_DEFINE:              return "OCI_HTYPE_DEFINE";
+    case OCI_HTYPE_DESCRIBE:            return "OCI_HTYPE_DESCRIBE";
+    case OCI_HTYPE_SERVER:              return "OCI_HTYPE_SERVER";
+    case OCI_HTYPE_SESSION:             return "OCI_HTYPE_SESSION";
+    case OCI_HTYPE_TRANS:               return "OCI_HTYPE_TRANS";
+    case OCI_HTYPE_COMPLEXOBJECT:       return "OCI_HTYPE_COMPLEXOBJECT";
+    case OCI_HTYPE_SECURITY:            return "OCI_HTYPE_SECURITY";
+    case OCI_HTYPE_SUBSCRIPTION:        return "OCI_HTYPE_SUBSCRIPTION";
+    case OCI_HTYPE_DIRPATH_CTX:         return "OCI_HTYPE_DIRPATH_CTX";
+    case OCI_HTYPE_DIRPATH_COLUMN_ARRAY:return "OCI_HTYPE_DIRPATH_COLUMN_ARRAY";
+    case OCI_HTYPE_DIRPATH_STREAM:      return "OCI_HTYPE_DIRPATH_STREAM";
+    case OCI_HTYPE_PROC:                return "OCI_HTYPE_PROC";
+    /* Descriptors */
+    case OCI_DTYPE_LOB:			return "OCI_DTYPE_LOB";
+    case OCI_DTYPE_SNAP:		return "OCI_DTYPE_SNAP";
+    case OCI_DTYPE_RSET:		return "OCI_DTYPE_RSET";
+    case OCI_DTYPE_PARAM:		return "OCI_DTYPE_PARAM";
+    case OCI_DTYPE_ROWID:		return "OCI_DTYPE_ROWID";
+    case OCI_DTYPE_COMPLEXOBJECTCOMP:	return "OCI_DTYPE_COMPLEXOBJECTCOMP";
+    case OCI_DTYPE_FILE:		return "OCI_DTYPE_FILE";
+    case OCI_DTYPE_AQENQ_OPTIONS:	return "OCI_DTYPE_AQENQ_OPTIONS";
+    case OCI_DTYPE_AQDEQ_OPTIONS:	return "OCI_DTYPE_AQDEQ_OPTIONS";
+    case OCI_DTYPE_AQMSG_PROPERTIES:	return "OCI_DTYPE_AQMSG_PROPERTIES";
+    case OCI_DTYPE_AQAGENT:		return "OCI_DTYPE_AQAGENT";
+    case OCI_DTYPE_LOCATOR:		return "OCI_DTYPE_LOCATOR";
+    case OCI_DTYPE_DATETIME:		return "OCI_DTYPE_DATETIME";
+    case OCI_DTYPE_INTERVAL:		return "OCI_DTYPE_INTERVAL";
+    case OCI_DTYPE_AQNFY_DESCRIPTOR:	return "OCI_DTYPE_AQNFY_DESCRIPTOR";
+    }
+    sv = sv_2mortal(newSViv(hdtype));
+    return SvPV(sv,na);
 }
 
 
@@ -546,6 +591,15 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
     sword status;
     ub4 lobEmpty = 0;
+
+    if (!SvPOK(phs->sv)) {     /* normalizations for special cases     */
+       if (SvOK(phs->sv)) {    /* ie a number, convert to string ASAP  */
+           if (!(SvROK(phs->sv) && phs->is_inout))
+               sv_2pv(phs->sv, &na);
+       }
+       else /* ensure we're at least an SVt_PV (so SvPVX etc work)     */
+           SvUPGRADE(phs->sv, SVt_PV);
+    }
 
     if (!phs->desc_h) {
 	++imp_sth->has_lobs;
@@ -1558,7 +1612,9 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
     for(i=0; i < lr->num_fields; ++i) {
 	imp_fbh_t *fbh = &lr->fbh_ary[i];
 	phs_t *phs = (phs_t*)fbh->special;
-	ub4 amtp = SvCUR(phs->sv);
+	ub4 amtp;
+        SvUPGRADE(phs->sv, SVt_PV);	/* just in case */
+	amtp = SvCUR(phs->sv);		/* XXX UTF8? */
 	if (amtp > 0) {	/* since amtp==0 & OCI_ONE_PIECE fail (OCI 8.0.4) */
 	    OCILobWrite_log_stat(imp_sth->svchp, errhp,
 		    fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,

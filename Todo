@@ -2,6 +2,9 @@
 
 Move urls from README into Oracle.pm
 
+Change all uses of perl global na (SvPV & sv_2pv) to local variables
+for better thread safety.
+
 Test script for bind type / field type / length / null interactions
 of char/varchar types.
 
