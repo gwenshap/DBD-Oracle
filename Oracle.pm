@@ -1647,11 +1647,21 @@ end XXX
 B<When NLS_LANG Is Not Set>
 
 If NLS_LANG is not set, then DBD::Oracle will initialize the OCI
-environment with UTF8 (csid=871) as the default national 
+environment with AL32UTF8 (csid=873) as the default national 
 character set.
 
 XXX should use AL32UTF8 if available. LAB: I just tried to
-change it and it broke the 30long.t pretty badly.  XXX
+change it and it broke the 30long.t pretty badly.  
+
+Well I was wrong.  Hmmm just tested it with NLS_LANG=american_america.al32utf8
+and NLS_LANG=american_america.utf8 and it works!  It also works
+with a database with UTF8 as the NCHAR set.  (my a7u8 database), 
+but it is broken with my a7u16 (AL16utf16 NCHAR set).  (not that
+this is the default oracle setup). Need to do some more digging here. 
+No time tonight.  I could be that my patch this afternoon broke it.
+DAMN!!!!
+
+XXX
 
 This may possibly get you what you want, but it is strongly recomended
 that you always explicitly set NLS_LANG to the required value. That way all
