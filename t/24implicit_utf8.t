@@ -15,7 +15,7 @@ my $dbh;
 $| = 1;
 SKIP: {
     plan skip_all => "Unable to run 8bit char test, perl version is less than 5.6" unless ( $] >= 5.006 );
-    plan skip_all => "ORC_OCI < 8" if (! ORA_OCI >= 8);
+    plan skip_all => "ORA_OCI < 8" if (! ORA_OCI >= 8);
 
     set_nls_charset( 'UTF8' ,1 ); 
     $dbh = db_handle();

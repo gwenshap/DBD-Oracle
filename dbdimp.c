@@ -39,7 +39,6 @@ int is_extproc = 0;
 #ifdef UTF8_SUPPORT
 ub2 charsetid = 0;
 ub2 ncharsetid = 0;
-ub2 database_is_widemode = 0;
 ub2 cs_is_utf8 = 0;
 ub2 utf8_csid = 871;
 ub2 al32utf8_csid = 873;
@@ -415,13 +414,11 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	}
 	else {		/* Normal connect. */
 
-             size_t rsize = 0;
+            size_t rsize = 0;
 
 	    imp_dbh->proc_handles = 0;
 
 #ifdef NEW_OCI_INIT
-	    /* XXX recent oracle docs recommend using OCIEnvCreate() instead of	*/
-	    /* OCIInitialize + OCIEnvInit, we'd need ifdef's for old versions	*/
 
             OCINlsEnvironmentVariableGet_log_stat( &charsetid, 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
             if (status != OCI_SUCCESS) {
@@ -429,84 +426,37 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                     "OCINlsEnvironmentVariableGet. (database charset) Check ORACLE_HOME and NLS settings etc.");
                 return 0;
             }
+
             OCINlsEnvironmentVariableGet_log_stat( &ncharsetid, 0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
                     "OCINlsEnvironmentVariableGet. (database Ncharset) Check ORACLE_HOME and NLS settings etc.");
                 return 0;
             }
-
             /* HACK for when NLS_LANG is NOT set... use the utf8 ncharsetid  */
             if ( 1 && (ncharsetid==1) ) {
                 ncharsetid = utf8_csid; /* NLS_LANG was not set... default it */
-                /* TIM: how do I turn this into a DBD warning... */
-                if ( 0 || (DBIS->debug >= 1) )
+                if ( DBIS->debug >= 1 )
                    PerlIO_printf(DBILOGFP,"NLS_LANG was not set or invalid, using ncharsetid=%d\n" ,utf8_csid ); 
             }
 
-            OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, NULL, NULL, NULL, 0, 0, charsetid, ncharsetid, status );
+            OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, NULL, NULL, NULL, 0, 0,
+			charsetid, ncharsetid, status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
-                    "OCIEnvNlsCreate. Check ORACLE_HOME and NLS settings etc.");
+                    "OCIEnvNlsCreate (check ORACLE_HOME and NLS settings etc.)");
                 return 0;
             }
                 
-
-            /* get the possible utf8/16 character set ids */
-            utf8_csid = OCINlsCharSetNameToId(imp_dbh->envhp, "UTF8"); 
-            al32utf8_csid = OCINlsCharSetNameToId(imp_dbh->envhp, "AL32UTF8");
+            /* update the hard-coded csid constants for unicode charsets */
+            utf8_csid      = OCINlsCharSetNameToId(imp_dbh->envhp, "UTF8"); 
+            al32utf8_csid  = OCINlsCharSetNameToId(imp_dbh->envhp, "AL32UTF8");
             al16utf16_csid = OCINlsCharSetNameToId(imp_dbh->envhp, "AL16UTF16");
-            if ( 0 || DBIS->debug >= 3 )  {
-                PerlIO_printf(DBILOGFP,"       utf8_csid=%d al32utf8_csid=%d al16utf16_csid=%d\n", 
-                                              utf8_csid,   al32utf8_csid,   al16utf16_csid );
-            }
-#if 0
-            database_is_widemode = ( charsetid == utf8_csid )
-                       || ( charsetid == al32utf8_csid )
-                       || ( charsetid == al16utf16_csid )
-                       ;
-#endif
-            /* Nota Bene: while NLS_LANG and NLS_NCHAR are supposed to be distinct if they are both
-             * used, I can find no way to distinquish them.  So for now we will use the 
-             * ncharsetid as the id most likely to be a UTF8 charset.  If it becomes possible to
-             * distinquish later, we can get smarter.
-             */
-
-            cs_is_utf8 = ( ncharsetid == utf8_csid )
-                       || ( ncharsetid == al32utf8_csid )
-                       || ( ncharsetid == al16utf16_csid )
-                       /* || database_is_widemode */
-                       ;
-            if ( cs_is_utf8 ) utf8_csid = ncharsetid;
-            if ( 0 || (DBIS->debug >= 1) ) {
-                PerlIO_printf(DBILOGFP,"       cs_is_utf8=%d charsetid=%d ncharsetid=%d\n", /* database_is_widemode=%d */
-                                              cs_is_utf8,   charsetid,   ncharsetid );
-            }
-#if 0
-            {
-                ub2 csid = 0;
-                ub2 ncsid = 0;
-
-                OCIAttrGet_log_stat(imp_dbh->envhp, OCI_DTYPE_PARAM, &csid, (ub4)0 ,
-                                    OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
-                if (status != OCI_SUCCESS) {
-                    oci_error(dbh, imp_dbh->errhp, status,
-                              "OCIAttrGet. Failed to get charset id.");
-                    return 0;
-                }
-
-                OCIAttrGet_log_stat(imp_dbh->envhp, OCI_DTYPE_PARAM, &ncsid, (ub4)0 ,
-                                    OCI_ATTR_ENV_NCHARSET_ID, imp_dbh->errhp, status);
-                if (status != OCI_SUCCESS) {
-                    oci_error(dbh, imp_dbh->errhp, status,
-                              "OCIAttrGet. Failed to get ncharset id.");
-                    return 0;
-                }
-                PerlIO_printf(DBILOGFP,"XXXXXX csid=%d ncsid=%d\n" ,csid ,ncsid );
-            }
-#endif
 
 #else /* (the old init code) NEW_OCI_INIT */
+
+	    /* XXX recent oracle docs recommend using OCIEnvCreate() instead of	*/
+	    /* OCIInitialize + OCIEnvInit, we'd need ifdef's for pre-OCIEnvNlsCreate */
 
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
 	    if (status != OCI_SUCCESS) {
@@ -520,8 +470,8 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 		oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCIEnvInit");
 		return 0;
 	    }
-
 #endif /* NEW_OCI_INIT */
+
         }
     }
 
@@ -555,6 +505,40 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     }
 
     OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+
+#ifndef NEW_OCI_INIT /* have to get charsetid & ncharsetid the old way */
+    OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &charsetid, (ub4)0 ,
+			OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
+    if (status != OCI_SUCCESS) {
+	oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet. Failed to get charset id.");
+	return 0;
+    }
+    OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &ncharsetid, (ub4)0 ,
+			OCI_ATTR_ENV_NCHARSET_ID, imp_dbh->errhp, status);
+    if (status != OCI_SUCCESS) {
+	oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet. Failed to get ncharset id.");
+	return 0;
+    }
+#endif
+
+    /* At this point we have charsetid & ncharsetid */
+
+    /* Nota Bene: while NLS_LANG and NLS_NCHAR are supposed to be distinct if they are both
+     * used, I can find no way to distinquish them.  So for now we will use the 
+     * ncharsetid as the id most likely to be a UTF8 charset.  If it becomes possible to
+     * distinquish later, we can get smarter.
+     */
+    cs_is_utf8 = ( ncharsetid == utf8_csid )
+	       || ( ncharsetid == al32utf8_csid )
+	       || ( ncharsetid == al16utf16_csid ) ;
+    if ( cs_is_utf8 )
+	utf8_csid = ncharsetid;
+    if (DBIS->debug >= 3) {
+	PerlIO_printf(DBILOGFP,"       cs_is_utf8=%d CHARSET_id=%d NCHARSET_id=%d "
+	    "(csid: utf8=%d al32utf8=%d, al16utf16=%d)\n",
+	      cs_is_utf8,   charsetid,   ncharsetid, utf8_csid, al32utf8_csid, al16utf16_csid);
+    }
+
 
     if (!shared_dbh) {
 	if(use_proc_connection) {
