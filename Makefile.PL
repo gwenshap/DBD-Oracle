@@ -1,11 +1,11 @@
-# $Id: Makefile.PL,v 1.93 2001/08/29 19:38:31 timbo Exp $
+# $Id: Makefile.PL,v 1.94 2001/08/30 15:48:36 timbo Exp $
 
 ##
 ##  You should not need to edit this file.
 ##
 
 BEGIN { $^W = 1 }
-BEGIN { require 5.003 }	# 5.003 fixes very important bugs
+BEGIN { require 5.004 }
 
 use ExtUtils::MakeMaker 5.16, qw(&WriteMakefile $Verbose);
 use Getopt::Long;
@@ -18,7 +18,7 @@ use strict;
 # For those not using Dynamic loading this means building a
 # new static perl in the DBI directory by saying 'make perl'
 # and then using _that_ perl to make this one.
-use DBI 1.08;
+use DBI 1.20;
 use DBI::DBD;	# DBD creation tools
 
 
@@ -337,15 +337,15 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     # modifications by lbaxter@fleetcc.com
     if ( ($os eq 'hpux') && ($osvers > 10) && ($Config{'cc'} eq 'cc') )
     {
-        # these get dragged in from demo_rdbms.mk where Oralce uses 
+        # these get dragged in from demo_rdbms.mk where Oracle uses them
         # the linker bitches about them not being valid options
         # in this context
         $linkwith =~ s/-Wl,\+[sn]//g;
 
         # Oracle 8.0.5 drags in these which also cause link errors:
         # this produces a good link with the 32bit version of oracle
-        # (64bit version of 8.0.5 fails to link)
-        # someone else will have to hack that one out
+        # (64bit version of 8.0.5 fails to link
+        # someone else will have to hack that one out)
         $linkwith =~ s/\+D[AS]2\.0[W]* / /g;
 
         # A number of folks have had to add this library to resolve
@@ -411,7 +411,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	$opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g @linkwith_o \$(COMPOBJS)" };
     }
 
-    my $OCIINCLUDE = $MK{INCLUDE} || '';
+    my $OCIINCLUDE = expand_mkvars($MK{INCLUDE} || '', 0, 0);
     $OCIINCLUDE .= " -I$OH/rdbms/demo";
     my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
     $opts{INC}  = "$OCIINCLUDE $inc -I$dbi_arch_dir";
@@ -619,16 +619,30 @@ sub win32_oracle_home {
       # Look for ORACLE_HOME in all ORACLE sub-folders, use last one found
       #     before 8.1.5, there should be only one
       eval {
-	  my @hkey = ($hkey);
 	  my ($oh1, %oh);
+	  my @hkey = ($hkey);
 	  while (@hkey) {
 	      $hkey = shift @hkey;
 	      $oh   = $oh1, $oh{$oh1} = 1
 		  if ($oh1 = &$Val($hkey)) && -d $oh1;
 	      push @hkey, &$Keys($hkey);
 	  }
-	  print "\nMultiple Oracle homes: ", join(" ", sort keys %oh), "\n\n"
-	      if 1 < keys %oh;
+	  if (1 < keys %oh) {
+	    # JLU: 8/21/01 Oracle's default home is the first one in
+	    # the path, at least with 8i
+	    print "\n\007Multiple Oracle homes: ", join(" ", sort keys %oh), "\n\n";
+	    my @path = split(";", $ENV{PATH});
+	    my $dir;
+	    foreach $dir (@path) {
+	       # the path will be c:\path\to\home\bin, so remove \bin if it's there.
+	       $dir =~ s/\\bin$//;
+	       if (defined($oh{$dir})) {
+		  print "$dir is first in the PATH, so we'll use that as Oracle's default home.\n\n";
+		  $oh = $dir;
+		  last;
+	       }
+	    }
+	  }
       } if defined $Keys;
   }
 

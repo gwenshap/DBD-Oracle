@@ -40,8 +40,8 @@
 #define OCIAttrGet_log_stat(th,ht,ah,sp,at,eh,stat)                    \
 	stat = OCIAttrGet(th,ht,ah,sp,at,eh);				\
 	(DBD_OCI_TRACEON) ? fprintf(DBD_OCI_TRACEFP,			\
-	  "%sAttrGet(%p,%lu,%p,%p,%lu,%p)=%s\n",			\
-	  OciTp, (void*)th,ul_t(ht),(void*)ah,pul_t(sp),ul_t(at),(void*)eh,\
+	  "%sAttrGet(%p,%s,%p,%p,%lu,%p)=%s\n",			\
+	  OciTp, (void*)th,oci_hdtype_name(ht),(void*)ah,pul_t(sp),ul_t(at),(void*)eh,\
 	  oci_status_name(stat)),stat : stat
 
 #define OCIAttrGet_parmdp(imp_sth, parmdp, p1, l, a, stat)              \
@@ -55,8 +55,8 @@
 #define OCIAttrSet_log_stat(th,ht,ah,s1,a,eh,stat)                      \
 	stat=OCIAttrSet(th,ht,ah,s1,a,eh);				\
 	(DBD_OCI_TRACEON) ? fprintf(DBD_OCI_TRACEFP,			\
-	  "%sAttrSet(%p,%u,%p,%lu,%lu,%p)=%s\n",			\
-	  OciTp, (void*)th,(ht),(void*)(ah),ul_t(s1),ul_t(a),(void*)eh,	\
+	  "%sAttrSet(%p,%s,%p,%lu,%lu,%p)=%s\n",			\
+	  OciTp, (void*)th,oci_hdtype_name(ht),(void*)(ah),ul_t(s1),ul_t(a),(void*)eh,	\
 	  oci_status_name(stat)),stat : stat
 
 #define OCIBindByName_log_stat(sh,bp,eh,p1,pl,v,vs,dt,in,al,rc,mx,cu,md,stat)  \
@@ -94,14 +94,14 @@
 
 #define OCIDescriptorAlloc_ok(envhp, p1, t)                             \
 	if (DBD_OCI_TRACEON) fprintf(DBD_OCI_TRACEFP,			\
-	  "%sDescriptorAlloc(%p,%p,%lu,0,0)\n",        			\
-	  OciTp,(void*)envhp,(void*)(p1),ul_t(t));			\
+	  "%sDescriptorAlloc(%p,%p,%s,0,0)\n",        			\
+	  OciTp,(void*)envhp,(void*)(p1),oci_hdtype_name(t));			\
 	if (OCIDescriptorAlloc((envhp), (void**)(p1), (t), 0, 0)==OCI_SUCCESS);	\
 	else croak("OCIDescriptorAlloc (type %ld) failed",t)
 
 #define OCIDescriptorFree_log(d,t)                                     \
 	if (DBD_OCI_TRACEON) fprintf(DBD_OCI_TRACEFP,			\
-	  "%sDescriptorFree(%p,%lu)\n", OciTp, (void*)d,ul_t(t));	\
+	  "%sDescriptorFree(%p,%s)\n", OciTp, (void*)d,oci_hdtype_name(t));	\
 	OCIDescriptorFree(d,t)
 
 #define OCIEnvInit_log_stat(ev,md,xm,um,stat)                          \
@@ -121,19 +121,19 @@
 #define OCIHandleAlloc_log_stat(ph,hp,t,xs,ump,stat)                   \
 	stat=OCIHandleAlloc(ph,hp,t,xs,ump);				\
 	(DBD_OCI_TRACEON) ? fprintf(DBD_OCI_TRACEFP,			\
-	  "%sHandleAlloc(%p,%p,%lu,%lu,%p)=%s\n",			\
-	  OciTp, (void*)ph,(void*)hp,ul_t(t),ul_t(xs),(void*)ump,	\
+	  "%sHandleAlloc(%p,%p,%s,%lu,%p)=%s\n",			\
+	  OciTp, (void*)ph,(void*)hp,oci_hdtype_name(t),ul_t(xs),(void*)ump,	\
 	  oci_status_name(stat)),stat : stat
 
 #define OCIHandleAlloc_ok(envhp, p1, t, stat)                           \
 	OCIHandleAlloc_log_stat((envhp),(void**)(p1),(t),0,0, stat);	\
 	if (stat==OCI_SUCCESS) ;					\
-	else croak("OCIHandleAlloc (type %lu) failed",ul_t(t))
+	else croak("OCIHandleAlloc(%s) failed",oci_hdtype_name(t))
 
 #define OCIHandleFree_log_stat(hp,t,stat)                              \
 	stat=OCIHandleFree(  (hp), (t));				\
 	(DBD_OCI_TRACEON) ? fprintf(DBD_OCI_TRACEFP,			\
-	  "%sHandleFree(%p,%lu)=%s\n",OciTp,(void*)hp,ul_t(t),		\
+	  "%sHandleFree(%p,%s)=%s\n",OciTp,(void*)hp,oci_hdtype_name(t),		\
 	  oci_status_name(stat)),stat : stat
 
 #define OCIInitialize_log_stat(md,cp,mlf,rlf,mfp,stat)                 \
@@ -161,7 +161,7 @@
 #define OCILobTrim_log_stat(sv,eh,lh,l,stat)                           \
 	stat=OCILobTrim(sv,eh,lh,l);					\
 	(DBD_OCI_TRACEON) ? fprintf(DBD_OCI_TRACEFP,			\
-	  "%sLobtrim(%p,%p,%p,%lu)=%s\n",				\
+	  "%sLobTrim(%p,%p,%p,%lu)=%s\n",				\
 	  OciTp, (void*)sv,(void*)eh,(void*)lh,ul_t(l),			\
 	  oci_status_name(stat)),stat : stat
 

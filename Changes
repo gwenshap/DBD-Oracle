@@ -1,4 +1,13 @@
-Changes in DBD::Oracle 1.09 27th August 2001
+Changes in DBD::Oracle 1.10   30th August 2001
+
+  Explicitly require DBI version 1.20 (or later).
+  Support multiple oracle home's in Win32 registry thanks to Jeff Urlwin.
+  Improved build support for Oracle >=8.1.7 (I_SYM) thanks to Stephen Close.
+  Fixed LOB bug when writing non-string values thanks to Stephen Close.
+  Fixed t/ph_type.t to be better behaved thanks to Ville Skytta.
+  Added OCI8 handle/descriptor name to trace output for some API calls.
+
+Changes in DBD::Oracle 1.09   27th August 2001
 
   Changed behaviour when OCIStmtExecute() returns OCI_SUCCESS_WITH_INFO:
     used to be treated as OCI_SUCCESS, now also sets $DBI::err/$DBI::errstr
