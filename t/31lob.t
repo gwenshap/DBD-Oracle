@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
-use Test::More qw(no_plan);
+use Test::More tests => 2;
 use DBD::Oracle qw(:ora_types);
 use DBI;
 

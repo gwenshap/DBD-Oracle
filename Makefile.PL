@@ -178,6 +178,21 @@ if ($os eq 'VMS') {
 				vmsify("$OH/netconfig/demo/"); # eg nzt.h in 8.1.7 on VMS
     $opts{INC}  = "$OCIINCLUDE $dbi_arch_dir";
     $opts{OBJECT} = 'oracle.obj dbdimp.obj oci7.obj oci8.obj' if $] < 5.005;
+
+    unless ($ENV{PERL_ENV_TABLES}) {
+	print qq{
+    The logical PERL_ENV_TABLES is not set.
+
+    This may mean that some of the UTF functionallity tests may fail,
+    and that some logicals may be set in the Oracle Table.
+
+    To ensure that testing the package only sets logicals in your process
+    table, please set this logical:
+
+       \$ DEFINE PERL_ENV_TABLES LNM\$PROCESS
+	\a\n};
+        sleep 3;
+    }
 }
 
 elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
