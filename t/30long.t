@@ -46,9 +46,20 @@ foreach (@test_sets) {
     =========================================================================
     Running long test for $type_name ($type_num) use_utf8_data=$use_utf8_data
 );
-    run_long_tests($type_name, $type_num);
-    run_long_tests($type_name, 0) if $test_no_type;
+    run_long_tests($dbh, $type_name, $type_num);
+    run_long_tests($dbh, $type_name, 0) if $test_no_type;
 }
+
+exit 0;
+
+# end.
+
+
+END {
+    drop_table( $dbh ) if not $ENV{DBD_SKIP_TABLE_DROP};
+    $dbh->disconnect if $dbh;
+}
+
 
 sub use_utf8_data
 {
@@ -61,7 +72,7 @@ sub use_utf8_data
 
 sub run_long_tests 
 {
-    my ($type_name, $type_num) = @_;
+    my ($dbh, $type_name, $type_num) = @_;
     my ($sth);
     my $append_len;
     SKIP: 
@@ -350,14 +361,6 @@ sub run_long_tests
 
 } # end of run_long_tests
 
-END {
-    drop_table( $dbh ) if not $ENV{DBD_SKIP_TABLE_DROP};
-    $dbh->disconnect if $dbh;
-}
-
-exit 0;
-
-# end.
 
 
 sub array_test {
