@@ -697,7 +697,11 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 
       OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 			  &amtp, (ub4)1 + offset, buffer, buflen,
+#ifdef SET_CHARSET_ID
                           0, 0, csid ,csform ,status );
+#else
+                          0, 0, (ub2)0 ,csform ,status );
+#endif
 			  /* lab  0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status); */
 
       if (dbis->debug >= 3)
@@ -802,7 +806,11 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 	    &amtp, (ub4)1 + offset, bufp, buflen,
+#ifdef SET_CHARSET_ID
 		0, 0, csid, csform, status);
+#else
+		0, 0, (ub2)0 , csform, status);
+#endif
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
 		"       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu (cs form=%d, id=%d)\n",
@@ -938,7 +946,11 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
 	    &amtp, (ub4)1, SvPVX(dest_sv), buflen,
+#ifdef SET_CHARSET_ID
 	    0, 0, csid, csform, status);
+#else
+	    0, 0, (ub2)0, csform, status);
+#endif
 	    /* lab: 0, 0, (ub2)0, csform, status); */
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
@@ -1310,12 +1322,14 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
                 oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");
                 ++num_errors;
             }
+#ifdef SET_CHARSET_ID
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csid, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
 	    if (status != OCI_SUCCESS) {
 		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_ID");
 		++num_errors;
 	    }
+#endif
         }
 #endif /* OCI_ATTR_CHARSET_ID */
 
@@ -1953,7 +1967,11 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
                 UTF8_FIXUP_CSID( csid, "post_execute_lobs" );
 #endif /* OCI_ATTR_CHARSET_ID */
 
+#ifdef SET_CHARSET_ID
                 fbh->csid = csid;
+#else
+                fbh->csid = 0;
+#endif
                 fbh->csform = csform;
             }
 

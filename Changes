@@ -11,8 +11,6 @@ Add DBI dbivport.h etc
     Thanks to Lincoln Baxter (with a little help from Jeff Urlwin)
        $dbh->{ora_ph_csform} = SQLCS_NCHAR;
        $sth->bind_param(..., { ora_csform => SQLCS_NCHAR });
-    There are problems with t/30long.t when NLS_LANG is set and
-    ends in a multi byte character set.  Help welcome.
     See POD for more information and documentation
   Fixed build32/build64 Makefile.PL bug spotted by Sean Kelly.
   Fixed Oracle version detection on clients thanks to Marko Asplund.
