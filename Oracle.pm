@@ -1497,7 +1497,7 @@ the perl documention on Unicode:
 
 And then read it again.
 
-Perl's internal unicode format is UTF8 (without surrogates),
+Perl's internal unicode format is UTF8
 which corresponds to the Oracle character set called AL32UTF8.
 
 =head2 Oracle and Unicode
@@ -1506,8 +1506,8 @@ Oracle supports many characters sets, including several different forms
 of Unicode.  These include:
 
   AL16UTF16  =>  valid for NCHAR columns (CSID=873)
-  UTF8       =>  valid for NCHAR columns (CSID=871)
-  AL32UTF8   =>  valid for NCHAR and CHAR columns  (CSID=2000)
+  UTF8       =>  valid for NCHAR columns (CSID=871), deprecated
+  AL32UTF8   =>  valid for NCHAR and CHAR columns (CSID=2000)
 
 When you create an Oracle database, you must specify the DATABASE 
 character set (used for DDL, DML and CHAR datatypes) and the NATIONAL 
@@ -1522,8 +1522,8 @@ The Oracle 9.2 and later default for the national character set is AL16UTF16.
 The default for the database character set is often US7ASCII.
 Although many experienced DBAs will consider an 8bit character set like
 WE8ISO8859P1 or WE8MSWIN1252.  To use any character set with Oracle
-other than US7ASCII, requires that NLS_LANG be set.
-See the L<International NLS / 8-bit text issues> section below.
+other than US7ASCII, requires that the NLS_LANG environment variable be set.
+See the L<"International NLS / 8-bit text issues"> section below.
 
 You are strongly urged to read the Oracle Internationalization documentation
 specifically with respect the choices and trade offs for creating
@@ -1543,12 +1543,22 @@ Both UTF8 and AL32UTF32 can be used in NLS_LANG and NLS_NCHAR.
 For example:
 
    NLS_LANG=AMERICAN_AMERICA.UTF8
-   NLS_LANG=AMERICAN_AMERICA.AL32UTF8 # preferred
+   NLS_LANG=AMERICAN_AMERICA.AL32UTF8
+   NLS_NCHAR=UTF8
+   NLS_NCHAR=AL32UTF8
 
-AL32UTF8 should be used in preference to UTF8 if it works for you,
+B<Note:> AL32UTF8 should be used in preference to UTF8 if it works for you,
 which it should for Oracle 9.2 or later. If you're using an old
 version of Oracle that doesn't support AL32UTF8 then you should
-avoid using any unicode characters that require surrogates.
+avoid using any unicode characters that require surrogates, in other words
+characters beyond the Unicode BMP.  That's because the character set
+that Oracle calls "UTF8" doesn't conform to the UTF8 standard in its
+handling of surrogate characters and you may get "Malformed UTF-8 character"
+warnins from Perl. Instead of fixing their UTF8 encoding Oracle choose to
+define a new character set "AL32UTF8" instead.
+
+Because of that, for the rest of this document we'll use "AL32UTF8".
+If you're using an Oracle version below 9.2 you'll need to use "UTF8".
 
 =head2 DBD::Oracle and Unicode
 
@@ -1561,77 +1571,32 @@ importing the C<ORA_OCI> constant from DBD::Oracle.
 
 B<Fetching Data>
 
-Any data returned from Oracle to DBD::Oracle in the UTF8 or AL32UTF8
+Any data returned from Oracle to DBD::Oracle in the AL32UTF8
 character set will be marked as UTF8 to ensure correct handling by perl.
 
-For Oracle to return data in the UTF8 or AL32UTF8 character set the
+For Oracle to return data in the AL32UTF8 character set the
 NLS_LANG or NLS_NCHAR environment variable must be set as described
 in the previous section.
 
 When fetching data from Oracle, DBD::Oracle will set the perl UTF8
 flag on the returned data if Oracle indicates that the character
-set is UTF8 or AL32UTF8. 
+set is AL32UTF8. 
 
-XXX This should apply to all types
-and be regardless of how/why the csid is a unicode one.
-
-[In other words cs_is_utf8 should be avoided. I think all uses of
-cs_is_utf8 are suspicious. Consider the case where NLS_LANG isn't
-unicode but NLS_NCHAR is (or we support bind_col(...,{ora_csid=>...})
-then a single global has to be wrong.]
-
-LAB: well thats a good point.  Look at line 487 and following
-in oci8.c.  What this means is, if it discovers a byte in the byte string which 
-has the high bit set. (ANDs with 0x80) then it assumes it is dealing with 
-a UTF8 string. and turns on the flag.  We (or I anyway) inherited 
-this routine.  At first I was suspicious, but I now beleive it does no 
-harm... EXCEPT possibly in the case of 8bit characters, although the 
-21nhars.t test tests this with an 8bit charset successfully. So I am 
-not very worried about this case.
-
-TIM: I am. We know what the charset is and so there's no excuse for
-rummaging around in the data seeing if it "looks like" utf8.
-
-XXX should we always and only set SvUTF8_on if the csid is a UTF8 csid,
-and ignore all other issues?  
-
-LAB: I don't think so now.  I am inclined to worry about possible 
-performance issues related to this.  And the code works as it is.
-I think we should just describe (as I did above) what "looks like" means,
-perhaps as for feedback on any issues that users think might be arising.
-
-TIM: I don't see any performance issue. We get csid anyway.
-Checking fbh->csid has to be faster than rummaging around in the data.
-Using the csid is the "correct" thing to do, anything else is a
-hack that'll cause bugs for someone somewhere.
-
-LAB: well I now agree, rummaging through the data does not seem to 
-be right. And it makes no difference now.  We still might have
-this problem, but if we do, I suspect the current routine that
-did it was no where near smart enough, I am hoping that it turns out
-that surrogates are used internally (and converted to transparently),
-and that also long as the csid is a UTF8 csid we will be ok.
-
-The problem with just setting SvUTF8_on when the
+LAB: The problem with just setting SvUTF8_on when the
 COLUMN definition is uft8, is that it _IGNORES_ NLS_LANG or NLS_NCHAR
 (which does not work). cs_is_utf8 was atleast sort of correct
 because it was respecting the setting of NLS_LANG. (or the way it
 WAS implement ncharsetid).
 
-I have succeeded however is loosing both cs_is_utf8 AND the
-hacks in the init code which did getenv() or windoze registry calls
-to test if the NLS_LANG looked like utf8. (Yay).
+[TIM: Ah, right, I keep thinking OCI_ATTR_CHARSET_ID is what'll be used
+on the client side.]
 
-I have replaced the tests of cs_is_utf8 in various places in the code
-with explicit tests of either the csid retrieved from oracle (as fixed up), 
-or explicitly the ncharsetid.
+DBD_SET_UTF8, currently ignores the csid argument, preferring to test ncharsetid.
 
-The DBD_SET_UTF8 macro now no longer rammages though the data, and I if
-ifdef'ed out the rummager. (but lets save this one... because I still
-do not have a very large wide character test).  DBD_SET_UTF8, currently
-ignores the csid argument, preferring to test ncharsetid. (This argument
-was added on the way to removing cs_is_utf8, and I did not want to rip
-it out everywhere until we are sure we will not want it).
+[TIM: Which makes sense. But I think we need to always set
+OCI_ATTR_CHARSET_FORM=SQLCS_NCHAR for NCHAR types so that NLS_NCHAR
+takes effect (otherwise NLS_LANG applies) and ncharsetid is then the
+right thing to use. But maybe I'm wrong about that.]
 
 OK. So here is the broken case (based on all this work and testing):
 
@@ -1641,13 +1606,18 @@ AND she is trying work with CHAR columns in a WIDE character database.
 In this case things will be broken.  Let's just tell her not to do that!  
 I tested this case (still in comments), in 23wide_db.t
 
+[TIM: It ought to "just work", especially as we're stripping away special
+cases and getting "closer" to OCI. Perhaps the OCI_ATTR_CHARSET_FORM=SQLCS_NCHAR
+issue I mention above is relevant here, I've no time to look now.
+I do see that setting OCI_ATTR_CHARSET_ID in dbd_bind_ph is #ifdef 0'd]
+
 end XXX
 
 
 B<Sending Data using Placeholders>
 
 DBD::Oracle allows for the insertion of any national character set
-character (determined by NLS_LANG), into NCHAR columns, and CHAR
+character (determined by NLS_LANG/NLS_NCHAR), into NCHAR columns, and CHAR
 columns where the database character set is a wide character set --
 such as AL32UTF8.  DBD::Oracle will also insert 8 bit characters into
 any of these columns when NLS_LANG contains a character set that
@@ -1655,51 +1625,41 @@ permits it. To do this either:
 
    use DBD::Oracle qw( SQLCS_NCHAR );
    ...
-   $sth->bind_param(1, $value, { ora_csform =>SQLCS_NCHAR }); 
+   $sth->bind_param(1, $value, { ora_csform => SQLCS_NCHAR }); 
 
 or
 
-   $dbh->{ora_ph_csform} = 2;   # default all future ph to SQLCS_NCHAR
+   $dbh->{ora_ph_csform} = SQLCS_NCHAR; # default for all future placeholders
 
 If the string passed to bind_param() is considered by perl to be
 a valid utf8 string ( utf8::is_utf8($string) returns true ), then
-DBD::Oracle will implicitly set SQLCS_NCHAR for you on insert.
+DBD::Oracle will implicitly set csform SQLCS_NCHAR and csid AL32UTF8
+for you on insert.
 
 B<Sending Data using SQL>
 
 If the prepared statement string is Unicode then we pass on that
 information to Oracle to ensure the string is correctly passed.
 [I think] Oracle will assume the statement is Unicode if NLS_LANG
-is UTF8, but if NLS_LANG isn't but the statement string is, then
+is AL32UTF8, but if NLS_LANG isn't but the statement string is, then
 Oracle needs to be told.
 
 B<When NLS_LANG Is Not Set>
 
-If NLS_LANG is not set, then DBD::Oracle will initialize the OCI
-environment with AL32UTF8 (csid=873) as the default national 
-character set.
-
-XXX should use AL32UTF8 if available. LAB: I just tried to
-change it and it broke the 30long.t pretty badly.  
-
-Well I was wrong.  Hmmm just tested it with NLS_LANG=american_america.al32utf8
-and NLS_LANG=american_america.utf8 and it works!  It also works
-with a database with UTF8 as the NCHAR set.  (my a7u8 database), 
-but it is broken with my a7u16 (AL16utf16 NCHAR set).  (not that
-this is the default oracle setup). Need to do some more digging here. 
-No time tonight.  I could be that my patch this afternoon broke it.
-DAMN!!!!
-
-TIM: Good luck. I probably won't be working on it again for a day or three.
-
-OK, I fixed it.  The problem was a missing call to UTF8_FIXUP_CSID in
-post_execute_lobs.  It now works with ALL 4 of my databases.NN
-
-XXX
+If NLS_LANG is not set I<and> NLS_NCHAR is not set, then DBD::Oracle
+will initialize the OCI environment with AL32UTF8 (csid=2000) as the
+default national character set. Just as if NLS_NCHAR=AL32UTF8.
+For Oracle versions before 9.2, that don't support AL32UTF8, UTF8
+(csid=871) will be used instead.
 
 This may possibly get you what you want, but it is strongly recomended
 that you always explicitly set NLS_LANG to the required value. That way all
 Oracle tools you may use will be in sync.
+
+XXX TIM: I'm worried that this may break existing applications.
+We could argue that such users should just set NLS_LANG/NLS_NCHAR.
+But then we might as well not have this "magic" and rely on people
+to set NLS_LANG/NLS_NCHAR as needed.
 
 =head1 Other Data Types
 

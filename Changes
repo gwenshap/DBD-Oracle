@@ -1,5 +1,10 @@
 =head1 Changes in DBD-Oracle 1.16 (svn rev XXX)   XXXX 2004
 
+TODO:
+Add to "Unable to find required Oracle OCI files" message some
+extra text for Windows users pointing them to PPM and Jeff's PPM repository.
+Add DBI dbivport.h etc
+
   NOTE: This release no longer supports the old Oracle 7 OCI interface.
 
   Added NCHAR/UFT8 and extended 8bit character set processing support
