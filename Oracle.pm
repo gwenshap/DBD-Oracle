@@ -10,7 +10,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.13';
+$DBD::Oracle::VERSION = '1.14';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -32,7 +32,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     @EXPORT_OK = ('ORA_OCI');
     Exporter::export_ok_tags(qw(ora_types ora_session_modes));
 
-    my $Revision = substr(q$Revision: 1.94 $, 10);
+    my $Revision = substr(q$Revision: 1.96 $, 10);
 
     require_version DBI 1.20;
 
@@ -256,9 +256,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	# create a 'blank' dbh
 
+        (my $user_only = $user) =~ s:/.*::;
 	my $dbh = DBI::_new_dbh($drh, {
 	    'Name' => $dbname,
-	    'USER' => $user, 'CURRENT_USER' => $user,
+	    'USER' => uc $user_only, 'CURRENT_USER' => uc $user_only,
 	    });
 
 	# Call Oracle OCI logon func in Oracle.xs file
@@ -457,6 +458,7 @@ SELECT *
    AND TABLE_NAME  = ?
  ORDER BY TABLE_SCHEM, TABLE_NAME, KEY_SEQ
 SQL
+#warn "@_\n$Sql ($schema, $table)";
 	my $sth = $dbh->prepare($Sql) or return undef;
 	$sth->execute($schema, $table) or return undef;
 	$sth;

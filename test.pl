@@ -4,7 +4,7 @@ use ExtUtils::testlib;
 
 die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 
-# $Id: test.pl,v 1.5 2003/03/13 14:28:50 timbo Exp $
+# $Id: test.pl,v 1.7 2003/03/25 17:40:10 timbo Exp $
 #
 # Copyright (c) 1995-1998, Tim Bunce
 #
@@ -19,7 +19,7 @@ die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.5 $}."\n";
+print q{Oraperl test application $Revision: 1.7 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^(Bad|Duplicate) free/)
@@ -49,6 +49,9 @@ eval 'use Oraperl; 1' || die $@ if $] >= 5;
 
 &test_leak(100) if $opt_m;
 
+print "\n\nExtra tests. These are less formal and you need to read the output\n";
+print "to see if it looks reasonable and matches what the tests says is expected.\n";
+
 &ora_version;
 
 my @data_sources = DBI->data_sources('Oracle');
@@ -63,6 +66,8 @@ printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os 
 {	# test connect works first
     local($l) = &ora_login($dbname, $dbuser, '');
     unless($l) {
+	$ora_errno = 0 unless defined $ora_errno;
+	$ora_errstr = '' unless defined $ora_errstr;
 	warn "ora_login: $ora_errno: $ora_errstr\n";
 	# Try to help dumb users who don't know how to connect to oracle...
 	warn "\nHave you set the environment variable ORACLE_USERID ?\n"
@@ -180,34 +185,6 @@ sub test1 {
 
 	&ora_close($csr) || warn "ora_close($csr): $ora_errno: $ora_errstr\n";
 	print "\n";
-
-	print "csr reassigned (forces destruction)...\n";
-
-	#$lda->debug(2);
-	$csr = &ora_open($lda,<<"") || die "ora_open: $ora_errno: $ora_errstr\n";
-		select TABLE_NAME from ALL_TABLES
-		where TABLE_NAME like :1 and ROWNUM < 5
-
-	#$lda->debug(0);
-	print "Fetch list of tables:\n";
-#	print "BindParams error $csr->{BindParams}\n" unless $csr->{BindParams}==1;
-	&ora_bind($csr, '%');
-
-	#DBI::dump_handle($lda, "lda");
-	#DBI::dump_handle($csr, "csr");
-
-	while(@fields = &ora_fetch($csr)){
-		print "Fetched: "; print "@fields\n";
-	}
-	warn "ora_fetch($csr): $ora_errno: $ora_errstr\n" if $ora_errno;
-
-	print "Test ora_do with harmless non-select statement ",
-			"(set transaction read only)\n";
-	print "Expect an 'ORA-01453' error message:\n";
-	&ora_do($lda, "set transaction read only ");
-	warn "ora_do(set transaction read only): $ora_errno: $ora_errstr\n" if $ora_errno;
-
-	print "csr out of scope...\n";
     }
 
     print "ora_logoff...\n";

@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.c,v 1.36 2003/03/14 17:45:27 timbo Exp $
+   $Id: oci8.c,v 1.38 2003/03/27 16:44:15 timbo Exp $
 
    Copyright (c) 1998,1999,2000,2001  Tim Bunce
 
@@ -268,7 +268,7 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
     }
 
     imp_sth->done_desc = 0;
-    imp_sth->get_oci_handle = (void*)oci_st_handle;
+    imp_sth->get_oci_handle = oci_st_handle;
 
     if (DBIc_COMPAT(imp_sth)) {
 	static SV *ora_pad_empty;
@@ -475,7 +475,7 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 #ifdef UTF8_SUPPORT
 /* How many bytes are n utf8 chars in buffer */
 static ub4
-   ora_utf8_to_bytes (ub1 *buffer, ub4 chars_wanted, ub4 max_bytes)
+ora_utf8_to_bytes (ub1 *buffer, ub4 chars_wanted, ub4 max_bytes)
 {
     ub4 i = 0;
     while (i < max_bytes && (chars_wanted-- > 0)) {
@@ -493,9 +493,9 @@ static ub4
  */
 #define DBD_SET_UTF8(sv)   (cs_is_utf8? set_utf8(sv): 0)
 static int 
-   set_utf8(SV *sv) {
+set_utf8(SV *sv) {
     ub1 *c;
-    for (c = SvPVX(sv); c < (ub1*)SvEND(sv); c++) {
+    for (c = (ub1*)SvPVX(sv); c < (ub1*)SvEND(sv); c++) {
 	if (*c & 0x80) {
 	    SvUTF8_on(sv);
 	    return 1;
@@ -519,7 +519,7 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 #ifdef UTF8_SUPPORT
     if (cs_is_utf8 && fbh->ftype == 94) {
 	if (datalen > imp_sth->long_readlen) {
-	    ub4 bytelen = ora_utf8_to_bytes(p, (ub4)imp_sth->long_readlen, datalen);
+	    ub4 bytelen = ora_utf8_to_bytes((ub1*)p, (ub4)imp_sth->long_readlen, datalen);
 
 	    if (bytelen < datalen) {	/* will be truncated */
 		int oraperl = DBIc_COMPAT(imp_sth);
@@ -666,12 +666,15 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     ub4 lobEmpty = 0;
 
     if (!SvPOK(phs->sv)) {     /* normalizations for special cases     */
-       if (SvOK(phs->sv)) {    /* ie a number, convert to string ASAP  */
+	if (SvOK(phs->sv)) {    /* ie a number, convert to string ASAP  */
            if (!(SvROK(phs->sv) && phs->is_inout))
                sv_2pv(phs->sv, &na);
-       }
-       else /* ensure we're at least an SVt_PV (so SvPVX etc work)     */
+	}
+	else { /* ensure we're at least an SVt_PV (so SvPVX etc work)     */
            SvUPGRADE(phs->sv, SVt_PV);
+	    phs->indp = -1;
+	    return 1;
+	}
     }
 
     if (!phs->desc_h) {
@@ -684,7 +687,8 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		    &lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);
     if (status != OCI_SUCCESS)
 	return oci_error(sth, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_LOBEMPTY");
-    phs->progv = (void*)&phs->desc_h;
+    phs->indp   = 0;
+    phs->progv  = (void*)&phs->desc_h;
     phs->maxlen = sizeof(OCILobLocator*);
 
     return 1;
@@ -919,7 +923,6 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 #ifdef UTF8_SUPPORT
 	if (cs_is_utf8 && fbh->ftype == 112) {
 	    ub4 alloclen = buflen << 2;
-	    ub4 chars_to_read = amtp;
 	    char *buffer;
 	    New(42, buffer, alloclen, char);
 	    OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
@@ -1780,8 +1783,8 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	    hv_delete(lob_cols_hv, p, i, 0);
 	    fbh = &lr->fbh_ary[lr->num_fields++];
 	    fbh->name   = phs->name;
+	    fbh->ftype  = phs->ftype;
 	    fbh->dbtype = phs->ftype;
-	    fbh->ftype  = fbh->dbtype;
 	    fbh->disize = 99;
 	    fbh->desc_t = OCI_DTYPE_LOB;
 	    OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
@@ -1845,8 +1848,10 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	    PerlIO_printf(DBILOGFP,
 		"       lob refetch %d for '%s' param: ftype %d setup\n",
 		(int)i+1,fbh->name, fbh->dbtype);
+	fbh->fb_ary = fb_ary_alloc(fbh->disize, 1);
 	OCIDefineByPos_log_stat(lr->stmthp, &defnp, errhp, (ub4)i+1,
-			 &fbh->desc_h, -1, (ub2)fbh->ftype, 0,0,0, OCI_DEFAULT, status);
+		&fbh->desc_h, -1, (ub2)fbh->ftype,
+		fbh->fb_ary->aindp, 0, fbh->fb_ary->arcode, OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS)
 	    return oci_error(sth, errhp, status, "OCIDefineByPos/LOB refetch");
     }
@@ -1893,23 +1898,28 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 
     for(i=0; i < lr->num_fields; ++i) {
 	imp_fbh_t *fbh = &lr->fbh_ary[i];
+	int rc = fbh->fb_ary->arcode[0];
 	phs_t *phs = (phs_t*)fbh->special;
 	ub4 amtp;
         SvUPGRADE(phs->sv, SVt_PV);	/* just in case */
 	amtp = SvCUR(phs->sv);		/* XXX UTF8? */
-	if (amtp > 0) {	/* since amtp==0 & OCI_ONE_PIECE fail (OCI 8.0.4) */
+	if (rc == 1405) {		/* NULL - return undef */
+	    (void)SvOK_off(phs->sv);
+	    status = OCI_SUCCESS;
+	}
+	else if (amtp > 0) {	/* since amtp==0 & OCI_ONE_PIECE fail (OCI 8.0.4) */
 	    OCILobWrite_log_stat(imp_sth->svchp, errhp,
 		    fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
 		    0,0, 0,SQLCS_IMPLICIT, status);
 	}
-	else {
+	else {			/* amtp==0 so truncate LOB to zero length */
 	    OCILobTrim_log_stat(imp_sth->svchp, errhp, fbh->desc_h, 0, status);
 	}
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
 		"       lob refetch %d for '%s' param: ftype %d, len %ld: %s %s\n",
 		i+1,fbh->name, fbh->dbtype, ul_t(amtp),
-		(amtp > 0) ? "LobWrite" : "LobTrim", oci_status_name(status));
+		(rc==1405 ? "NULL" : (amtp > 0) ? "LobWrite" : "LobTrim"), oci_status_name(status));
 	if (status != OCI_SUCCESS) {
 	    return oci_error(sth, errhp, status, "OCILobTrim/OCILobWrite/LOB refetch");
 	}

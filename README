@@ -16,11 +16,11 @@ DBD::Oracle  --  an Oracle 7 and Oracle 8 interface for Perl 5.
 *** QUICK START GUIDE:
 
     The DBI requires one or more 'driver' modules to talk to databases.
-    Fetch, build and install the DBI module as per it's README file.
+    Fetch, build and install the DBI module as per its README file.
     You may then delete its source directory tree since it's no longer needed.
     Use the 'perldoc DBI' command to read the DBI documentation.
     Fetch the DBD::Oracle driver module and unpack it.
-    Follow the guidelines in this README file caefully.
+    Follow the guidelines in this README file carefully.
 
 
 *** *BEFORE* BUILDING, TESTING AND INSTALLING this you will need to:
@@ -52,7 +52,7 @@ increases required alignment of target type" and "passing arg 2 of
 `oerhms' with different width due to prototype".
 
 If you have problems see the 'IF YOU HAVE PROBLEMS' section below.
-If it's builds without error you should then run the tests. For the
+If it builds without error you should then run the tests. For the
 main tests to work they must be able to connect to an Oracle database.
 
 You will need to set either the TWO_TASK or ORACLE_SID environment
@@ -202,6 +202,7 @@ README.wingcc   -- building DBD::Oracle under MS Windows with gcc
 README.clients  -- building/using DBD::Oracle on minimally configured systems
 README.login    -- help for login problems
 README.longs    -- examples dealing with LONG types (blobs)
+README.utf8     -- Perl 5.6.0, Oracle, and UTF-8
 
 DBI 'home page': http://dbi.perl.org
 
@@ -242,7 +243,7 @@ then the chances are that DBD::Oracle will as well.
 
 ===============================================================================
 
-See the large README.help file for lots of hints and advice about build and
+See the large README.help file for lots of hints and advice about building and
 runtime issues.
 
 End.

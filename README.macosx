@@ -1,0 +1,43 @@
+These instructions allow for the compilation and successful testing of 
+DBD::Oracle on MacOS X 10.2.4 using Oracle 9iR2 DR (Release 9.2.0.1.0).
+
+MacOS X DBD::Oracle has only been tested using Perl 5.8.0 - please refer to:
+
+	Installing Perl 5.8 on Jaguar
+	http://developer.apple.com/internet/macosx/perl.html
+
+for Perl 5.8.0 installation instructions.
+
+
+1) Install Oracle exactly per Oracle documentation. If you change 
+install locations, then you'll need to modify paths accordingly.
+
+2) As oracle user execute the following commands to fix namespace 
+collisions in Oracle's dynamic libraries.
+
+   nmedit -R ./hints/macos_lib.syms $ORACLE_HOME/lib/libclntsh.dylib
+
+   *** Please make a backup copy of the libclntsh.dylib file before
+       executing the command (which edits the file) and make sure that 
+       sqlplus still operates as expected afterwards.
+
+3) Install the module DBI as per its instructions.
+
+4) Install the DBD::Oracle module.
+
+	perl Makefile.PL
+	make
+	make test
+	make install
+
+5) If you have any problems then follow the instructions in the README.
+   Please post details of any problems (or changes you needed to make) to
+   dbi-users@perl.org and CC them to me at brooksch@mac.com on MacOSX 
+   specific problems.
+
+Original instructions thanks to:
+	Andy Lester <andy@petdance.com>
+	Steve Sapovits <sapovitss@gsicommerce.com>
+	Tom Mornini <tmornini@infomania.com>
+
+-Brook Schofield <brooksch@mac.com>
