@@ -259,7 +259,7 @@ You can check in the generated 'config.sh' that the options you selected
 are correct.  If not, modify config.sh and then re-run ./Configure with
 the '-d' option to process the config.sh file.
 
-=item Build & Install 
+Build & Install 
     
     
     make
@@ -950,7 +950,7 @@ Add +z to beginning of list, include all other options.
    make;make test
    make install
 
-Step 3: Install DBD-Oracle
+=item Step 3: Install DBD-Oracle
 
 First, set the following environment variables specific you your Oracle
 installation:
@@ -968,6 +968,7 @@ Then unpack and build:
    make;make test
    make install
 
+=back
 
 =head1 Appendix D (Miscellaneous links which might be useful)
 
