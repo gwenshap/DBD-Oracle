@@ -193,7 +193,6 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     bool is_inout;
 
     IV  maxlen;		/* max possible len (=allocated buffer)	*/
-    sb4 maxlen_bound;	/* and Oracle bind has been called	*/
 
     OCIBind *bndhp;
     void *desc_h;	/* descriptor if needed (LOBs etc)	*/

@@ -902,7 +902,6 @@ dbd_preparse(imp_sth, statement)
     phs_tpl.imp_sth = imp_sth;
     phs_tpl.ftype  = imp_dbh->ph_type;
     phs_tpl.csform = imp_dbh->ph_csform;
-    phs_tpl.maxlen_bound = -1;	/* not yet bound */
     phs_tpl.sv = &sv_undef;
 
     src  = statement;
@@ -1323,6 +1322,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
     ub2 *alen_ptr = NULL;
     sword status;
     int done = 0;
+    int at_exec;
     int trace_level = DBIS->debug;
 
     if (trace_level >= 4)
@@ -1340,42 +1340,40 @@ dbd_rebind_ph(sth, imp_sth, phs)
     default:
 	    done = dbd_rebind_ph_char(sth, imp_sth, phs, &alen_ptr);
     }
+    if (done == 2) { /* the dbd_rebind_* did the OCI bind call itself successfully */
+	if (trace_level >= 3)
+	    PerlIO_printf(DBILOGFP, "       bind %s done with ftype %d\n",
+		    phs->name, phs->ftype);
+	return 1;
+    }
     if (done != 1) {
-	if (done == 2) { /* the rebind did the OCI bind call itself successfully */
-	    if (trace_level >= 3)
-		PerlIO_printf(DBILOGFP, "       bind %s done with ftype %d\n",
-			phs->name, phs->ftype);
-	    return 1;
-	}
 	return 0;	 /* the rebind failed	*/
     }
 
-    if (1 ||phs->maxlen > phs->maxlen_bound) {
-	int at_exec = (phs->desc_h == NULL);
-	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
-		(text*)phs->name, (sb4)strlen(phs->name),
-		phs->progv,
-		phs->maxlen ? (sb4)phs->maxlen : 1,	/* else bind "" fails	*/
-		(ub2)phs->ftype, &phs->indp,
-		NULL,	/* ub2 *alen_ptr not needed with OCIBindDynamic */
-		&phs->arcode,
-		0,		/* max elements that can fit in allocated array	*/
-		NULL,	/* (ptr to) current number of elements in array	*/
-		(ub4)(at_exec ? OCI_DATA_AT_EXEC : OCI_DEFAULT),
-		status
-	);
+    at_exec = (phs->desc_h == NULL);
+    OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+	    (text*)phs->name, (sb4)strlen(phs->name),
+	    phs->progv,
+	    phs->maxlen ? (sb4)phs->maxlen : 1,	/* else bind "" fails	*/
+	    (ub2)phs->ftype, &phs->indp,
+	    NULL,	/* ub2 *alen_ptr not needed with OCIBindDynamic */
+	    &phs->arcode,
+	    0,		/* max elements that can fit in allocated array	*/
+	    NULL,	/* (ptr to) current number of elements in array	*/
+	    (ub4)(at_exec ? OCI_DATA_AT_EXEC : OCI_DEFAULT),
+	    status
+    );
+    if (status != OCI_SUCCESS) {
+	oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
+	return 0;
+    }
+    if (at_exec) {
+	OCIBindDynamic_log(phs->bndhp, imp_sth->errhp,
+		    (dvoid *)phs, dbd_phs_in,
+		    (dvoid *)phs, dbd_phs_out, status);
 	if (status != OCI_SUCCESS) {
-	    oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
+	    oci_error(sth, imp_sth->errhp, status, "OCIBindDynamic");
 	    return 0;
-	}
-	if (at_exec) {
-	    OCIBindDynamic_log(phs->bndhp, imp_sth->errhp,
-			(dvoid *)phs, dbd_phs_in,
-			(dvoid *)phs, dbd_phs_out, status);
-	    if (status != OCI_SUCCESS) {
-		oci_error(sth, imp_sth->errhp, status, "OCIBindDynamic");
-		return 0;
-	    }
 	}
     }
 
@@ -1395,7 +1393,6 @@ dbd_rebind_ph(sth, imp_sth, phs)
     }
 
 
-    phs->maxlen_bound = phs->maxlen ? phs->maxlen : 1;
     if (trace_level >= 3)
 	PerlIO_printf(DBILOGFP, "       bind %s <== %s (ftype %d, csform %d, maxdata %ld)\n",
 	      phs->name, neatsvpv(phs->sv,0), phs->ftype, phs->csform, (long)phs->maxlen);
