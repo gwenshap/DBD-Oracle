@@ -2,7 +2,8 @@
 
   Fixed csform setting for Oracle 8.0.
 
-  Changed Makfile.PL to prefer ~/rdbms/public over other ~/rdbms/* for .h files.
+  Changed Makefile.PL to avoid risk of sqlplus hanging thanks to Mark Dedlow.
+  Changed Makefile.PL to prefer ~/rdbms/public over other ~/rdbms/* for .h files.
   Changed README.vms re logical name tables thanks to Jakob Snoer.
 
   Added VMS logical name checks to Makefile.PL thanks to Jakob Snoer.
