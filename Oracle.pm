@@ -1,16 +1,13 @@
 
 #   Oracle.pm,v 1.1 2002/07/05 06:34:47 richter Exp
 #
-#   Copyright (c) 1994-2003 Tim Bunce
+#   Copyright (c) 1994-2004 Tim Bunce, Ireland
 #
-#   You may distribute under the terms of either the GNU General Public
-#   License or the Artistic License, as specified in the Perl README file,
-#   with the exception that it cannot be placed on a CD-ROM or similar media
-#   for commercial distribution without the prior approval of the author.
+#   See COPYRIGHT section in the documentation below
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.15';
+$DBD::Oracle::VERSION = '1.16';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -29,10 +26,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	) ],
         ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
     );
-    @EXPORT_OK = ('ORA_OCI');
+    @EXPORT_OK = qw(ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var);
     Exporter::export_ok_tags(qw(ora_types ora_session_modes));
 
-    my $Revision = substr(q$Revision: 1.101 $, 10);
+    my $Revision = substr(q$Revision: 1.103 $, 10);
 
     require_version DBI 1.28;
 
@@ -69,6 +66,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    DBD::Oracle::db->install_method("ora_lob_append");
 	    DBD::Oracle::db->install_method("ora_lob_trim");
 	    DBD::Oracle::db->install_method("ora_lob_length");
+	    DBD::Oracle::db->install_method("ora_nls_parameters");
+	    DBD::Oracle::db->install_method("ora_can_unicode");
 	}
 
 	$drh;
@@ -79,7 +78,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# Used to silence 'Bad free() ...' warnings caused by bugs in Oracle's code
 	# being detected by Perl's malloc.
 	$ENV{PERL_BADFREE} = 0;
-	undef $Win32::TieRegistry::Registry if $Win32::TieRegistry::Registry;
+	#undef $Win32::TieRegistry::Registry if $Win32::TieRegistry::Registry;
     }
 
     sub AUTOLOAD {
@@ -100,7 +99,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub load_dbnames {
 	my ($drh) = @_;
 	my $debug = $drh->debug;
-	my $oracle_home = $ENV{$ORACLE_ENV} || '';
+	my $oracle_home = DBD::Oracle::ora_env_var($ORACLE_ENV);
 	local *FH;
 	my $d;
 
@@ -108,38 +107,13 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	  # XXX experimental, will probably change
 	  $drh->trace_msg("Trying to fetch ORACLE_HOME and ORACLE_SID from the registry.\n")
 		if $debug;
-	  my($hkey, $sid, $home);
-	  eval q{
-	    require Win32::TieRegistry;
-	    $Win32::TieRegistry::Registry->Delimiter("/");
-	    $hkey= $Win32::TieRegistry::Registry->{"LMachine/Software/Oracle/"};
-	  };
-	  eval q{
-	    require Tie::Registry;
-	    $Tie::Registry::Registry->Delimiter("/");
-	    $hkey= $Tie::Registry::Registry->{"LMachine/Software/Oracle/"};
-	  } unless $hkey;
-	  if ($hkey) {
-	    $sid = $hkey->{ORACLE_SID};
-	    $home= $hkey->{ORACLE_HOME};
-	  } else {
-	    eval q{
-	      my $reg_key;
-	      require Win32::Registry;
-	      $main::HKEY_LOCAL_MACHINE->Open('SOFTWARE\ORACLE', $reg_key);
-	      $reg_key->GetValues( $hkey );
-	      $sid = $hkey->{ORACLE_SID}[2];
-	      $home= $hkey->{ORACLE_HOME}[2];
-	    };
-	  };
-	  $home= $ENV{$ORACLE_ENV} unless $home;
-	  $dbnames{$sid} = $home if $sid and $home;
-	  $drh->trace_msg("Found $sid \@ $home.\n") if $debug;
-	  $oracle_home =$home unless $oracle_home;
-	};
+	  my $sid = DBD::Oracle::ora_env_var("ORACLE_SID");
+	  $dbnames{$sid} = $oracle_home if $sid and $oracle_home;
+	  $drh->trace_msg("Found $sid \@ $oracle_home.\n") if $debug && $sid;
+	}
 
 	# get list of 'local' database SIDs from oratab
-	foreach $d (qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
+	foreach $d (qw(/etc /var/opt/oracle), DBD::Oracle::ora_env_var("TNS_ADMIN")) {
 	    next unless defined $d;
 	    next unless open(FH, "<$d/oratab");
 	    $drh->trace_msg("Loading $d/oratab\n") if $debug;
@@ -154,12 +128,13 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	}
 
 	# get list of 'remote' database connection identifiers
-	foreach $d ( $ENV{TNS_ADMIN},
-	  ".",							# current directory
+	my @tns_admin;
+	push @tns_admin, (
 	  "$oracle_home/network/admin",	# OCI 7 and 8.1
 	  "$oracle_home/net80/admin",	# OCI 8.0
-	  "/var/opt/oracle"
-	) {
+	) if $oracle_home;
+	push @tns_admin, "/var/opt/oracle";
+	foreach $d ( DBD::Oracle::ora_env_var("TNS_ADMIN"), ".", @tns_admin  ) {
 	    next unless $d && open(FH, "<$d/tnsnames.ora");
 	    $drh->trace_msg("Loading $d/tnsnames.ora\n") if $debug;
 	    local *_;
@@ -222,49 +197,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# If the application is asking for specific database
 	# then we may have to mung the dbname
 
-	if (DBD::Oracle::ORA_OCI() >= 8) {
-	    $dbname = $1 if !$dbname && $user && $user =~ s/\@(.*)//s;
-	}
-	elsif ($dbname) {	# OCI 7 handling below
+	$dbname = $1 if !$dbname && $user && $user =~ s/\@(.*)//s;
 
-	    # We can use the 'user/passwd@machine' form of user.
-	    # $TWO_TASK and $ORACLE_SID will be ignored in that case.
-	    if ($dbname =~ /^@/){	# Implies an Sql*NET connection
-		$user = "$user/$auth$dbname";
-		$auth = "";
-	    }
-	    elsif ($dbname =~ /^\w?:/){	# Implies an Sql*NET connection
-		$user = "$user/$auth".'@'.$dbname;
-		$auth = "";
-	    }
-	    else {
-		# Is this a NON-Sql*NET connection (ORACLE_SID)?
-		# Or is it an alias for an Sql*NET connection (TWO_TASK)?
-		# Sadly the 'user/passwd@machine' form only works
-		# for Sql*NET connections.
-		load_dbnames($drh) unless %dbnames;
-		if (exists $dbnames{$dbname}) {		# known name
-		    my $dbhome = $dbnames{$dbname};	# local=>ORACLE_HOME, remote=>0
-		    if ($dbhome) {
-			$ENV{ORACLE_SID}  = $dbname;
-			delete $ENV{TWO_TASK};
-			if ($attr && $attr->{ora_oratab_orahome}) {
-			    $drh->trace_msg("Changing $ORACLE_ENV for $dbname to $dbhome (to match oratab entry)")
-				if ($ENV{$ORACLE_ENV} and $dbhome ne $ENV{$ORACLE_ENV});
-			    $ENV{$ORACLE_ENV} = $dbhome;
-			}
-		    }
-		    else {
-			$user .= '@'.$dbname;	# it's a known TNS alias
-		    }
-		}
-		else {
-		    $user .= '@'.$dbname;	# assume it's a TNS alias
-		}
-	    }
-	}
-
-	warn "$ORACLE_ENV environment variable not set!\n"
+	$drh->trace_msg("$ORACLE_ENV environment variable not set\n")
 		if !$ENV{$ORACLE_ENV} and $^O ne "MSWin32";
 
 	# create a 'blank' dbh
@@ -550,7 +485,18 @@ SQL
 	my $dbh  = shift;
 	my $attr = ( ref $_[0] eq 'HASH') ? $_[0] : {
 	    'TABLE_SCHEM' => $_[1],'TABLE_NAME' => $_[2],'COLUMN_NAME' => $_[3] };
-	my $Sql = <<'SQL';
+	my($typecase,$typecaseend) = ('','');
+	if (ora_server_version($dbh)->[0] >= 8) {
+	    $typecase = <<'SQL';
+CASE WHEN tc.DATA_TYPE LIKE 'TIMESTAMP% WITH% TIME ZONE' THEN 95
+     WHEN tc.DATA_TYPE LIKE 'TIMESTAMP%'                 THEN 93
+     WHEN tc.DATA_TYPE LIKE 'INTERVAL DAY% TO SECOND%'   THEN 110
+     WHEN tc.DATA_TYPE LIKE 'INTERVAL YEAR% TO MONTH'    THEN 107
+ELSE
+SQL
+	    $typecaseend = 'END';
+	}
+	my $Sql = <<"SQL";
 SELECT *
   FROM
 (
@@ -559,7 +505,7 @@ SELECT *
        , tc.OWNER            TABLE_SCHEM
        , tc.TABLE_NAME       TABLE_NAME
        , tc.COLUMN_NAME      COLUMN_NAME
-       , decode( tc.DATA_TYPE
+       , $typecase decode( tc.DATA_TYPE
          , 'MLSLABEL' , -9106
          , 'ROWID'    , -9104
          , 'UROWID'   , -9104
@@ -579,7 +525,7 @@ SELECT *
          , 'NCLOB'    ,    40
          , 'DATE'     ,    93
          , NULL
-         )                   DATA_TYPE          -- ...
+         ) $typecaseend      DATA_TYPE          -- ...
        , tc.DATA_TYPE        TYPE_NAME          -- std.?
        , decode( tc.DATA_TYPE
          , 'LONG RAW' , 2147483647
@@ -832,11 +778,47 @@ SQL
 	my $dbh = shift;
 	return $dbh->{ora_server_version} if defined $dbh->{ora_server_version};
 	$dbh->{ora_server_version} =
-	   [ split /\./, $dbh->selectrow_array(<<'SQL', undef, 'Oracle%') .''];
+	   [ split /\./, $dbh->selectrow_array(<<'SQL', undef, 'Oracle%', 'Personal Oracle%') .''];
 SELECT version
   FROM product_component_version
- WHERE product LIKE ?
+ WHERE product LIKE ? or product LIKE ?
 SQL
+    }
+
+    sub ora_nls_parameters {
+	my $dbh = shift;
+	my $refresh = shift;
+
+	if ($refresh || !$dbh->{ora_nls_parameters}) {
+            my $nls_parameters = $dbh->selectall_arrayref(q{
+		SELECT parameter, value FROM v$nls_parameters
+	    }) or return;
+	    $dbh->{ora_nls_parameters} = { map { $_->[0] => $_->[1] } @$nls_parameters };
+	}
+
+	# return copy of params to protect against accidental editing
+	my %nls = %{$dbh->{ora_nls_parameters}};
+	return \%nls;
+    }
+
+    sub ora_can_unicode {
+	my $dbh = shift;
+	my $refresh = shift;
+	# 0 = No Unicode support.
+	# 1 = National character set is Unicode-based.
+	# 2 = Database character set is Unicode-based.
+	# 3 = Both character sets are Unicode-based.
+
+	return $dbh->{ora_can_unicode}
+	    if defined $dbh->{ora_can_unicode} && !$refresh;
+
+	my $nls = $dbh->ora_nls_parameters($refresh);
+
+	$dbh->{ora_can_unicode}  = 0;
+	$dbh->{ora_can_unicode} += 1 if $nls->{NLS_NCHAR_CHARACTERSET} =~ /UTF/;
+	$dbh->{ora_can_unicode} += 2 if $nls->{NLS_CHARACTERSET}       =~ /UTF/;
+
+	return $dbh->{ora_can_unicode};
     }
 
 }   # end of package DBD::Oracle::db
@@ -895,7 +877,7 @@ If a C<port> number is not specified then the descriptor will try both
 port(s) are in use by typing "$ORACLE_HOME/bin/lsnrctl stat" on the server.
 
 
-=head2 Oracle environment variables
+=head2 Oracle Environment Variables
 
 Oracle typically uses two environment variables to specify default
 connections: ORACLE_SID and TWO_TASK.
@@ -940,10 +922,20 @@ that DBD::Oracle was compiled with.
 
 Discouraging the use of ORACLE_SID makes it easier on the users to see
 what is going on. (It's unfortunate that TWO_TASK couldn't be renamed,
-since it makes no sense to the end user, and doesn't have the ORACLE
-prefix).
+since it makes no sense to the end user, and doesn't have the ORACLE prefix).
 
 =head2 Connection Examples Using DBD::Oracle
+
+First, how to connect to a local database I<without> using a Listener:
+
+  $dbh = DBI->connect('dbi:Oracle:SID','scott', 'tiger');
+
+you can also leave the SID empty:
+
+  $dbh = DBI->connect('dbi:Oracle:','scott', 'tiger');
+
+in which case Oracle client code will use the ORACLE_SID environment
+variable (if TWO_TASK env var isn't defined).
 
 Below are various ways of connecting to an oracle database using
 SQL*Net 1.x and SQL*Net 2.x.  "Machine" is the computer the database is
@@ -960,26 +952,15 @@ B<Note:> Some of these formats may not work with Oracle 8+.
   #  - or -
   $dbh = DBI->connect('dbi:Oracle:','scott/tiger');
 
-works for SQL*Net 2.x, so does
+Refer to your Oracle documentatiion for valid values of TWO_TASK.
 
-  $ENV{TWO_TASK}    = 'T:Machine:SID';
-
-for SQL*Net 1.x connections.  For local connections you can use the
-pipe driver:
-
-  $ENV{TWO_TASK}    = 'P:SID';
-
-Here are some variations (not setting TWO_TASK)
-
-  $dbh = DBI->connect('dbi:Oracle:T:Machine:SID','username','password')
-
-  $dbh = DBI->connect('dbi:Oracle:','username@T:Machine:SID','password')
-
-  $dbh = DBI->connect('dbi:Oracle:','username@DB','password')
+Here are some variations (not setting TWO_TASK) in order of preference:
 
   $dbh = DBI->connect('dbi:Oracle:DB','username','password')
 
   $dbh = DBI->connect('dbi:Oracle:DB','username/password','')
+
+  $dbh = DBI->connect('dbi:Oracle:','username@DB','password')
 
   $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=ORCL;port=1521', 'scott/tiger', '')
 
@@ -1096,6 +1077,45 @@ Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
 
 
+=head2 Constants
+
+=item :ora_session_modes
+
+  ORA_SYSDBA ORA_SYSOPER
+
+=item :ora_types
+
+  ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
+  ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
+  ORA_CLOB ORA_BLOB ORA_RSET
+
+=item SQLCS_IMPLICIT
+
+=item SQLCS_NCHAR
+
+SQLCS_IMPLICIT and SQLCS_NCHAR are I<character set form> values.
+See notes about Unicode elsewhere in this document.
+
+=item ORA_OCI
+
+Oracle doesn't provide a formal API for determining the exact version
+number of the OCI client library used, so DBD::Oracle has to go digging
+(and sometimes has to more or less guess).  The ORA_OCI constant
+holds the result of that process.
+
+In string context ORA_OCI returns the full "A.B.C.D" version string.
+
+In numeric context ORA_OCI returns the major.minor version number
+(8.1, 9.2, 10.0 etc).  But note that version numbers are not actually
+floating point and so if Oracle ever makes a release that has a two
+digit minor version, such as C<9.10> it will have a lower numeric
+value than the preceeding C<9.9> release. So use with care.
+
+The contents and format of ORA_OCI are subject to change (it may,
+for example, become a I<version object> in later releases).
+I recommend that you avoid checking for exact values.
+
+
 =head2 Connect Attributes
 
 =over 4
@@ -1178,6 +1198,22 @@ This attribute requires DBD::Oracle to be built with the -ProC
 option to Makefile.PL.  It is not available with OCI_V7. Not tested
 with Perl ithreads or with the ora_dbh_share connect attribute.
 
+=item ora_envhp
+
+The first time a connection is made a new OCI 'environment' is
+created by DBD::Oracle and stored in the driver handle.
+Subsequent connects reuse (share) that same OCI environment
+by default.
+
+The ora_envhp attribute can be used to disable the reuse of the OCI
+environment from a previous connect. If the value is C<0> then
+a new OCI environment is allocated and used for this connection.
+
+The OCI environment is what holds information about the client side
+context, such as the local NLS environment. So by altering %ENV and
+setting ora_envhp to 0 you can create connections with different
+NLS settings. This is most useful for testing.
+
 =back
 
 =head2 Database Handle Attributes
@@ -1216,6 +1252,12 @@ Force 'blank-padded comparison semantics'.
 
 =back
 
+=item ora_parse_error_offset
+
+If the previous error was from a failed C<prepare> due to a syntax error,
+this attribute gives the offset into the C<Statement> attribute where the
+error was found.
+
 =back
 
 =head2 Prepare Attributes
@@ -1242,7 +1284,7 @@ All other values have the same effect as 1.
 
 If true (the default), fetching retreives the contents of the CLOB or
 BLOB column in most circumstances.  If false, fetching retreives the
-Oracle "LOB Locator" of the CLOB or BLOB value.  (OCI8 and later only)
+Oracle "LOB Locator" of the CLOB or BLOB value.
 
 See L</Handling LOBs> for more details.
 See also the LOB tests in 05dbi.t of Oracle::OCI for examples
@@ -1252,7 +1294,6 @@ of how to use LOB Locators.
 
 If 1 (default), force SELECT statements to be described in prepare().
 If 0, allow SELECT statements to defer describe until execute().
-(OCI8 and later only.)
 
 See L</Prepare postponed till execute> for more information.
 
@@ -1292,6 +1333,23 @@ See L</Handling LOBs> for how to use ORA_CLOB and ORA_BLOB.
 See L</Other Data Types> for more information.
 
 See also L<DBI/Placeholders and Bind Values>.
+
+=item ora_csform
+
+Specify the OCI_ATTR_CHARSET_FORM for the bind value. Valid values
+are SQLCS_IMPLICIT (1) and SQLCS_NCHAR (2). Both those constants can
+be imported from the DBD::Oracle module. Rarely needed.
+
+=item ora_csid
+
+Specify the I<integer> OCI_ATTR_CHARSET_ID for the bind value. 
+Character set names can't be used currently.
+
+=item ora_maxdata_size
+
+Specify the integer OCI_ATTR_MAXDATA_SIZE for the bind value. 
+May be needed if a character set conversion from client to server
+causes the data to use more space and so fail with a truncation error.
 
 =back
 
@@ -1410,28 +1468,191 @@ Oracle returns it.
 See L</table_info()> for more detailed information.
 
 
-=head1 International NLS / 8-bit text issues
+=head1 Unicode
 
-If 8-bit text is returned as '?' characters or can't be inserted
-make sure the following environment vaiables are set correctly:
-    NLS_LANG, ORA_NLS, ORA_NLS32, ORA_NLS33
-Thanks to Robin Langdon <robin@igis.se> for this information.
-Example:
-   $ENV{NLS_LANG}  = "american_america.we8iso8859p1";
-   $ENV{ORA_NLS}   = "$ENV{ORACLE_HOME}/ocommon/nls/admin/data";
+DBD::Oracle now supports Unicode UTF-8. There are, however, a number
+of issues you should be aware of, so please read all this section
+carefully.
 
-Also From: Yngvi Thor Sigurjonsson <yngvi@hagkaup.is>
-If you are using 8-bit characters and "export" for backups make sure
-that you have NLS_LANG set when export is run.  Otherwise you might get
-unusable backups with ? replacing all your beloved characters. We were
-lucky once when we noticed that our exports were damaged before
-disaster struck.
+In this section we'll discuss "Perl and Unicode", then "Oracle and
+Unicode", and finally "DBD::Oracle and Unicode".
 
-Remember that the database has to be created with an 8-bit character set.
+Information about Unicode in general can be found at:
+L<http://www.unicode.org/>. It is well worth reading because there are
+many misconceptions about Unicode and you may be holding some of them.
 
-Also note that the NLS files $ORACLE_HOME/ocommon/nls/admin/data
-changed extension (from .d to .nlb) between 7.2.3 and 7.3.2.
+=head2 Perl and Unicode
 
+Perl began implementing Unicode with version 5.6, but the implementaion
+did not mature until version 5.8 and later. If you plan to use Unicode
+you are I<strongly> urged to use perl 5.8.2 or later and to I<carefully> read
+the perl documention on Unicode:
+
+   perldoc perluniintro    # in perl 5.8 or later
+   perldoc perlunicode
+
+And then read it again.
+
+Perl's internal unicode format is UTF-8
+which corresponds to the Oracle character set called AL32UTF8.
+
+=head2 Oracle and Unicode
+
+Oracle supports many characters sets, including several different forms
+of Unicode.  These include:
+
+  AL16UTF16  =>  valid for NCHAR columns (CSID=2000)
+  UTF8       =>  valid for NCHAR columns (CSID=871), deprecated
+  AL32UTF8   =>  valid for NCHAR and CHAR columns (CSID=873)
+
+When you create an Oracle database, you must specify the DATABASE 
+character set (used for DDL, DML and CHAR datatypes) and the NATIONAL 
+character set (used for NCHAR and NCLOB types).
+The character sets used in your database can be found using:
+
+  $hash_ref = $dbh->ora_nls_parameters()
+  $database_charset = $hash_ref->{NLS_CHARACTERSET};
+  $national_charset = $hash_ref->{NLS_NCHAR_CHARACTERSET};
+
+The Oracle 9.2 and later default for the national character set is AL16UTF16.
+The default for the database character set is often US7ASCII.
+Although many experienced DBAs will consider an 8bit character set like
+WE8ISO8859P1 or WE8MSWIN1252.  To use any character set with Oracle
+other than US7ASCII, requires that the NLS_LANG environment variable be set.
+See the L<"International NLS / 8-bit text issues"> section below.
+
+You are strongly urged to read the Oracle Internationalization documentation
+specifically with respect the choices and trade offs for creating
+a databases for use with international character sets.
+
+Oracle uses the NLS_LANG environment variable to indicate what
+character set is being used on the client.  When fetching data Oracle
+will convert from whatever the database character set is to the client
+character set specified by NLS_LANG. Similarly, when sending data to
+the database Oracle will convert from the character set specified by
+NLS_LANG to the database character set.
+
+The NLS_NCHAR environment variable can be used to define a different
+character set for 'national' (NCHAR) character types.
+
+Both UTF8 and AL32UTF32 can be used in NLS_LANG and NLS_NCHAR.
+For example:
+
+   NLS_LANG=AMERICAN_AMERICA.UTF8
+   NLS_LANG=AMERICAN_AMERICA.AL32UTF8
+   NLS_NCHAR=UTF8
+   NLS_NCHAR=AL32UTF8
+
+Oracle 8 client libraries have a number of bugs related to character
+set handling, especially when connected to an Oracle 9+ server.
+For this reason a number of DBD::Oracle tests are disabled when
+using an Oracle 8 client. If you wish to use Unicode, I recommend
+upgrading client and server to Oracle 9 or later.
+
+=head2 Oracle UTF8 is not UTF-8
+
+AL32UTF8 should be used in preference to UTF8 if it works for you,
+which it should for Oracle 9.2 or later. If you're using an old
+version of Oracle that doesn't support AL32UTF8 then you should
+avoid using any Unicode characters that require surrogates, in other
+words characters beyond the Unicode BMP (Basic Multilingual Plane).
+
+That's because the character set that Oracle calls "UTF8" doesn't
+conform to the UTF-8 standard in its handling of surrogate characters.
+Technically the encoding that Oracle calls "UTF8" is known as "CESU-8".
+Here are a couple of extracts from L<http://www.unicode.org/reports/tr26/>:
+
+  CESU-8 is useful in 8-bit processing environments where binary
+  collation with UTF-16 is required. It is designed and recommended
+  for use only within products requiring this UTF-16 binary collation
+  equivalence. It is not intended nor recommended for open interchange.
+
+  As a very small percentage of characters in a typical data stream
+  are expected to be supplementary characters, there is a strong
+  possibility that CESU-8 data may be misinterpreted as UTF-8.
+  Therefore, all use of CESU-8 outside closed implementations is
+  strongly discouraged, such as the emittance of CESU-8 in output
+  files, markup language or other open transmission forms.
+
+Oracle uses this internally because it collates (sorts) in the same order
+as UTF16, which is the basis of Oracle's internal collation definitions.
+
+Rather than change UTF8 for clients Oracle chose to define a new character
+set called "AL32UTF8" which does conform to the UTF-8 standard.
+(The AL32UTF8 character set can't be used on the server because it
+would break collation.)
+
+Because of that, for the rest of this document we'll use "AL32UTF8".
+If you're using an Oracle version below 9.2 you'll need to use "UTF8"
+until you upgrade.
+
+=head2 DBD::Oracle and Unicode
+
+DBD::Oracle Unicode support has been implemented for Oracle versions 9
+or greater, and perl version 5.6 or greater (though we I<strongly>
+suggest that you use perl 5.8.2 or later).
+
+You can check which Oracle version your DBD::Oracle was built with by
+importing the C<ORA_OCI> constant from DBD::Oracle.
+
+B<Fetching Data>
+
+Any data returned from Oracle to DBD::Oracle in the AL32UTF8
+character set will be marked as UTF-8 to ensure correct handling by perl.
+
+For Oracle to return data in the AL32UTF8 character set the
+NLS_LANG or NLS_NCHAR environment variable I<must> be set as described
+in the previous section.
+
+When fetching NCHAR, NVARCHAR, or NCLOB data from Oracle, DBD::Oracle
+will set the perl UTF-8 flag on the returned data if either NLS_NCHAR
+is AL32UTF8, or NLS_NCHAR is not set and NLS_LANG is AL32UTF8.
+
+When fetching other character data from Oracle, DBD::Oracle
+will set the perl UTF-8 flag on the returned data if NLS_LANG is AL32UTF8.
+
+B<Sending Data using Placeholders>
+
+Data bound to a placeholder is assumed to be in the default client
+character set (specified by NLS_LANG) except for a few special
+cases. These are listed here with the highest precedence first:
+
+If the C<ora_csid> attribute is given to bind_param() then that
+is passed to Oracle and takes precedence.
+
+If the value is a Perl Unicode string (UTF-8) then DBD::Oracle
+ensures that Oracle uses the Unicode character set, regardless of
+the NLS_LANG and NLS_NCHAR settings.
+
+If the placeholder is for inserting an NCLOB then the client NLS_NCHAR
+character set is used. (That's useful but inconsistent with the other behaviour
+so may change. Best to be explicit by using the C<ora_csform>
+attribute.)
+
+If the C<ora_csform> attribute is given to bind_param() then that
+determines if the value should be assumed to be in the default
+(NLS_LANG) or NCHAR (NLS_NCHAR) client character set. 
+
+
+   use DBD::Oracle qw( SQLCS_IMPLICIT SQLCS_NCHAR );
+   ...
+   $sth->bind_param(1, $value, { ora_csform => SQLCS_NCHAR }); 
+
+or
+
+   $dbh->{ora_ph_csform} = SQLCS_NCHAR; # default for all future placeholders
+
+B<Sending Data using SQL>
+
+Oracle assumes the SQL statement is in the default client character
+set (as specified by NLS_LANG). So Unicode strings containing
+non-ASCII characters should not be used unless the default client
+character set is AL32UTF8.
+
+=head2 DBD::Oracle and Other Character Sets and Encodings
+
+The only multi-byte Oracle character set supported by DBD::Oracle is
+"AL32UTF8" (and "UTF8"). Single-byte character sets should work well.
 
 =head1 Other Data Types
 
@@ -1825,12 +2046,37 @@ Any text in the buffer after a call to DBMS_OUTPUT.GET_LINE or
 DBMS_OUTPUT.GET is discarded by the next call to DBMS_OUTPUT.PUT_LINE,
 DBMS_OUTPUT.PUT, or DBMS_OUTPUT.NEW_LINE.
 
+=item reauthenticate ( $username, $password )
+
+Starts a new session against the current database using the credentials
+supplied.
+
+=item ora_nls_parameters ( [ $refresh ] )
+
+Returns a hash reference containing the current NLS parameters, as given
+by the v$nls_parameters view. The values fetched are cached between calls.
+To cause the latest values to be fetched, pass a true value to the function.
+
+=item ora_can_unicode ( [ $refresh ] )
+
+Returns a number indicating whether either of the database character sets
+is a Unicode encoding. Calls ora_nls_parameters() and passes the optional
+$refresh parameter to it.
+
+0 = Neither character set is a Unicode encoding.
+
+1 = National character set is a Unicode encoding.
+
+2 = Database character set is a Unicode encoding.
+
+3 = Both character sets are Unicode encodings.
+
 =back
 
 
 =head1 Prepare postponed till execute
 
-With OCI8, the DBD::Oracle module can avoid an explicit 'describe' operation
+The DBD::Oracle module can avoid an explicit 'describe' operation
 prior to the execution of the statement unless the application requests
 information about the results (such as $sth->{NAME}). This reduces
 communication with the server and increases performance (reducing the
@@ -1934,8 +2180,10 @@ Uses the Oracle OCILobWrite function.
 
   $rc = $dbh->ora_lob_append($lob_locator, $data);
 
-Append $data to the LOB.
-Uses the Oracle OCILobWriteAppend function.
+Append $data to the LOB.  Uses the Oracle OCILobWriteAppend function.
+
+NOTE: This method should I<not> be used if either the client or the
+server are Oracle version 8 due to Oracle bug #886191.
 
 =item ora_lob_trim
 
@@ -2006,9 +2254,9 @@ can't be used effectively if AutoCommit is enabled).
    my $sth = $dbh->prepare( <<"   SQL" );
       INSERT INTO lob_example
       ( lob_id, bindata, chardata )
-      VALUES ( ?, ?, ? )
+      VALUES ( ?, EMPTY_BLOB(),EMPTY_CLOB() )
    SQL
-   $sth->execute( $lob_id, '', '' );
+   $sth->execute( $lob_id );
 
    $sth = $dbh->prepare( <<"   SQL", { ora_auto_lob => 0 } );
       SELECT bindata, chardata
@@ -2029,7 +2277,7 @@ can't be used effectively if AutoCommit is enabled).
    my $length = 0;
    my $buffer = '';
    while( $length = read( BIN_FH, $buffer, $chunk_size ) ) {
-      $dbh->ora_lob_write( $bin_locator, $offset, $length );
+      $dbh->ora_lob_write( $bin_locator, $offset, $buffer );
       $offset += $length;
    }
 
@@ -2038,7 +2286,7 @@ can't be used effectively if AutoCommit is enabled).
    $length = 0;
    $buffer = '';
    while( $length = read( CHAR_FH, $buffer, $chunk_size ) ) {
-      $dbh->ora_lob_write( $char_locator, $offset, $length );
+      $dbh->ora_lob_write( $char_locator, $offset, $buffer );
       $offset += $length;
    }
 
@@ -2106,8 +2354,9 @@ than could be stored in memory at a given time.
 
    my $chunk_size = 1034;   # Arbitrary chunk size, for example
    my $offset = 1;   # Offsets start at 1, not 0
-   while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) {
+   while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) ) {
       print STDOUT $data;
+      $offset += $length;
    }
 
 Notice that the select statement does not contain the phrase
@@ -2197,6 +2446,30 @@ To close the cursor you (currently) need to do this:
 
 See the C<curref.pl> script in the Oracle.ex directory in the DBD::Oracle
 source distribution for a complete working example.
+
+=head1 Returning A Value from an INSERT
+
+Oracle supports an extended SQL insert syntax which will return one
+or more of the values inserted. This can be particularly useful for
+single-pass insertion of values with re-used sequence values
+(avoiding a separate "select seq.nextval from dual" step).
+
+  $sth = $dbh->prepare(qq{
+      INSERT INTO foo (id, bar)
+      VALUES (foo_id_seq.nextval, :bar)
+      RETURNING id INTO :id
+  });
+  $sth->bind_param(":bar", 42);
+  $sth->bind_param_inout(":id", \my $new_id, 99);
+  $sth->execute;
+  print "The id of the new record is $new_id\n";
+
+If you have many columns to bind you can use code like this:
+
+  @params = (... column values for record to be inserted ...);
+  $sth->bind_param($_, $params[$_-1]) for (1..@params);
+  $sth->bind_param_inout(@params+1, \my $new_id, 99);
+  $sth->execute;
 
 =head1 Returning A Recordset
 
@@ -2385,8 +2658,9 @@ The DBD::Oracle module is Copyright (c) 1994-2004 Tim Bunce. Ireland.
 The DBD::Oracle module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself with the exception that it
 cannot be placed on a CD-ROM or similar media for commercial distribution
-without the prior approval of the author unless the CD-ROM is primarily a
-copy of the majority of the CPAN archive.
+without the prior approval of the author unless the CD-ROM contains only
+Open Source software (http://www.opensource.org/licenses/index.php)
+or is primarily a copy of the majority of the CPAN archive.
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -2395,6 +2669,76 @@ name, but I thank them all. Many are named in the Changes file.
 
 See also L<DBI/ACKNOWLEDGEMENTS>.
 
+=head1 CONTRIBUTING
+
+If you'd like DBD::Oracle to do something new or different the best way
+to make that happen is to do it yourself and send me a patch to the
+source code that shows the changes.
+
+=head2 How to create a patch using Subversion
+
+The DBD::Oracle source code is maintained using Subversion (a replacement
+for CVS, see L<http://subversion.tigris.org/>). To access the source
+you'll need to install a Subversion client. Then, to get the source
+code, do:
+
+  svn checkout http://svn.perl.org/modules/dbd-oracle/trunk
+
+If it prompts for a username and password use your perl.org account
+if you have one, else just 'guest' and 'guest'. The source code will
+be in a new subdirectory called C<trunk>.
+
+To keep informed about changes to the source you can send an empty email
+to dbd-oracle-changes-subscribe@perl.org after which you'll get an email with the
+change log message and diff of each change checked-in to the source.
+
+After making your changes you can generate a patch file, but before
+you do, make sure your source is still upto date using:
+
+  svn update 
+
+If you get any conflicts reported you'll need to fix them first.
+Then generate the patch file from within the C<trunk> directory using:
+
+  svn diff > foo.patch
+
+Read the patch file, as a sanity check, and then email it to dbi-dev@perl.org.
+
+=head2 How to create a patch without Subversion
+
+Unpack a fresh copy of the distribution:
+
+  tar xfz DBD-Oracle-1.40.tar.gz
+
+Rename the newly created top level directory:
+
+  mv DBD-Oracle-1.40 DBD-Oracle-1.40.your_foo
+
+Edit the contents of DBD-Oracle-1.40.your_foo/* till it does what you want.
+
+Test your changes and then remove all temporary files:
+
+  make test && make distclean
+
+Go back to the directory you originally unpacked the distribution:
+
+  cd ..
+
+Unpack I<another> copy of the original distribution you started with:
+
+  tar xfz DBD-Oracle-1.40.tar.gz
+
+Then create a patch file by performing a recursive C<diff> on the two
+top level directories:
+
+  diff -r -u DBD-Oracle-1.40 DBD-Oracle-1.40.your_foo > DBD-Oracle-1.40.your_foo.patch
+
+=head2 Speak before you patch
+
+For anything non-trivial or possibly controversial it's a good idea
+to discuss (on dbi-dev@perl.org) the changes you propose before
+actually spending time working on them. Otherwise you run the risk
+of them being rejected because they don't fit into some larger plans
+you may not be aware of.
+
 =cut
-
-

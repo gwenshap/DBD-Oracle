@@ -48,6 +48,7 @@ my @tests = ( # skip=1 to skip, ti=N to trace insert, ts=N to trace select
   { type=> 5, name=>"STRING",   chops_space=>0, embed_nul=>0, skip=>1, ti=>8 },	# old Oraperl
   { type=>96, name=>"CHAR",     chops_space=>0, embed_nul=>1, skip=>0 },
   { type=> 1, name=>"VARCHAR2", chops_space=>1, embed_nul=>1, skip=>0 },	# current DBD::Oracle
+#  { type=> 2, name=>"NVARCHAR2", chops_space=>1, embed_nul=>1, skip=>0 },	# LAB NVARCHAR nope not here
 );
 
 $tests = 3;
@@ -56,7 +57,7 @@ $_->{skip} or $tests+=8 for @tests;
 print "1..$tests\n";
 
 my ($sth,$tmp);
-my $table = "dbd_oracle_test__drop_me";
+my $table = "dbd_ora__drop_me" . ($ENV{DBD_ORACLE_SEQ}||'');
 
 # drop table but don't warn if not there
 eval {

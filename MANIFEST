@@ -1,5 +1,6 @@
 Changes
 MANIFEST
+META.yml			Module meta-data (added by MakeMaker)
 Makefile.PL
 Oracle.ex/README
 Oracle.ex/bind.pl
@@ -23,37 +24,48 @@ README.explain
 README.help
 README.hpux
 README.java
-README.login
 README.linux
+README.login
 README.longs
 README.macosx
 README.sec
 README.utf8
+README.vms
 README.win32
-README.wingcc	Notes about building with mingw32 and cygwin32
+README.wingcc			Notes about building with mingw32 and cygwin32
 Todo
 dbdimp.c
 dbdimp.h
+dbivport.h
 hints/dgux.pl
 hints/macos_bundle.syms
 hints/macos_lib.syms
 hints/macos_syms.pl
 hints/svr4.pl
 lib/DBD/Oracle/GetInfo.pm
-oci.def		OCI.DLL export declarations
-oci7.c
+oci.def				OCI.DLL export declarations
 oci8.c
 ocitrace.h
 ora_explain.PL
-oraperl.ph	Old oraperl file included for completeness of emulation
-t/base.t
-t/cursor.t
-t/general.t
-t/long.t
-t/meta.t
-t/ph_type.t
-t/plsql.t
-t/reauth.t
-t/select.t
+oraperl.ph			Old oraperl file included for completeness of emulation
+t/01base.t
+t/10general.t
+t/15nls.t
+t/20select.t
+t/21nchar.t
+t/22nchar_al32utf8.t
+t/22nchar_utf8.t
+t/23wide_db.t
+t/23wide_db_8bit.t
+t/23wide_db_al32utf8.t
+t/24implicit_utf8.t
+t/25plsql.t
+t/30long.t
+t/31lob.t
+t/40ph_type.t
+t/50cursor.t
+t/60reauth.t
+t/70meta.t
+t/nchar_test_lib.pl
 test.pl
 typemap

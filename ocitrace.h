@@ -1,4 +1,3 @@
-#ifdef OCI_V8_SYNTAX
 #ifndef DBD_OCI_TRACEON
 
 /* OCI functions "wrapped" to produce tracefile dumps (may be handy when giving
@@ -9,7 +8,7 @@
 
 #define DBD_OCI_TRACEON	(DBIS->debug >= 6)
 #define DBD_OCI_TRACEFP	(DBILOGFP)
-#define OciTp		("OCI")			/* OCI Trace Prefix */
+#define OciTp		("\tOCI")		/* OCI Trace Prefix */
 #define OciTstr(s)	((s) ? (text*)(s) : (text*)"<NULL>")
 #define ul_t(v)		((unsigned long)(v))
 #define pul_t(v)	((unsigned long *)(v))
@@ -36,6 +35,42 @@
 	appropriate an &, thus: "...,&p%ld,...",
 	If done well the log will read like a compilable program.
 */
+
+/* added by lab */
+#define OCILobCharSetId_log_stat( envhp, errhp, locp, csidp, stat ) \
+   stat = OCILobCharSetId( envhp, errhp, locp, csidp ); \
+	(DBD_OCI_TRACEON) \
+   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+         "%sLobCharSetId(%p,%p,%p,%d)=%s\n",\
+         OciTp, (void*)envhp, (void*)errhp, (void*)locp, *csidp, oci_status_name(stat)),stat \
+   : stat
+
+/* added by lab */
+#define OCILobCharSetForm_log_stat( envhp, errhp, locp, formp, stat ) \
+   stat = OCILobCharSetForm( envhp, errhp, locp, formp ); \
+	(DBD_OCI_TRACEON) \
+   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+         "%sLobCharSetForm(%p,%p,%p,%d)=%s\n",\
+         OciTp, (void*)envhp, (void*)errhp, (void*)locp, *formp, oci_status_name(stat)),stat \
+   : stat
+
+/* added by lab */
+#define OCINlsEnvironmentVariableGet_log_stat( valp, size, item, charset, rsizep ,stat ) \
+   stat = OCINlsEnvironmentVariableGet(  valp, size, item, charset, rsizep ); \
+	(DBD_OCI_TRACEON) \
+   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+         "%sNlsEnvironmentVariableGet(%d,%d,%d,%d,%d)=%s\n",\
+         OciTp, *valp, size, item, charset, *rsizep, oci_status_name(stat)),stat \
+   : stat
+
+/* added by lab */
+#define OCIEnvNlsCreate_log_stat( envp, mode, ctxp, f1, f2, f3, sz, usremepp ,chset, nchset ,stat ) \
+   stat = OCIEnvNlsCreate(envp, mode, ctxp, f1, f2, f3, sz, usremepp ,chset, nchset ); \
+	(DBD_OCI_TRACEON) \
+   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+         "%sNlsEnvCreate(%p,%d,%d,%p,%p,%p,%d,%p,%d,%d)=%s\n", \
+         OciTp, (void*)envp, mode, ctxp, (void*)f1, (void*)f2, (void*)f3, sz, (void*)usremepp ,chset, nchset, oci_status_name(stat)),stat \
+   : stat
 
 
 #define OCIAttrGet_log_stat(th,ht,ah,sp,at,eh,stat)                    \
@@ -165,6 +200,30 @@
 	  OciTp, (void*)sv,(void*)eh,(void*)lh,				\
 	  oci_status_name(stat)),stat : stat
 
+#if !defined(ORA_OCI_8)
+#define OCILobFreeTemporary_log_stat(sv,eh,lh,stat) \
+	stat=OCILobFreeTemporary(sv,eh,lh);					\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
+	  "%sLobFreeTemporary(%p,%p,%p)=%s\n",				\
+	  OciTp, (void*)sv,(void*)eh,(void*)lh,				\
+	  oci_status_name(stat)),stat : stat
+#else
+#define OCILobFreeTemporary_log_stat(sv,eh,lh,stat) \
+    stat=0
+#endif
+
+#if !defined(ORA_OCI_8)
+#define OCILobIsTemporary_log_stat(ev,eh,lh,istemp,stat)                           \
+	stat=OCILobIsTemporary(ev,eh,lh,istemp);					\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
+	  "%sLobIsTemporary(%p,%p,%p,%p)=%s\n",				\
+	  OciTp, (void*)ev,(void*)eh,(void*)lh,(void*)istemp,		\
+	  oci_status_name(stat)),stat : stat
+#else
+#define OCILobIsTemporary_log_stat(ev,eh,lh,istemp,stat) \
+    stat=0
+#endif
+
 #define OCILobRead_log_stat(sv,eh,lh,am,of,bp,bl,cx,cb,csi,csf,stat)   \
 	stat=OCILobRead(sv,eh,lh,am,of,bp,bl,cx,cb,csi,csf);		\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
@@ -271,4 +330,3 @@
 	  oci_status_name(stat)),stat : stat
 
 #endif /* !DBD_OCI_TRACEON */
-#endif /* OCI_V8_SYNTAX */
