@@ -200,19 +200,29 @@
 	  OciTp, (void*)sv,(void*)eh,(void*)lh,				\
 	  oci_status_name(stat)),stat : stat
 
+#if !defined(ORA_OCI_8)
 #define OCILobFreeTemporary_log_stat(sv,eh,lh,stat) \
 	stat=OCILobFreeTemporary(sv,eh,lh);					\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
 	  "%sLobFreeTemporary(%p,%p,%p)=%s\n",				\
 	  OciTp, (void*)sv,(void*)eh,(void*)lh,				\
 	  oci_status_name(stat)),stat : stat
+#else
+#define OCILobFreeTemporary_log_stat(sv,eh,lh,stat) \
+    stat=0
+#endif
 
+#if !defined(ORA_OCI_8)
 #define OCILobIsTemporary_log_stat(ev,eh,lh,istemp,stat)                           \
 	stat=OCILobIsTemporary(ev,eh,lh,istemp);					\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
 	  "%sLobIsTemporary(%p,%p,%p,%p)=%s\n",				\
 	  OciTp, (void*)ev,(void*)eh,(void*)lh,(void*)istemp,		\
 	  oci_status_name(stat)),stat : stat
+#else
+#define OCILobIsTemporary_log_stat(ev,eh,lh,istemp,stat) \
+    stat=0
+#endif
 
 #define OCILobRead_log_stat(sv,eh,lh,am,of,bp,bl,cx,cb,csi,csf,stat)   \
 	stat=OCILobRead(sv,eh,lh,am,of,bp,bl,cx,cb,csi,csf);		\
