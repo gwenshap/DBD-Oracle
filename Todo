@@ -1,5 +1,7 @@
 Oracle 8
 
+If LongReadLen > 64k then automatocally call oflng for each long LONG.
+
 $drh->debug oddities (re data_source debugging)
 
 ora_bind() failed err = ORA-01026: multiple buffers of size > 4000 in
@@ -18,10 +20,6 @@ Test LongReadLen and especially the default behaviour of LongTruncOk
 
 Add explain to dist
 
-imp_dbh->ldaptr=&imp_dbh->lda for Francois DESARMENIEN <desar@club-internet.fr>
-
-AIX build
-
 Handle binding of values > 32K long.
 
 Handle PL/SQL arrays.
@@ -32,28 +30,4 @@ Non-blocking
 
 Tests
 	RAW types at max length
-
-===============================================================================
-General Outstanding Issues
-
-Return codes and error handling not quite same as oraperl?
-
-Many others. Remember, this is still alpha software!
-
-Support shared libraries with Oracle 7.3
-
-Add a mechanism for fork style tasks so dbh of parent
-doesn't get freed by child.
-
-
-===============================================================================
-Below is just a personal dumping ground for thoughts and issues, don't
-expect any structure:
-
-(or even anything at all)
-
-Check -R etc for libsunmath.so.1
-ldd /cmi/run/lib/perl5/site_perl/sun4-solaris/auto/DBD/Oracle/Oracle.so
-	libclntsh.so.1.0 =>	 /home/oracle/home/lib/libclntsh.so.1.0
-	libsunmath.so.1 =>	 (not found)
 

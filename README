@@ -140,6 +140,12 @@ dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk. But note...
     make test
     make test TEST_VERBOSE=1   (only if any of the t/* tests fail)
 
+    Make sure to include the 'stderr' output. The best way to do this is
+    to use the "script" command (man script). If that's not available
+    then (assuming you're not using csh) do "command > command.log 2>&1"
+    The "2>&1" is required (after the stdout redirect) to redirect stderr
+    to the same place.
+
 2. Full details of which version of Oracle you're using (if it
    wasn't automatically found and printed by "perl Makefile.PL")
 

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.37 1998/07/05 21:25:07 timbo Exp $
+   $Id: dbdimp.c,v 1.38 1998/07/28 17:33:37 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -219,12 +219,15 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
 #ifndef SIGCLD
 #define SIGCLD SIGCHLD
 #endif
-    {	/* If orlon has installed a handler for SIGCLD,		*/
-	/* reinstall it with SA_RESTART:			*/ 
+    /* If orlon has installed a handler for SIGCLD, then reinstall it	*/
+    /* with SA_RESTART.  We only do this if connected ok since I've	*/
+    /* seen the process loop after being interrupted after connect failed. */
+    if (ret == 0 && imp_dbh->lda->rc == 0) {
 	struct sigaction act;
 	if (sigaction( SIGCLD, (struct sigaction*)0, &act ) == 0
 		&&  (act.sa_handler != SIG_DFL && act.sa_handler != SIG_IGN)
 		&&  (act.sa_flags & SA_RESTART) == 0) {
+	    /* XXX we should also check that act.sa_handler is not the perl handler */
 	    act.sa_flags |= SA_RESTART;
 	    sigaction( SIGCLD, &act, (struct sigaction*)0 );
 	    if (dbis->debug >= 3)
@@ -238,18 +241,23 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
 
     if (ret) {
 	int rc = imp_dbh->lda->rc;
-	char *msg;
-	/* oerhms in ora_error may hang or corrupt memory (!) after a connect	*/
-	/* failure in some specific versions of Oracle 7.3.x. So we provide a	*/
-	/* way to skip the message lookup if ora_login_nomsg is true (set via	*/
-	/* env var above). */
 	char buf[100];
-	sprintf(buf, 
-	    "ORA-%05d: (Text for error %d not fetched. Use 'oerr ORA %d' command.)",
-	    rc, rc, rc);
-	/* 1019 is a common but misleading error code (often NLS msg cat related) */
-	msg = (rc!=1019) ? "login failed"
-		: "login failed, probably a symptom of a deeper problem";
+	char *msg;
+	switch(rc) {	/* add helpful hints to some errors */
+	case    0: msg = "login failed, check ORACLE_HOME/bin is on your PATH";  break;
+	case 1019: msg = "login failed, probably a symptom of a deeper problem"; break;
+	default:   msg = "login failed"; break;
+	}
+	if (ora_login_nomsg) {
+	    /* oerhms in ora_error may hang or corrupt memory (!) after a connect */
+	    /* failure in some specific versions of Oracle 7.3.x. So we provide a */
+	    /* way to skip the message lookup if ora_login_nomsg is true (set via */
+	    /* env var above). */
+	    sprintf(buf, 
+		"ORA-%05d: (Text for error %d not fetched. Use 'oerr ORA %d' command.)",
+		rc, rc, rc);
+	    msg = buf;
+	}
 	ora_error(dbh,	ora_login_nomsg ? NULL : imp_dbh->lda, rc, msg);
 	return 0;
     }
@@ -451,16 +459,20 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
     if (oparse(imp_sth->cda, (text*)imp_sth->statement, (sb4)-1,
                 (sword)oparse_defer, (ub4)oparse_lng)
     ) {
-	SV  *msgsv, *sqlsv;
-	char msg[99];
-	sqlsv = sv_2mortal(newSVpv(imp_sth->statement,0));
-	sv_insert(sqlsv, imp_sth->cda->peo, 0, "<*>",3);
-	sprintf(msg,"error possibly near <*> indicator at char %d in '",
-		imp_sth->cda->peo+1);
-	msgsv = sv_2mortal(newSVpv(msg,0));
-	sv_catsv(msgsv, sqlsv);
-	sv_catpv(msgsv, "'");
-	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, SvPV(msgsv,na));
+	char buf[99];
+	char *hint = "";
+	if (1) {	/* XXX could make optional one day */
+	    SV  *msgsv, *sqlsv;
+	    sprintf(buf,"error possibly near <*> indicator at char %d in '",
+		    imp_sth->cda->peo+1);
+	    msgsv = sv_2mortal(newSVpv(buf,0));
+	    sqlsv = sv_2mortal(newSVpv(imp_sth->statement,0));
+	    sv_insert(sqlsv, imp_sth->cda->peo, 0, "<*>",3);
+	    sv_catsv(msgsv, sqlsv);
+	    sv_catpv(msgsv, "'");
+	    hint = SvPV(msgsv,na);
+	}
+	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, hint);
 	free_cursor(sth, imp_sth);
 	return 0;
     }
@@ -928,12 +940,12 @@ _dbd_rebind_ph(sth, imp_sth, phs)
     ub2 *alen_ptr = NULL;
 
 #ifdef SQLT_CUR
-    if (phs->ftype != SQLT_CUR) {
-	_rebind_ph_char(sth, imp_sth, phs, &alen_ptr);
+    if (phs->ftype == SQLT_CUR) {
+	_rebind_ph_cursor(sth, imp_sth, phs);
     }
     else
 #endif
-	_rebind_ph_cursor(sth, imp_sth, phs);
+	_rebind_ph_char(sth, imp_sth, phs, &alen_ptr);
 
     /* Since we don't support LONG VAR types we must check	*/
     /* for lengths too big to pass to obndrv as an sword.	*/
@@ -1255,7 +1267,7 @@ dbd_st_fetch(sth, imp_sth)
 	if (imp_sth->eod_errno) {
     end_of_data:
 	    if (imp_sth->eod_errno != 1403) {	/* was not just end-of-fetch	*/
-		ora_error(sth, imp_sth->cda, imp_sth->eod_errno, "ofetch error");
+		ora_error(sth, imp_sth->cda, imp_sth->eod_errno, "cached ofetch error");
 	    } else {				/* is simply no more data	*/
 		sv_setiv(DBIc_ERR(imp_sth), 0);	/* ensure errno set to 0 here	*/
 		if (debug >= 2)
@@ -1326,12 +1338,16 @@ dbd_st_fetch(sth, imp_sth)
 	    (void)SvOK_off(sv);
 
 	} else {  /* See odefin rcode arg description in OCI docs	*/
+	    char buf[200];
+	    char *hint = "";
 	    /* These may get more case-by-case treatment eventually.	*/
 	    if (rc == 1406) {		/* field truncated (see above)  */
 		/* Copy the truncated value anyway, it may be of use,	*/
 		/* but it'll only be accessible via prior bind_column()	*/
 		sv_setpvn(sv, (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl],
 			  fb_ary->arlen[cache_entry]);
+		if (dbtype_is_long(fbh->dbtype))	/* double check */
+		    hint = ", LongReadLen too small and/or LongTruncOk not set";
 	    }
 	    else {
 		SvOK_off(sv);	/* set field that caused error to undef	*/
@@ -1339,7 +1355,9 @@ dbd_st_fetch(sth, imp_sth)
 	    ++err;	/* 'fail' this fetch but continue getting fields */
 	    /* Some should probably be treated as warnings but	*/
 	    /* for now we just treat them all as errors		*/
-	    ora_error(sth, imp_sth->cda, rc, "ofetch field error");
+	    sprintf(buf,"ofetch error on field %d (of %d), ora_type %d%s",
+			i+1, num_fields, fbh->dbtype, hint);
+	    ora_error(sth, imp_sth->cda, rc, buf);
 	}
 
 	if (debug >= 3)

@@ -1,3 +1,11 @@
+Changes in DBD::Oracle 0.52 (Oraperl 1.37), 28th July 1998
+
+  Assorted build fixes (esp. Win32, HP-UX and AIX).
+  More hints on error messages, especially long truncation and
+  field-level errors when fetching.
+  Compiles okay now for systems without SQLT_CUR defined.
+  Only sets SA_RESTART on SIGCLD if connect was successful.
+
 Changes in DBD::Oracle 0.51 (Oraperl 1.37), 5rd July 1998
 
   Makefile.PL no longer tries to link with just -lclntsh directly :-(
@@ -20,7 +28,7 @@ Changes in DBD::Oracle 0.49 (Oraperl 1.36), 1st June 1998
   Fixed broken truncation error in 0.48.
   Fetch ORACLE_SID from Win32 registry (thanks to Preston Bannister)
   Improved automatic row cache sizing (prompted by Jon Meek).
-  Added $sth->{ora_cache_size} and $sth->{ora_est_row_width}
+  Added $sth->{ora_cache_rows} and $sth->{ora_est_row_width}
   as read-only attributes to make cache size logic easier to test.
 
 Changes in DBD::Oracle 0.48 (Oraperl 1.36), 25th May 1998

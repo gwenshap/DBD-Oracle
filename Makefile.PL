@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.62 1998/07/05 21:25:07 timbo Exp $
+# $Id: Makefile.PL,v 1.65 1998/07/28 17:33:37 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -45,10 +45,20 @@ my %opts = (
 		COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
     },
 );
+if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
+    $opts{AUTHOR} = 'Tim Bunce (dbi-users@fugue.com)';
+    $opts{ABSTRACT_FROM} = 'Oracle.pm';
+    $opts{PREREQ_PM} = { DBI => 0 };
+    $opts{CAPI} = 'TRUE' if $Config{archname} =~ /-object\b/i;
+}
+
+$opts{LINKTYPE} = 'static' if $Config{dlsrc} =~ /dl_none/;
+
 my(@MK, %MK, $MK, %MK_expanding);	# parsed macros from Oracle's makefiles
 
 # Options (rarely needed)
 $::opt_m = 0;		# path to proc.mk or oracle.mk file to read
+$::opt_n = '';		# Oracle .mk macro name to use for library list to link with
 $::opt_p = '';		# prefer oracle.mk over proc
 $::opt_l = 0;		# try direct-link to libclntsh
 $::opt_g = '';		# enable debugging (-g for compiler and linker)
@@ -57,7 +67,7 @@ $::opt_S = '';		# Find a symbol in oracle & system libs, Don't build a Makefile
 $::opt_v = 0;		# be more verbose
 $::opt_d = 0;		# much more verbose for debugging
 
-GetOptions(qw(v! d! g! p! l! m=s s=s S=s)) or die "Invalid arguments";
+GetOptions(qw(v! d! g! p! l! m=s n=s s=s S=s)) or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
 $::opt_v = 1 if $::opt_d;
@@ -84,11 +94,17 @@ die "$ORACLE_ENV environment variable ($OH) not valid.\n" unless -d $OH;
 
 print "Using Oracle in $OH\n";
 
+# show original value of ORA_CLIENT_LIB if defined ...
+print "\$ORA_CLIENT_LIB=$ENV{ORA_CLIENT_LIB}\n" if $ENV{ORA_CLIENT_LIB};
+# ... before we then set it how it probably should be set
+$ENV{ORA_CLIENT_LIB} ||= 'shared' unless ($opts{LINKTYPE}||'') eq 'static';
+
 my (@inspdver, %inspdver);
 if ($os ne 'VMS' and $os ne 'MSWin32' and -x "$OH/orainst/inspdver") {
     open INST, "$OH/orainst/inspdver |";
     my @inspdver = <INST>;
     close INST;
+    $inspdver{RDBMS} = 0;
     foreach (@inspdver) {
 	chop;
 	$inspdver{$2}    = $1 if m/^(\S+)\s+(.*)/;
@@ -147,8 +163,8 @@ elsif ($os eq 'MSWin32') {
 	    && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/ociw32.lib");
 
     my $OCIINCLUDE = "-I$OH/$OCIDIR/include -I$OH/rdbms/demo";
-    $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir -lOCIW32" ];
-    $opts{SKIP} = ['processPL'];    # XXX caused problems with Nmake...
+    $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir OCIW32" ];
+    $opts{SKIP} = ['processPL'];    # XXX added because it caused problems with Nmake...
     $opts{INC}  = "$OCIINCLUDE -I$dbi_arch_dir";
 }
 
@@ -188,13 +204,17 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 
     # get a cut down $linkwith to pass to MakeMaker liblist
     my $linkwith_s = expand_mkvars($linkwith, 1, 1, 0);
+
     # convert "/full/path/libFOO.a" into "-L/full/path -lFOO"
-    $linkwith_s =~ s!(\S+)/lib(\w+).a!-L$1 -l$2!g;
+    # to cater for lack of smarts in MakeMaker / Liblist
+    # which ignores /foo/bar.a entries!
+    my $lib_ext_re = "(a|$Config{dlext}|$Config{so})";
+    $linkwith_s =~ s!(\S+)/lib(\w+)\.($lib_ext_re)\b!-L$1 -l$2!g;
 
     # Platform specific fix-ups:
     # delete problematic crt?.o on solaris
     $linkwith_s = del_crtobj($linkwith_s) if $os eq 'solaris';
-    $linkwith_s =~ s/-l:lib(\w+).sl\b/-l$1/g;	# for hp-ux
+    $linkwith_s =~ s/-l:lib(\w+)\.sl\b/-l$1/g;	# for hp-ux
     $linkwith_s .= " -lc" if $Config{archname} eq 'i386-dynixptx';
     if ($os eq 'solaris' and $osvers >= 2.3 and $linkwith_s =~ /-lthread/) {
 	print "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
@@ -365,11 +385,11 @@ sub find_mkfile {
     );
     if ($::opt_p) {
 	# if -p then copy oracle.mk to start of search list and thus prefer it
-	my @ora = grep { !m/(oracle|rdbms)\.mk\b/ } @mkplaces;
+	my @ora = grep { m/(oracle|rdbms)\.mk\b/ } @mkplaces;
 	unshift @mkplaces, @ora;
     }
     if ($::opt_m) {
-	$::opt_m = cwd()."/$::opt_m" unless $::opt_m =~ m:/\\:;
+	$::opt_m = cwd()."/$::opt_m" unless $::opt_m =~ m:^/:;
 	die "-m $::opt_m: not found" unless -f $::opt_m;
 	unshift @mkplaces, $::opt_m;
     }
@@ -441,7 +461,6 @@ sub fetch_oci_macros {
     warn "OBJ_EXT correction enabled ($MK{OBJ_EXT})\n" if $incompat_ext;
 
     my $mkver = 0;
-    my $linkvia = '';
     my $lastline = '';
     my @lines = read_inc_file($file);
     for(1; $_ = shift(@lines); $lastline = $_){
@@ -472,6 +491,8 @@ sub fetch_oci_macros {
 	$MK{$1}= $' if m/^\s*(\w+)\s*=\s*/;
 	$name = $1;
 
+	$MK{$1} =~ s/^([^#]*)#.*/$1/ if $1 && $MK{$1}; # remove comments
+
 	if ($name and exists $edit{$name}) {
 	    my $pre = $_;
 	    eval $edit{$name};	# execute code to edit $_
@@ -486,10 +507,28 @@ sub fetch_oci_macros {
     }
 
     # --- now decide what to link with ---
-    if ($MK{OCILDLIBS}) {
-	$linkvia = '$(OCILDLIBS)';
+    my $linkvia;
+
+    if ($::opt_n) {
+	$linkvia = "\$($::opt_n)" if $MK{$::opt_n};
+	warn "Can't use '$::opt_n': not defined by .mk files\n"
+		unless $linkvia;
     }
-    elsif ($MK{PROLDLIBS}) {	# Oracle 7.3.x
+
+    # modern Oracle .mk files define OCISTATICLIBS and OCISHAREDLIBS
+    $linkvia = '$(OCISTATICLIBS)'
+	if !$linkvia && $MK{OCISTATICLIBS}
+		&& $opts{LINKTYPE} && $opts{LINKTYPE} eq 'static';
+    $linkvia = '$(OCISHAREDLIBS)'
+	if !$linkvia && $MK{OCISHAREDLIBS};
+
+    # The oracle.mk file tends to define OCILDLIBS
+    $linkvia = '$(OCILDLIBS)'
+	if !$linkvia && $MK{OCILDLIBS};
+
+    # Now we get into strange land of twisty turny macros
+    if (!$linkvia && $MK{PROLDLIBS}) {	# Oracle 7.3.x
+	# XXX tweak for threaded perl? - use PROLLSsharedthread
 	if ($MK{PROLDLIBS} =~ /thread/i && $MK{PROLLSshared}) {
 	    $linkvia = '$(PROLLSshared)';
 	}
@@ -497,7 +536,7 @@ sub fetch_oci_macros {
 	    $linkvia = '$(PROLDLIBS)';
 	}
     }
-    elsif (int($mkver) == 1) {
+    elsif (!$linkvia && int($mkver) == 1) {
 	if ($MK{LLIBOCIC}) {
 	    $linkvia = '$(LLIBOCIC) $(TTLIBS)';
 	} else {
@@ -544,25 +583,37 @@ sub read_inc_file {
 sub expand_shellescape { 
     my($orig, $level) = @_;
     my $cmd = $orig;
-    print "\n$level * Evaluating \`$orig\`\n" if $::opt_d;
+	my $debug = $::opt_d || 1;
+    print "Evaluating `$orig`\n" if $debug;
     # ensure we have no $(...) vars left - strip out undefined ones:
     $cmd =~ s/\$\((\w+)\)/mkvar("$1", 1, 0, $level+1)/ge;
-    print "\n$level * After reducing to \`$cmd\`\n" if $::opt_d and $cmd ne $orig;
+    print "  expanded `$cmd`\n" if $debug and $cmd ne $orig;
     my $result = `$cmd`;
-    print "$level * Returned $result\n\n" if $::opt_d;
+	chop $result;
+    print "  returned '$result'\n" if $debug;
     $result;
 }
+
 sub expand_mkvars { 
     my($string, $strip, $backtick, $level) = @_;
     local($_) = $string;
     print "$level Expanding $_\n" if $::opt_d;
-    s/\$\((\w+)\)/mkvar("$1", $strip, $backtick, $level+1)/ge; # can recurse
+    # handle whizzo AIX make feature used by Oracle
+    s/\$\( (\w+) \? ([^(]*?) : ([^(]*?) \)/
+	my ($vname, $vT, $vF) = ($1,$2,$3);
+	$MK{$vname} = (mkvar($vname, 1, $backtick, $level+1)) ? $vT : $vF
+    /xge; # can recurse
+    s/\$\( (\w+) \)/
+	mkvar("$1", $strip, $backtick, $level+1)
+    /xge; # can recurse
     s/`(.*?[^\\])`/expand_shellescape("$1", $level+1)/esg if $backtick; # can recurse
     s/\s*\\\n\s*/ /g;	# merge continuations
-    s/\s+/ /g;			# shrink whitespace
+    s/\s+/ /g;		# shrink whitespace
     print "$level Expanded $string\n  to       $_\n\n" if $::opt_d and $_ ne $string;
     $_;
 }
+
+
 sub mkvar { 
     my($var, $strip, $backtick, $level) = @_;
     my $default = $strip ? '' : "\$($var)";

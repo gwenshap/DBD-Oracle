@@ -77,6 +77,10 @@ where DBD-Oracle was compiled.
 ORA-01019 can also be caused by corrupt Oracle config files such as
 /etc/oratab.
 
+ORA-01019 can also be caused by using a different version of the
+message catalogs ($ORACLE_HOME/ocommon/nls/admin/data) to that used
+when DBD::Oracle was compiled.
+
 Also try building with oracle.mk if your DBD::Oracle defaulted to proc.mk.
 
 -------------------------------------------------------------------------------

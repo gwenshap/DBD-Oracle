@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.h,v 1.11 1997/09/08 22:43:59 timbo Exp $
+   $Id: Oracle.h,v 1.12 1998/07/28 17:33:37 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -25,7 +25,7 @@
 
 void	dbd_init _((dbistate_t *dbistate));
 
-int	 dbd_db_login _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd));
+int	 dbd_db_login _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, char *pwd));
 int	 dbd_db_do _((SV *sv, char *statement));
 int	 dbd_db_commit     _((SV *dbh, imp_dbh_t *imp_dbh));
 int	 dbd_db_rollback   _((SV *dbh, imp_dbh_t *imp_dbh));

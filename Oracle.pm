@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.53 1998/07/05 21:49:00 timbo Exp $
+#   $Id: Oracle.pm,v 1.54 1998/07/21 00:07:30 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.51';
+$DBD::Oracle::VERSION = '0.52';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -22,7 +22,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use Exporter ();
     @ISA = qw(DynaLoader Exporter);
 
-    my $Revision = substr(q$Revision: 1.53 $, 10);
+    my $Revision = substr(q$Revision: 1.54 $, 10);
 
     require_version DBI 0.92;
 
@@ -111,9 +111,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	eval q{	# XXX experimental, will probably change
 	    warn "Fetching ORACLE_SID from Registry.\n" if $debug;
 	    require Tie::Registry;
-	    import Tie::Registry;
-	    $Registry->Delimeter("/");
-	    my $hkey= $Registry->{"LMachine/Software/Oracle/"};
+	    $Tie::Registry::Registry->Delimeter("/");
+	    my $hkey= $Tie::Registry::Registry->{"LMachine/Software/Oracle/"};
 	    my $sid = $hkey->{ORACLE_SID};
 	    my $home= $hkey->{ORACLE_HOME} || $ENV{ORACLE_HOME};
 	    $dbnames{$sid} = $home if $sid and $home;
