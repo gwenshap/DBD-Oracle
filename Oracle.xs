@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.xs,v 1.39 1996/03/05 02:04:42 timbo Exp $
+   $Id: Oracle.xs,v 1.40 1996/05/20 21:30:26 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -182,6 +182,7 @@ execute(sth, ...)
     SV *	sth
     CODE:
     D_imp_sth(sth);
+    int retval;
     if (items > 1) {
 	/* Handle binding supplied values to placeholders	*/
 	int i, error = 0;
@@ -201,7 +202,13 @@ execute(sth, ...)
 	    XSRETURN_UNDEF;	/* dbd_bind_ph already registered error	*/
 	}
     }
-    ST(0) = dbd_st_execute(sth) ? &sv_yes : &sv_no;
+    retval = dbd_st_execute(sth);
+    if (retval < 0)
+	XST_mUNDEF(0);		/* error        		*/
+    else if (retval == 0)
+	XST_mPV(0, "0E0");	/* true but zero		*/
+    else
+	XST_mIV(0, retval);	/* typically 1 or rowcount	*/
 
 
 void

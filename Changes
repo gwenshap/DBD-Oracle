@@ -1,3 +1,17 @@
+Changes in DBD::Oracle 0.31 (Oraperl 1.25), 20th May 1996
+
+	Makefile.PL for HP-UX now defaults to dynamic for hpux >= 10.
+
+	execute (ora_bind/ora_do) now returns undef on error or the
+	number of rows affected (0 is returned as 0E0, hence true, for
+	okay but no rows affected or no row count available/applicable).
+	This matches the oraperl version 2.4 behaviour.
+
+	Made an attempt at supporting Oracle 7.3 (e.g. include's in proc.mk)
+	Please let me know if it works (else supply patches to fix it :-)
+
+	Fixed small memory leak in ora_titles etc functions.
+
 Changes in DBD::Oracle 0.30, 7th May 1996
 
 	THE ORAPERL EMULATION LAYER IS NOW FORMALLY RELEASED (NO LONGER ALPHA).

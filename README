@@ -5,19 +5,16 @@ DBD::Oracle  --  an Oracle 7 interface for Perl 5.
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file.
 
-*  WARNING: THIS IS MOSTLY ALPHA SOFTWARE. Your mileage may vary.
+
+** WARNING: THIS IS MOSTLY ALPHA SOFTWARE. Your mileage may vary.      **
+** THE ORAPERL EMULATION IS NO LONGER ALPHA. IT IS NOW FULLY RELEASED. **
 
    The only currently supported interface is via Oraperl.pm, the
    oraperl emulation layer. This is fairly complete and stable.
    Execute "perldoc Oraperl" for info.
 
-*  THE ORAPERL EMULATION IS NO LONGER ALPHA. IT IS NOW FULLY RELEASED.
 
-NOTE: Automatic configuration from Oracle 7.3 is not yet working
-      (Oracle have reorganised the makefiles yet again!).
-
-
-BEFORE BUILDING, TESTING AND INSTALLING this you will need to:
+*BEFORE* BUILDING, TESTING AND INSTALLING this you will need to:
 
     Build, test and install Perl 5 (at least 5.002beta2).
     It is very important to test it and install it!
@@ -81,7 +78,7 @@ Tim.
 
 ===============================================================================
 Some Users of DBD::Oracle on Specific Platforms:
-(this is out of date now, there are many users on many platforms)
+(this is VERY out of date now, there are MANY users on many platforms)
 
 Solaris 1:
 	Myself.

@@ -5,6 +5,8 @@ Return codes and error handling not quite same as oraperl?
 
 Many others. Remember, this is still alpha software!
 
+Support shared libraries with Oracle 7.3
+
 
 ===============================================================================
 Below is just a personal dumping ground for thoughts and issues, don't

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.15 1996/05/07 20:28:50 timbo Exp $
+   $Id: dbdimp.c,v 1.17 1996/05/20 23:52:00 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -620,7 +620,7 @@ dbd_describe(h, imp_sth)
 
 
 int
-dbd_st_execute(sth)
+dbd_st_execute(sth)	/* <0 is error, >=0 is ok (row count) */
     SV *sth;
 {
     D_imp_sth(sth);
@@ -628,16 +628,16 @@ dbd_st_execute(sth)
     if (!imp_sth->done_desc) {
 	/* describe and allocate storage for results		*/
 	if (!dbd_describe(sth, imp_sth))
-	    return 0; /* dbd_describe already called ora_error()	*/
+	    return -1; /* dbd_describe already called ora_error()	*/
     }
 
     /* Trigger execution of the statement			*/
     if (oexec(imp_sth->cda)) {  /* may change to oexfet later	*/
         ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oexec error");
-	return 0;
+	return -1;
     }
     DBIc_ACTIVE_on(imp_sth);
-    return 1;
+    return imp_sth->cda->rpc;	/* row count	*/
 }
 
 
@@ -903,7 +903,9 @@ dbd_st_FETCH(sth, keysv)
 	return Nullsv;
     }
     if (cacheit) { /* cache for next time (via DBI quick_FETCH)	*/
-	hv_store((HV*)SvRV(sth), key, kl, retsv, 0);
+	SV **svp = hv_fetch((HV*)SvRV(sth), key, kl, 1);
+	sv_free(*svp);
+	*svp = retsv;
 	(void)SvREFCNT_inc(retsv);	/* so sv_2mortal won't free it	*/
     }
     return sv_2mortal(retsv);

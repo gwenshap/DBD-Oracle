@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.35 1996/05/07 20:47:15 timbo Exp $
+# $Id: Makefile.PL,v 1.36 1996/05/20 21:53:26 timbo Exp $
 
 require 5.002;
 
@@ -63,10 +63,11 @@ my $oraclemk = $::opt_m || "$OH/proc/lib/proc.mk";
 $oraclemk = "$OH/proc16/lib/proc16.mk" unless -f $oraclemk;
 die "Unable to locate proc.mk (use -m /path/to/proc.mk to specify)\n"
     unless -f $oraclemk;
+
 my $linkwith = fetch_oci_macros();
 $linkwith =~ s/-Y P,/-YP,/ if $Config{'cc'} =~ /gcc/;
  
-print "Using $oraclemk version $MK{mkver}\n";
+print "Using $oraclemk (version ".($MK{mkver}||'unknown').")\n";
 
 
 my $OCIINCLUDE = $MK{INCLUDE} || '';
@@ -79,11 +80,10 @@ $opts{OBJECT} = '$(O_FILES)';
 
 # --- Handle special cases ---
 
-# HP-UX cannot link a non-PIC object file into a shared library.
+# HP-UX 9 cannot link a non-PIC object file into a shared library.
 # Since the # .a libs that Oracle supplies contain non-PIC object
-# files, we sadly have to build static on HP-UX :(
-# XXX Fixed for HP-UX 10 and Oracle 7.2
-if ($Config{osname} eq 'hpux') {
+# files, we sadly have to build static on HP-UX 9 :(
+if ($Config{osname} eq 'hpux' and $Config{osver} < 10) {
     print "Warning: forced to build static not dynamic on $Config{osname}\n";
     print "         See README and Makefile.PL for more information.\n";
     $opts{LINKTYPE} = 'static';
@@ -105,7 +105,7 @@ if ($ENV{LOGNAME} eq 'timbo' and $ENV{S_ARCH_SW}){  # a reasonable guess
 }
 
 # log key platform information to help me help you quickly
-print "System: perl$] @Config{qw(myuname archname dlsrc)}\n";
+print "System: perl$] @Config{qw(myuname)}\n";
 print "Compiler: @Config{qw(cc optimize ccflags)}\n";
 print "Oracle proc.mk would have used these values but we override them:\n";
 print "  CC:       $MK{CC}\n"		if $MK{CC};
@@ -211,10 +211,10 @@ sub fetch_oci_macros {
     my $mkver = 0;
     my $linkwith = '';
     my $lastline = '';
-    open(ORACLEMK,"<$oraclemk") or die "open $oraclemk: $!\n";
-    for(1; $_ = <ORACLEMK>; $lastline = $_){
+    my @lines = read_inc_file($oraclemk);
+    for(1; $_ = shift(@lines); $lastline = $_){
 	# Join split lines but retain backwack and newlines:
-	$_ .= <ORACLEMK> while(m/\\[\r\n]+$/);
+	$_ .= shift(@lines) while(m/\\[\r\n]+$/);
 	chomp;
 	push(@MK, '') if ($_ eq '' and $lastline ne '');
 	next unless $_;
@@ -248,7 +248,6 @@ sub fetch_oci_macros {
 	# have we seen enough now?	( this caused problems)
 	# last if ($MK{OCILDLIBS} or (int($mkver)==1 and $MK{TTLIBS}));
     }
-    close(ORACLEMK);
 
     if ($MK{OCILDLIBS}) {
 	$linkwith = '$(OCILDLIBS)';
@@ -266,6 +265,22 @@ sub fetch_oci_macros {
     }
     $MK = join("\n", @MK);
     $linkwith;
+}
+
+sub read_inc_file {
+    my $file = shift;
+    my $fh = new FileHandle "<$file" or die "Unable to read $file: $!";
+    my @lines;
+    while(<$fh>) {
+	# soak up while looking for include directives
+	push(@lines, $_), next
+	    unless /^\s*include\s+(.*?)\s*$/m;
+	$file = $1;
+	# deal with "include $(ORACLE_HOME)/..."
+	$file =~ s/\$\((\w+)\)/$ENV{$1}/g;
+	push(@lines, read_inc_file($file));
+    }
+    return @lines;
 }
 
 
