@@ -21,12 +21,15 @@ $SIG{__WARN__} = sub {
 		? warn "\n*** Read the README file about Bad free() warnings!\n": warn @_;
 };
 
+use Config;
+my $os = $Config{osname};
 $opt_d = 0;		# debug
 $opt_l = 0;		# log
 $opt_n = 5;		# num of loops
 $opt_m = 0;		# count for mem leek test
 $opt_c = 1;		# do cache test
-&Getopts('m:d:n:cl ') || die "Invalid options\n";
+$opt_p = 1;		# do perf test
+&Getopts('m:d:n:clp ') || die "Invalid options\n";
 
 $ENV{PERL_DBI_DEBUG} = 2 if $opt_d;
 $ENV{ORACLE_HOME} = '/usr/oracle' unless $ENV{ORACLE_HOME};
@@ -39,10 +42,15 @@ eval 'use Oraperl; 1' || die $@ if $] >= 5;
 
 &ora_version;
 
+my @data_sources = DBI->data_sources('Oracle');
+print "Data sources: @data_sources\n\n";
+
 print "\nConnecting\n",
       " to '$dbname' (from command line, else uses ORACLE_SID or TWO_TASK - recommended)\n";
 print " as '$dbuser' (via ORACLE_USERID env var or default - recommend name/passwd\@dbname)\n";
 printf("(ORACLE_SID='%s', TWO_TASK='%s')\n", $ENV{ORACLE_SID}||'', $ENV{TWO_TASK}||'');
+printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os eq 'MSWin32';
+
 
 {	# test connect works first
 	local($l) = &ora_login($dbname, $dbuser, '');
@@ -60,6 +68,7 @@ printf("(ORACLE_SID='%s', TWO_TASK='%s')\n", $ENV{ORACLE_SID}||'', $ENV{TWO_TASK
 	    warn "\nTWO_TASK possibly not set correctly right.\n"
 			if ($ora_errno == 12545);
 		warn "\n";
+        warn "Generally set TWO_TASK or ORACLE_SID but not both at the same time.\n";
         warn "Try to connect to the database using an oracle tool like sqlplus\n";
         warn "only if that works should you suspect problems with DBD::Oracle.\n";
         warn "Try leaving dbname value empty and set dbuser to name/passwd\@dbname.\n";
@@ -72,6 +81,8 @@ $start = time;
 
 rename("test.log","test.olog") if $opt_l;
 eval 'DBI->_debug_dispatch(3,"test.log");' if $opt_l;
+
+&test_fetch_perf() if $opt_p;
 
 &test3($opt_m) if $opt_m;
 
@@ -90,8 +101,6 @@ $csr2 = &ora_open($lda2, "select 42 from dual") || die "ora_open: $ora_errno: $o
 &ora_close($csr2)  || warn "ora_close($csr2): $ora_errno: $ora_errstr\n";
 &ora_logoff($lda2) || warn "ora_logoff($lda2): $ora_errno: $ora_errstr\n";
 print "done.\n";
-
-&test3($opt_m) if $opt_m;
 
 &test_cache() if $opt_c;
 
@@ -168,7 +177,7 @@ sub test1 {
 
 	print "Test ora_do with harmless non-select statement ",
 			"(set transaction read only)\n";
-	print "Expect error message:\n";
+	print "Expect an 'ORA-01453' error message:\n";
 	&ora_do($lda, "set transaction read only ")
 		    || warn "ora_do: $ora_errno: $ora_errstr\n";
 
@@ -234,11 +243,37 @@ sub test_cache {
 sub count_fetch {
     local($csr) = @_;
     local($rows) = 0;
-    while((@row) = &ora_fetch($csr)) {
+   # while((@row) = &ora_fetch($csr)) {
+    while((@row) = $csr->fetchrow_array) {
        ++$rows;
     }
     die "count_fetch $ora_errstr" if $ora_errno;
     return $rows;
+}
+
+
+sub test_fetch_perf {
+	print "\nTesting internal row fetch overhead.\n";
+    local($lda) = &ora_login($dbname, $dbuser, '')
+			|| die "ora_login: $ora_errno: $ora_errstr\n";
+	#$lda->trace(2);
+	$lda->trace(0);
+	local($csr) = &ora_open($lda,"select 0,1,2,3,4,5,6,7,8,9 from dual");
+	#local($csr) = &ora_open($lda,"select 9 from dual");
+	local($max) = 50000;
+	$csr->{ora_fetchtest} = $max;
+	require Benchmark;
+	$t0 = new Benchmark;
+	#local($rows) = count_fetch($csr); die "count_fetch $rows != $max" if $rows-1 != $max;
+	my $code = $csr->can('fetch');
+	#1 while &$code($csr);
+	1 while $csr->fetchrow_arrayref;
+	#1 while @row = $csr->fetchrow_array;
+	#while(@row = $csr->fetchrow_array) { $hash{++$i} = [ @row ]; }
+	$td = Benchmark::timediff((new Benchmark), $t0);
+	$csr->{ora_fetchtest} = 0;
+	printf("$max fetches: ".Benchmark::timestr($td)."\n");
+	printf("%d per clock second, %d per cpu second\n\n", $max/$td->real, $max/$td->cpu_a);
 }
 
 

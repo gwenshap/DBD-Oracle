@@ -1,7 +1,7 @@
 
-DBD::Oracle  --  an Oracle 7 interface for Perl 5.
+DBD::Oracle  --  an Oracle 7 and Oracle 8 interface for Perl 5.
 
-   Copyright (c) 1994,1995,1996,1997  Tim Bunce
+   Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce, England.
 
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file,
@@ -23,7 +23,7 @@ WARNING:
 |  Execute "perldoc Oraperl" after installing for full information.     |
 
 
-QUICK START GUIDE:
+*** QUICK START GUIDE:
 
     The DBI requires one or more 'driver' modules to talk to databases.
     Fetch, build and install the DBI module as per it's README file.
@@ -33,21 +33,22 @@ QUICK START GUIDE:
     Follow the guidelines in this README file caefully.
 
 
-*BEFORE* BUILDING, TESTING AND INSTALLING this you will need to:
+*** *BEFORE* BUILDING, TESTING AND INSTALLING this you will need to:
 
-    Build, test and install Perl 5 (at least 5.003).
+    Build, test and install Perl 5 (at least 5.003, preferably
+    version 5.004_01 or later).
     It is very important to TEST it and INSTALL it!
 
-    Build, test and install the DBI module (at least DBI 0.71).
+    Build, test and install the DBI module (at least DBI 0.86).
     It is very important to TEST it and INSTALL it!
 
-    Remember to *read* the DBI README file and this one fully!
+    Remember to *read* the DBI README file and this one CAREFULLY!
 
     Install enough Oracle software to enable DBD::Oracle to build.
     That includes Pro*C.
 
 
-BUILDING:
+*** BUILDING:
 
     perl Makefile.PL            # use a perl that's in your PATH
     make
@@ -76,7 +77,7 @@ value before starting the test. Please read README.login.
     make install (if the tests look okay)
 
 
-IF YOU HAVE PROBLEMS:
+*** IF YOU HAVE PROBLEMS:
 
 Make sure you are using a recent perl 5.003 or preferably 5.004 and
 make sure it's on your path so you can say 'perl Makefile.PL' and
@@ -110,10 +111,14 @@ then you could try forcing a 'static' build using:
 	make -f Makefile.aperl inst_perl MAP_TARGET=perl
 	make install
 
-Also read the README.help file which is full of useful tips and
-workarounds for various problems of various systems.
 
-Please don't post problems to comp.lang.perl.misc or perl5-porters.
+>>> Also carefully read the README.help file which is full of useful
+>>> tips and workarounds for various problems of various systems.
+
+
+*** HOW TO REPORT PROBLEMS
+
+Please don't post problems to comp.lang.perl.* or perl5-porters.
 This software is supported via the dbi-users mailing list.  For more
 information and to keep informed about progress you can join the a
 mailing list via http://www.fugue.com/dbi (if you are unable to use the
@@ -125,22 +130,23 @@ dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk. But note...
 
 ** IT IS IMPORTANT TO INCLUDE *ALL* THE FOLLOWING INFORMATION:
 
-1. A complete log of a all steps of the build, e.g.:
+1. A complete log of all steps of the build, e.g.:
 
     (do a make realclean first)
-	perl Makefile.PL -v        (note the -v for verbose)
-	make
-	make test
-	make test TEST_VERBOSE=1   (only if any of the t/* tests fail)
+    perl Makefile.PL -v        (note the -v for verbose)
+    make
+    make test
+    make test TEST_VERBOSE=1   (only if any of the t/* tests fail)
 
 2. Full details of which version of Oracle you're using.
 
-3. The output of perl -V
+3. The output of perl -V       (that a capital V, not lowercase)
 
-4. If you get errors like "undefined symbol", "symbol not found"
-   or "Text relocation remains" then include the output of
-   "perl Makefile.PL -s XXX" where XXX is the name of one of the
-   symbols.  Please don't send the entire output of this command,
+4. If you get errors like "undefined symbol", "symbol not found",
+   "undefined reference", "Text relocation remains" or any similar
+   error then include the output of "perl Makefile.PL -s XXX"
+   where XXX is the name of one of the symbols.
+   Please don't send the entire output of this command,
    just any obviously 'interesting' parts (if there are any).
    See also the LINKTYPE=static notes above.
 
@@ -169,12 +175,12 @@ Tim.
 ===============================================================================
 Examples and other info:
 
-README.help     -- Read it first if you have any problems at all
+README.help     -- READ IT FIRST IF YOU HAVE ANY PROBLEMS AT ALL!
 README.clients  -- building/using DBD::Oracle on minimally configured systems
 README.login    -- help for login problems
 README.longs    -- examples dealing with LONG types (blobs)
 
-DBI 'home page': http://www.hermetica.com/technologia/DBI
+DBI 'home page': http://www.arcana.co.uk/technologia/DBI
 
 Master archive site for Perl DB information:
     ftp://ftp.demon.co.uk/pub/perl/db/
@@ -228,11 +234,15 @@ Some platforms on which the DBI and DBD::Oracle modules run:
 	Motorola M88100 (SVR3.2)
 	DEC UNIX 3.2
 	DEC Alpha
-	OSF/1 v2
+	DG/UX 5.4
+	OSF/1
 	SGI IRIX 5 & 6
-	AIX 3 & 4 and others
+	AIX 3 & 4
+	Pyramid SMP DC/OSx
+	VMS
+	and others
 
-(please let me know if you system is not listed).
+(please let me know if your system is not listed).
 
 ===============================================================================
 

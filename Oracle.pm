@@ -1,4 +1,5 @@
-#   $Id: Oracle.pm,v 1.47 1997/09/08 23:12:57 timbo Exp $
+
+#   $Id: Oracle.pm,v 1.49 1998/05/25 22:26:55 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997 Tim Bunce
 #
@@ -9,27 +10,29 @@
 
 require 5.002;
 
+$DBD::Oracle::VERSION = '0.48';
+
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
-my $oracle_home = $ENV{$ORACLE_ENV};
 
 {
     package DBD::Oracle;
 
     use DBI ();
     use DynaLoader ();
-    @ISA = qw(DynaLoader);
+    use Exporter ();
+    @ISA = qw(DynaLoader Exporter);
 
-    $VERSION = '0.47';
-    my $Revision = substr(q$Revision: 1.47 $, 10);
+    my $Revision = substr(q$Revision: 1.49 $, 10);
 
-    require_version DBI 0.85;
+    require_version DBI 0.92;
 
     bootstrap DBD::Oracle $VERSION;
 
-    $err = 0;		# holds error code   for DBI::err
-    $errstr = "";	# holds error string for DBI::errstr
+    $err = 0;		# holds error code   for DBI::err    (XXX SHARED!)
+    $errstr = "";	# holds error string for DBI::errstr (XXX SHARED!)
     $drh = undef;	# holds driver handle once initialised
     %oratab = ();	# holds list of oratab databases (e.g., local)
+    %tnstab = ();	# holds list of names in tnsnames.ora
 
     sub driver{
 	return $drh if $drh;
@@ -63,24 +66,54 @@ my $oracle_home = $ENV{$ORACLE_ENV};
 
 {   package DBD::Oracle::dr; # ====== DRIVER ======
     use strict;
+    my %oratab;
+    my %tnstab;
 
-    sub load_oratab {		# get list of 'local' databases
-	my($drh) = @_;
+    sub load_oratab {	# get list of 'local' database SIDs
+	my ($drh) = @_;
 	my $debug = $drh->debug;
-	foreach(qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
-		next unless defined $_;
-	    warn "Checking for $_/oratab\n" if $debug;
+	foreach (qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
+	    next unless defined $_;
 	    next unless open(ORATAB, "<$_/oratab");
-	    while(<ORATAB>) {
-		next unless m/^(\w+)\s*:\s*(.*?)\s*:/;
-		warn "Duplicate SID $1 in $_/oratab" if $DBD::Oracle::oratab{$1};
-		$DBD::Oracle::oratab{$1} = $2;	# store ORACLE_HOME value
-		warn "$DBD::Oracle::oratab{$1} = $_" if $debug;
+	    warn "Loading $_/oratab\n" if $debug;
+	    while (<ORATAB>) {
+		next unless m/^\s*(\w+)\s*:\s*(.*?)\s*:/;
+		$oratab{$1} = $2;	# store ORACLE_HOME value
+		warn "Found $oratab{$1} = $_" if $debug;
 	    }
 	    close(ORATAB);
 	    last;
-       }
+	}
+	$oratab{' dummy '} = 1;	# prevent reloads
     }
+
+    sub load_tnstab {	# get list of 'remote' database connection identifiers
+	my ($drh) = @_;
+	my $debug = $drh->debug;
+	my $oracle_home = $ENV{$ORACLE_ENV} || '';
+	my $d;
+	foreach $d ($ENV{TNS_ADMIN}, "$oracle_home/network/admin", '/var/opt/oracle') {
+	    next unless defined $d;
+	    next unless open(TNSTAB, "<$d/tnsnames.ora");
+	    warn "Loading $d/tnsnames.ora\n" if $debug;
+	    while (<TNSTAB>) {
+		next unless m/^\s*([\w\.]+)\s*=/;
+		$tnstab{$1} = 1;
+		warn "Found $1" if $debug;
+	    }
+	    close(TNSTAB);
+	    last;
+	}
+	$tnstab{' dummy '} = 1;	# prevent reloads
+    }
+
+    sub data_sources {
+	my $drh = shift;
+	load_oratab($drh) unless %oratab;
+	load_tnstab($drh) unless %tnstab;
+	return (keys %oratab, keys %tnstab);	# done't eliminate dups
+    }
+
 
     sub connect {
 	my($drh, $dbname, $user, $auth)= @_;
@@ -107,27 +140,26 @@ my $oracle_home = $ENV{$ORACLE_ENV};
 		# Sadly the 'user/passwd@machine' form only works
 		# for Sql*NET connections.
 
-		load_oratab($drh) unless %DBD::Oracle::oratab;
+		load_oratab($drh) unless %oratab;
+		load_tnstab($drh) unless %tnstab;
 
-		my $orahome = $DBD::Oracle::oratab{$dbname};
-		if ($orahome) { # is in oratab == is local
+		if ($tnstab{$dbname}) {
+		    $user .= '@'.$dbname;	# assume it's a TNS alias
+		}
+		elsif ($oratab{$dbname}) {	# is in oratab == is local
 		    warn "Changing $ORACLE_ENV for $dbname"
-			if ($ENV{$ORACLE_ENV} and $orahome ne $ENV{$ORACLE_ENV});
-		    $ENV{$ORACLE_ENV} = $orahome;
+			if ($ENV{$ORACLE_ENV} and $oratab{$dbname} ne $ENV{$ORACLE_ENV});
+		    $ENV{$ORACLE_ENV} = $oratab{$dbname};
 		    $ENV{ORACLE_SID}  = $dbname;
 		    delete $ENV{TWO_TASK};
 		}
 		else {
-		    $user .= '@'.$dbname;	# assume it's an alias
+		    $user .= '@'.$dbname;	# assume it's a TNS alias
 		}
 	    }
 	}
 
-	unless($ENV{$ORACLE_ENV}) {	# last chance...
-	    $ENV{$ORACLE_ENV} = $oracle_home if $oracle_home;
-	    my $msg = ($oracle_home) ? "set to $oracle_home" : "not set!";
-	    warn "$ORACLE_ENV $msg\n";
-	}
+	warn "$ORACLE_ENV not set!\n" unless $ENV{$ORACLE_ENV};
 
 	# create a 'blank' dbh
 
@@ -196,21 +228,58 @@ my $oracle_home = $ENV{$ORACLE_ENV};
     }
 
     sub plsql_errstr {
-	my ($dbh) = @_;
-	# with thanks to Bob Menteer
-	my (@msg, $line,$pos,$text);
-	my $sth = $dbh->prepare(q{
+	# original version thanks to Bob Menteer
+	my $sth = shift->prepare_cached(q{
 	    select line,position,text from user_errors order by sequence
 	});
 	return undef unless $sth;
 	$sth->execute or return undef;
+	my (@msg, $line,$pos,$text);
 	while(($line,$pos,$text) = $sth->fetchrow){
 	    push @msg, "Error in PL/SQL block" unless @msg;
 	    push @msg, "$line.$pos: $text";
 	}
 	join("\n", @msg);
     }
-}
+
+    #
+    # note, dbms_output must be enabled prior to usage
+    #
+    sub dbms_output_enable {
+	my ($dbh, $buffersize) = @_;
+	$buffersize ||= 20000;	# use oracle 7.x default
+	$dbh->do("begin dbms_output.enable(:1); end;", undef, $buffersize);
+    }
+
+    sub dbms_output_get {
+	my $dbh = shift;
+	my $sth = $dbh->prepare_cached("begin dbms_output.get_line(:1, :2); end;")
+		or return;
+	my ($line, $status, @lines);
+	# line can be greater that 255 (e.g. 7 byte date is expanded on output)
+	$sth->bind_param_inout(1, \$line,  400);
+	$sth->bind_param_inout(2, \$status, 20);
+	if (!wantarray) {
+	    $sth->execute or return undef;
+	    return $line if $status == 0;
+	    return undef;
+	}
+	push @lines, $line while($sth->execute && $status==0);
+	return @lines;
+    }
+
+    sub dbms_output_put {
+	my $dbh = shift;
+	my $sth = $dbh->prepare_cached("begin dbms_output.put_line(:1); end;")
+		or return;
+	my $line;
+	foreach $line (@_) {
+	    $sth->execute($line) or return;
+	}
+	return 1;
+    }
+
+}   # end of package DBD::Oracle::db
 
 
 {   package DBD::Oracle::st; # ====== STATEMENT ======
@@ -632,7 +701,7 @@ DBD::Oracle by Tim Bunce.
 
 =head1 COPYRIGHT
 
-The DBD::Oracle module is Copyright (c) 1995,1996,1997 Tim Bunce. England.
+The DBD::Oracle module is Copyright (c) 1995,1996,1997,1998 Tim Bunce. England.
 The DBD::Oracle module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself with the exception that it
 cannot be placed on a CD-ROM or similar media for commercial distribution

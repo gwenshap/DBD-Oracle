@@ -1,3 +1,14 @@
+Update 10/24/97 -- Jeff Urlwin
+
+Tested with Oracle 8 and OCI 8.  Well, not the *new* OCI api, but
+using the same api as always.  This version now searches for OCI
+include and library files in $ORACLE_HOME\OCI80, then 
+$ORACLE_HOME\OCI73.  It will use the first of these found.
+
+In order for the tests to connect successfully, I had to
+set the environment variable ORACLE_USERID to
+scott/tiger@mydb (where mydb is the tns name of your server)
+
 4/8/97 -- Jeff Urlwin
 
 This version requires Perl 5.003_94 or later.  (It was tested with
@@ -8,6 +19,11 @@ Even though the Oracle libraries under Win32 (NT) do not require the
 environment variable ORACLE_HOME be set for proper operation, the
 Makefile.PL does.  Please set the ORACLE_HOME variable to your oracle
 home directory.  Mine, for example, is H:\ORANT.
+
+The environment variable TWO_TASK is not supported under Windows.
+Instead Oracle uses the settings LOCAL and REMOTE as described in
+the Oracle Networking Documentation, "Oracle Network Products Getting
+Started for Windows Platforms."
 
 This version was created and tested with the 7.3 client libraries (see
 if you have an OCI73 directory).  This version of the Oracle clients

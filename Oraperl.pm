@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.35 1997/09/08 22:43:59 timbo Exp $
+# $Id: Oraperl.pm,v 1.36 1998/05/25 22:11:34 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -25,7 +25,7 @@ require 5.002;
 use DBI 0.84;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.35 $, 10);
+$VERSION = substr(q$Revision: 1.36 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -279,6 +279,7 @@ those who wish to extend the routines or to port them to new machines.
 The text in this document is largely unchanged from the original Perl4
 oraperl manual written by Kevin Stock <kstock@auspex.fr>. Any comments
 specific to the DBD::Oracle Oraperl emulation are prefixed by B<DBD:>.
+See the DBD::Oracle and DBI manuals for more information.
 
 B<DBD:> In order to make the oraperl function definitions available in
 perl5 you need to arrange to 'use' the Oraperl.pm module in each file

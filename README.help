@@ -11,6 +11,21 @@ If you have problems then ensure that the version of Oracle you are
 talking to is the same one you used to build your DBD::Oracle module.
 
 -------------------------------------------------------------------------------
+Bad free() warnings:
+
+These are generally caused by problems in Oracle's own library code.
+You can use this code to hide them:
+
+    $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /^Bad free/ }
+ 
+If you're using an old perl version (below 5.004) then upgrading will 
+probably fix the warnings (since later versions can disable that warning)
+and is highly recommended anyway. 
+ 
+Alternatively you can rebuild Perl without perl's own malloc and/or 
+upgrade Oracle to a more recent version that doesn't have the problem. 
+
+-------------------------------------------------------------------------------
 Can't find libclntsh.so at run time:
 
 Dave Moellenhoff <dmoellen@clarify.com>:  libclntsh.so is the shared
@@ -63,11 +78,6 @@ ORA-01019 can also be caused by corrupt Oracle config files such as
 /etc/oratab.
 
 Also try building with oracle.mk if your DBD::Oracle defaulted to proc.mk.
-
--------------------------------------------------------------------------------
-Login takes a long time
-
-Try connect('', 'user/passwd@tnsname', '').  See README.login.
 
 -------------------------------------------------------------------------------
 AIX - warnings like these when building perl are not usually a problem:
@@ -131,7 +141,7 @@ to build DBD::Oracle statically linked (see below).  The problem seems
 to be related to Oracle's own shared library code trying to do a
 dynamic load (from lxfgno() in libnlsrtl3.a or libclntsh.sl).  If you
 get core dumps on login try uncommenting the /* #define signed */ line
-in Oracle.h as a long-shot. Please let me know if this fixes it for you
+in dbdimp.h as a long-shot. Please let me know if this fixes it for you
 (but I doubt it will).
 
 -------------------------------------------------------------------------------
@@ -161,9 +171,9 @@ more info.  If your platform supports dynamic linking then try to work
 out why DBD::Oracle got built for static linking.
 
 -------------------------------------------------------------------------------
-Error: Syntax error in oratypes.h
+Error: Syntax warnings/errors relating to 'signed'
 
-Try uncommenting the '#define signed' line in Oracle.h
+Remove the /* and */ surrounding the '/* #define signed */' line in dbdimp.h
 
 -------------------------------------------------------------------------------
 ORA-00900: invalid SQL statement "begin ... end"
@@ -171,10 +181,10 @@ ORA-00900: invalid SQL statement "begin ... end"
 You probably don't have PL/SQL Oracle properly/fully installed.
 
 -------------------------------------------------------------------------------
-Oracle 7.1 and 7.2: Connection takes a long time and may coredump
+Connection/Login slow. Takes a long time and may coredump
 
 Oracle bug number: 227321 related to changing the environment before
-connecting to oracle.
+connecting to oracle. Reported to be fixed in 7.1.6 (or by patch 353611).
 
 To work around this bug, do not set any environment variables in your
 oraperl script before you call ora_login, and when you do call
@@ -185,6 +195,20 @@ script.  It is probably also possible to pass the SID to ora_login as
 part of the username (for example, ora_login("", "SCOTT/TIGER@PROD",
 "")), although I have not tested this.
 This workaround is based on information from Kevin Stock.
+
+Also check $ORACLE_HOME/otrace/admin. If it contains big *.dat files
+then you may have otrace enabled.  Try setting EPC_DISABLED=TRUE
+in the environment of the database and listener before they're started.
+Oracle 7.3.2.2.0 sets this to FALSE by default, which turns on tracing
+of all SQL statements, and will cause very slow connects once that
+trace file gets big. You can also add (ENVS='EPC_DISABLED=TRUE') to
+the SID_DESC part of listener.ora entries. (With thanks to Johan
+Verbrugghen jverbrug@be.oracle.com)
+
+-------------------------------------------------------------------------------
+Connection/Login takes a long time
+
+Try connect('', 'user/passwd@tnsname', '').  See README.login and item above.
 
 -------------------------------------------------------------------------------
 Oracle 7.1.4/5: ORA-01002: fetch out of sequence
@@ -270,7 +294,7 @@ $ORACLE_HOME/bin.  Try a more limited path and reinstall Oracle again.
 Environment: SGI IRIX 6  - Mark Duffield <duffield@ariad.com>
 
 Oracle only supports "-32" and "-mips2" compilation flags, not "-n32".
-Configure and build perl with -32 flag (see hints/irix_6.sh file).
+Configure and build perl with -32 flag (see perl hints/irix_6.sh file).
 Rebuild DBI (which will now use the -32 flag).
 Rebuild DBD::Oracle (which will now use the -32 flag).
 
@@ -287,10 +311,9 @@ versions of V7.3.3 for SGI (or MIPS ABI as they call it), but I don't have
 any firm dates.
 
 -------------------------------------------------------------------------------
-Environment:  DEC Alpha, OSF, Jonathan Olson <jbolson@peruvian.cs.utah.edu>
+Environment:  64-bit platforms (DEC Alpha, OSF, SGI/IRIX64 v6.4)
 
-Problem: ERROR EVENT: DBI::dr=HASH(0x14011fee8)->DBI::default_handler:
-        0 ORA-00000: normal, successful completion (DBD: login failed)
+Problem: 0 ORA-00000: normal, successful completion
 
 Solution: Add '#define A_OSF' to Oracle.h above '#include <oratypes.h>' and
 complain to Oracle about bugs in their header files on 64 bit systems.

@@ -7,18 +7,26 @@ sub ok ($$;$) {
     if $n and $n != $t;
     ($ok) ? print "ok $t\n" : print "not ok $t\n";
 	if (!$ok && $warn) {
-		$warn = $DBI::errstr if $warn eq '1';
+		$warn = $DBI::errstr || "(DBI::errstr undefined)" if $warn eq '1';
 		warn "$warn\n";
 	}
 }
 
 use DBI;
+$| = 1;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect('', $dbuser, '', 'Oracle');
 
 unless($dbh) {
-	warn "Unable to connect to Oracle ($DBI::errstr)\n";
+	warn "Unable to connect to Oracle ($DBI::errstr)\nTests skiped.\n";
+	print "1..0\n";
+	exit 0;
+}
+
+# ORA-00900: invalid SQL statement
+if (!$dbh->prepare(q{begin RAISE INVALID_NUMBER; end;}) && $dbh->err==900) {
+	warn "Your Oracle server doesn't support PL/SQL - Tests skipped.\n";
 	print "1..0\n";
 	exit 0;
 }
@@ -26,6 +34,7 @@ unless($dbh) {
 print "1..$tests\n";
 
 my($csr, $p1, $p2);
+#DBI->trace(4,"trace.log");
 
 
 # --- test raising predefined exception
@@ -36,6 +45,7 @@ ok(0, $csr = $dbh->prepare(q{
 # ORA-01722: invalid number
 ok(0, ! $csr->execute, 1);
 ok(0, $DBI::err == 1722);
+ok(0, $DBI::err == 1722);	# make sure error doesn't get cleared
 
 
 # --- test raising user defined exception
@@ -90,6 +100,7 @@ ok(0, $p1 == 6);
 $p1 = 1; foreach (1..10) { $csr->execute || die $DBI::errstr; }
 ok(0, $p1 == 1024);
 
+
 # --- test undef parameters
 ok(0, $csr = $dbh->prepare(q{
 	declare foo char(500);
@@ -98,6 +109,7 @@ ok(0, $csr = $dbh->prepare(q{
 my $undef;
 ok(0, $csr->bind_param_inout(':arg', \$undef,10), 1);
 ok(0, $csr->execute, 1);
+
 
 # --- test named string in/out parameters
 ok(0, $csr = $dbh->prepare(q{
@@ -130,16 +142,55 @@ ok(0, $p1 eq 'null!');
 $csr->finish;
 
 
+# --- test plsql_errstr function
+#$csr = $dbh->prepare(q{
+#    create or replace procedure perl_dbd_oracle_test as
+#    begin
+#	  procedure filltab( stuff out tab ); asdf
+#    end;
+#});
+#ok(0, ! $csr);
+#if ($dbh->err && $dbh->err == 6550) {	# PL/SQL error
+#	warn "errstr: ".$dbh->errstr;
+#	my $msg = $dbh->func('plsql_errstr');
+#	warn "plsql_errstr: $msg";
+#	ok(0, $msg =~ /Encountered the symbol/, "plsql_errstr: $msg");
+#}
+#else {
+#	warn "plsql_errstr test skipped ($DBI::err)\n";
+#	ok(0, 1);
+#}
+#die;
+
+# --- test dbms_output_* functions
+$dbh->{PrintError} = 1;
+ok(0, $dbh->func(30000, 'dbms_output_enable'), 1);
+
+my @ary = qw(foo bar baz boo);
+ok(0, $dbh->func(@ary, 'dbms_output_put'), 1);
+
+@ary = scalar $dbh->func('dbms_output_get');	# scalar context
+ok(0, @ary==1 && $ary[0] eq 'foo', 0);
+
+@ary = scalar $dbh->func('dbms_output_get');	# scalar context
+ok(0, @ary==1 && $ary[0] eq 'bar', 0);
+
+@ary = $dbh->func('dbms_output_get');			# list context
+ok(0, join(':',@ary) eq 'baz:boo', 0);
+$dbh->{PrintError} = 0;
+
     # To do
     #   test NULLs at first bind
-    #   NULLS later binds.
-    #   returning NULLS
+    #   NULLs later binds.
+    #   returning NULLs
     #   multiple params, mixed types and in only vs inout
 
-
+ok(0,  $dbh->ping);
 $dbh->disconnect;
+ok(0, !$dbh->ping);
+
 exit 0;
-BEGIN { $tests = 29 }
+BEGIN { $tests = 37 }
 # end.
 
 __END__

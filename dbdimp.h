@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.19 1997/09/08 22:43:59 timbo Exp $
+   $Id: dbdimp.h,v 1.20 1998/05/25 22:11:34 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -10,13 +10,25 @@
 
 */
 
-/* #define MAX_COLS 1025 */
 
 /* try uncommenting this line if you get a syntax error on
- *	typedef signed long  sbig_ora;
+ *	 typedef signed long  sbig_ora;
  * in oratypes.h for Oracle 7.1.3. Don't you just love Oracle!
  */
-/* #define signed */
+/* now changed to only define it for non ansi-ish compilers	*/
+#ifndef CAN_PROTOTYPE
+#define signed
+#endif
+
+
+/* The following define avoids a problem with Oracle >=7.3 where
+ * ociapr.h has the line:
+ *	sword  obindps(struct cda_def *cursor, ub1 opcode, text *sqlvar, ...
+ * In some compilers that clashes with perls 'opcode' enum definition.
+ */
+#define opcode opcode_redefined
+
+
 
 /* Hack to fix broken Oracle oratypes.h on OSF Alpha. Sigh.	*/
 #if defined(__osf__) && defined(__alpha)
@@ -36,7 +48,7 @@
 #define HDA_SIZE 512
 #endif
 
-#ifndef FT_SELECT
+#ifndef FT_SELECT	/* old Oracle version		*/
 #define FT_SELECT 4	/* from rdbms/demo/ocidem.h */
 #endif
 
@@ -51,10 +63,12 @@ struct imp_drh_st {
 struct imp_dbh_st {
     dbih_dbc_t com;		/* MUST be first element in structure	*/
 
-    Lda_Def lda;
-    ub1     hda[HDA_SIZE];
+    Lda_Def ldabuf;
+    Lda_Def *lda;		/* points to ldabuf	*/
+    ub1     hdabuf[HDA_SIZE];
+    ub1     *hda;		/* points to hdabuf	*/
 
-	int autocommit;		/* we assume autocommit is off initially   */
+    int autocommit;		/* we assume autocommit is off initially   */
 };
 
 
@@ -78,7 +92,7 @@ struct imp_sth_st {
     int       t_dbsize;     /* raw data width of a row		*/
 
     /* Select Row Cache Details */
-    int       cache_size;
+    int       cache_rows;
     int       in_cache;
     int       next_entry;
     int       eod_errno;

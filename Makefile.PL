@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.57 1997/09/08 23:12:57 timbo Exp $
+# $Id: Makefile.PL,v 1.59 1998/05/25 22:11:34 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -6,6 +6,8 @@ BEGIN { require 5.003 }	# 5.003 fixes very important bugs
 use ExtUtils::MakeMaker 5.16, qw(&WriteMakefile $Verbose);
 use Getopt::Long;
 use Config;
+use Cwd;
+use File::Find;
 use strict;
 
 # Some MakeMaker's forged some FileHandle methods
@@ -22,9 +24,11 @@ BEGIN { if ($^O eq 'VMS') {
 # For those not using Dynamic loading this means building a
 # new static perl in the DBI directory by saying 'make perl'
 # and then using _that_ perl to make this one.
-use DBI 0.86;
+use DBI 0.92;
 use DBI::DBD;	# DBD creation tools
 
+my $dbi_dir      = dbd_dbi_dir();
+my $dbi_arch_dir = dbd_dbi_arch_dir();
 my $os = $^O;
 my $osvers = $Config{osvers};
 $osvers =~ s/^\s*(\d+\.\d+).*/$1/;	# drop sub-sub-version: 2.5.1 -> 2.5
@@ -32,13 +36,15 @@ $osvers =~ s/^\s*(\d+\.\d+).*/$1/;	# drop sub-sub-version: 2.5.1 -> 2.5
 my %opts = (
     NAME => 'DBD::Oracle',
     VERSION_FROM => 'Oracle.pm',
-	DIR => [],
-	clean => { FILES=> 'Oracle.xsi' },
-    dist  => { DIST_DEFAULT=> 'clean distcheck disttest ci tardist',
-                PREOP => '$(MAKE) -f Makefile.old distdir' },
-	COMPRESS => 'gzip -v9', SUFFIX => 'gz',
+    OBJECT => '$(O_FILES)',
+    DIR  => [],
+    clean => {	FILES=> 'Oracle.xsi' },
+    dist  => {	DIST_DEFAULT	=> 'clean distcheck disttest ci tardist',
+		PREOP		=> '$(MAKE) -f Makefile.old distdir',
+		COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
+    },
 );
-my(@MK, %MK, $MK);	# parsed macros from Oracle's makefiles
+my(@MK, %MK, $MK, %MK_expanding);	# parsed macros from Oracle's makefiles
 
 # Options (rarely needed)
 $::opt_m = '';		# path to proc.mk or oracle.mk file to read
@@ -54,140 +60,133 @@ GetOptions(qw(v! d! g! old! p! m=s s=s)) or die "Invalid arguments";
 $::opt_g &&= '-g';	# convert to actual string
 $::opt_v = 1 if $::opt_d;
 $Verbose = 1 if $::opt_v;
+my $use_clntsh = 1;
+
 
 # --- Introduction
-
-my $ORACLE_ENV  = ($os eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 print "\n Configuring DBD::Oracle ...\n
 >>>\tRemember to actually *READ* the README file!
    \tEspecially if you have any problems.\n
 " unless $::opt_s;
 
+
 # --- Where is Oracle installed...
 
+my $ORACLE_ENV  = ($os eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
+
 my $OH = $ENV{$ORACLE_ENV};
+$OH =~ s:\\:/:g; 	# for Win32
 ($OH = unixify $OH) =~ s:/$:: if $os eq 'VMS';
 die "$ORACLE_ENV environment variable must be set.\n" unless $OH;
 die "$ORACLE_ENV environment variable ($OH) not valid.\n" unless -d $OH;
 
-my $OCIDIR = "OCI73";	# For MSWin32. XXX what about 7.4 etc?
-						# need to start "looking" for this...
-
 print "Using Oracle in $OH\n";
 
-
-my @mkplaces = qw(
-    rdbms/lib/oracle.mk rdbms/demo/oracle.mk		rdbms/demo/demo_rdbms.mk
-    proc/lib/proc.mk    precomp/demo/proc/proc.mk	precomp/demo/proc/demo_proc.mk
-    proc16/lib/proc16.mk
-);
-# if -p then remove oracle.mk from search list and thus prefer Pro*C
-@mkplaces = grep { !m/(oracle|rdbms)\.mk\b/ } @mkplaces if $::opt_p;
-unshift @mkplaces, $::opt_m  if $::opt_m;
-my($mkfile, $place);
-foreach $place (@mkplaces) {
-    $place = "$OH/$place" unless $place =~ m:^[./]:;
-    $mkfile = $place if -f $place;
-    last if $mkfile;
+if ($::opt_s) {
+    print "Searching for symbol '$::opt_s' in $OH ...\n";
+    my $dlext = $Config{dlext};
+    system(qq{	cd $OH; for i in lib/*.[ao] lib/*.$dlext */lib/*.[ao];
+	do echo "  searching \$i ..."; nm \$i | grep $::opt_s;
+	done
+    });
+    print "Search done.\n";
+    exit;
 }
-if (!$mkfile and "@mkplaces" !~ m/oracle\.mk/) {
-    print "Unable to locate a Pro*C *.mk. Falling back to oracle.mk.\n";
-    $mkfile = "$OH/oracle.mk";
-    push @mkplaces, $mkfile; # just for error message below
+
+
+# --- How shall we link with Oracle? Let me count the ways...
+
+my @mkfiles;
+my $linkwith;
+my $linkwith_msg;
+
+if ($os eq 'VMS') {
+    my $OCIINCLUDE = vmsify("$OH/rdbms/") ." ". vmsify("$OH/rdbms/demo/oci_demo/");
+    $opts{INC}  = "$OCIINCLUDE $dbi_arch_dir";
+    $opts{OBJECT} = 'oracle.obj dbdimp.obj';
 }
-die qq{
-    Unable to locate an oracle.mk or proc.mk file in your Oracle installation.
-    (Looked in @mkplaces)
 
-    The oracle.mk file is part of the Oracle RDBMS product. The
-    proc.mk file is part of the Oracle Pro*C product.  You need to
-    build DBD::Oracle on a system which has one of these installed.
-
-    If your oracle.mk or proc.mk file is installed somewhere
-    non-standard you can specify where it is using the -m option:
-	    perl Makefile.PL -m /path/to/your.mk
-
-    See README.clients for more information and some alternatives.
-
-} unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile);
-
-my(@mkfiles, $linkvia, $libhome, $linkwith, $linkwith_s, @linkwith_o, $OCIINCLUDE);
-
-if ($os ne 'MSWin32' and $os ne 'VMS') {
-    $linkvia  = fetch_oci_macros($mkfile);
-    $libhome  = expand_mkvars($MK{LIBHOME}, 0, 1, 0) || "$OH/lib";
-    $linkwith = expand_mkvars($linkvia,     0, 1, 0);
-    $linkwith =~ s/-Y P,/-YP,/g if $Config{'cc'} =~ /gcc/;
-    $linkwith =~ s:-R /:-R/:g if $os eq 'solaris';
-
-    # get a cut down $linkwith to pass to MakeMaker liblist
-    $linkwith_s = expand_mkvars($linkwith, 1, 1, 0);
-
-    # delete problematic crt?.o on solaris
-    $linkwith_s = del_crtobj($linkwith_s) if $os eq 'solaris';
-
-    # convert "/full/path/libFOO.a" into "-L/full/path -lFOO"
-    $linkwith_s =~ s!([/\w.]+)/lib(\w+).a!-L$1 -l$2!g;
-
-    # extract object files, keep for use later
-    push @linkwith_o, $1 while $linkwith_s =~ s/(\S+\.[oa])\b//;
-    # also extract AIX .exp files since they confuse MakeMaker
-    push @linkwith_o, $1 while $linkwith_s =~ s/(-bI:\S+\.exp)\b//;
-
-    if ($::opt_s) {
-	print "Searching for symbol '$::opt_s' in $OH ...\n";
-	my $dlext = $Config{dlext};
-	system(qq{	cd $OH; for i in lib/*.[ao] lib/*.$dlext */lib/*.[ao];
-	    do echo "  searching \$i ..."; nm \$i | grep $::opt_s;
-	    done
-	});
-	print "Search done.\n";
-	exit;
-    }
-
-    if ($os eq 'solaris' and $osvers >= 2.3
-				     and $linkwith_s =~ /-lthread/) {
-	print "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
-	print "Deleting -lthread from link list as a possible workround.\n";
-	$linkwith_s =~ s/\s*-lthread\b/ /g;
-    }
-
-    $OCIINCLUDE = $MK{INCLUDE} || '';
-    $OCIINCLUDE .= " -I$OH/rdbms/demo";
-    $opts{LIBS} = [ "-L$libhome $linkwith_s" ];
-    $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g @linkwith_o \$(COMPOBJS)" };
-    $opts{OBJECT} = '$(O_FILES)';
-    $opts{INC}  = "$OCIINCLUDE -I\$(INSTALLSITEARCH)/auto/DBI";
-}
 elsif ($os eq 'MSWin32') {
-    # this assumes MSVC...
-    # find OCI dir here...
+    my $OCIDIR = "";
+    find( sub {
+	print "Found $_\n" if /^OCI\d+/i;
+	$OCIDIR = $_ if /^OCI\d\d$/i && $OCIDIR lt $_;
+	$File::Find::prune = 1 if -d $_ && $_ ne "." && $_ ne "..";
+    }, $OH );
+    print "Using OCI directory: $OCIDIR\n";
+
+    my $oci_compiler_dir = ($Config{cc} eq 'bcc32' ? "BORLAND" : "MSVC");
     die qq{
     Unable to find required Oracle OCI files for the build.  Please check
     that you have your OCI installed in your oracle home ($OH) 
     directory and that it has the following files (and probably more):
 
-	    $OH\\$OCIDIR\\include\\oratypes.h
-	    $OH\\$OCIDIR\\lib\\msvc\\ociw32.lib
+	$OH\\$OCIDIR\\include\\oratypes.h
+	$OH\\$OCIDIR\\lib\\$oci_compiler_dir\\ociw32.lib
 
     Please install OCI or send comments back to dbi-users\@fugue.com you 
     have an OCI directory other than $OCIDIR.  
 
-    } unless (-e "$OH/$OCIDIR/include/oratypes.h"
-	   && -e "$OH/$OCIDIR/lib/msvc/ociw32.lib");
+    } unless  (-e "$OH/$OCIDIR/include/oratypes.h" 
+	    && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/ociw32.lib");
 
-    $OCIINCLUDE = "-I$OH/$OCIDIR/include -I$OH/rdbms/demo";
-    $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/MSVC/OCIW32.LIB"];
-    $opts{dynamic_lib} = { OTHERLDFLAGS => " $OH/$OCIDIR/LIB/MSVC/OCIW32.LIB" };
+    my $OCIINCLUDE = "-I$OH/$OCIDIR/include -I$OH/rdbms/demo";
+    $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir -lOCIW32" ];
     $opts{SKIP} = ['processPL'];    # XXX caused problems with Nmake...
-    $opts{OBJECT} = '$(O_FILES)';
-    $opts{INC}  = "$OCIINCLUDE -I\$(INSTALLSITEARCH)/auto/DBI";
+    $opts{INC}  = "$OCIINCLUDE -I$dbi_arch_dir";
 }
-elsif ($os eq 'VMS') {
-    $OCIINCLUDE = vmsify("$OH/rdbms/") ." ". vmsify("$OH/rdbms/demo/oci_demo/");
-    $opts{OBJECT} = 'oracle.obj dbdimp.obj';
-    $opts{INC}  = "$OCIINCLUDE \$(INSTALLSITEARCH)/auto/DBI";
+
+# --- UNIX Variants ---
+
+elsif (@_=grep { m:/lib(clntsh|oracle).$Config{so}$:o } <$OH/lib/lib*>) {
+    # --- the simple modern way ---
+    my $lib = ("@_" =~ m:/libclntsh\.:) ? "clntsh" : "oracle";
+    $linkwith_msg = "$lib";
+    $opts{LIBS} = [ "-L$OH/lib -l$lib" ];
+    $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
+    $opts{INC}  = "-I$OH/rdbms/demo -I$dbi_arch_dir";
+}
+else {	# --- trawl the guts of Oracle's make files looking the how it wants to link
+
+    my @ora_libs = <$OH/lib/lib*>;
+    warn "\nYou don't seem to have many Oracle libraries installed. If the"
+	."\nbuild fails you probably need to install more Oracle software.\n\n"
+	if @ora_libs < 6; # just a helpful hint
+
+    my $mkfile = find_mkfile();
+    my $linkvia  = fetch_oci_macros($mkfile);
+    my $libhome  = expand_mkvars($MK{LIBHOME}, 0, 1, 0) || "$OH/lib";
+    $linkwith = expand_mkvars($linkvia,     0, 1, 0);
+    $linkwith =~ s/-Y P,/-YP,/g if $Config{'cc'} =~ /gcc/;
+    $linkwith =~ s:-R /:-R/:g if $os eq 'solaris';
+
+    # get a cut down $linkwith to pass to MakeMaker liblist
+    my $linkwith_s = expand_mkvars($linkwith, 1, 1, 0);
+    # delete problematic crt?.o on solaris
+    $linkwith_s = del_crtobj($linkwith_s) if $os eq 'solaris';
+    # convert "/full/path/libFOO.a" into "-L/full/path -lFOO"
+    $linkwith_s =~ s!(\S+)/lib(\w+).a!-L$1 -l$2!g;
+
+    # extract object files, keep for use later
+    my @linkwith_o;
+    push @linkwith_o, $1 while $linkwith_s =~ s/(\S+\.[oa])\b//;
+    # also extract AIX .exp files since they confuse MakeMaker
+    push @linkwith_o, $1 while $linkwith_s =~ s/(-bI:\S+\.exp)\b//;
+
+    if ($os eq 'solaris' and $osvers >= 2.3 and $linkwith_s =~ /-lthread/) {
+	print "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
+	print "Deleting -lthread from link list as a possible workround.\n";
+	$linkwith_s =~ s/\s*-lthread\b/ /g;
+    }
+
+    $linkwith_msg = "@linkwith_o $linkwith_s [from $linkvia]";
+    my $OCIINCLUDE = $MK{INCLUDE} || '';
+    $OCIINCLUDE .= " -I$OH/rdbms/demo";
+    $opts{LIBS} = [ "-L$libhome $linkwith_s" ];
+    my $compobj = '$(COMPOBJS)';
+    $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g @linkwith_o $compobj" };
+    $opts{INC}  = "$OCIINCLUDE -I$dbi_arch_dir";
 }
 
 
@@ -199,20 +198,17 @@ elsif ($os eq 'VMS') {
 if ($os eq 'hpux' and $osvers < 10) {
     $opts{LINKTYPE} = 'static';
     print "Warning: Forced to build static not dynamic on $os $osvers.\a\n";
-    print "** Note: DBD::Oracle will be built *into* a NEW perl binary. You MUST use that new perl.\n";
-    print "         See README and Makefile.PL for more information.\a\n";
 }
 if ($os eq 'hpux' and $osvers >= 10) {
-	print "Warning: You may need to build using static linking. See the README file.\n\a";
+    print "Warning: You may need to build using static linking. See the README file.\n\a";
 }
 
 if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
-	print "Warning: You may need to rebuild perl using the xlc_r compiler.\a\n";
-	print "         You may also need do: ORACCENV='cc=xlc_r'; export ORACCENV\n";
+    print "Warning: You may need to rebuild perl using the xlc_r compiler.\a\n";
+    print "         You may also need do: ORACCENV='cc=xlc_r'; export ORACCENV\n";
 }
 
-$opts{DEFINE} = '-Wall -pedantic -Wno-comment -Wtraditional'
-	if $Config{cc} eq 'gcc';
+$opts{DEFINE} = '-Wall -Wno-comment' if $Config{cc} eq 'gcc';
 
 $opts{DEFINE} .= '-Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
 
@@ -222,15 +218,25 @@ print "WARNING: Your GNU C compiler is very old. Please upgrade.\n"
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($ENV{LOGNAME} eq 'timbo' and $ENV{S_ARCH_SW}){  # a reasonable guess
     $Verbose = 1;
-    $opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith'
+    $opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith -pedantic -Wtraditional'
 	. ' -Wbad-function-cast -Wcast-qual' if $Config{cc} eq 'gcc';
 }
 
-# log key platform information to help me help you quickly
+if ($opts{LINKTYPE} && $opts{LINKTYPE} eq 'static') {
+    print "** Note: DBD::Oracle will be built *into* a NEW perl binary. You MUST use that new perl.\n";
+    print "         See README and Makefile.PL for more information.\a\n";
+}
+
+
+# --- final information dumps and generation of the Makefile
+
+# log key platform information to help others help you quickly if needed
+print "\n";
 print "System: perl$] @Config{qw(myuname)}\n";
 print "Compiler: @Config{qw(cc optimize ccflags)}\n";
 print "Linker:   ". (find_bin('ld')||"not found") ."\n" unless $os eq 'VMS';
-print "Oracle proc.mk would have used these values but we override them:\n";
+print "Oracle makefiles would have used these values but we override them:\n"
+	if $MK{CFLAGS} || $MK{LDFLAGS} || $MK{LDSTRING};
 print "  CC:       $MK{CC}\n"	if $MK{CC};
 print "  CFLAGS:   $MK{CFLAGS}\n"                  if $MK{CFLAGS};
 print "           [".mkvar('CFLAGS',1,0,0).  "]\n" if $MK{CFLAGS};
@@ -238,12 +244,15 @@ print "  LDFLAGS:  $MK{LDFLAGS}\n"                 if $MK{LDFLAGS};
 print "           [".mkvar('LDFLAGS',1,0,0). "]\n" if $MK{LDFLAGS};
 print "  LDSTRING: $MK{LDSTRING}\n"                if $MK{LDSTRING};
 print "           [".mkvar('LDSTRING',1,0,0)."]\n" if $MK{LDSTRING};
-print "\nLinking with @linkwith_o $linkwith_s [from $linkvia]\n";
+print "\nLinking with $linkwith_msg\n" if $linkwith_msg;
 print "\n";
 
 WriteMakefile(%opts);
 
 exit 0;
+
+
+# =====================================================================
 
 
 sub MY::post_initialize {
@@ -264,21 +273,23 @@ directories. Since site_lib directories come after the normal library
 directories you must delete any old DBD::Oracle files and directories from
 your 'privlib' and 'archlib' directories and their auto subdirectories.
 ";
-        my $find = "find $Config{privlibexp} $Config{archlibexp} ";
-        $find .= "-name 'Oracle*' -print | sort | uniq";
-        if ($os ne 'VMS' and open(FIND, "$find |")) {
-            my @old;
-            while(<FIND>) {
-                next if m:^$Config{sitelibexp}/:;
-                next if m:^$Config{sitearchexp}/:;
-                chop;
-                push @old, $_;
-            }
-            close(FIND);
-            print "Here's a list of probable old files and directories:\n ",
-                    join("\n ",@old),"\n" if @old;
-            print "\n";
-        }
+	if ( $os ne 'VMS' ) {
+	    my ( $sl_exp, $sa_exp, $pl_exp, $al_exp, %old );
+	    ( $sl_exp = $Config{sitelibexp} )  =~ s:\\:/:g; 
+	    ( $sa_exp = $Config{sitearchexp} ) =~ s:\\:/:g; 
+	    ( $pl_exp = $Config{privlibexp} )  =~ s:\\:/:g; 
+	    ( $al_exp = $Config{archlibexp} )  =~ s:\\:/:g; 
+	    my $wanted = sub {
+		$File::Find::prune = ($File::Find::name eq $sl_exp ||
+				      $File::Find::name eq $sa_exp ) && -d $_;
+		$old{$File::Find::name} = 1
+		    if ! $File::Find::prune && /^Oracle/;
+	    };
+	    find( $wanted, $pl_exp, $al_exp );
+	    print "Here's a list of probable old files and directories:\n ",
+		join( "\n ", sort keys %old ), "\n" if keys %old;
+	    print "\n";
+	}
     }
 
     # Ensure Oraperl.pm and oraperl.ph are installed into top lib dir
@@ -291,8 +302,9 @@ your 'privlib' and 'archlib' directories and their auto subdirectories.
     '';
 }
 
+
 sub MY::postamble {
-	return dbd_postamble();
+	return dbd_postamble(@_);
 }
 
 
@@ -306,7 +318,7 @@ sub MY::post_constants {
 #
 ORACLE_HOME = '.$OH.'
 
-# The following text has been extracted from '."@mkfiles".'
+# The following text has been extracted from '.join("\n#\t", '', @mkfiles).'
 
 '.$MK.'
 
@@ -318,12 +330,63 @@ ORACLE_HOME = '.$OH.'
 
 
 sub del_crtobj {
-    my $str = shift;
+    my $orig = shift;
+	my $str;
     # E.g. for changing the COMPOBJS line (and sometimes LDSTRING)
-    # old: $(COMPOBJ)/crti.o $(COMPOBJ)/crt1.o $(COMPOBJ)/__fstd.o
-    # new: $(COMPOBJ)/__fstd.o
-    $str =~ s:\$\S+?/crt[1in]\.o\b::g;
+    # old: COMPOBJS=$(COMPOBJ)/crti.o $(COMPOBJ)/crt1.o $(COMPOBJ)/__fstd.o
+    # new: COMPOBJS=$(COMPOBJ)/__fstd.o
+    ($str = $orig) =~ s:[^\s=]*\bcrt[1in]\.o\b::g;
+	warn "del_crtobj: $orig\n          : $str\n" if $orig ne $str and $::opt_v;
     return $str;
+}
+
+
+sub find_mkfile {
+
+    my @mkfiles;
+    my @mkplaces = qw(
+	proc/lib/proc.mk    precomp/demo/proc/proc.mk	precomp/demo/proc/demo_proc.mk
+	rdbms/lib/oracle.mk rdbms/demo/oracle.mk	rdbms/demo/demo_rdbms.mk
+	proc16/lib/proc16.mk
+    );
+    # if -p then remove oracle.mk from search list and thus prefer Pro*C
+    @mkplaces = grep { !m/(oracle|rdbms)\.mk\b/ } @mkplaces if $::opt_p;
+    if ($::opt_m) {
+	$::opt_m = cwd()."/$::opt_m" unless $::opt_m =~ m:/\\:;
+	die "-m $::opt_m: not found" unless -f $::opt_m;
+	unshift @mkplaces, $::opt_m;
+    }
+    my ($mkfile, $place);
+    foreach $place (@mkplaces) {
+	$place = "$OH/$place" unless $place =~ m:^[/\.]:; # abs or relative path
+	next unless -f $place;
+	push @mkfiles, $place;
+	print "Found $place\n";
+    }
+    $mkfile = $mkfiles[0];	# use first one found
+    if (!$mkfile and "@mkplaces" !~ m/oracle\.mk/) {
+	print "Unable to locate a Pro*C *.mk. Falling back to oracle.mk.\n";
+	$mkfile = "$OH/oracle.mk";
+	push @mkplaces, $mkfile; # just for error message below
+    }
+    die qq{
+	Unable to locate an oracle.mk or proc.mk file in your Oracle installation.
+	(Looked in @mkplaces)
+
+	The oracle.mk file is part of the Oracle RDBMS product. The
+	proc.mk file is part of the Oracle Pro*C product.  You need to
+	build DBD::Oracle on a system which has one of these installed.
+
+	If your oracle.mk or proc.mk file is installed somewhere
+	non-standard you can specify where it is using the -m option:
+		perl Makefile.PL -m /path/to/your.mk
+
+	See README.clients for more information and some alternatives.
+
+    } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile);
+
+    print "Using $mkfile\n";
+    return $mkfile;
 }
 
 
@@ -336,9 +399,9 @@ sub fetch_oci_macros {
     # Don't include the following definitions in the generated
     # makefile (note that %MK stills gets these values).
     my @edit = qw(
-		SHELL CC CFLAGS CCFLAGS OPTIMIZE ASFLAGS RCC LD LDFLAGS
-		AR ECHO EXE OBJS PERL OBJ_EXT LIB_EXT
-	);
+	SHELL CC CFLAGS CCFLAGS OPTIMIZE ASFLAGS RCC LD LDFLAGS
+	AR ECHO EXE OBJS PERL OBJ_EXT LIB_EXT
+    );
     my %edit; @edit{@edit} = ('$_ = ""') x @edit;
 
     $edit{COMPOBJS} = q{
@@ -356,8 +419,12 @@ sub fetch_oci_macros {
 	} 
     };
 
+    # deal with (some subversions) of Oracle8.0.3's incompatible use of OBJ_EXT
+    my $incompat_ext = ($MK{OBJ_EXT} && $MK{OBJ_EXT} !~ /^\./);
+    warn "OBJ_EXT correction enabled ($MK{OBJ_EXT})\n" if $incompat_ext;
+
     my $mkver = 0;
-    my $linkwith = '';
+    my $linkvia = '';
     my $lastline = '';
     my @lines = read_inc_file($file);
     for(1; $_ = shift(@lines); $lastline = $_){
@@ -367,9 +434,10 @@ sub fetch_oci_macros {
 	push @MK, '' if $_ eq '' and $lastline ne ''; # squeeze multiple blank lines
 	next unless $_;
 
-	# deal with Oracle8's incompatible use of OBJ_EXT
-	s/\.(\$\(OBJ_EXT\))/$1/g;
-	s/\.(\$\(LIB_EXT\))/$1/g;
+	if ($incompat_ext) {
+	    s/\.(\$\(OBJ_EXT\))/$1/g;
+	    s/\.(\$\(LIB_EXT\))/$1/g;
+	}
 
 	if ($::opt_old) {
 	    last if m/^\w+\s*:[^=]/;	# gone too far, reached actual targets
@@ -415,26 +483,32 @@ sub fetch_oci_macros {
 	push(@MK, $_);
     }
 
-    if ($MK{OCILDLIBS}) {
-	$linkwith = '$(OCILDLIBS)';
-
-    } elsif (int($mkver) == 1) {
+    if ($MK{LCLSH} and $use_clntsh) {
+	$linkvia = '$(LCLSH)';
+    }
+    elsif ($MK{LLIBCLNTSH} and $use_clntsh) {
+	$linkvia = '$(LLIBCLNTSH)';
+    }
+    elsif ($MK{OCILDLIBS}) {
+	$linkvia = '$(OCILDLIBS)';
+    }
+    elsif (int($mkver) == 1) {
 	if ($MK{LLIBOCIC}) {
-	    $linkwith = '$(LLIBOCIC) $(TTLIBS)';
+	    $linkvia = '$(LLIBOCIC) $(TTLIBS)';
 	} else {
 	    print "Warning: Guessing what to link with.\n";
-	    $linkwith = '-locic $(TTLIBS)';	# XXX GUESS HACK
+	    $linkvia = '-locic $(TTLIBS)';	# XXX GUESS HACK
 	}
     }
     elsif ($MK{PROLDLIBS}) {	# Oracle 7.3.x
-	$linkwith = '$(PROLDLIBS)';
+	$linkvia = '$(PROLDLIBS)';
     }
-    unless ($linkwith){
+    unless ($linkvia){
 	die "ERROR parsing $file: Unable to determine what to link with.\n"
 	."Please send me copies of these files (one per mail message):\n@mkfiles\n";
     }
     $MK = join("\n", @MK);
-    return $linkwith;
+    return $linkvia;
 }
 
 
@@ -495,10 +569,15 @@ sub mkvar {
     return $ENV{$ORACLE_ENV} if $var eq 'ORACLE_HOME';
     my $val = $MK{$var};
     if (!defined $val and exists $ENV{$var}) {
-	    $val = $ENV{$var};
-	    print "Using value of $var from environment: $val\n";
+	$val = $ENV{$var};
+	print "Using value of $var from environment: $val\n";
     }
     return $default unless defined $val;
+    if ($MK_expanding{$var}) {
+	print "Definition of \$($var) includes \$($var).\n";
+	return "\$($var)";
+    }
+    local($MK_expanding{$var}) = 1;
     return expand_mkvars($val, $strip, $backtick, $level+1); # can recurse
 }
 
@@ -552,6 +631,3 @@ $(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt rtls.opt $(INST_ARC
 }
 
 __END__
-
-test.xs: $(INSTALLSITEARCH)/auto/DBI/Driver.xst
-    perl -p -e 's/{DRIVER}/$(BASEEXT)/g' < $(INSTALLSITEARCH)/auto/DBI/Driver.xst > test.xs

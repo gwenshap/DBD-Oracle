@@ -16,6 +16,7 @@ dbdimp.h
 dbdimp.c
 test.pl
 t/base.t
+t/general.t
 t/plsql.t
 hints/svr4.pl
 .purify	Ignore most of the (many) problems in Oracle's libraries. Very sad.
