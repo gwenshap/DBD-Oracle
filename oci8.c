@@ -778,36 +778,32 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
      */
 
     if (loblen > 0) {
-        ub1 csform;
-        ub2 csid;
+        ub1 csform = 0;
+        ub2 csid = 0;
         ub1 * bufp = (ub1 *)(SvPVX(dest_sv));
 	bufp += destoffset;
 
-#ifdef LABHACK
         OCILobCharSetForm_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csform, status );
         if (status != OCI_SUCCESS) {
             oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
             sv_set_undef(dest_sv);	/* signal error */
             return 0;
         }
-#ifdef OCI_ATTR_CHARSET_ID
         OCILobCharSetId_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csid, status );
         if (status != OCI_SUCCESS) {
             oci_error(sth, imp_sth->errhp, status, "OCILobCharSetId");
             sv_set_undef(dest_sv);	/* signal error */
             return 0;
         }
-#endif
-#endif
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 	    &amtp, (ub4)1 + offset, bufp, buflen,
-			    0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
+		0, 0, csid, csform, status);
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
-		"       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
+		"       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu (cs form=%d, id=%d)\n",
 		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
-		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
+		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp), csform, csid);
 	if (status != OCI_SUCCESS) {
 	    oci_error(sth, imp_sth->errhp, status, "OCILobRead");
 	    sv_set_undef(dest_sv);	/* signal error */
@@ -1171,7 +1167,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fbh->prec   = fbh->disize;
 		break;
 
-	case 112:				/* CLOB		*/
+	case 112:				/* CLOB	& NCLOB	*/
 	case 113:				/* BLOB		*/
 	case 114:				/* BFILE	*/
 		fbh->ftype  = fbh->dbtype;
