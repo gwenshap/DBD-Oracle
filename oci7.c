@@ -1,5 +1,5 @@
 /*
-   $Id: oci7.c,v 1.11 1999/06/14 00:41:48 timbo Exp $
+   $Id: oci7.c,v 1.12 2001/06/05 22:53:37 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -239,9 +239,6 @@ dbd_describe(h, imp_sth)
 	if (fbh->dbtype==23) {		/* RAW type			*/
 	    fbh->dbsize *= 2;
 	    fbh->disize *= 2;
-	}
-	else if (fbh->dbtype == 2 && fbh->prec == 0) {
-	    fbh->prec = 38;
 	}
 	else if ((fbh->dbtype == 1 || fbh->dbtype == 96) && fbh->prec == 0) {
 	    fbh->prec = fbh->dbsize;

@@ -1,4 +1,9 @@
-Update 10/24/97 -- Jeff Urlwin
+In general, on Windows, it's best to just use ActiveState Perl and the
+PPM package manager to install a pre-built version of DBD::Oracle.
+
+--- other information, some of which is out of date ---
+
+10/24/97 -- Jeff Urlwin
 
 Tested with Oracle 8 and OCI 8.  Well, not the *new* OCI api, but
 using the same api as always.  This version now searches for OCI
@@ -10,10 +15,6 @@ set the environment variable ORACLE_USERID to
 scott/tiger@mydb (where mydb is the tns name of your server)
 
 4/8/97 -- Jeff Urlwin
-
-This version requires Perl 5.003_94 or later.  (It was tested with
-5.003_94 and will be with 5.004). It does *NOT* work with the
-(non-standard) ActiveWare port.
 
 Even though the Oracle libraries under Win32 (NT) do not require the
 environment variable ORACLE_HOME be set for proper operation, the

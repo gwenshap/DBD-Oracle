@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.84 2000/07/13 22:42:02 timbo Exp $
+# $Id: Makefile.PL,v 1.86 2001/06/06 00:46:39 timbo Exp $
 
 ##
 ##  You should not need to edit this file.
@@ -12,6 +12,7 @@ use Getopt::Long;
 use Config;
 use Cwd;
 use File::Find;
+use Data::Dumper;
 use strict;
 
 # This DBI must be installed before we can build a DBD.
@@ -47,14 +48,14 @@ my %opts = (
     OBJECT => '$(O_FILES)',
     DEFINE => '',
     DIR  => [],
-    clean => {         FILES	=> 'Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def ora_explain' },
+    clean => {         FILES	=> 'Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def ora_explain mk.pm' },
     dist  => {	DIST_DEFAULT	=> 'clean distcheck disttest ci tardist',
 		PREOP		=> '$(MAKE) -f Makefile.old distdir',
 		COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
     },
 );
 if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
-    $opts{AUTHOR} = 'Tim Bunce (dbi-users@isc.org)';
+    $opts{AUTHOR} = 'Tim Bunce (dbi-users@perl.org)';
     $opts{ABSTRACT_FROM} = 'Oracle.pm';
     $opts{PREREQ_PM} = { DBI => 0 };
     $opts{CAPI} = 'TRUE' if $Config{archname} =~ /-object\b/i;
@@ -138,11 +139,20 @@ if ($os ne 'VMS' and $os ne 'MSWin32' and -x "$OH/orainst/inspdver") {
     }
     print "\n";
     if ($inspdver{RDBMS} =~ /^7.3.[12]/ and $os eq 'hpux') {
-	print "DBD::Oracle for Oracle $inspdver{RDBMS} on HP-UX may not build ok.\n";
-	print "If your have problems read the README (in fact, read it anyway!)\n";
-	print "An upgrade to Oracle 7.3.3 is probably a good idea.\n";
+	print "*** DBD::Oracle for Oracle $inspdver{RDBMS} on HP-UX may not build ok.\n";
+	print "*** If your have problems read the README (in fact, read it anyway!)\n";
+	print "*** An upgrade to at least Oracle 7.3.3 is probably a good idea.\n";
 	sleep 5;
     }
+}
+
+my @h_dirs = find_headers();
+unless (@h_dirs) {
+    print "I can't find the header files I need in your Oracle installation.\n";
+    print "You probably need to install some more Oracle components.\n";
+    print "I'll keep going, but the compile will probably fail.\n";
+    print "See README.clients for more information.\a\n";
+    sleep 5;
 }
 
 symbol_search() if $::opt_s or $::opt_S;
@@ -204,7 +214,7 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
 	$OH\\$OCIDIR\\include\\oratypes.h
 	$OH\\$OCIDIR\\lib\\$oci_compiler_dir\\$OCILIB.lib
   
-      Please install OCI or send comments back to dbi-users\@fugue.com
+      Please install OCI or send comments back to dbi-users\@perl.org
       if you have an OCI directory other than $OCIDIR.  
   
       } unless  (-e "$OH/$OCIDIR/include/oratypes.h" 
@@ -235,7 +245,7 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
     print "Oracle sysliblist: $syslibs\n";
     $opts{LIBS} = [ "-L$OH/lib -l$lib $syslibs" ];
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
-    my $inc = join " ", map { "-I$OH/$_" } find_headers();
+    my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
     $opts{INC}  = "$inc -I$dbi_arch_dir";
 }
 else {	# --- trawl the guts of Oracle's make files looking the how it wants to link
@@ -265,8 +275,10 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     if ($mk_target_rules{build} && $::opt_b) {
 	print "\n";
 	my $rules = join "\n", '', @{ $mk_target_rules{build} };
+	# create object file to keep 'make $mkfile' happy
 	my $DBD_ORA_OBJ = "DBD_ORA_OBJ.o";
-	open DBD_ORA_OBJ, ">$DBD_ORA_OBJ" or die;
+	open DBD_ORA_OBJ, ">$DBD_ORA_OBJ"
+	    or die "Can't create temporary $DBD_ORA_OBJ file in current directory: $!\n";
 	close DBD_ORA_OBJ;
 	my $make = "$Config{make} -f $mkfile build "
 		."ECHODO=true ECHO=echo GENCLNTSH='echo genclntsh' "
@@ -349,7 +361,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 
     my $OCIINCLUDE = $MK{INCLUDE} || '';
     $OCIINCLUDE .= " -I$OH/rdbms/demo";
-    my $inc = join " ", map { "-I$OH/$_" } find_headers();
+    my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
     $opts{INC}  = "$OCIINCLUDE $inc -I$dbi_arch_dir";
 }
 
@@ -360,13 +372,17 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 # Since the # .a libs that Oracle supplies contain non-PIC object
 # files, we sadly have to build static on HP-UX 9 :(
 if ($os eq 'hpux') {
+    print "***\a\n";
+	$osvers =~ s/^[a-z]\.//;	# Sigh... 'b.11.0' etc
     if ($osvers < 10) {
-	print "Warning: Forced to build static not dynamic on $os $osvers.\a\n";
+	print "*** Warning: Forced to build static not dynamic on $os $osvers.\a\n";
 	$opts{LINKTYPE} = 'static';
     }
     else {
-	print "Warning: You may need to build using static linking. See the README file.\n";
+	print "*** Warning: You may need to build using static linking. See the README file.\n";
     }
+    print "***\a\n";
+    sleep 3;
     # see const_cccmd for -Aa to -Ae flag change
 }
 
@@ -432,6 +448,9 @@ print "           [".mkvar('LDSTRING',0,1,0)."]\n\n" if $MK{LDSTRING};
 print "\nLinking with $linkwith_msg\n" if $linkwith_msg;
 print "\n";
 
+# create this before WriteMakefile so MakeMaker knows it's here
+open(MK_PM, ">mk.pm") or die "Unable to create mk.pm: $!";
+
 WriteMakefile(%opts);
 
 # deal with Test::Harness bug 
@@ -464,17 +483,16 @@ sub win32_oracle_home {
   my ($req_ok, $hkey, $Val, $Keys);
   if ( ! $oh ) {
       if ( $Config{osname} eq "MSWin32") {
-  # Win32::TieRegistry is prefered, but it requires Win32API::Registry
-  # which is not available in mingw or cygwin
+	  # Win32::TieRegistry is prefered, but it requires Win32API::Registry
+	  # which is not available in mingw or cygwin
 	  eval {
-      require Win32::TieRegistry;
+	      require Win32::TieRegistry;
 	      $Win32::TieRegistry::Registry->Delimiter("/");
 	      $req_ok = 1;
-	      $hkey = $Win32::TieRegistry::Registry->
-	      {"LMachine/SOFTWARE/Oracle/"};
+	      $hkey = $Win32::TieRegistry::Registry->{"LMachine/SOFTWARE/Oracle/"};
 	  };
 	  eval { # older name of Win32::TieRegistry
-      require Tie::Registry;
+	      require Tie::Registry;
 	      $Tie::Registry::Registry->Delimiter("/");
 	      $req_ok = 1;
 	      $hkey = $Tie::Registry::Registry->{"LMachine/SOFTWARE/Oracle/"};
@@ -495,12 +513,12 @@ sub win32_oracle_home {
 	  } if $hkey;
       }
 
-  # Win32::Registry imports some symbols into main::
+      # Win32::Registry imports some symbols into main::
       # this is not commonly wanted, so try this as a last resort
       # MAC: it is available under mingw and might be available under cygwin
       #      If cygwin doesn't have it, move the rest inside the other if block
       eval {
-    require Win32::Registry;
+	  require Win32::Registry;
 	  $main::HKEY_LOCAL_MACHINE->Open('SOFTWARE\\ORACLE', $hkey);
 	  my $dummy = $main::HKEY_LOCAL_MACHINE; # avoid single use complaint
 	  $Val = sub {
@@ -519,6 +537,9 @@ sub win32_oracle_home {
 	      return @hkey;
 	  };
       } unless $req_ok;
+
+      # Workaround Win32::TieRegistry FETCH error during global destruction.
+      undef $Win32::TieRegistry::Registry if $Win32::TieRegistry::Registry;
 
       # Look for ORACLE_HOME in all ORACLE sub-folders, use last one found
       #     before 8.1.5, there should be only one
@@ -588,6 +609,15 @@ your 'privlib' and 'archlib' directories and their auto subdirectories.
     # Ensure Oraperl.pm and oraperl.ph are installed into top lib dir
     $self->{PM}->{'Oraperl.pm'} = '$(INST_LIB)/Oraperl.pm';
     $self->{PM}->{'oraperl.ph'} = '$(INST_LIB)/oraperl.ph';
+
+    # This chunk is for Oracle::OCI
+    local $Data::Dumper::Indent = 1;
+    local $Data::Dumper::Purity = 1;
+    local $Data::Dumper::Useqq  = 1;
+    print MK_PM Data::Dumper->Dump([\%opts, $self], [qw(dbd_oracle_mm_opts dbd_oracle_mm_self)]);
+    close MK_PM or die "Error closing mk.pm: $!\n";
+    $self->{PM}->{$_} = '$(INST_ARCHAUTODIR)/'.$_
+	for (qw(mk.pm Oracle.h dbdimp.h ocitrace.h));
 
     # Add $linkwith to EXTRALIBS for those doing static linking
     $self->{EXTRALIBS} .= " -L\$(LIBHOME) $linkwith";

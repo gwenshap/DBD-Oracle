@@ -1,5 +1,8 @@
 [ In no particular order ]
 
+Test script for bind type / field type / length / null interactions
+of char/varchar types.
+
 add docs about OPS$ login
 
 bind type 1 or 5?!

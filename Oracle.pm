@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.80 2000/07/14 21:52:08 timbo Exp $
+#   $Id: Oracle.pm,v 1.82 2001/06/06 00:46:39 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.06';
+$DBD::Oracle::VERSION = '1.07';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -32,7 +32,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.80 $, 10);
+    my $Revision = substr(q$Revision: 1.82 $, 10);
 
     require_version DBI 1.02;
 
@@ -67,7 +67,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# Used to silence 'Bad free() ...' warnings caused by bugs in Oracle's code
 	# being detected by Perl's malloc.
 	$ENV{PERL_BADFREE} = 0;
-    undef $Win32::TieRegistry::Registry if $Win32::TieRegistry::Registry;
+	undef $Win32::TieRegistry::Registry if $Win32::TieRegistry::Registry;
     }
 
 	#sub AUTOLOAD {
@@ -99,12 +99,12 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	  my($hkey, $sid, $home);
 	  eval q{
 	    require Win32::TieRegistry;
-	    $Win32::TieRegistry::Registry->Delimeter("/");
+	    $Win32::TieRegistry::Registry->Delimiter("/");
 	    $hkey= $Win32::TieRegistry::Registry->{"LMachine/Software/Oracle/"};
 	  };
 	  eval q{
 	    require Tie::Registry;
-	    $Tie::Registry::Registry->Delimeter("/");
+	    $Tie::Registry::Registry->Delimiter("/");
 	    $hkey= $Tie::Registry::Registry->{"LMachine/Software/Oracle/"};
 	  } unless $hkey;
 	  if ($hkey) {
@@ -314,25 +314,100 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 
     sub table_info {
-	my($dbh) = @_;		# XXX add qualification
-	# XXX add knowledge of public synonmys views etc
-	# The SYS/SYSTEM should probably be a decode that
-	# prepends 'SYSTEM ' to TABLE_TYPE.
-	my $sth = $dbh->prepare("select
-		NULL		TABLE_CAT,
-		at.OWNER	TABLE_SCHEM,
-		at.TABLE_NAME,
-		tc.TABLE_TYPE,
-		tc.COMMENTS	REMARKS
-	    from ALL_TABLES at, ALL_TAB_COMMENTS tc
-	    where at.OWNER = tc.OWNER
-	    and at.TABLE_NAME = tc.TABLE_NAME
-	    and at.OWNER <> 'SYS' and at.OWNER <> 'SYSTEM'
-	    order by tc.TABLE_TYPE, at.OWNER, at.TABLE_NAME
-	") or return undef;
+	my($dbh, $attr) = @_;
+	# XXX add knowledge of temp tables, etc
+
+	# SQL/CLI (ISO/IEC JTC 1/SC 32 N 0595), 6.63 Tables
+	my $CatVal = $attr->{TABLE_CAT};
+	my $SchVal = $attr->{TABLE_SCHEM};
+	my $TblVal = $attr->{TABLE_NAME};
+	my $TypVal = $attr->{TABLE_TYPE};
+	my @Where = ();
+	my $Sql;
+	if ( $CatVal eq '%' && $SchVal eq '' && $TblVal eq '') { # Rule 19a
+		$Sql = <<'SQL';
+SELECT NULL TABLE_CAT
+     , NULL TABLE_SCHEM
+     , NULL TABLE_NAME
+     , NULL TABLE_TYPE
+     , NULL REMARKS
+  FROM DUAL
+SQL
+	}
+	elsif ( $SchVal eq '%' && $CatVal eq '' && $TblVal eq '') { # Rule 19b
+		$Sql = <<'SQL';
+SELECT NULL      TABLE_CAT
+     , USERNAME  TABLE_SCHEM
+     , NULL      TABLE_NAME
+     , NULL      TABLE_TYPE
+     , NULL      REMARKS
+  FROM ALL_USERS
+ ORDER BY 2
+SQL
+	}
+	elsif ( $TypVal eq '%' && $CatVal eq '' && $SchVal eq '' && $TblVal eq '') { # Rule 19c
+		$Sql = <<'SQL';
+SELECT NULL TABLE_CAT
+     , NULL TABLE_SCHEM
+     , NULL TABLE_NAME
+     , t.tt TABLE_TYPE
+     , NULL REMARKS
+  FROM
+(
+  SELECT 'TABLE'    tt FROM DUAL
+    UNION
+  SELECT 'VIEW'     tt FROM DUAL
+    UNION
+  SELECT 'SYNONYM'  tt FROM DUAL
+    UNION
+  SELECT 'SEQUENCE' tt FROM DUAL
+) t
+ ORDER BY TABLE_TYPE
+SQL
+	}
+	else {
+		$Sql = <<'SQL';
+SELECT *
+  FROM
+(
+  SELECT NULL         TABLE_CAT
+     , decode( t.OWNER, 'PUBLIC', '', t.OWNER ) TABLE_SCHEM
+     , t.TABLE_NAME TABLE_NAME
+     , t.TABLE_TYPE TABLE_TYPE
+     , c.COMMENTS   REMARKS
+  FROM ALL_TAB_COMMENTS c
+     , ALL_CATALOG      t
+ WHERE c.OWNER      (+) = t.OWNER
+   AND c.TABLE_NAME (+) = t.TABLE_NAME
+   AND c.TABLE_TYPE (+) = t.TABLE_TYPE
+)
+SQL
+		if ( defined $SchVal ) {
+			push @Where, "TABLE_SCHEM LIKE '$SchVal'";
+		}
+		if ( defined $TblVal ) {
+			push @Where, "TABLE_NAME  LIKE '$TblVal'";
+		}
+		if ( defined $TypVal ) {
+			my $table_type_list;
+			$TypVal =~ s/^\s+//;
+			$TypVal =~ s/\s+$//;
+			my @ttype_list = split (/\s*,\s*/, $TypVal);
+			foreach my $table_type (@ttype_list) {
+				if ($table_type !~ /^'.*'$/) {
+					$table_type = "'" . $table_type . "'";
+				}
+				$table_type_list = join(", ", @ttype_list);
+			}
+			push @Where, "TABLE_TYPE IN ($table_type_list)";
+		}
+		$Sql .= ' WHERE ' . join("\n   AND ", @Where ) . "\n" if @Where;
+		$Sql .= " ORDER BY TABLE_TYPE, TABLE_SCHEM, TABLE_NAME\n";
+	}
+	my $sth = $dbh->prepare($Sql) or return undef;
 	$sth->execute or return undef;
 	$sth;
-    }
+}
 
     sub type_info_all {
 	my ($dbh) = @_;
@@ -713,6 +788,48 @@ authorization and SYSOPER authorization.
   $mode = 2;	# SYSDBA
   $mode = 4;	# SYSOPER
   DBI->connect($dsn, $user, $passwd, { ora_session_mode => $mode });
+
+
+=head1 Metadata
+
+=head2 C<table_info()>
+
+DBD::Oracle supports attributes for C<table_info()>.
+
+In Oracle, the concept of I<user> and I<schema> is (currently) the
+same. Because database objects are owned by an user, the owner names
+in the data dictionary views correspond to schema names.
+Oracle does not support catalogs so TABLE_CAT is ignored as
+selection criterion.
+
+Search patterns are supported for TABLE_SCHEM and TABLE_NAME.
+
+TABLE_TYPE may contain a comma-separated list of table types.
+The following table types are supported:
+
+  TABLE
+  VIEW
+  SYNONYM
+  SEQUENCE
+
+The result set is ordered by TABLE_TYPE, TABLE_SCHEM, TABLE_NAME.
+
+The special enumerations of catalogs, schemas and table types are
+supported. However, TABLE_CAT is always NULL.
+
+The schema name for PUBLIC database objects is an empty string.
+
+An identifier is passed I<as is>, i.e. as the user provides or
+Oracle returns it.
+C<table_info()> performs a case-sensitive search. So, a selection
+criterion should respect upper and lower case.
+Normally, an identifier is case-insensitive. Oracle stores and
+returns it in upper case. Sometimes, database objects are created
+with quoted identifiers (for reserved words, mixed case, special
+characters, ...). Such an identifier is case-sensitive (if not all
+upper case). Oracle stores and returns it as given.
+C<table_info()> has no special quote handling, neither adds nor
+removes quotes.
 
 
 =head1 International NLS / 8-bit text issues
@@ -1135,6 +1252,8 @@ arguments in call to ...".
 =head2 Free Oracle Tools and Links
 
   ora_explain supplied and installed with DBD::Oracle.
+
+  http://www.orafaq.com/
 
   http://vonnieda.org/oracletool/
 
