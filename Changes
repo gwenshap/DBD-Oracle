@@ -22,6 +22,7 @@ Add column_info test
   Fixed seg fault returning LOB Locators reported by Raj Chandran.
   Fixed binding to allow overloaded scalars.
   Fixed setting of $DBI::err to 0 triggering PrintWarn in DBI >= 1.41.
+  Fixed memory leaks in auto LOB refetch code thanks to Dongqiang Bai.
 
   Changed some utf8 internals for LOBs.
   Changed ORA_OCI constant from being just 7 or 8 to being a dualvar:

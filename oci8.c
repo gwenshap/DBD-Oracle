@@ -1600,7 +1600,6 @@ find_ident_after(char *src, char *after, STRLEN *len, int copy)
 
 
 struct lob_refetch_st {
-    SV *sql_select;
     OCIStmt *stmthp;
     OCIBind *bindhp;
     OCIRowid *rowid;
@@ -1621,7 +1620,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     sword status;
     OCIError *errhp = imp_sth->errhp;
     OCIDescribe  *dschp = NULL;
-    OCIParam *parmhp = NULL, *collisthd = NULL;
+    OCIParam *parmhp = NULL, *collisthd = NULL, *colhd = NULL;
     ub2 numcols = 0;
     imp_fbh_t *fbh;
     int unmatched_params;
@@ -1630,7 +1629,6 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     lob_refetch_t *lr = NULL;
     STRLEN tablename_len;
     char *tablename;
-    char new_tablename[100];
 
     switch (imp_sth->stmt_type) {
     case OCI_STMT_UPDATE:
@@ -1654,6 +1652,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
 		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_SYN, dschp, status);
     if (status == OCI_SUCCESS) { /* There is a synonym, get the schema */
+      char new_tablename[100];
       char *syn_schema=NULL,  *syn_name=NULL;
       OCIAttrGet_log_stat(dschp,  OCI_HTYPE_DESCRIBE,
 				  &parmhp, 0, OCI_ATTR_PARAM, errhp, status);
@@ -1701,7 +1700,6 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	    tablename, numcols);
 
     for (i = 1; i <= (long)numcols; i++) {
-	OCIParam *colhd;
 	ub2 col_dbtype;
 	char *col_name;
 	ub4  col_name_len;
@@ -1711,11 +1709,11 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
         OCIAttrGet_log_stat(colhd, OCI_DTYPE_PARAM, &col_dbtype, 0,
                             OCI_ATTR_DATA_TYPE, errhp, status);
         if (status)
-                break;
+           break;
         OCIAttrGet_log_stat(colhd, OCI_DTYPE_PARAM, &col_name, &col_name_len,
-              OCI_ATTR_NAME, errhp, status);
+			    OCI_ATTR_NAME, errhp, status);
         if (status)
-                break;
+           break;
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP, "       lob refetch table col %d: '%.*s' otype %d\n",
 		(int)i, (int)col_name_len,col_name, col_dbtype);
@@ -1726,13 +1724,18 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	sv = newSViv(col_dbtype);
 	(void)sv_setpvn(sv, col_name, col_name_len);
 	DBD_SET_UTF8_FORM(sv, SQLCS_IMPLICIT); 
-	(void)SvIOK_on(sv);   /* what a wonderful hack! */
+	(void)SvIOK_on(sv);   /* "what a wonderful hack!" */
 	hv_store(lob_cols_hv, col_name,col_name_len, sv,0);
+	OCIDescriptorFree(colhd, OCI_DTYPE_PARAM);
+        colhd = NULL;
     }
+    if (colhd)
+	OCIDescriptorFree(colhd, OCI_DTYPE_PARAM);
     if (status != OCI_SUCCESS) {
-	OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, status);
-	return oci_error(sth, errhp, status,
+	oci_error(sth, errhp, status,
 		    "OCIDescribeAny/OCIParamGet/OCIAttrGet/LOB refetch");
+	OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, status);
+	return 0;
     }
     if (!lob_cols_hv)
 	return oci_error(sth, errhp, OCI_ERROR,
@@ -1749,7 +1752,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     lr->fbh_ary = alloc_via_sv(sizeof(imp_fbh_t) * HvKEYS(lob_cols_hv)+1,
 			&lr->fbh_ary_sv, 0);
 
-    sql_select = newSVpv("select ",0);
+    sql_select = sv_2mortal(newSVpv("select ",0));
 
     hv_iterinit(imp_sth->all_params_hv);
     while( (sv = hv_iternextsv(imp_sth->all_params_hv, &p, &i)) != NULL ) {
@@ -1784,6 +1787,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 			"       both %s and %s have type %d - ambiguous\n",
 				neatsvpv(sv,0), neatsvpv(sv_other,0), (int)SvIV(sv_other));
 		    Safefree(lr);
+		    sv_free((SV*)lob_cols_hv);
 		    return oci_error(sth, errhp, OCI_ERROR,
 			"Need bind_param(..., { ora_field=>... }) attribute to identify table LOB field names");
 		}
@@ -1797,7 +1801,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		"       lob refetch %s param: otype %d, matched field '%s' %s(%s)\n",
 		    phs->name, phs->ftype, p,
 		    (phs->ora_field) ? "by name " : "by type ", sql_field);
-	    hv_delete(lob_cols_hv, p, i, 0);
+	    hv_delete(lob_cols_hv, p, i, G_DISCARD);
 	    fbh = &lr->fbh_ary[lr->num_fields++];
 	    fbh->name   = phs->name;
 	    fbh->ftype  = phs->ftype;
@@ -1815,6 +1819,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		    phs->name, phs->ftype);
 	}
     }
+    sv_free((SV*)lob_cols_hv);
     if (unmatched_params) {
         Safefree(lr);
 	return oci_error(sth, errhp, OCI_ERROR,
@@ -1827,7 +1832,6 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     if (DBIS->debug >= 3)
 	PerlIO_printf(DBILOGFP,
 	    "       lob refetch sql: %s\n", SvPVX(sql_select));
-    lr->sql_select = sql_select;
 
     lr->stmthp = NULL;
     lr->bindhp = NULL;
@@ -1840,15 +1844,22 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     OCIStmtPrepare_log_stat(lr->stmthp, errhp,
 		(text*)SvPVX(sql_select), SvCUR(sql_select), OCI_NTV_SYNTAX,
 		OCI_DEFAULT, status);
-    if (status != OCI_SUCCESS)
+    if (status != OCI_SUCCESS) {
+	OCIHandleFree(lr->stmthp, OCI_HTYPE_STMT);
+	Safefree(lr);
 	return oci_error(sth, errhp, status, "OCIStmtPrepare/LOB refetch");
+    }
 
     /* bind the rowid input */
     OCIDescriptorAlloc_ok(imp_sth->envhp, &lr->rowid, OCI_DTYPE_ROWID);
     OCIBindByName_log_stat(lr->stmthp, &lr->bindhp, errhp, (text*)":rid", 4,
            &lr->rowid, sizeof(OCIRowid*), SQLT_RDD, 0,0,0,0,0, OCI_DEFAULT, status);
-    if (status != OCI_SUCCESS)
+    if (status != OCI_SUCCESS) {
+	OCIDescriptorFree(lr->rowid, OCI_DTYPE_ROWID);
+	OCIHandleFree(lr->stmthp, OCI_HTYPE_STMT);
+	Safefree(lr);
 	return oci_error(sth, errhp, status, "OCIBindByPos/LOB refetch");
+    }
 
     /* define the output fields */
     for(i=0; i < lr->num_fields; ++i) {
@@ -1869,8 +1880,14 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	OCIDefineByPos_log_stat(lr->stmthp, &defnp, errhp, (ub4)i+1,
 		&fbh->desc_h, -1, (ub2)fbh->ftype,
 		fbh->fb_ary->aindp, 0, fbh->fb_ary->arcode, OCI_DEFAULT, status);
-	if (status != OCI_SUCCESS)
+	if (status != OCI_SUCCESS) {
+	    OCIDescriptorFree(lr->rowid, OCI_DTYPE_ROWID);
+	    OCIHandleFree(lr->stmthp, OCI_HTYPE_STMT);
+	    Safefree(lr);
+	    fb_ary_free(fbh->fb_ary);
+	    fbh->fb_ary = NULL;
 	    return oci_error(sth, errhp, status, "OCIDefineByPos/LOB refetch");
+	}
     }
 
     imp_sth->lob_refetch = lr;	/* structure copy */
@@ -1992,6 +2009,8 @@ ora_free_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     lob_refetch_t *lr = imp_sth->lob_refetch;
     int i;
     sword status;
+    if (lr->rowid)
+       OCIDescriptorFree(lr->rowid, OCI_DTYPE_ROWID);
     OCIHandleFree_log_stat(lr->stmthp, OCI_HTYPE_STMT, status);
     if (status != OCI_SUCCESS)
 	oci_error(sth, imp_sth->errhp, status, "ora_free_lob_refetch/OCIHandleFree");
@@ -1999,7 +2018,6 @@ ora_free_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	imp_fbh_t *fbh = &lr->fbh_ary[i];
 	ora_free_fbh_contents(fbh);
     }
-    sv_free(lr->sql_select);
     sv_free(lr->fbh_ary_sv);
     Safefree(imp_sth->lob_refetch);
     imp_sth->lob_refetch = NULL;
