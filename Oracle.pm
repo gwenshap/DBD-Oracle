@@ -979,7 +979,7 @@ B<Note:> Some of these formats may not work with Oracle 8+.
   #  - or -
   $dbh = DBI->connect('dbi:Oracle:','scott/tiger');
 
-Refer to your Oracle documentatiion for valis values of TWO_TASK.
+Refer to your Oracle documentatiion for valid values of TWO_TASK.
 
 Here are some variations (not setting TWO_TASK) in order of preference:
 
