@@ -3,12 +3,19 @@
 use DBI;
 use DBD::Oracle qw(:ora_types ORA_OCI);
 use strict;
+use Test::More;
 
 #
 # Search for 'ocibug' to find code related to OCI LONG bugs.
 #
 
-sub ok ($$;$);
+my @test_sets;
+push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] if ORA_OCI >= 8;
+push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] if ORA_OCI >= 8;
+push @test_sets, [ "LONG",	0 ,		0 ];
+push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
+
+#lab sub ok ($$;$);
 
 $| = 1;
 my $t = 0;
@@ -74,12 +81,6 @@ sub array_test {
     die "RETURNING array: $@";
 }
 
-my @test_sets;
-push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] if ORA_OCI >= 8;
-push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] if ORA_OCI >= 8;
-push @test_sets, [ "LONG",	0 ,		0 ];
-push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
-
 # Set size of test data (in 10KB units)
 #	Minimum value 3 (else tests fail because of assumptions)
 #	Normal  value 8 (to test 64KB threshold well)
@@ -88,301 +89,324 @@ my $sz = 8;
 my $tests;
 my $tests_per_set = 93;
 $tests = @test_sets * $tests_per_set;
-print "1..$tests\n";
+plan tests => $tests;
+#lab print "1..$tests\n";
 
 my($sth, $p1, $p2, $tmp, @tmp);
 #$dbh->trace(4);
 
 foreach (@test_sets) {
     my ($type_name, $type_num, $test_no_type) = @$_;
+    #next if $type_name eq 'LONG';
+    diag qq(
+
+
+    Running long test for 
+        type_name=$type_name
+        type_num=$type_num
+        test_no_type=$test_no_type
+
+
+
+);
     run_long_tests($type_name, $type_num);
     run_long_tests($type_name, 0) if $test_no_type;
 }
 
 
-sub run_long_tests {
+sub run_long_tests 
+{
     my ($type_name, $type_num) = @_;
 
-# relationships between these lengths are important # e.g.
-my %long_data;
-my $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
-if ($utf8_test) {
-    my $utf_x = eval q{ "0\x{263A}xyX" };
-    $long_data0 = ($utf_x x 2048) x (1    );        # 10KB  < 64KB
-    if (length($long_data0) > 10240) {
-	print "known bug in perl5.6.0 utf8 support, applying workaround\n";
-	my $utf_z = eval q{ "0\x{263A}xyZ" };
-	$long_data0 = $utf_z;
-	$long_data0 .= $utf_z foreach (1..2047);
+    # relationships between these lengths are important # e.g.
+    my %long_data;
+    my $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
+    if ($utf8_test) {
+        #lab my $utf_x = eval q{ "0\x{263A}xyX" };
+        my $utf_x = "0\x{263A}xyX";
+        $long_data0 = ($utf_x x 2048) x (1    );        # 10KB  < 64KB
+        if (length($long_data0) > 10240) {
+            diag "known bug in perl5.6.0 utf8 support, applying workaround\n";
+            #lab my $utf_z = q{ "0\x{263A}xyZ" };
+            my $utf_z = "0\x{263A}xyZ" ;
+            $long_data0 = $utf_z;
+            $long_data0 .= $utf_z foreach (1..2047);
+        }
+        if ($type_name =~ /BLOB/) {
+            # convert string from utf-8 to byte encoding
+            $long_data0 = pack "C*", (unpack "C*", $long_data0);
+        }
     }
-    if ($type_name =~ /BLOB/) {
-	# convert string from utf-8 to byte encoding
-	$long_data0 = pack "C*", (unpack "C*", $long_data0);
-    }
-}
-my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
-my $long_data2 = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
+    my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
+    my $long_data2 = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
 
-# special hack for long_data0 since RAW types need pairs of HEX
-$long_data0 = "00FF" x (length($long_data0) / 2) if $type_name =~ /RAW/i;
+    # special hack for long_data0 since RAW types need pairs of HEX
+    $long_data0 = "00FF" x (length($long_data0) / 2) if $type_name =~ /RAW/i;
 
-my $len_data0 = length($long_data0);
-my $len_data1 = length($long_data1);
-my $len_data2 = length($long_data2);
-print "long_data0 length $len_data0\n";
-print "long_data1 length $len_data1\n";
-print "long_data2 length $len_data2\n";
+    my $len_data0 = length($long_data0);
+    my $len_data1 = length($long_data1);
+    my $len_data2 = length($long_data2);
 
-# warn if some of the key aspects of the data sizing are tampered with
-warn "long_data0 is > 64KB: $len_data0\n"
-	if $len_data0 > 65535;
-warn "long_data1 is < 64KB: $len_data1\n"
-	if $len_data1 < 65535;
-warn "long_data2 is not smaller than $long_data1 ($len_data2 > $len_data1)\n"
-	if $len_data2 >= $len_data1;
- 
+    # warn if some of the key aspects of the data sizing are tampered with
+    warn "long_data0 is > 64KB: $len_data0\n"
+            if $len_data0 > 65535;
+    warn "long_data1 is < 64KB: $len_data1\n"
+            if $len_data1 < 65535;
+    warn "long_data2 is not smaller than $long_data1 ($len_data2 > $len_data1)\n"
+            if $len_data2 >= $len_data1;
+     
 
-if (!create_table("lng $type_name", 1)) {
-    # typically OCI 8 client talking to Oracle 7 database
-    warn "Unable to create test table for '$type_name' data ($DBI::err). Tests skipped.\n";
-    foreach (1..$tests_per_set) { ok(0, 1) }
-    return;
-}
+    SKIP: 
+    { #it all
+        skip "Unable to create test table for '$type_name' data ($DBI::err)." ,$tests_per_set 
+            if (!create_table("lng $type_name", 1));
+            # typically OCI 8 client talking to Oracle 7 database
 
-print " --- insert some $type_name data (ora_type $type_num)\n";
-ok(0, $sth = $dbh->prepare("insert into $table values (?, ?, SYSDATE)"), 1);
-$sth->bind_param(2, undef, { ora_type => $type_num }) or die "$type_name: $DBI::errstr"
-    if $type_num;
-ok(0, $sth->execute(40, $long_data{40} = $long_data0), 1);
-ok(0, $sth->execute(41, $long_data{41} = $long_data1), 1);
-ok(0, $sth->execute(42, $long_data{42} = $long_data2), 1);
-ok(0, $sth->execute(43, $long_data{43} = undef), 1); # NULL
+        diag "long_data0 length $len_data0\n";
+        diag "long_data1 length $len_data1\n";
+        diag "long_data2 length $len_data2\n";
 
-array_test();
+        diag " --- insert some $type_name data (ora_type $type_num)\n";
+        #lab ok(0, $sth = $dbh->prepare("insert into $table values (?, ?, SYSDATE)"), 1);
+        my $sqlstr = "insert into $table values (?, ?, SYSDATE)" ;
+        ok( $sth = $dbh->prepare( $sqlstr ), "prepare: $sqlstr" ); #lab
+        $sth->bind_param(2, undef, { ora_type => $type_num }) or die "$type_name: $DBI::errstr" if $type_num;
+        #lab ok(0, $sth->execute(40, $long_data{40} = $long_data0), 1);
+        #lab ok(0, $sth->execute(41, $long_data{41} = $long_data1), 1);
+        #lab ok(0, $sth->execute(42, $long_data{42} = $long_data2), 1);
+        #lab ok(0, $sth->execute(43, $long_data{43} = undef), 1); # NULL
+        #,{ ora_csform => 2 } 
 
-print " --- fetch $type_name data back again -- truncated - LongTruncOk == 1\n";
-$dbh->{LongReadLen} = 20;
-$dbh->{LongTruncOk} =  1;
-print "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
+        ok($sth->execute(40, $long_data{40} = $long_data0 ), "insert long data 40" );
+        ok($sth->execute(41, $long_data{41} = $long_data1 ), "insert long data 41" );
+        ok($sth->execute(42, $long_data{42} = $long_data2 ), "insert long data 42" );
+        ok($sth->execute(43, $long_data{43} = undef), "insert long data undef 43" ); # NULL
 
-# This behaviour isn't specified anywhere, sigh:
-my $out_len = $dbh->{LongReadLen};
-$out_len *= 2 if ($type_name =~ /RAW/i);
+        array_test();
 
-ok(0, $sth = $dbh->prepare("select * from $table order by idx"), 1);
-ok(0, $sth->execute, 1);
-ok(0, $tmp = $sth->fetchall_arrayref, 1);
-if ($DBI::err && $DBI::errstr =~ /ORA-01801:/) {
-    # ORA-01801: date format is too long for internal buffer
-    warn " If you're using Oracle <= 8.1.7 then this error is probably\n";
-    warn " due to an Oracle bug and not a DBD::Oracle problem.\n";
-    sleep 1;
-    ok(0,1) for (1..5);
-}
-else {
-ok(0, @$tmp == 4);
-ok(0, $tmp->[0][1] eq substr($long_data0,0,$out_len),
-	cdif($tmp->[0][1], substr($long_data0,0,$out_len), "Len ".length($tmp->[0][1])) );
-ok(0, $tmp->[1][1] eq substr($long_data1,0,$out_len),
-	cdif($tmp->[1][1], substr($long_data1,0,$out_len), "Len ".length($tmp->[1][1])) );
-ok(0, $tmp->[2][1] eq substr($long_data2,0,$out_len),
-	cdif($tmp->[2][1], substr($long_data2,0,$out_len), "Len ".length($tmp->[2][1])) );
-#use Data::Dumper; print Dumper($tmp->[3]);
-ok(0, !defined $tmp->[3][1], 1); # NULL # known bug in DBD::Oracle <= 1.13
-}
+        diag " --- fetch $type_name data back again -- truncated - LongTruncOk == 1\n";
+        $dbh->{LongReadLen} = 20;
+        $dbh->{LongTruncOk} =  1;
+        diag "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
 
+        # This behaviour isn't specified anywhere, sigh:
+        my $out_len = $dbh->{LongReadLen};
+        $out_len *= 2 if ($type_name =~ /RAW/i);
 
-print " --- fetch $type_name data back again -- truncated - LongTruncOk == 0\n";
-$dbh->{LongReadLen} = $len_data1 - 10; # so $long_data0 fits but long_data1 doesn't
-$dbh->{LongReadLen} = $dbh->{LongReadLen} / 2 if $type_name =~ /RAW/i;
-my $LongReadLen = $dbh->{LongReadLen};
-$dbh->{LongTruncOk} = 0;
-print "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
+        #lab ok(0, $sth = $dbh->prepare("select * from $table order by idx"), 1);
+        #lab ok(0, $sth->execute, 1);
+        #lab ok(0, $tmp = $sth->fetchall_arrayref, 1);
+        $sqlstr = "select * from $table order by idx";
+        ok($sth = $dbh->prepare($sqlstr), "prepare: $sqlstr" );
+        ok($sth->execute, "execute: $sqlstr" );
+        ok($tmp = $sth->fetchall_arrayref, "fetch_arrayerf for $sqlstr" );
 
-ok(0, $sth = $dbh->prepare("select * from $table order by idx"), 1);
-ok(0, $sth->execute, 1);
-
-ok(0, $tmp = $sth->fetchrow_arrayref, 1);
-ok(0, $tmp->[1] eq $long_data0, length($tmp->[1]));
-
-{ local $sth->{PrintError} = 0;
-ok(0, !defined $sth->fetchrow_arrayref,
-	"truncation error not triggered "
-	."(LongReadLen $LongReadLen, data ".length($tmp->[1]||0).")");
-$tmp = $sth->err || 0;
-ok(0, $tmp == 1406 || $tmp == 24345, 1);
-}
-
-
-print " --- fetch $type_name data back again -- complete - LongTruncOk == 0\n";
-$dbh->{LongReadLen} = $len_data1 +1000;
-$dbh->{LongTruncOk} = 0;
-print "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
-
-ok(0, $sth = $dbh->prepare("select * from $table order by idx"), 1);
-#$sth->trace(4);
-ok(0, $sth->execute, 1);
-
-ok(0, $tmp = $sth->fetchrow_arrayref, 1);
-ok(0, $tmp->[1] eq $long_data0, length($tmp->[1]));
-
-ok(0, $tmp = $sth->fetchrow_arrayref, 1);
-ok(0, $tmp->[1] eq $long_data1, length($tmp->[1]));
-
-ok(0, $tmp = $sth->fetchrow_arrayref, 1);
-if ($tmp->[1] eq $long_data2) {
-  ok(0, 1);
-}
-elsif (length($tmp->[1]) == length($long_data1)
-   && DBD::Oracle::ORA_OCI() == 7
-   && substr($tmp->[1], 0, length($long_data2)) eq $long_data2
-) {
-  print "OCI7 buffer overwite bug detected\n";
-  $ocibug{LongReadLen} = __LINE__;	# see also blob_read tests below
-    # The bug:
-    #	If you fetch a LONG field and then fetch another row
-    #	which has a LONG field shorter than the previous
-    #	then the second long will appear to have the
-    #	longer portion of first appended to it!
-  ok(0, 1);
-}
-else {
-  ok(0, $tmp->[1] eq $long_data2,
-	cdif($tmp->[1],$long_data2, "Len ".length($tmp->[1])) );
-}
-$sth->trace(0);
-
-
-print " --- fetch $type_name data back again -- via blob_read\n";
-if (ORA_OCI >= 8 && $type_name =~ /LONG/i) {
-    print "Skipped blob_read tests for LONGs with OCI8 - not currently supported.\n";
-    foreach (1..11) { ok(0,1) }
-}
-else {
-    #$dbh->trace(4);
-    $dbh->{LongReadLen} = 1024 * 90;
-    $dbh->{LongTruncOk} =  1;
-    ok(0, $sth = $dbh->prepare("select * from $table order by idx"), 1);
-    ok(0, $sth->execute, 1);
-    ok(0, $tmp = $sth->fetchrow_arrayref, 1);
-
-    ok(0, blob_read_all($sth, 1, \$p1, 4096) == length($long_data0), 1);
-    ok(0, $p1 eq $long_data0, cdif($p1, $long_data0));
-
-    ok(0, $tmp = $sth->fetchrow_arrayref, 1);
-    ok(0, blob_read_all($sth, 1, \$p1, 12345) == length($long_data1), 1);
-    ok(0, $p1 eq $long_data1, cdif($p1, $long_data1));
-
-    ok(0, $tmp = $sth->fetchrow_arrayref, 1);
-    my $len = blob_read_all($sth, 1, \$p1, 34567);
-
-    if ($len == length($long_data2)) {
-	ok(0, $len == length($long_data2), $len);
-	    # Oracle may return the right length but corrupt the string.
-	ok(0, $p1 eq $long_data2, cdif($p1, $long_data2) );
-    }
-    elsif ($len == length($long_data1)
-       && DBD::Oracle::ORA_OCI() == 7
-       && substr($p1, 0, length($long_data2)) eq $long_data2
-    ) {
-      print "OCI7 buffer overwite bug detected\n";
-      $ocibug{blob_read} = __LINE__;	# see also blob_read tests below
-	# The bug:
-	#	If you use blob_read to read a LONG field and then fetch another row
-	#	and use blob_read to read that LONG field,
-	# 	If the second LONG is shorter than the first
-	#	then the second long will appear to have the
-	#	longer portion of first appended to it.
-      ok(0, 1);
-      ok(0, 1, 0);
-    }
-    else {
-	ok(0, 0, "Fetched length $len, expected ".length($long_data2));
-	ok(0, 0, 0);
-    }
-}
-
-
-
-if (ORA_OCI >= 8 && $type_name =~ /LOB/i) {
-    print " --- testing ora_auto_lob to access $type_name LobLocator\n";
-    my $ll_sth = $dbh->prepare(qq{
-	    SELECT lng, idx FROM $table ORDER BY idx
-	    FOR UPDATE -- needed so lob locator is writable
-	}, {
-	    ora_auto_lob => 0, # 0: get lob locator instead of lob contents
-	}
-    );
-    ok(0, $ll_sth->execute);
-    my $data_fmt = "%03d foo!";
-    while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
-	print "$idx: ".DBI::neat($lob_locator)."\n";
-	next if !defined($lob_locator) && $idx == 43;
-	ok(0, $lob_locator, "lob_locator false");
-	ok(0, ref $lob_locator eq 'OCILobLocatorPtr', ref $lob_locator);
-	ok(0, $$lob_locator, "lob_locator deref ptr false");
-	my $data = sprintf $data_fmt, $idx;
-	ok(0, $dbh->func($lob_locator, 1, $data, 'ora_lob_write'));
-    }
-    #$dbh->commit;
-    ok(0, $ll_sth->execute);
-    while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
-	print "$idx locator: ".DBI::neat($lob_locator)."\n";
-	if (!defined $long_data{$idx}) { # null
-	    ok(0, !defined $lob_locator);
-	    ok(0, 1) for (1..6);
-	    next;
-	}
-	my $content = $dbh->func($lob_locator, 1, 20, 'ora_lob_read');
-	ok(0, !$DBI::err) or print "error: $DBI::errstr\n";
-	ok(0, $content);
-	print "$idx content: ".DBI::neat($content)."\n";
-	ok(0, length($content) == 20);
-
-	# but prefix has been overwritten:
-	my $data = sprintf $data_fmt, $idx;
-	ok(0, substr($content,0,length($data)) eq $data);
-
-	# ora_lob_length agrees:
-	my $len = $dbh->func($lob_locator, 'ora_lob_length');
-	ok(0, !$DBI::err) or print "error: $DBI::errstr\n";
-	ok(0, $len == length($long_data{$idx}));
-
-	# now trim the length
-	$dbh->func($lob_locator, $idx, 'ora_lob_trim');
-	ok(0, !$DBI::err) or print "error: $DBI::errstr\n";
-
-	# and append some text
-	$dbh->func($lob_locator, "12345", 'ora_lob_append');
-	ok(0, !$DBI::err) or print "error: $DBI::errstr\n";
-	if ($DBI::err && $DBI::errstr =~ /ORA-24801:/) {
-	    warn " If you're using Oracle < 8.1.7 then the OCILobWriteAppend error is probably\n";
-	    warn " due to Oracle bug #886191 and is not a DBD::Oracle problem\n";
-            --$failed; # don't trigger long message below just for this
+        SKIP: {
+            if ($DBI::err && $DBI::errstr =~ /ORA-01801:/) {
+                # ORA-01801: date format is too long for internal buffer
+                skip " If you're using Oracle <= 8.1.7 then this error is probably\n"
+                    ." due to an Oracle bug and not a DBD::Oracle problem.\n" , 5 ;
+            }
+            cmp_ok(@$tmp ,'==' ,4 ,'four rows 5' );
+            ok($tmp->[0][1] eq substr($long_data0,0,$out_len),
+                    cdif($tmp->[0][1], substr($long_data0,0,$out_len), "Len ".length($tmp->[0][1])) );
+            ok($tmp->[1][1] eq substr($long_data1,0,$out_len),
+                    cdif($tmp->[1][1], substr($long_data1,0,$out_len), "Len ".length($tmp->[1][1])) );
+            ok($tmp->[2][1] eq substr($long_data2,0,$out_len),
+                    cdif($tmp->[2][1], substr($long_data2,0,$out_len), "Len ".length($tmp->[2][1])) );
+            # use Data::Dumper; print Dumper($tmp->[3]);
+            ok(!defined $tmp->[3][1], "last row undefined"); # NULL # known bug in DBD::Oracle <= 1.13
         }
 
-    }
+        diag " --- fetch $type_name data back again -- truncated - LongTruncOk == 0\n";
+        $dbh->{LongReadLen} = $len_data1 - 10; # so $long_data0 fits but long_data1 doesn't
+        $dbh->{LongReadLen} = $dbh->{LongReadLen} / 2 if $type_name =~ /RAW/i;
+        my $LongReadLen = $dbh->{LongReadLen};
+        $dbh->{LongTruncOk} = 0;
+        diag "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
 
-    print "round again to check the length...\n";
-    ok(0, $ll_sth->execute);
-    while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
-	print "$idx locator: ".DBI::neat($lob_locator)."\n";
-	if (!defined $long_data{$idx}) { # null
-	    ok(0, !defined $lob_locator);
-	    ok(0, 1);
-	    next;
-	}
-	my $len = $dbh->func($lob_locator, 'ora_lob_length');
-	ok(0, !$DBI::err) or print "error: $DBI::errstr\n";
-	ok(0, $len == $idx + 5);
-    }
-    ok(0,1);
-    #die $DBI::errstr;# if $DBI::err;
-}
-else {
-    ok(0,1) for (1..3+(13*4));
-}
+        $sqlstr = "select * from $table order by idx";
+        ok($sth = $dbh->prepare($sqlstr), "prepare $sqlstr" );
+        ok($sth->execute, "execute $sqlstr" );
 
+        ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
+        ok($tmp->[1] eq $long_data0, "length tmp->[1] ".length($tmp->[1]) );
+
+        { 
+            local $sth->{PrintError} = 0;
+            ok(!defined $sth->fetchrow_arrayref,
+                    "truncation error not triggered "
+                    ."(LongReadLen $LongReadLen, data ".length($tmp->[1]||0).")");
+            $tmp = $sth->err || 0;
+            ok( ($tmp == 1406 || $tmp == 24345) ,"tmp==1406 || tmp==24345 tmp actually=$tmp" );
+        }
+
+
+        diag " --- fetch $type_name data back again -- complete - LongTruncOk == 0\n";
+        $dbh->{LongReadLen} = $len_data1 +1000;
+        $dbh->{LongTruncOk} = 0;
+        diag "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
+
+        $sqlstr = "select * from $table order by idx";
+        ok($sth = $dbh->prepare($sqlstr), "prepare: $sqlstr" );
+        #$sth->trace(4);
+        ok($sth->execute, "execute $sqlstr" );
+
+        ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
+        ok($tmp->[1] eq $long_data0, "length of tmp->[1] == " .length($tmp->[1]) );
+
+        ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
+        ok($tmp->[1] eq $long_data1,"length of tmp->[1] == " . length($tmp->[1]) );
+
+        ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
+        if ($tmp->[1] eq $long_data2) {
+            ok(1 ,"tmp->[1] eq long_data2" );
+        }
+        elsif (length($tmp->[1]) == length($long_data1)
+           && DBD::Oracle::ORA_OCI() == 7
+           && substr($tmp->[1], 0, length($long_data2)) eq $long_data2
+        ) {
+          diag "OCI7 buffer overwite bug detected\n";
+          $ocibug{LongReadLen} = __LINE__;	# see also blob_read tests below
+            # The bug:
+            #	If you fetch a LONG field and then fetch another row
+            #	which has a LONG field shorter than the previous
+            #	then the second long will appear to have the
+            #	longer portion of first appended to it!
+          ok(1, "OCI7buffer overwite bug detected" );
+        }
+        else {
+          ok($tmp->[1] eq $long_data2,
+                cdif($tmp->[1],$long_data2, "Len ".length($tmp->[1])) );
+        }
+        $sth->trace(0);
+
+
+        SKIP: {
+            skip( "blob_read tests for LONGs with OCI8 - not currently supported.\n" ,11 )
+                if (ORA_OCI >= 8 && $type_name =~ /LONG/i) ;
+
+            #$dbh->trace(4);
+            diag "\n\n--- fetch $type_name data back again -- via blob_read\n\n";
+
+            $dbh->{LongReadLen} = 1024 * 90;
+            $dbh->{LongTruncOk} =  1;
+            $sqlstr = "select * from $table order by idx";
+            ok($sth = $dbh->prepare($sqlstr) ,"prepare $sqlstr" );
+            ok($sth->execute, "execute $sqlstr" );
+            ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 1: $sqlstr"  );
+
+            cmp_ok(blob_read_all($sth, 1, \$p1, 4096) ,'==', length($long_data0), "blob_read_all = length(\$long_data0)" );
+            ok($p1 eq $long_data0, cdif($p1, $long_data0) );
+
+            ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 2: $sqlstr" );
+            cmp_ok(blob_read_all($sth, 1, \$p1, 12345) ,'==', length($long_data1), "blob_read_all = length(long_data1)" );
+            ok($p1 eq $long_data1, cdif($p1, $long_data1) );
+
+            ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 3: $sqlstr"  );
+            my $len = blob_read_all($sth, 1, \$p1, 34567);
+
+            SKIP: {
+                if ($len == length($long_data1)
+                   && DBD::Oracle::ORA_OCI() == 7
+                   && substr($p1, 0, length($long_data2)) eq $long_data2
+                ) {
+                    #print "OCI7 buffer overwite bug detected\n";
+                    $ocibug{blob_read} = __LINE__;	# see also blob_read tests below
+                    # The bug:
+                    #	If you use blob_read to read a LONG field and then fetch another row
+                    #	and use blob_read to read that LONG field,
+                    # 	If the second LONG is shorter than the first
+                    #	then the second long will appear to have the
+                    #	longer portion of first appended to it.
+                    skip "OCI7 buffer overwite bug detected" ,2;
+                }
+                cmp_ok($len,'==', length($long_data2), "length of long_data2 = $len" );
+                ok($p1 eq $long_data2, cdif($p1, $long_data2) ); # Oracle may return the right length but corrupt the string.
+            } #skip 2
+        } #skip 11
+
+
+        SKIP: {
+            if ( ORA_OCI >= 8 && $type_name =~ /LOB/i) {
+
+                diag "\n --- testing ora_auto_lob to access $type_name LobLocator\n\n";
+                $sqlstr = qq{
+                        SELECT lng, idx FROM $table ORDER BY idx
+                        FOR UPDATE -- needed so lob locator is writable
+                    };
+                my $ll_sth = $dbh->prepare($sqlstr, { ora_auto_lob => 0 } );  # 0: get lob locator instead of lob contents
+                ok($ll_sth->execute ,"prepare $sqlstr" );
+                my $data_fmt = "%03d foo!";
+
+                while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
+                    diag "$idx: ".DBI::neat($lob_locator)."\n";
+                    next if !defined($lob_locator) && $idx == 43;
+
+                    ok($lob_locator, "lob_locator false");
+                    is(ref $lob_locator , 'OCILobLocatorPtr', 'ref $lob_locator' );
+                    ok( (ref $lob_locator and $$lob_locator), "lob_locator deref ptr false" ) ;
+                    my $data = sprintf $data_fmt, $idx;
+                    ok($dbh->func($lob_locator, 1, $data, 'ora_lob_write') ,"ora_lob_write" );
+                }
+                #$dbh->commit;
+                ok($ll_sth->execute,"execute $sqlstr" );
+                while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
+                    diag "$idx locator: ".DBI::neat($lob_locator)."\n";
+                    SKIP: {
+                        skip "long_data{idx} not ndefined" ,7 if ! defined $long_data{$idx};
+
+                        my $content = $dbh->func($lob_locator, 1, 20, 'ora_lob_read');
+                        ok(!$DBI::err, "DBI::errstr" );
+                        ok($content,"content is true" );
+                        diag "$idx content: ".DBI::neat($content)."\n";
+                        cmp_ok(length($content) ,'==', 20 ,"lenth(content)" );
+
+                        # but prefix has been overwritten:
+                        my $data = sprintf $data_fmt, $idx;
+                        ok(substr($content,0,length($data)) eq $data ,"content=data" );
+
+                        # ora_lob_length agrees:
+                        my $len = $dbh->func($lob_locator, 'ora_lob_length');
+                        ok(!$DBI::err ,"DBI::errstr" );
+                        cmp_ok($len ,'==', length($long_data{$idx}) ,"len($len)=length(long_data{idx})" );
+
+                        # now trim the length
+                        $dbh->func($lob_locator, $idx, 'ora_lob_trim');
+                        ok(!$DBI::err, "DBI::errstr" );
+
+                        # and append some text
+                        $dbh->func($lob_locator, "12345", 'ora_lob_append');
+                        ok(!$DBI::err ,"DBI::errstr" );
+                        if ($DBI::err && $DBI::errstr =~ /ORA-24801:/) {
+                            warn " If you're using Oracle < 8.1.7 then the OCILobWriteAppend error is probably\n";
+                            warn " due to Oracle bug #886191 and is not a DBD::Oracle problem\n";
+                            --$failed; # don't trigger long message below just for this
+                        }
+                    }
+                }
+
+                diag "round again to check the length...\n";
+                ok($ll_sth->execute ,"excute: $sqlstr" );
+                while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
+                    diag "$idx locator: ".DBI::neat($lob_locator)."\n";
+                    if (!defined $long_data{$idx}) { # null
+                        ok(!defined $lob_locator,"lob_locator not defined" );
+                        ok(1);
+                        next;
+                    }
+                    my $len = $dbh->func($lob_locator, 'ora_lob_length');
+                    ok(!$DBI::err ,"DBI::errstr" );
+                    cmp_ok( $len ,'==', $idx + 5 ,"len == idx+5" );
+                }
+                ok(1);
+            } else {
+                skip( "ORA_OCI < 8 && $type_name =~ /LOB/i" ,3+(13*4) );
+            }
+        } #skip ORA_OCI < 8
+
+        #die $DBI::errstr;# if $DBI::err;
+    } #skip it all (tests_per_set)
 } # end of run_long_tests
 
 if (%ocibug) {
@@ -424,6 +448,7 @@ sub create_table {
     my ($fields, $drop) = @_;
     my $sql = "create table $table ( idx integer, $fields, dt date )";
     $dbh->do(qq{ drop table $table }) if $drop;
+    diag "\n\ndrop table $table\n" if $drop;
     $dbh->do($sql);
     if ($dbh->err && $dbh->err==955) {
 	$dbh->do(qq{ drop table $table });
@@ -431,7 +456,7 @@ sub create_table {
 	$dbh->do($sql);
     }
     return 0 if $dbh->err;
-    print "$sql\n";
+    diag "\n\n$sql\n\n\n\n";
     return 1;
 }
 
@@ -443,7 +468,8 @@ sub blob_read_all {
     my @frags;
     while (1) {
 	my $frag = $sth->blob_read($field_idx, $offset, $lump);
-	return unless defined $frag;
+	#lab return unless defined $frag;
+	last unless defined $frag;
 	my $len = length $frag;
 	last unless $len;
 	push @frags, $frag;
@@ -479,22 +505,23 @@ sub cdif {
 }
 
 
-sub ok ($$;$) {
-    my($n, $ok, $warn) = @_;
-    $warn ||= '';
-    ++$t;
-    die "sequence error, expected $n but actually $t"
-    if $n and $n != $t;
-    if ($ok) {
-	print "ok $t\n";
-    }
-    else {
-	$warn = $DBI::errstr || "(DBI::errstr undefined)" if $warn eq '1';
-	warn "# failed test $t at line ".(caller)[2].". $warn\n";
-	print "not ok $t\n";
-	++$failed;
-    }
-    return $ok;
-}
+#lab sub ok ($$;$) {
+#lab     my($n, $ok, $warn) = @_;
+#lab     $warn ||= '';
+#lab     ++$t;
+#lab     die "sequence error, expected $n but actually $t"
+#lab     if $n and $n != $t;
+#lab     if ($ok) {
+#lab 	print "ok $t\n";
+#lab     }
+#lab     else {
+#lab 	$warn = $DBI::errstr || "(DBI::errstr undefined)" if $warn eq '1';
+#lab 	warn "# failed test $t at line ".(caller)[2].". $warn\n";
+#lab 	print "not ok $t\n";
+#lab 	++$failed;
+#lab     }
+#lab     return $ok;
+#lab }
+
 
 __END__

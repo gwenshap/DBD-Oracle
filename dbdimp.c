@@ -60,6 +60,24 @@ static sql_fbh_t ora2sql_type _((imp_fbh_t* fbh));
 void ora_free_phs_contents _((phs_t *phs));
 static void dump_env_to_trace();
 
+#ifdef WIN32
+int GetRegKey(char *key, char *val, char *data, int *size)
+{
+    HKEY hKey;
+    long len = *size - 1;
+    long ret;
+
+    ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key, 0, KEY_QUERY_VALUE, &hKey);
+    if (ret != ERROR_SUCCESS)
+        return 0;
+    ret = RegQueryValueEx(hKey, val, NULL, NULL, data, size);
+    if ((ret != ERROR_SUCCESS) || (*size >= len))
+        return 0;
+    RegCloseKey(hKey);
+    return 1;
+}
+#endif
+
 void
 dbd_init(dbistate)
     dbistate_t *dbistate;
@@ -83,10 +101,29 @@ dbd_init(dbistate)
 	STRLEN nlslen;
 	if (nls && (nlslen = strlen(nls)) >= 4) {
 	    cs_is_utf8 = !strcasecmp(nls + nlslen - 4, "utf8");
+#ifdef	WIN32
+	} else {
+#define REG_BUFSIZE 80
+	    char  key[REG_BUFSIZE];
+	    char  val[REG_BUFSIZE];
+	    nlslen = REG_BUFSIZE;
+
+	    if (GetRegKey("SOFTWARE\\ORACLE\\ALL_HOMES", "LAST_HOME", val, &nlslen)) {
+	        val[2] = 0;
+		nlslen = BUFSIZE;
+	    	sprintf(key, "SOFTWARE\\ORACLE\\HOME%s", val);
+		if (GetRegKey(key, "NLS_LANG", val, &nlslen)) {
+		    if (nlslen >= 5) {
+		    	cs_is_utf8 = !strcasecmp(val + nlslen - 5, "utf8");
+		    }
+		}
+	    }
+#endif
 	}
     }
 #endif
 #endif
+
 }
 
 
