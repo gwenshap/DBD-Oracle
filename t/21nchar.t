@@ -26,17 +26,22 @@ use Encode;
 #binmode(STDERR,":utf8");
 
 my @widechars = ();  
-push @widechars ,"\x{A1}" ;    #up side down bang (  )
-push @widechars ,"\x{A2}" ;    #cent char (  )
-push @widechars ,"\x{A3}" ;    #Brittish Pound char (  )
-push @widechars ,"\x{263A}" if $ENV{DBD_NCHAR_SMILEY}; #smiley face from perl unicode man page
+push @widechars ,"a" ;   
+push @widechars ,"b" ;   
+push @widechars ,"\x{03}" ;   
+push @widechars ,"\x{08A1} is unside down bang" ;    #up side down bang (  )
+push @widechars ,"\x{08A2} is cent char" ;    #cent char (  )
+push @widechars ,"\x{08A3} is brittish pound" ;    #Brittish Pound char (  )
+push @widechars ,"\x{263A} is smiley char" ;    #if $ENV{DBD_NCHAR_SMILEY}; #smiley face from perl unicode man page
 my $charcnt = @widechars;
 # plan tests => $testcount + $charcnt * 7;
 
 print "testing utf8 chars:\n" ;
 my $cnt = 1;
 foreach my $c ( @widechars ) { 
-   print "\trow $cnt nch_col will be nice_string=" . nice_string( $c ) ." bytes=".byte_string($c) ."\n" ;
+   my $string = "\trow $cnt nch_col will be nice_string=\"" . nice_string( $c ) ."\" bytes=".byte_string($c) ;
+   $string .= " is a perl utf8 string" if utf8::is_utf8( $c );
+   print $string."\n";
    $cnt++;
 }
 
@@ -74,7 +79,7 @@ SKIP: {
         $dbh->do(qq{ drop table $table });
     }
 
-    ok( create_table( "ch_col VARCHAR2(20), nch_col NVARCHAR2(20)" ), "create table $table..." );
+    ok( create_table( "ch_col VARCHAR2(20), nch_col NVARCHAR2(40)" ), "create table $table..." );
     my $cols = 'idx,ch_col,nch_col,dt' ;
     my $sstmt = "SELECT $cols FROM $table ORDER BY idx" ;
 
@@ -206,13 +211,21 @@ sub byte_string {
     return $ret;
 }
 sub nice_string {
-    join("",
-    map { $_ > 255 ?                  # if wide character...
+    my @chars = map { $_ > 255 ?                  # if wide character...
           sprintf("\\x{%04X}", $_) :  # \x{...}
           chr($_) =~ /[[:cntrl:]]/ ?  # else if control character ...
           sprintf("\\x%02X", $_) :    # \x..
           chr($_)                     # else as themselves
-    } unpack("U*", $_[0]));           # unpack Unicode characters
+    } unpack("U*", $_[0]);           # unpack Unicode characters
+   
+   foreach my $c ( @chars )
+   {
+      if ( $c =~ m/\\x\{08(..)}/ ) {
+         $c .= "='" .chr(hex($1)) ."'";
+      }
+   }
+   my $ret = join("",@chars); 
+
 }
 
 use Data::Dumper;
@@ -221,10 +234,10 @@ sub check_ncharset
     #verify the NLS NCHAR character set is 'UTF8'
     my $paramsH = $dbh->ora_nls_parameters();
     #warn Dumper( $paramsH );
-    warn "Database character set is " .$paramsH->{NLS_CHARACTERSET} ."\n";
-    warn "Database NCHAR character set is " .$paramsH->{NLS_NCHAR_CHARACTERSET} ."\n";
+    print "Database character set is " .$paramsH->{NLS_CHARACTERSET} ."\n";
+    print "Database NCHAR character set is " .$paramsH->{NLS_NCHAR_CHARACTERSET} ."\n";
     if ( $paramsH->{NLS_NCHAR_CHARACTERSET} ne 'UTF8' ) {
-        warn "Database NCHAR character set is not 'UTF8'\n" #  ."Some of these tests will likely fail\n"
+        print "Database NCHAR character set is not 'UTF8'\n" #  ."Some of these tests will likely fail\n"
         ;
         return 0;
     }
@@ -235,13 +248,7 @@ sub show_nls_info
 {
    if ( not $ENV{NLS_LANG} ) { 
        $ENV{NLS_LANG} = 'AMERICAN_AMERICA.UTF8';
-       return qq(
-   NLS_LANG is not set. 
-   Setting it to AMERICAN_AMERICA.UTF8
-   consider setting NLS_LANG for your local
-   other possible character sets that will work (for single byte chars) include:
-       .WE8ISO8859P1
-       .WE8MSWIN1252 ) ."\n\n";
+       return "\nsetting NLS_LANG=AMERICAN_AMERICA.UTF8 for $0\n";
 
    } else {
        return "\nNLS_LANG=" .$ENV{NLS_LANG}. "\n" ;
@@ -249,3 +256,8 @@ sub show_nls_info
 }
 
 __END__
+
+
+   other possible character sets that will work (for single byte chars) include:
+       .WE8ISO8859P1
+       .WE8MSWIN1252 

@@ -68,7 +68,7 @@ dbd_init(dbistate)
     if ((p=getenv("DBD_ORACLE_SIGCHLD")))
 	ora_sigchld_restart = atoi(p);
 
-#ifdef UTF8_SUPPORT
+#ifdef LAB_THIS_IS_WRONG /*UTF8_SUPPORT*/
     {
 	char *nls = getenv("NLS_LANG");
 	STRLEN nlslen;
@@ -397,12 +397,12 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
         PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"AL32UTF8\") returns %d\n", 
                       OCINlsCharSetNameToId(imp_drh->envhp, "AL32UTF8") );
 #endif
-        utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "UTF8");
         if ( 1 )
         {
             int charsetid = 0;
             int rsize = 0;
             int stat = 0;
+            utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "UTF8");
             stat = OCINlsEnvironmentVariableGet(&charsetid,2,OCI_NLS_CHARSET_ID,0,&rsize);
             /*  PerlIO_printf(DBILOGFP,"(lab) OCINlsEnvironmentVariableGet() returns %d: charsetid=%d rsize=%d\n", 
                       stat, charsetid, rsize 

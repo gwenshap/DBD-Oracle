@@ -1362,15 +1362,15 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 			--datalen;
 		}
 		sv_setpvn(sv, p, (STRLEN)datalen);
-#ifdef LAB_THIS_IS_UNNECESSARY /* OCI_ATTR_CHARSET_ID /* */
-              if ( (fbh->dbtype==1) && (fbh->csform) && (fbh->csid==871) )
-              { 
-                  PerlIO_printf(DBILOGFP, "*** (lab) trying to convert sv for for field # %d to utf8\n" ,i+1 );
-                  /* encode_utf8(sv); */
-              } 
+#ifdef OCI_ATTR_CHARSET_ID /* */
+                if ( (fbh->dbtype==1) && (fbh->csform) && (fbh->csid==871) )
+                { 
+                    /* PerlIO_printf(DBILOGFP, "*** (lab) trying to convert sv for for field # %d to utf8\n" ,i+1 ); */
+                    DBD_SET_UTF8(sv);
+                } 
 #endif
 
-#ifdef LAB_THIS_IS_WRONG /* UTF8_SUPPORT*/
+#ifdef LAB_SKIP_THIS /*UTF8_SUPPORT*/
 		DBD_SET_UTF8(sv);
 #endif
 	    }
