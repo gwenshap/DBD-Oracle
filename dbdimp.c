@@ -939,6 +939,12 @@ ora_sql_type(imp_sth, name, sql_type)
     case SQL_LONGVARCHAR:
 	return 8;	/* Oracle LONG		*/
 
+    case SQL_CLOB:
+	return 112;	/* Oracle CLOB		*/
+
+    case SQL_BLOB:
+	return 113;	/* Oracle BLOB		*/
+
     case SQL_DATE:
     case SQL_TIME:
     case SQL_TIMESTAMP:
