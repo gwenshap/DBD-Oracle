@@ -16,6 +16,20 @@ unless (defined &{"utf8::is_utf8"}) {
     }
 }
 
+=head binmode STDOUT, ':utf8'
+
+ Wide character in print at t/nchar_test_lib.pl line 134 (#1)
+    (W utf8) Perl met a wide character (>255) when it wasn't expecting
+    one.  This warning is by default on for I/O (like print).  The easiest
+    way to quiet this warning is simply to add the :utf8 layer to the
+    output, e.g. binmode STDOUT, ':utf8'.  Another way to turn off the
+    warning is to add no warnings 'utf8'; but that is often closer to
+    cheating.  In general, you are supposed to explicitly mark the
+    filehandle with an encoding, see open and perlfunc/binmode.
+=cut
+eval { binmode STDOUT, ':utf8' }; # Fails for perl 5.6
+print "Can't set binmode(STDOUT, ':utf8'): $@" if $@;
+
 sub long_test_cols
 {
    my ($type) = @_ ;
@@ -44,10 +58,11 @@ sub wide_data
         [ "\x{03}",   "control-C"        ], 
         [ "a",        "lowercase a"      ],
         [ "b",        "lowercase b"      ],
-        [ "\x{A1}", "upside down bang" ],
-        [ "\x{A2}", "cent char"        ],
-        [ "\x{A3}", "brittish pound"   ],
         [ "\x{263A}", "smiley face"      ],
+# These are not safe for db's with US7ASCII
+#       [ "\x{A1}", "upside down bang" ],
+#       [ "\x{A2}", "cent char"        ],
+#       [ "\x{A3}", "brittish pound"   ],
     ];
 }
 sub extra_wide_rows
@@ -175,7 +190,7 @@ sub insert_rows #1 + rows*2 +rows*ncols tests
     my $trows = $tdata->{rows};
     my $tcols = $tdata->{cols};
     my $table = table();
-    $dbh->trace(0);
+    # local $dbh->{TraceLevel} = 4;
     my $sth = insert_handle($dbh, $tcols);
 
     my $cnt = 0;
@@ -198,10 +213,9 @@ sub insert_rows #1 + rows*2 +rows*ncols tests
             } 
             ok( $sth->bind_param( $colnum++ ,$val ,$attr ) ,"bind_param " . $$tcols[$i][0] ." $note" );
         }
-        ok( $sth->execute ,"insert row $cnt" );
         $cnt++;
+        ok( $sth->execute ,"insert row $cnt: $rowR->[-1]" );
     }
-    $dbh->trace(0);
 }
 sub dump_table
 {
@@ -239,10 +253,8 @@ sub select_handle #1 test
         $sql .= $$col[0] . ", ";
     }
     $sql .= "dt from $table order by idx" ;
-$dbh->trace(0) ;
     my $h = $dbh->prepare( $sql );
     ok( $h ,"prepared: $sql" );
-$dbh->trace(0) ;
     return $h;
 }
 sub select_test_count 
@@ -273,18 +285,21 @@ sub select_rows # 1 + numcols + rows * cols * 2
         for( my $i = 0 ; $i < @$tcols; $i++ )
         {
             my $res = $data[$i];
-            my $is_utf8 = utf8::is_utf8( $res ) ? "(uft8 string)" : "";
-            cmp_ok( byte_string($res), 'eq', byte_string($$trows[$cnt][$i] ),
-                    "byte_string test of row $cnt; column: " .$$tcols[$i][0] .$is_utf8
-                    );
+	    my $charname = $trows->[$cnt][1] || '';
+            my $is_utf8 = utf8::is_utf8( $res ) ? " (uft8)" : "";
+	    my $description = "row $cnt; column: $tcols->[$i][0] $is_utf8 $charname";
+
+            cmp_ok( byte_string($res), 'eq', byte_string($$trows[$cnt][$i]),
+		"byte_string test of $description"
+	    );
 	    cmp_ok( nice_string($res), 'eq', nice_string($$trows[$cnt][$i] ),
-		    "nice_string test of row $cnt; column: " .$$tcols[$i][0] .$is_utf8
-		    );
-            $sth->trace(0) if $cnt >= 3 ;
+		"nice_string test of $description"
+	    );
+            #$sth->trace(0) if $cnt >= 3 ;
         }
         $cnt++;
     }
-    $sth->trace(0);
+    #$sth->trace(0);
     my $trow_cnt = @$trows;
     cmp_ok( $cnt, '==', $trow_cnt, "number of rows fetched" );
 }
