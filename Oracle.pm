@@ -1,4 +1,4 @@
-#   $Id: Oracle.pm,v 1.30 1996/05/30 13:23:39 timbo Exp $
+#   $Id: Oracle.pm,v 1.31 1996/06/19 00:48:09 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -16,8 +16,8 @@ require 5.002;
     use DynaLoader ();
     @ISA = qw(DynaLoader);
 
-    $VERSION = '0.32';
-    my $Revision = substr(q$Revision: 1.30 $, 10);
+    $VERSION = '0.33';
+    my $Revision = substr(q$Revision: 1.31 $, 10);
 
     require_version DBI 0.69;
 
@@ -91,11 +91,13 @@ require 5.002;
 
 	    if ($dbname =~ /@/){	# Implies an Sql*NET connection
 
-		$user .= $dbname;
+		$user = "$user/$auth$dbname";
+		$auth = "";
 	    }
 	    elsif ($dbname =~ /:/){	# Implies an Sql*NET connection
 
-		$user .= '@'.$dbname;
+		$user = "$user/$auth".'@'.$dbname;
+		$auth = "";
 	    }
 	    else {
 

@@ -7,6 +7,9 @@ Many others. Remember, this is still alpha software!
 
 Support shared libraries with Oracle 7.3
 
+Add a mechanism for fork style tasks so dbh of parent
+doesn't get freed by child.
+
 
 ===============================================================================
 Below is just a personal dumping ground for thoughts and issues, don't

@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.26 1996/05/30 13:24:24 timbo Exp $
+# $Id: Oraperl.pm,v 1.27 1996/06/19 00:48:09 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -20,11 +20,10 @@ package Oraperl;
 
 require 5.002;
 
-require DBI;
-# use Carp;
-require Exporter;
+use DBI 0.69;
+use Exporter;
 
-$VERSION = substr(q$Revision: 1.26 $, 10);
+$VERSION = substr(q$Revision: 1.27 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -39,7 +38,17 @@ $VERSION = substr(q$Revision: 1.26 $, 10);
 
 $debug    = 0 unless defined $debug;
 $debugdbi = 0;
-# $safe		# set true before 'use Oraperl' if needed.
+# $safe		# set true/false before 'use Oraperl' if needed.
+$safe = 1 unless defined $safe;
+
+# Help those who get core dumps from non-'safe' Oraperl (bad cursors)
+use sigtrap qw(ILL);
+$SIG{BUS} = $SIG{SEGV} = sub {
+	print STDERR "Add BEGIN { \$Oraperl::safe=1 } above 'use Oraperl'.\n"
+		unless $safe;
+	goto &sigtrap::trap;
+};
+
 
 if ($debugdbi){
     my $sw = DBI->internal;
@@ -284,12 +293,10 @@ Example:
   $lda = &ora_login('personnel', 'scott', 'tiger') || die $ora_errstr;
 
 This function is equivalent to the OCI olon and orlon functions.
-Really, it should have been called &ora_logon(), but I made the mistake
-a long time ago and fixing it would break too many existing programs.
 
-B<DBD:> note that TNS aliases are currently not supported. If 'foo' is
-an alias for 'T:host:foo' then you must explicitly use 'T:host:foo' (or
-an empty string and rely on ORACLE_SID or TWO_TASK environment variables).
+B<DBD:> note that a name is assumed to be a TNS alias if it does not
+appear as the name of a SID in /etc/oratab or /var/opt/oracle/oratab.
+See the code in Oracle.pm for the full logic of database name handling.
 
 B<DBD:> Since the returned $lda is a Perl5 reference the database login
 identifier is now automatically released if $lda is overwritten or goes

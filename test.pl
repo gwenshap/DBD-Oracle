@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl -w
 
-# $Id: test.pl,v 1.20 1996/01/29 22:33:23 timbo Exp $
+# $Id: test.pl,v 1.21 1996/06/19 00:48:09 timbo Exp $
 #
 # Copyright (c) 1995, Tim Bunce
 #
@@ -10,7 +10,7 @@
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.20 $}."\n";
+print q{Oraperl test application $Revision: 1.21 $}."\n";
 
 $opt_d = 0;		# debug
 $opt_l = 0;		# log
@@ -39,6 +39,8 @@ print " as '$dbuser' (via ORACLE_USERID environment var or default)\n";
 		warn "ora_login: $ora_errno: $ora_errstr\n";
 	    warn "\nHave you set the environment variable ORACLE_USERID ?\n"
 			if ($ora_errno == 1017);	# ORA-01017: invalid username/password
+	    warn "\nHave you included your password in ORACLE_USERID ? (e.g., 'user/passwd')\n"
+			if ($ora_errno == 1017 and $dbuser !~ m:/:);
 	    warn "\nHave you set the environment variable ORACLE_SID or TWO_TASK?\n"
 			if ($ora_errno == 2700);	# error translating ORACLE_SID
 	    warn "\nORACLE_SID or TWO_TASK possibly not right, or server not running.\n"

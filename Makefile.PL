@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.39 1996/05/30 13:49:31 timbo Exp $
+# $Id: Makefile.PL,v 1.41 1996/06/19 00:48:09 timbo Exp $
 
 require 5.002;
 
@@ -11,7 +11,11 @@ use strict;
 # Some MakeMaker's forged some FileHandle methods
 require FileHandle unless defined(&FileHandle::new);
 
-use DBI 0.69;	# This DBI must be installed before we can build a DBD
+# This DBI must be installed before we can build a DBD.
+# For those not using Dynamic loading this means building a
+# new static perl in the DBI directory by saying 'make perl'
+# and then using _that_ perl to make this one.
+use DBI 0.70;
 
 my %opts = (
     NAME => 'DBD::Oracle',
@@ -23,13 +27,19 @@ my(@MK, %MK, $MK);	# parsed macros from Oracle proc.mk file
 
 # Options, typically only used for debugging
 $::opt_m = '';		# path to proc.mk or oracle.mk file to read
+$::opt_g = '';		# enable debugging (s/-O/-g/g)
+$::opt_s = '';		# Find a symbol, Don't build a Makefile
 
-getopts('m:') or die "Invalid arguments";
+getopts('gm:s:') or die "Invalid arguments";
+
+$::opt_g &&= '-g';	# convert to actual string
 
 # --- Introduction
 
-print "\nConfiguring DBD::Oracle ...\n";
-print "\n>>>\tRemember to actually *READ* the README file!\n\n";
+
+print "\n Configuring DBD::Oracle ...\n
+>>>\tRemember to actually *READ* the README file!\n
+" unless $::opt_s;
 
 # --- Where is Oracle installed...
 
@@ -48,40 +58,43 @@ print "Using Oracle in $OH\n";
 # --- What Oracle is installed...
 
 # Todo: validate we have the right stuff installed
-# Todo: add depend's for DBIXS etc
-# e.g., Oracle 7.x, Pro*C etc. How do we test for those?
-
-# XXX out of date for Oracle 7.3.2. Sigh.
 warn "Warning: OCI (Pro*C) does not appear to be installed.\n"
-	unless -f "$OH/lib/libocic.a"
-	   and -f "$OH/rdbms/demo/oratypes.h";
-
-# read list of libs that oracle requires (eg -lm -lnsl)
-my $sysliblist = `cat $OH/rdbms/lib/sysliblist`;
-chomp $sysliblist;
-print "Oracle sysliblist: $sysliblist\n";
-
+    unless (-f "$OH/lib/libocic.a" and -f "$OH/rdbms/demo/oratypes.h")
+	or (-f "$OH/precomp/demo/proc/proc.mk");	# 7.3.x
 
 my @mkfiles;
 my $oraclemk = $::opt_m || "$OH/proc/lib/proc.mk";
 $oraclemk = "$OH/precomp/demo/proc/proc.mk" unless -f $oraclemk; # 7.3.x
-$oraclemk = "$OH/proc16/lib/proc16.mk" unless -f $oraclemk;
+$oraclemk = "$OH/proc16/lib/proc16.mk"      unless -f $oraclemk;
 die "Unable to locate proc.mk (use -m /path/to/proc.mk to specify)\n"
     unless -f $oraclemk;
 
 my $linkwith = fetch_oci_macros();
- 
-print "Using @mkfiles ".($MK{mkver} ? "(version $MK{mkver})" : '')."\n";
-
-$linkwith = expand_mkvars($linkwith, 0);
+my $libhome  = expand_mkvars($MK{LIBHOME}, 0, 0);
+$linkwith    = expand_mkvars($linkwith, 0, 0);
 $linkwith =~ s/-Y P,/-YP,/ if $Config{'cc'} =~ /gcc/;
 
-my $OCIINCLUDE = $MK{INCLUDE} || '';
+# get a cut down $linkwith to pass to MakeMaker liblist
+my $linkwith_s = expand_mkvars($linkwith, 1, 1);
+# extract object files, keep for use later
+my @linkwith_o;
+push @linkwith_o, $1 while $linkwith_s =~ s/(\S+\.o)\b//;
 
-$opts{LIBS} = [ $sysliblist ];
+if ($::opt_s) {
+	warn "Searching for symbol '$::opt_s' in $libhome ...\n";
+	system(qq{	cd $libhome; for i in lib*.[as]* *.o;
+				do echo "  searching \$i ..."; nm \$i | grep $::opt_s;
+				done
+			});
+	warn "Search done.\n";
+	exit;
+}
+
+my $OCIINCLUDE = $MK{INCLUDE} || '';
+$opts{LIBS} = [ "-L$libhome $linkwith_s" ];
 # INSTALLARCHLIB included _after_ INSTALLSITEARCH for transition period
 $opts{INC}  = "$OCIINCLUDE -I$OH/rdbms/demo -I\$(INSTALLSITEARCH)/DBI -I\$(INSTALLARCHLIB)/DBI";
-$opts{dynamic_lib} = { OTHERLDFLAGS => '-L$(LIBHOME) $(COMPOBJS) '.$linkwith };
+$opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g @linkwith_o \$(COMPOBJS)" };
 $opts{OBJECT} = '$(O_FILES)';
 
 
@@ -101,7 +114,8 @@ $opts{DEFINE} = '-Wall -pedantic -Wno-comment -Wtraditional'
 	if $Config{cc} eq 'gcc';
 
 $opts{DEFINE} .= '-Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
-
+warn "WARNING: Your GNU C compiler is very old. Please upgrade.\n"
+    if ($Config{gccversion} and $Config{gccversion} =~ m/^(1|2\.[1-5])/);
 
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($ENV{LOGNAME} eq 'timbo' and $ENV{S_ARCH_SW}){  # a reasonable guess
@@ -120,7 +134,7 @@ print "  CC:       $MK{CC}\n"		if $MK{CC};
 print "  CFLAGS:   $MK{CFLAGS}\n"	if $MK{CFLAGS};
 print "  LDFLAGS:  $MK{LDFLAGS}\n"	if $MK{LDFLAGS};
 print "  LDSTRING: $MK{LDSTRING}\n"	if $MK{LDSTRING};
-print "Linking with $linkwith\n";
+print "Linking with @linkwith_o $linkwith_s\n";
 
 # Assorted hints - these should be move to a hints subdirectory
 #print "See README notes about SPARCompiler on Solaris\n"
@@ -271,7 +285,8 @@ sub fetch_oci_macros {
 	die "ERROR parsing $oraclemk: Unable to determine what to link with.\n";
     }
     $MK = join("\n", @MK);
-    $linkwith;
+	print "Using @mkfiles ".($MK{mkver} ? "(version $MK{mkver})" : '')."\n";
+    return $linkwith;
 }
 
 sub read_inc_file {
@@ -295,20 +310,35 @@ sub read_inc_file {
 sub expand_mkvars { 
     my $string = shift;
     my $strip  = shift;
+    my $backtick  = shift;
     # warn "Expanding: $string\n";
-    $string =~ s/\$\((\w+)\)/mkvar($1, $strip)/ge;
+    $string =~ s/\$\((\w+)\)/mkvar($1, $strip, $backtick)/ge;
     $string =~ s/\s*\\\n\s*/ /g;	# merge continuations
+	$string =~ s/`(.*?)`/`$1`/eg if $backtick;
     $string =~ s/\s+/ /g;			# shrink whitespace
     $string;
 }
 sub mkvar { 
     my $var = shift;
     my $strip = shift;
+    my $backtick  = shift;
     my $default = $strip ? '' : "\$($var)";
     # warn "Expand var: $var\n";
-    return $default if $var eq 'LIBHOME';
+    return '$(LIBHOME)' if $var eq 'LIBHOME';	# gets too noisy
     return $ENV{ORACLE_HOME} if $var eq 'ORACLE_HOME';
-    $MK{$var} ? expand_mkvars($MK{$var}, $strip) : $default;
+    $MK{$var} ? expand_mkvars($MK{$var}, $strip, $backtick) : $default;
+}
+
+
+{	# If perl Makefile.PL *-g* then switch on debugging
+    package MY; # SUPER needs package context, $self is not sufficient
+    sub const_cccmd {
+		my($self) = shift;
+		local($_) = $self->SUPER::const_cccmd(@_);
+		s/\s-O\d?\b/ -g/g if $::opt_g;
+		$_;
+    }
+
 }
 
 __END__

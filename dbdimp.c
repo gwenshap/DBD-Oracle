@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.18 1996/05/30 13:42:11 timbo Exp $
+   $Id: dbdimp.c,v 1.19 1996/06/19 00:48:09 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -359,7 +359,7 @@ dbd_preparse(imp_sth, statement)
     imp_sth->statement = (char*)safemalloc(strlen(statement) + 100);
 
     /* initialise phs ready to be cloned per placeholder	*/
-    memset(&phs_tpl, sizeof(phs_tpl), 0);
+    memset(&phs_tpl, 0, sizeof(phs_tpl));
     phs_tpl.ftype = 1;	/* VARCHAR2 */
 
     src  = statement;

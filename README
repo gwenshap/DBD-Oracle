@@ -67,14 +67,83 @@ Please include:
 
 3. The output of perl -V
 
-4. If you get a core dump, try to include a stack trace from it.
-   I may not be able to help you much without it.
-   If the stack trace mentions XS_DynaLoader_dl_load_file then rerun
+4. If you get a core dump when using Oraperl try adding this *before*
+   your 'use Oraperl' line: BEGIN { $Oraperl::safe = 1 }
+   (unless your version of Oraperl.pm already has $safe=1 in it).
+
+5. If you still get a core dump rebuild DBD::Oracle with debugging
+   enabled by executing: perl Makefile.PL -g  (note the -g option)
+   then rerun the code to get a new core dump file, finally use a 
+   debugger (gdb, sdb, dbx, adb etc) to get a stack trace from it.
+   NOTE: I may not be able to help you much without a stack trace!
+   It is worth fetching and building the GNU GDB debugger (4.15) if
+   you don't have a good debugger on your system. If desparate try:
+     make perl; ./perl script; echo '$c' | adb ./perl core
+
+6. If the stack trace mentions XS_DynaLoader_dl_load_file then rerun
    make test after setting the environment variable PERL_DL_DEBUG to 2.
 
 
 Regards,
 Tim.
+
+===============================================================================
+Examples and other info:
+
+ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources/......
+
+Jeff Stander's stuff stands out for Oraperl.
+Directories of interest might be
+	/pub/Oracle/sources
+	/pub/Oracle/sources/jstander
+	/pub/Oracle/sources/jstander/distrib
+	/pub/Oracle/sources/jstander/tsmlib
+	/pub/Oracle/sources/jstander/wdbex
+	/pub/Oracle/sources/web/scripts
+	/pub/Oracle/sources/dba
+	/pub/Oracle/sources/dba/imp2sql7
+	/pub/Oracle/sources/Lonnroth
+	/pub/Oracle/sources/harrison
+
+Send stuff for the archive in
+	[.{cpio|tar|zip}][.{gz|Z|zip}].uu
+	format if by mail to me (orafaq@bf.rmit.edu.au)
+	And drop the .uu if using ftp, putting file(s) in
+	ftp://ftp.bf.rmit.edu.au/incoming/Oracle
+
+http://www.bf.rmit.edu.au/~orafaq/perlish.html
+ftp://ftp.bf.rmit.edu.au/pub/perl/db
+ftp://ftp.bf.rmit.edu.au/pub/Oracle
+ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources
+ftp://ftp.bf.rmit.edu.au/pub/Oracle/OS/MS/NT/ntoraperl.zip
+
+ftp://ftp.demon.co.uk/pub/perl/db/perl4/oraperl/
+
+===============================================================================
+Example for reading LONG fields via blob_read:
+
+my $sql = "SELECT long_field FROM table_name WHERE id = :1";
+my $csr = ora_open($lda, $sql) or die $ora_errstr;
+ora_bind($csr, $id) or die $ora_errstr;
+# ora_fetch() needs to be called in an array context
+my (@data) = ora_fetch($csr); 
+my ($frag, $blob, $length, $ll, $offset);
+$blob = '';
+$length = 4096; # use benchmarks to get best value for you
+$offset = 0;
+while (1)
+{
+    $frag = $csr->blob_read(0, $offset, $length);
+    last unless defined $frag;
+    $ll = length $frag;
+    last unless $ll;
+    $blob .= $frag;
+    $offset += $ll;
+}
+print $blob;
+
+With thanks to james.taylor@srs.gov and desilva@ind70.industry.net.
+
 
 ===============================================================================
 Some Users of DBD::Oracle on Specific Platforms:
@@ -145,6 +214,27 @@ AIX 4.1
 
 ===============================================================================
 Platform or Oracle Version specific notes:
+
+-------------------------------------------------------------------------------
+Oracle 7.3 on Solaris 2.5 (maybe others):
+
+    libc internal error: _rmutex_unlock: rmutex not held.
+
+- Try passing explicit db sid name to ora_login or connect.
+- Try removing clntsh from the list of libraries to link to (edit Makefile).
+- Try adding -lthread to the list of libraries to link to (edit Makefile).
+
+If any of these work please let me know (include full version info).
+
+-------------------------------------------------------------------------------
+Bad free() warnings:
+
+These are generally cause by problems in oracle own library code.
+You can use this code to hide them:
+
+    $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /^Bad free/ }
+
+But please let me know if you have this problem (include full version info) .
 
 -------------------------------------------------------------------------------
 HP-UX: Terry Greenlaw <z50816@mip.lasc.lockheed.com>

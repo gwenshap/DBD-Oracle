@@ -1,3 +1,13 @@
+Changes in DBD::Oracle 0.33 (Oraperl 1.27), 19th June 1996
+
+	Added Makefile.PL -g option to enable debugging.
+	Added Makefile.PL -s symbol_name option to search for symbols.
+	Reorganised the way Makefile.PL uses MakeMaker liblist code.
+	Oraperl defaults to the 'safe' (normal) mode of using the DBI.
+	Oraperl uses sigtrap on SEGV & BUS to give a perl stack trace.
+	Added README notes about -g option, core files and stack traces.
+	Small change to $dbname/$user/$passwd logic in connect.
+
 Changes in DBD::Oracle 0.32 (Oraperl 1.25), 30th May 1996
 
 	Fixed memory leak when FETCH'ing attributes.
