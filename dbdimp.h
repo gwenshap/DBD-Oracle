@@ -251,16 +251,13 @@ int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
            csid = charsetid; \
         } \
     }
-/* XXX UTF8_FIXUP_CSID is disabled for now
-OK... I rewrote this (above) to make it much more targeted... by checking csform
-and turned it back on... it _IS_ necessary (atleast in 9.2)
-#undef UTF8_FIXUP_CSID
-#define UTF8_FIXUP_CSID(csid,where)   0
-*/
 
-#define DBD_SET_UTF8_FORM(sv,csform)	\
-  ( ( (csform!=SQLCS_NCHAR && CS_IS_UTF8( charsetid)) \
-    ||(csform==SQLCS_NCHAR && CS_IS_UTF8(ncharsetid)) ) ? SvUTF8_on(sv) : 0 )
+#define CSFORM_IMPLIES_UTF8(csform) \
+    (  (csform!=SQLCS_NCHAR && CS_IS_UTF8( charsetid)) \
+    || (csform==SQLCS_NCHAR && CS_IS_UTF8(ncharsetid)) )
+
+#define DBD_SET_UTF8_FORM(sv,csform) \
+    (CSFORM_IMPLIES_UTF8(csform) ? SvUTF8_on(sv) : 0)
 
 #else /* UTF8_SUPPORT */
 #define DBD_SET_UTF8_FORM(sv,csform)   0
