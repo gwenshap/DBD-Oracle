@@ -17,13 +17,14 @@ my @sid = DBI->data_sources('Oracle');
 s/^dbi:Oracle://i for @sid;
 
 # set TEST_FILES env var to override which tests are run
-my $opt_full = 0;
+my $opt_full = 1;
 my $opt_dir = "mkta";
 my $opt_tf = $ENV{TEST_FILES};
+my $opt_j = 6;
 
 my $seq = 0;
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my (@run, %running, %skipped, @fail);
+my (@queue, @run, %running, %skipped, @fail, $tested);
 
 my @cs_utf8 = (ORA_OCI() < 9.2) ? ("UTF8") : ("AL32UTF8", ($opt_full) ? ("UTF8") : ());
 my @cs_8bit = ($opt_full) ? ("WE8ISO8859P1", "WE8MSWIN1252") : ("WE8MSWIN1252");
@@ -39,6 +40,7 @@ for my $sid (@sid) {
 
 sub mkta_sid_cs {
     my ($sid, $charsets) = @_;
+    my $start_time = time;
 
     local $ENV{ORACLE_SID} = $sid;
     my $dbh = DBI->connect("dbi:Oracle:", $dbuser, undef, { PrintError=>0 });
@@ -56,23 +58,22 @@ sub mkta_sid_cs {
 
     for my $ochar (@$charsets) {
         for my $nchar (@$charsets) {
-	    # because empty acts same as ochar
+	    # because empty NLS_NCHAR is same as NLS_LANG charset
 	    next if $nchar eq '' && $ochar ne '';
-	    my ($tag, $fh) = start_test($sid, $ochar, $nchar);
-	    $running{$tag} = $fh;
-	    push @run, $tag;
-	    print "$tag: started\n";
+	    push @queue, [ $sid, $ochar, $nchar ];
 	}
     }
-    while(%running) {
-        my @running = grep { $running{$_} } @run;
-	my $tag = $running[0] or die;
-	close $running{ $tag };
-	printf "$tag: %s\n", ($?) ? "FAILED" : "pass";
-	push @fail, $tag if $?;
-	delete $running{$tag};
+    while (@queue) {
+        while (@queue && keys %running < $opt_j) {
+	    my ($tag, $fh) = start_test(@{ shift @queue });
+	    $running{$tag} = $fh;
+	    push @run, $tag;
+	    ++$tested;
+	}
+	wait_for_tests();
     }
-    print "$sid: completed.\n";
+    wait_for_tests();
+    printf "$sid: completed in %.1f minutes\n", (time-$start_time)/60;
     print "\n";
 }
 
@@ -86,11 +87,22 @@ sub start_test {
     my @make_opts;
     push @make_opts, "TEST_FILES='$opt_tf'" if $opt_tf;
     open $fh, "make test @make_opts > $opt_dir/$tag.log 2>&1 && rm $opt_dir/$tag.log |";
+    print "$tag: started\n";
     return ($tag, $fh);
 }
 
+sub wait_for_tests {
+    while(%running) {
+        my @running = grep { $running{$_} } @run;
+	my $tag = $running[0] or die;
+	close $running{ $tag };
+	printf "$tag: %s\n", ($?) ? "FAILED" : "pass";
+	push @fail, $tag if $?;
+	delete $running{$tag};
+    }
+}
 
 print "Skipped due to $_: @{ $skipped{$_} }\n" for keys %skipped;
 
-print "Failed: @fail\n" if @fail;
+printf "Failed %d out of %d: @fail\n", scalar @fail, $tested;
 print "done.\n"
