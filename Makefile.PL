@@ -86,16 +86,17 @@ $::opt_d = 0;	# much more verbose for debugging
 $::opt_f = 0;	# include text of oracle's .mk file within generated Makefile
 $::opt_F = 0;	# force - ignore errors
 $::opt_W = 0;	# just write a basic default Makefile (won't build)
+$::opt_w = 0;	# enable many gcc compiler warnings
 $::opt_ProC= 0;	# enable integration with ProC
 
 Getopt::Long::config( qw( no_ignore_case ) );
-GetOptions(qw(b! r=s v! d! g! p! l! c! 8! f! F! W! m=s n=s s=s S=s ProC!))
+GetOptions(qw(b! r=s v! d! g! p! l! c! 8! f! F! W! w! m=s n=s s=s S=s ProC!))
 	or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
 $::opt_v = 1 if $::opt_d;
 $Verbose = 1 if $::opt_v;
-my $is_me = (($ENV{LOGNAME}||'') eq 'timbo' and -d "/home/timbo/dbi/RCS");
+my $is_developer = (-d ".svn" && -f "MANIFEST.SKIP");
 
 if ($::opt_W) {
     open(MK_PM, ">/dev/null") or die "Unable to create mk.pm: $!";
@@ -581,7 +582,7 @@ if ($::opt_g && $os eq "MSWin32" && $Config::Config{cc} eq "cl") {
    $opts{LDDLFLAGS} = $Config::Config{lddlflags} . ' -debug'
 }
 
-$opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{gccversion} eq 'gcc';
+$opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{gccversion};
 
 $opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
 
@@ -594,12 +595,16 @@ $opts{DEFINE} .= ' -DNEW_OCI_INIT' if $inspdver{rdbms_ver} >= 9.2;
 $opts{DEFINE} .= " -DORA_OCI_VERSION=\\\"$inspdver{rdbms_ver}\\\"";
 
 # Set some private WriteMakefile options if this is 'me' :-)
-if ($is_me){  # a reasonable guess
-    $BELL = "<BELL>";
-    # -Wconversion is over-noisy for us
-    $opts{DEFINE} .= ' -Wall -Wcast-align -Wpointer-arith'
-	. ' -Wbad-function-cast -Wcast-qual' if $Config{gccversion};
+if ($is_developer){  # a reasonable guess
+    $BELL = "<BELL>" if ($ENV{LOGNAME}||'') eq 'timbo';
     $::opt_g = '-g';
+    if ($Config{gccversion}) {
+	$opts{DEFINE} .= ' -Wall -Wcast-align -Wpointer-arith';
+	$opts{DEFINE} .= ' -Wbad-function-cast -Wcast-qual';
+	$opts{DEFINE} .= ' -Wconversion'; # noisy
+	$opts{DEFINE} .= ' -Wimplicit  -Wimplicit-int -Wimplicit-function-declaration -Werror-implicit-function-declaration -Wimport  -Winline -Wlong-long -Wmissing-braces -Wmissing-format-attribute  -Wmissing-noreturn -Wmultichar  -Wpacked -Wparentheses  -Wpointer-arith  -Wreturn-type  -Wsequence-point -Wsign-compare  -Wswitch  -Wtrigraphs  -Wundef -Wuninitialized -Wunreachable-code -Wunused  -Wunused-function  -Wunused-label  -Wunused-parameter -Wunused-value  -Wunused-variable  -Wwrite-strings -Wbad-function-cast  -Wmissing-declarations -Wnested-externs'
+		if $::opt_w;
+    }
     $opts{dynamic_lib}->{OTHERLDFLAGS} = "$::opt_g ".($opts{dynamic_lib}->{OTHERLDFLAGS}||'');
 }
 

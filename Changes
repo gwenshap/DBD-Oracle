@@ -27,6 +27,7 @@ Add DBI dbivport.h etc
     for Oracle >= 8 thanks to Stephen Clouse.
   Fixed handling of temporary LOBs thanks to Chris Donnelly.
   Fixed STORE to cache attribute value in handle cache.
+  Fixed compiler warnings thanks to Robert Baron.
 
   Changed some utf8 internals for LOBs.
   Changed to not warn if ORACLE_HOME env var is not defined

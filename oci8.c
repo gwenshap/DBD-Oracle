@@ -173,9 +173,6 @@ oci_error(SV *h, OCIError *errhp, sword status, char *what)
     if (errcode == 0)
 	errcode = (status != 0) ? status : -10000;
     sv_setiv(DBIc_ERR(imp_xxh), (IV)errcode);
-    DBIh_EVENT2(h,
-	(status == OCI_SUCCESS_WITH_INFO) ? WARN_event : ERROR_event,
-	DBIc_ERR(imp_xxh), errstr);
     return 0;	/* always returns 0 */
 }
 
@@ -632,7 +629,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 #ifdef UTF8_SUPPORT
 ub4
 ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, 
-  SV *dest_sv, long offset, long len, long destoffset)
+  SV *dest_sv, long offset, UV len, long destoffset)
 {
     ub4 loblen = 0;
     ub4 buflen;
@@ -743,7 +740,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 
 ub4
 ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
-		    long offset, long len, long destoffset)
+		    long offset, UV len, long destoffset)
 {
     ub4 loblen = 0;
     ub4 buflen;
@@ -1013,7 +1010,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     int num_errors = 0;
     int has_longs = 0;
     int est_width = 0;		/* estimated avg row width (for cache)	*/
-    int i = 0;
+    ub4 i = 0;
     sword status;
 
     if (imp_sth->done_desc)
@@ -1310,10 +1307,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
         }
 #endif /* OCI_ATTR_CHARSET_FORM */
 
-if (fbh->csform == SQLCS_NCHAR) {
-PerlIO_printf(DBILOGFP, "     NCHAR: %s type %d, char size %d, char used %d\n",
-	fbh->name, fbh->dbtype, fbh->len_char_size, fbh->len_char_used);
-}
 	if (fbh->ftype == 108) {
 	    oci_error(h, NULL, OCI_ERROR, "OCIDefineObject call needed but not implemented yet");
 	    ++num_errors;
@@ -1723,8 +1716,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	    lob_cols_hv = newHV();
 	sv = newSViv(col_dbtype);
 	(void)sv_setpvn(sv, col_name, col_name_len);
-	/* PerlIO_printf(DBILOGFP, "lab   fbh->csid=%d\n", fbh->csid ); */
-	DBD_SET_UTF8_FORM(sv,fbh->csform); 
+	DBD_SET_UTF8_FORM(sv, SQLCS_IMPLICIT); 
 	(void)SvIOK_on(sv);   /* what a wonderful hack! */
 	hv_store(lob_cols_hv, col_name,col_name_len, sv,0);
     }
@@ -1942,7 +1934,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
                 if ( SvUTF8(phs->sv) && ! (csid == ncharsetid) )
                 {
                    if ( (DBIS->debug >= 3) )
-                       PerlIO_printf(DBILOGFP, "     sv is utf8 but csid=%d and ncharsetid=%d (fixing csid)\n" );
+                       PerlIO_printf(DBILOGFP, "     sv is utf8 but csid=%d and ncharsetid=%d (fixing csid)\n",csid,ncharsetid);
                    csid = ncharsetid;
                 }
                 UTF8_FIXUP_CSID( csid, csform, "post_execute_lobs" );

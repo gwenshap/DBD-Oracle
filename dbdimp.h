@@ -256,15 +256,11 @@ and turned it back on... it _IS_ necessary (atleast in 9.2)
 #define UTF8_FIXUP_CSID(csid,where)   0
 */
 
-/* XXX DBD_SET_UTF8 should be passed and use the *relevant* csid,
-   which means either ncharsetid or charsetid (NLS_NCHAR/NLS_LANG) */
-#define DBD_SET_UTF8(sv,csid)   ( CS_IS_UTF8(ncharsetid) ? SvUTF8_on(sv) : 0 )
 #define DBD_SET_UTF8_FORM(sv,csform)	\
-  ( ( (csform==SQLCS_IMPLICIT && CS_IS_UTF8( charsetid)) \
-    ||(csform==SQLCS_NCHAR    && CS_IS_UTF8(ncharsetid)) ) ? SvUTF8_on(sv) : 0 )
+  ( ( (csform!=SQLCS_NCHAR && CS_IS_UTF8( charsetid)) \
+    ||(csform==SQLCS_NCHAR && CS_IS_UTF8(ncharsetid)) ) ? SvUTF8_on(sv) : 0 )
 
 #else /* UTF8_SUPPORT */
-#define DBD_SET_UTF8(sv,csid)   0
 #define DBD_SET_UTF8_FORM(sv,csform)   0
 #define UTF8_FIXUP_CSID(csid,csform,where)   0
 #endif /* UTF8_SUPPORT */

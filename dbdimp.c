@@ -818,7 +818,7 @@ dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)
     else if (kl==13 && strEQ(key, "ora_ph_csform")) {
         if (SvIV(valuesv)!=SQLCS_IMPLICIT && SvIV(valuesv)!=SQLCS_NCHAR)
 	    croak("ora_ph_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR)");
-	imp_dbh->ph_csform = SvIV(valuesv);
+	imp_dbh->ph_csform = (ub1)SvIV(valuesv);
     }
     else {
 	return FALSE;
@@ -1409,7 +1409,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     if (SvGMAGICAL(ph_namesv))	/* eg if from tainted expression */
 	mg_get(ph_namesv);
     if (!SvNIOKp(ph_namesv)) {
-	int i;
+	STRLEN i;
 	name = SvPV(ph_namesv, name_len);
 	if (name_len > sizeof(namebuf)-1)
 	    croak("Placeholder name %s too long", neatsvpv(ph_namesv,0));
@@ -1477,9 +1477,9 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 		phs->ora_field = SvREFCNT_inc(*svp);
 	    }
 	    /* XXX this may be change to work automatically if bound value is utf8 */
-	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_csform",10, 0)) != NULL) {
-		if (1 <= SvIV(*svp) && SvIV(*svp) <= 2)
-		    phs->csform = SvIV(*svp);
+	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_csform", 10, 0)) != NULL) {
+		if (SvIV(*svp) == SQLCS_IMPLICIT || SvIV(*svp) == SQLCS_NCHAR)
+		    phs->csform = (ub1)SvIV(*svp);
 	    }
 	}
 	if (sql_type)
