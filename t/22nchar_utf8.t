@@ -23,7 +23,7 @@ SKIP: {
     plan skip_all => "Could not require or import utf8" if ($@);
     plan skip_all => "ORC_OCI < 8" if (! ORA_OCI >= 8);
 
-    set_nls_nchar( 'UTF8' ,1 );
+    set_nls_nchar( (ORA_OCI >= 9.2) ? 'AL32UTF8' : 'UTF8' ,1 );
     $dbh = db_handle();
 
     plan skip_all => "Not connected to oracle" if not $dbh;

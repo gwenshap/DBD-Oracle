@@ -3,6 +3,7 @@ use warnings;
 use Carp;
 use Data::Dumper;
 use DBI;
+use DBD::Oracle qw(ORA_OCI);
 
 require utf8;
 
@@ -82,6 +83,7 @@ sub extra_wide_rows
    # is treated as a code point so you get 2 UTF-8 code points
    # (that happen to occupy 3 bytes each). That is not valid UTF-8.
    # See http://www.unicode.org/reports/tr26/ for more information.
+   return unless ORA_OCI >= 9.2; # need AL32UTF8 for these to work
    return (  
       [ "\x{10304}", "SMP Plane 1 wide char"  ], # OLD ITALIC LETTER E
       [ "\x{20301}", "SIP Plane 2 wide char"  ], # CJK Unified Ideographs Extension B
