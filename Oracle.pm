@@ -2165,8 +2165,10 @@ Uses the Oracle OCILobWrite function.
 
   $rc = $dbh->ora_lob_append($lob_locator, $data);
 
-Append $data to the LOB.
-Uses the Oracle OCILobWriteAppend function.
+Append $data to the LOB.  Uses the Oracle OCILobWriteAppend function.
+
+NOTE: This method should I<not> be used if either the client or the
+server are Oracle version 8 due to Oracle bug #886191.
 
 =item ora_lob_trim
 

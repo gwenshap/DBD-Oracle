@@ -2,7 +2,7 @@
 # vim:ts=8:sw=4
 
 use DBI;
-use DBD::Oracle qw(:ora_types SQLCS_NCHAR );
+use DBD::Oracle qw(:ora_types SQLCS_NCHAR ORA_OCI);
 use strict;
 use Test::More;
 
@@ -35,6 +35,8 @@ my $sz = 8;
 my($p1, $p2, $tmp, @tmp);
 
 my $dbh = db_handle() or BAILOUT("Can't connect to database: $DBI::errstr");
+my $ora_server_version = $dbh->func("ora_server_version");
+print "ora_server_version: @$ora_server_version\n";
 show_db_charsets($dbh) if $dbh;
 
 foreach (@test_sets) {
@@ -64,6 +66,7 @@ sub run_long_tests
 {
     my ($type_name, $type_num) = @_;
     my ($sth);
+    my $append_len;
     SKIP: 
     { #it all
 
@@ -314,12 +317,18 @@ sub run_long_tests
 		ok(!$DBI::err, "DBI::errstr" );
 
 		# and append some text
-		$dbh->func($lob_locator, "12345", 'ora_lob_append');
-		ok(!$DBI::err ,"DBI::errstr" );
-		if ($DBI::err && $DBI::errstr =~ /ORA-24801:/) {
-		    warn " If you're using Oracle < 8.1.7 then the OCILobWriteAppend error is probably\n";
-		    warn " due to Oracle bug #886191 and is not a DBD::Oracle problem\n";
-	       }
+		SKIP: {
+		    $append_len = 0;
+		    skip( "ora_lob_append() not reliable in Oracle 8 (Oracle bug #886191)", 1 )
+			if ORA_OCI() < 9 or $ora_server_version->[0] < 9;
+
+		    my $append_data = "12345";
+		    $append_len = length($append_data);
+		    $dbh->func($lob_locator, $append_data, 'ora_lob_append');
+		    ok(!$DBI::err ,"ora_lob_append DBI::errstr" );
+		    # XXX ought to test data was actually appended
+		}
+
 	    } #while fetchrow
 	    is($ll_sth->rows, 4);
 
@@ -331,7 +340,7 @@ sub run_long_tests
 	       my $len = $dbh->func($lob_locator, 'ora_lob_length');
 	       #lab: possible logic error here w/resp. to len
 	       ok(!$DBI::err ,"DBI::errstr" );
-	       cmp_ok( $len ,'==', $idx + 5 ,"len == idx+5" );
+	       cmp_ok( $len ,'==', $idx + $append_len ,"len == idx+5" );
 	    }
 	    is($ll_sth->rows, 4);
 
