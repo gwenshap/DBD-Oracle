@@ -1484,7 +1484,7 @@ many misconceptions about Unicode and you may be holding some of them.
 =head2 Perl and Unicode
 
 Perl began implementing Unicode with version 5.6, but the implementaion
-was not finalized until version 5.8 and later. If you plan to use Unicode
+did not mature until version 5.8 and later. If you plan to use Unicode
 you are I<strongly> urged to use perl 5.8.2 or later and to I<carefully> read
 the perl documention on Unicode:
 
@@ -1501,9 +1501,9 @@ which corresponds to the Oracle character set called AL32UTF8.
 Oracle supports many characters sets, including several different forms
 of Unicode.  These include:
 
-  AL16UTF16  =>  valid for NCHAR columns (CSID=873)
+  AL16UTF16  =>  valid for NCHAR columns (CSID=2000)
   UTF8       =>  valid for NCHAR columns (CSID=871), deprecated
-  AL32UTF8   =>  valid for NCHAR and CHAR columns (CSID=2000)
+  AL32UTF8   =>  valid for NCHAR and CHAR columns (CSID=873)
 
 When you create an Oracle database, you must specify the DATABASE 
 character set (used for DDL, DML and CHAR datatypes) and the NATIONAL 
@@ -1554,7 +1554,7 @@ upgrading client and server to Oracle 9 or later.
 AL32UTF8 should be used in preference to UTF8 if it works for you,
 which it should for Oracle 9.2 or later. If you're using an old
 version of Oracle that doesn't support AL32UTF8 then you should
-avoid using any unicode characters that require surrogates, in other
+avoid using any Unicode characters that require surrogates, in other
 words characters beyond the Unicode BMP (Basic Multilingual Plane).
 
 That's because the character set that Oracle calls "UTF8" doesn't
@@ -1574,8 +1574,8 @@ Here are a couple of extracts from L<http://www.unicode.org/reports/tr26/>:
   strongly discouraged, such as the emittance of CESU-8 in output
   files, markup language or other open transmission forms.
 
-Oracle use this internally because it collates (sorts) in the same order
-as UTF16 which is the basis of Oracle's internal collation definitions.
+Oracle uses this internally because it collates (sorts) in the same order
+as UTF16, which is the basis of Oracle's internal collation definitions.
 
 Rather than change UTF8 for clients Oracle chose to define a new character
 set called "AL32UTF8" which does conform to the UTF-8 standard.
@@ -1613,14 +1613,28 @@ will set the perl UTF-8 flag on the returned data if NLS_LANG is AL32UTF8.
 
 B<Sending Data using Placeholders>
 
-DBD::Oracle allows for the insertion of any national character set
-character (determined by NLS_LANG/NLS_NCHAR), into NCHAR columns, and CHAR
-columns where the database character set is a wide character set --
-such as AL32UTF8.  DBD::Oracle will also insert 8 bit characters into
-any of these columns when NLS_LANG contains a character set that
-permits it. To do this either:
+Data bound to a placeholder is assumed to be in the default client
+character set (specified by NLS_LANG) except for a few special
+cases. These are listed here with the highest precedence first:
 
-   use DBD::Oracle qw( SQLCS_NCHAR );
+If the C<ora_csid> attribute is given to bind_param() then that
+is passed to Oracle and takes precedence.
+
+If the value is a Perl Unicode string (UTF-8) then DBD::Oracle
+ensures that Oracle uses the Unicode character set, regardless of
+the NLS_LANG and NLS_NCHAR settings.
+
+If the placeholder is for inserting an NCLOB then the client NLS_NCHAR
+character set is used. (That's useful but inconsistent with the other behaviour
+so may change. Best to be explicit by using the C<ora_csform>
+attribute.)
+
+If the C<ora_csform> attribute is given to bind_param() then that
+determines if the value should be assumed to be in the default
+(NLS_LANG) or NCHAR (NLS_NCHAR) client character set. 
+
+
+   use DBD::Oracle qw( SQLCS_IMPLICIT SQLCS_NCHAR );
    ...
    $sth->bind_param(1, $value, { ora_csform => SQLCS_NCHAR }); 
 
@@ -1628,18 +1642,12 @@ or
 
    $dbh->{ora_ph_csform} = SQLCS_NCHAR; # default for all future placeholders
 
-If the string passed to bind_param() is considered by perl to be
-a valid utf8 string ( utf8::is_utf8($string) returns true ), then
-DBD::Oracle will implicitly set csform SQLCS_NCHAR and csid AL32UTF8
-for you on insert.
-
 B<Sending Data using SQL>
 
-If the prepared statement string is Unicode then we pass on that
-information to Oracle to ensure the string is correctly passed.
-[I think] Oracle will assume the statement is Unicode if NLS_LANG
-is AL32UTF8, but if NLS_LANG isn't but the statement string is, then
-Oracle needs to be told.
+Oracle assumes the SQL statement is in the default client character
+set (as specified by NLS_LANG). So Unicode strings containing
+non-ASCII characters should not be used unless the default client
+character set is AL32UTF8.
 
 =head2 DBD::Oracle and Other Character Sets and Encodings
 

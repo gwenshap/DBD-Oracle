@@ -56,7 +56,8 @@ sub mkta_sid_cs {
 
     for my $ochar (@$charsets) {
         for my $nchar (@$charsets) {
-	    next if $nchar eq ''; # because empty acts same as ochar
+	    # because empty acts same as ochar
+	    next if $nchar eq '' && $ochar ne '';
 	    my ($tag, $fh) = start_test($sid, $ochar, $nchar);
 	    $running{$tag} = $fh;
 	    push @run, $tag;

@@ -48,7 +48,7 @@ my %opts = (
     OBJECT => '$(O_FILES)',
     DEFINE => '',
     DIR  => [],
-    clean => {	FILES	=> 'Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def ora_explain mk.pm' },
+    clean => {	FILES	=> 'xstmp.c Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def ora_explain mk.pm' },
     dist  => {
 	DIST_DEFAULT	=> 'clean distcheck disttest tardist',
 	PREOP		=> '$(MAKE) -f Makefile.old distdir',

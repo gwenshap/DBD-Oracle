@@ -1,9 +1,10 @@
-=head1 Changes in DBD-Oracle 1.16 (svn rev 442)   27th August 2004
+=head1 Changes in DBD-Oracle 1.16 (svn rev 505)   19th October 2004
 
   NOTE:
   This release has major changes to Unicode support. See below.
   It no longer supports the old Oracle 7 OCI interface.
-  With perl 5.6.x it requires DBI >= 1.38 for some of the tests.
+  It requires DBI >= 1.38 for some of the tests if using Perl 5.6.
+  It no longer supports Perl 5.5 or earlier.
 
   Fixed placeholder names to be case insensitive thanks to Charles Jardine.
   Fixed some LOB test problems with Oracle 8.1.7 by implementing ora_lob_append
