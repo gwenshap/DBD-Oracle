@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.55 1998/08/03 19:43:39 timbo Exp $
+#   $Id: Oracle.pm,v 1.57 1998/08/14 18:23:00 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.53';
+$DBD::Oracle::VERSION = '0.54';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -22,7 +22,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use Exporter ();
     @ISA = qw(DynaLoader Exporter);
 
-    my $Revision = substr(q$Revision: 1.55 $, 10);
+    my $Revision = substr(q$Revision: 1.57 $, 10);
 
     require_version DBI 0.92;
 
@@ -99,10 +99,6 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 		warn "Found $name. ".($dbnames{$name} ? "(oratab entry overridden)" : "")."\n"
 		    if $debug;
 		$dbnames{$name} = 0; # exists but false (to distinguish from oratab)
-		if ($name =~ /^([-\w]+)\.([-\w\.]+)/ && !exists $dbnames{$1}) {
-		    warn " also $1. \n" if $debug;
-		    $dbnames{$1} = 0; # exists but false (to distinguish from oratab)
-		}
 	    }
 	    close FH;
 	    last;
@@ -229,20 +225,75 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     }
 
 
-    sub tables {
+    sub table_info {
 	my($dbh) = @_;		# XXX add qualification
+	# XXX add knowledge of public synonmys views etc
+	# The SYS/SYSTEM should probably be a decode that
+	# prepends 'SYSTEM ' to TABLE_TYPE.
 	my $sth = $dbh->prepare("select
-		NULL		TABLE_CAT,
-		at.OWNER	TABLE_SCHEM,
+		NULL		TABLE_QUALIFIER,
+		at.OWNER	TABLE_OWNER,
 		at.TABLE_NAME,
 		tc.TABLE_TYPE,
-		tc.COMMENTS	TABLE_REMARKS
+		tc.COMMENTS	REMARKS
 	    from ALL_TABLES at, ALL_TAB_COMMENTS tc
 	    where at.OWNER = tc.OWNER
 	    and at.TABLE_NAME = tc.TABLE_NAME
-	");
+	    and at.OWNER <> 'SYS' and at.OWNER <> 'SYSTEM'
+	    order by tc.TABLE_TYPE, at.OWNER, at.TABLE_NAME
+	") or return undef;
 	$sth->execute or return undef;
 	$sth;
+    }
+
+    sub type_info_all {
+	my ($dbh) = @_;
+	my $names = {
+          TYPE_NAME		=> 0,
+          DATA_TYPE		=> 1,
+          COLUMN_SIZE		=> 2,
+          LITERAL_PREFIX	=> 3,
+          LITERAL_SUFFIX	=> 4,
+          CREATE_PARAMS		=> 5,
+          NULLABLE		=> 6,
+          CASE_SENSITIVE	=> 7,
+          SEARCHABLE		=> 8,
+          UNSIGNED_ATTRIBUTE	=> 9,
+          FIXED_PREC_SCALE	=>10,
+          AUTO_UNIQUE_VALUE	=>11,
+          LOCAL_TYPE_NAME	=>12,
+          MINIMUM_SCALE		=>13,
+          MAXIMUM_SCALE		=>14,
+        };
+	# Based on the values from Oracle 8.0.4 ODBC driver
+	my $ti = [
+	  $names,
+          [ 'LONG RAW', -4, '2147483647', '\'', '\'', undef, 1, '0', '0',
+            undef, '0', undef, undef, undef, undef
+          ],
+          [ 'RAW', -3, 255, '\'', '\'', 'max length', 1, '0', 3,
+            undef, '0', undef, undef, undef, undef
+          ],
+          [ 'LONG', -1, '2147483647', '\'', '\'', undef, 1, 1, '0',
+            undef, '0', undef, undef, undef, undef
+          ],
+          [ 'CHAR', 1, 255, '\'', '\'', 'max length', 1, 1, 3,
+            undef, '0', '0', undef, undef, undef
+          ],
+          [ 'NUMBER', 3, 38, undef, undef, 'precision,scale', 1, '0', 3,
+            '0', '0', '0', undef, '0', 38
+          ],
+          [ 'DOUBLE', 8, 15, undef, undef, undef, 1, '0', 3,
+            '0', '0', '0', undef, undef, undef
+          ],
+          [ 'DATE', 11, 19, '\'', '\'', undef, 1, '0', 3,
+            undef, '0', '0', undef, '0', '0'
+          ],
+          [ 'VARCHAR2', 12, 2000, '\'', '\'', 'max length', 1, 1, 3,
+            undef, '0', '0', undef, undef, undef
+          ]
+        ];
+	return $ti;
     }
 
     sub plsql_errstr {

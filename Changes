@@ -1,3 +1,15 @@
+Changes in DBD::Oracle 0.54 (Oraperl 1.37), 14th August 1998
+
+  Added $dbh->type_info_all.
+  Fixed $dbh->tables (partly by renaming to new $dbh->table_info).
+  data_sources no longer adds abbreviated versions of tnsnames.
+  Alan Burlison's whizzo Tk based explain script now bundled.
+  Revised workaround for "Can't bind unknown placeholder '3'" errors.
+  Doubled default automatic row cache size (now approx 5KB).
+  The resetting of Oracle's SIGCHD handler to SA_RESTART can
+  now be disabled by setting the env var DBD_ORACLE_SIGCHLD=0.
+  Fixed Makefile.PL -c to better avoid shared Oracle lib.
+
 Changes in DBD::Oracle 0.53 (Oraperl 1.37), 3rd August 1998
 
   Further build fixes (esp kpudc problem with Oracle 8).

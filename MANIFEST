@@ -1,26 +1,22 @@
-MANIFEST
-README
-README.login
-README.win32
-README.clients
-README.help
-README.longs
 Changes
-Todo
+MANIFEST
 Makefile.PL
+Oracle.h
 Oracle.pm
 Oracle.xs
-Oracle.h
 Oraperl.pm
-dbdimp.h
+README
+README.clients
+README.help
+README.login
+README.longs
+README.win32
+README.explain
+Todo
 dbdimp.c
-test.pl
-t/base.t
-t/general.t
-t/plsql.t
+dbdimp.h
 hints/svr4.pl
-.purify	Ignore most of the (many) problems in Oracle's libraries. Very sad.
-oraperl.ph	Old oraperl file included for completeness of emulation
+ora_explain.PL
 oraperl.ex/Readme	Oraperl examples (copied mostly unchanged from oraperl-2.4)
 oraperl.ex/bind.pl
 oraperl.ex/commit.pl
@@ -30,4 +26,9 @@ oraperl.ex/mkdb.pl
 oraperl.ex/oradump.pl
 oraperl.ex/sql
 oraperl.ex/tabinfo.pl
-
+oraperl.ph	Old oraperl file included for completeness of emulation
+t/base.t
+t/general.t
+t/plsql.t
+test.pl
+.purify	Ignore most of the (many) problems in Oracle's libraries. Very sad.

@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.67 1998/08/03 20:51:25 timbo Exp $
+# $Id: Makefile.PL,v 1.68 1998/08/14 18:07:46 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -36,6 +36,7 @@ $osvers =~ s/^\s*(\d+\.\d+).*/$1/;	# drop sub-sub-version: 2.5.1 -> 2.5
 my %opts = (
     NAME => 'DBD::Oracle',
     VERSION_FROM => 'Oracle.pm',
+    EXE_FILES => [ 'ora_explain' ],
     OBJECT => '$(O_FILES)',
     DEFINE => '',
     DIR  => [],
@@ -195,10 +196,12 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     # can we give the shared library a helping hand?
     my @shared = grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } @ora_libs;
     # show original value of ORA_CLIENT_LIB if defined ...
-    print "\$ORA_CLIENT_LIB=$ENV{ORA_CLIENT_LIB}\n" if $ENV{ORA_CLIENT_LIB};
+    print "\$ORA_CLIENT_LIB=$ENV{ORA_CLIENT_LIB}\n"
+		if defined $ENV{ORA_CLIENT_LIB};
     # ... before we then set it how it probably should be set
-    $ENV{ORA_CLIENT_LIB} ||= 'shared'
-	if ($opts{LINKTYPE}||'') ne 'static' && @shared && !$::opt_c;
+    $ENV{ORA_CLIENT_LIB} = 'shared'
+		if !defined $ENV{ORA_CLIENT_LIB}
+		&& ($opts{LINKTYPE}||'') ne 'static' && @shared && !$::opt_c;
 
     my $mkfile = find_mkfile();
     my $linkvia = fetch_oci_macros($mkfile);
@@ -526,9 +529,10 @@ sub fetch_oci_macros {
     }
 
     # modern Oracle .mk files define OCISTATICLIBS and OCISHAREDLIBS
-    if (!$linkvia && $MK{OCISHAREDLIBS}) {
+    if (!$linkvia && ($MK{OCISHAREDLIBS} || $MK{OCISTATICLIBS})) {
 	$linkvia = '';
-	if ($opts{LINKTYPE} && $opts{LINKTYPE} eq 'static' && $MK{OCISTATICLIBS}) {
+	if ($MK{OCISTATICLIBS} &&
+		(($opts{LINKTYPE}||'') eq 'static' || $::opt_c)) {
 	    $linkvia .= '$(DEF_ON) '   if $MK{DEF_ON};
 	    $linkvia .= '$(SSCOREED) ' if $MK{SSCOREED};
 	    $linkvia .= '$(OCISTATICLIBS)';

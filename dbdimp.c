@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.39 1998/08/03 19:43:39 timbo Exp $
+   $Id: dbdimp.c,v 1.40 1998/08/14 18:07:46 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -25,7 +25,8 @@ static SV *ora_pad_empty;
 static SV *ora_cache;
 static SV *ora_cache_o;		/* temp hack for ora_open() cache override */
 static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
-static int ora_fetchtest = 0;
+static int ora_fetchtest;
+static int ora_sigchld_restart = 1;
 
 static void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
 
@@ -46,6 +47,8 @@ dbd_init(dbistate)
 
     if (getenv("DBD_ORACLE_LOGIN_ERR"))
 	ora_login_nomsg = atoi(getenv("DBD_ORACLE_LOGIN_NOMSG"));
+    if (getenv("DBD_ORACLE_SIGCHLD"))
+	ora_sigchld_restart = atoi(getenv("DBD_ORACLE_SIGCHLD"));
 }
 
 
@@ -219,30 +222,6 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
     /* can give duplicate free errors (from Oracle) if connect fails	*/
     ret = orlon(imp_dbh->lda, imp_dbh->hda, (text*)uid,-1, (text*)pwd,-1,0);
 
-#ifdef SA_RESTART
-#ifndef SIGCLD
-#define SIGCLD SIGCHLD
-#endif
-    /* If orlon has installed a handler for SIGCLD, then reinstall it	*/
-    /* with SA_RESTART.  We only do this if connected ok since I've	*/
-    /* seen the process loop after being interrupted after connect failed. */
-    if (ret == 0 && imp_dbh->lda->rc == 0) {
-	struct sigaction act;
-	if (sigaction( SIGCLD, (struct sigaction*)0, &act ) == 0
-		&&  (act.sa_handler != SIG_DFL && act.sa_handler != SIG_IGN)
-		&&  (act.sa_flags & SA_RESTART) == 0) {
-	    /* XXX we should also check that act.sa_handler is not the perl handler */
-	    act.sa_flags |= SA_RESTART;
-	    sigaction( SIGCLD, &act, (struct sigaction*)0 );
-	    if (dbis->debug >= 3)
-		warn("dbd_db_login: sigaction errno %d, handler %lx, flags %lx",
-			errno,act.sa_handler,act.sa_flags);
-	    if (dbis->debug >= 2)
-		fprintf(DBILOGFP, "    dbd_db_login: set SA_RESTART on Oracle SIGCLD handler.\n");
-	}
-    }  
-#endif    /* HAS_SIGACTION */
-
     if (ret) {
 	int rc = imp_dbh->lda->rc;
 	char buf[100];
@@ -265,6 +244,31 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
 	ora_error(dbh,	ora_login_nomsg ? NULL : imp_dbh->lda, rc, msg);
 	return 0;
     }
+
+#ifdef SA_RESTART
+#ifndef SIGCLD
+#define SIGCLD SIGCHLD
+#endif
+    /* If orlon has installed a handler for SIGCLD, then reinstall it	*/
+    /* with SA_RESTART.  We only do this if connected ok since I've	*/
+    /* seen the process loop after being interrupted after connect failed. */
+    if (ora_sigchld_restart) {
+	struct sigaction act;
+	if (sigaction( SIGCLD, (struct sigaction*)0, &act ) == 0
+		&&  (act.sa_handler != SIG_DFL && act.sa_handler != SIG_IGN)
+		&&  (act.sa_flags & SA_RESTART) == 0) {
+	    /* XXX we should also check that act.sa_handler is not the perl handler */
+	    act.sa_flags |= SA_RESTART;
+	    sigaction( SIGCLD, &act, (struct sigaction*)0 );
+	    if (dbis->debug >= 3)
+		warn("dbd_db_login: sigaction errno %d, handler %lx, flags %lx",
+			errno,act.sa_handler,act.sa_flags);
+	    if (dbis->debug >= 2)
+		fprintf(DBILOGFP, "    dbd_db_login: set SA_RESTART on Oracle SIGCLD handler.\n");
+	}
+    }  
+#endif    /* HAS_SIGACTION */
+
     DBIc_IMPSET_on(imp_dbh);	/* imp_dbh set up now			*/
     DBIc_ACTIVE_on(imp_dbh);	/* call disconnect before freeing	*/
     return 1;
@@ -682,7 +686,7 @@ dbd_describe(h, imp_sth)
     /* Use guessed average on-the-wire row width calculated above	*/
     /* and add in overhead of 5 bytes per field plus 8 bytes per row.	*/
     /* The n*5+8 was determined by studying SQL*Net v2 packets.		*/
-    /* It could probably benefit from a more detailed anaylsis.		*/
+    /* It could probably benefit from a more detailed analysis.		*/
     est_width += num_fields*5 + 8;
 
     if (has_longs)			/* override/disable caching	*/
@@ -697,7 +701,7 @@ dbd_describe(h, imp_sth)
 	    /* We'll aim to fill our row cache with slightly less than	*/
 	    /* two packets (to err on the safe side and avoid a third	*/
 	    /* almost empty packet being generated in some cases).	*/
-	    txfr_size = 1460 * 1.6;	/* default transfer/cache size	*/
+	    txfr_size = 1460 * 3.6;	/* default transfer/cache size	*/
 	}
 	else {	/* user is specifying desired transfer size in bytes	*/
 	    txfr_size = -imp_sth->cache_rows;
@@ -991,19 +995,12 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 
     /* check if placeholder was passed as a number	*/
 
-    /* possible workaround for "unknown placeholder '3'" problem	*/
     if (!SvNIOK(ph_namesv) && !SvPOK(ph_namesv)) {
-	/* force SvPOK true before following tests		*/
-	if (dbis->debug >= 2)
-	    fprintf(DBILOGFP,
-		"         bind warning: forcing placeholder flags: type %ld, flags 0x%lx\n",
-		SvTYPE(ph_namesv), SvFLAGS(ph_namesv));
-	name = SvPV(ph_namesv, name_len);
+	SvPV(ph_namesv, na);	/* force SvPOK */
     }
-
     if (SvNIOK(ph_namesv) || (SvPOK(ph_namesv) && isDIGIT(*SvPVX(ph_namesv)))) {
+	sprintf(namebuf, ":p%d", (int)SvIV(ph_namesv));
 	name = namebuf;
-	sprintf(name, ":p%d", (int)SvIV(ph_namesv));
 	name_len = strlen(name);
     }
     else {		/* use the supplied placeholder name directly */
@@ -1031,7 +1028,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 
     phs_svp = hv_fetch(imp_sth->all_params_hv, name, name_len, 0);
     if (phs_svp == NULL)
-	croak("Can't bind unknown placeholder '%s'", name);
+	croak("Can't bind unknown placeholder '%s' (%s)", name, neatsvpv(ph_namesv,0));
     phs = (phs_t*)(void*)SvPVX(*phs_svp);	/* placeholder struct	*/
 
     if (phs->sv == &sv_undef) {	/* first bind for this placeholder	*/
