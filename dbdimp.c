@@ -30,20 +30,19 @@
     (SvROK(h) && SvTYPE(SvRV(h)) == SVt_PVHV && \
 	SvRMAGICAL(SvRV(h)) && (SvMAGIC(SvRV(h)))->mg_type == 'P')
 
+#ifndef SvPOK_only_UTF8
+#define SvPOK_only_UTF8(sv) SvPOK_only(sv)
+#endif
 
 DBISTATE_DECLARE;
 
 int ora_fetchtest;	/* intrnal test only, not thread safe */
 int is_extproc = 0;
 
-#ifdef UTF8_SUPPORT
 ub2 charsetid = 0;
 ub2 ncharsetid = 0;
 ub2 cs_is_utf8 = 0;
 ub2 utf8_csid = 871;
-ub2 al32utf8_csid = 873;
-ub2 al16utf16_csid = 2000;
-#endif
 
 static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
 static int ora_sigchld_restart = 1;
@@ -94,7 +93,6 @@ dbd_init(dbistate)
 /* lab: I think this is wrong, but I do not want to try 
  *      for for backwords compatibility with old oracles...
  */
-#ifdef UTF8_SUPPORT
     {
 	char *nls = getenv("NLS_LANG");
 	STRLEN nlslen;
@@ -120,7 +118,6 @@ dbd_init(dbistate)
 #endif
 	}
     }
-#endif
 #endif
 
 }
@@ -282,6 +279,8 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     ub4 use_proc_connection = 0;
     SV **use_proc_connection_sv;
     D_imp_drh_from_dbh;
+    ub2 al32utf8_csid = 873;
+    ub2 al16utf16_csid = 2000;
 
     imp_dbh->envhp = imp_drh->envhp;	/* will be NULL on first connect */
 
@@ -440,7 +439,27 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                    PerlIO_printf(DBILOGFP,"NLS_LANG was not set or invalid, using ncharsetid=%d\n" ,utf8_csid ); 
             }
 
-            OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, NULL, NULL, NULL, 0, 0,
+	    /*{
+	    After using OCIEnvNlsCreate() to create the environment handle,
+	    **the actual lengths and returned lengths of bind and define handles are
+	    always in number of bytes**. This applies to the following calls:
+
+	      * OCIBindByName()   * OCIBindByPos()      * OCIBindDynamic()
+	      * OCIDefineByPos()  * OCIDefineDynamic()
+
+	    This function enables you to set charset and ncharset ids at
+	    environment creation time. [...]
+
+	    This function sets nonzero charset and ncharset as client side
+	    database and national character sets, replacing the ones specified
+	    by NLS_LANG and NLS_NCHAR. When charset and ncharset are 0, it
+	    behaves exactly the same as OCIEnvCreate(). Specifically, charset
+	    controls the encoding for metadata and data with implicit form
+	    attribute and ncharset controls the encoding for data with SQLCS_NCHAR
+	    form attribute.
+	    }*/
+
+            OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
 			charsetid, ncharsetid, status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
@@ -1566,11 +1585,7 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
     /* XXX doesn't check arcode for error, caller is expected to */
     if (phs->indp == 0) {                       /* is okay      */
 	char *note = "";
-#ifdef UTF8_SUPPORT
 	SvPOK_only_UTF8(sv);
-#else
-	SvPOK_only(sv);
-#endif
 	if (phs->is_inout && phs->alen == SvLEN(sv)) {
 	    /* if the placeholder has not been assigned to then phs->alen */
 	    /* is left untouched: still set to SvLEN(sv). If we use that  */
@@ -1586,11 +1601,7 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
     }
     else
     if (phs->indp > 0 || phs->indp == -2) {     /* truncated    */
-#ifdef UTF8_SUPPORT
 	SvPOK_only_UTF8(sv);
-#else
-	SvPOK_only(sv);
-#endif
 	SvCUR(sv) = phs->alen;
 	*SvEND(sv) = '\0';
 	if (debug >= 2)
@@ -1793,7 +1804,6 @@ dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
       return ora_blob_read_mb_piece(sth, imp_sth, fbh, bufsv, 
 				    offset, len, destoffset);
     }
-
 #endif /* UTF8_SUPPORT */
 
     SvGROW(bufsv, (STRLEN)destoffset+len+1); /* SvGROW doesn't do +1	*/

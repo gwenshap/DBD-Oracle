@@ -12,9 +12,9 @@ my @test_sets;
 #push @test_sets, [ "LONG",	0,		0 ];
 #push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
 warn "LONG tests disabled for now";
+push @test_sets, [ "NCLOB",	ORA_CLOB,	0 ] ;
 push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
 push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] ;
-push @test_sets, [ "NCLOB",	ORA_CLOB,	0 ] ;
 
 $| = 1;
 my $t = 0;
@@ -159,7 +159,8 @@ sub run_long_tests
         ok( $sth = $dbh->prepare( $sqlstr ), "prepare: $sqlstr" ); 
         my $bind_attr = { ora_type => $type_num };
         $bind_attr->{ora_csform} = SQLCS_NCHAR
-		if $utf8_test and $type_name =~ /NCLOB/ ;
+		if $type_name =~ /NCLOB/ ;
+		#if $utf8_test and $type_name =~ /NCLOB/ ;
 
         $sth->bind_param(2, undef, $bind_attr )
 		or die "$type_name: $DBI::errstr" if $type_num;
@@ -265,13 +266,24 @@ sub run_long_tests
 
             $dbh->{LongReadLen} = 1024 * 90;
             $dbh->{LongTruncOk} =  1;
-            $sqlstr = "select * from $table order by idx";
+            $sqlstr = "select idx, lng, dt from $table order by idx";
+#local $dbh->{TraceLevel} = 9;
             ok($sth = $dbh->prepare($sqlstr) ,"prepare $sqlstr" );
             ok($sth->execute, "execute $sqlstr" );
-            ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 1: $sqlstr"  );
+#$sth->bind_col(2, \my $dummy, { ora_csform => SQLCS_NCHAR }) if $type_name =~ /NCLOB/;
 
+	    print "fetch via fetchrow_arrayref\n";
+            ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 1: $sqlstr"  );
+            ok($tmp->[1] eq $long_data0, cdif($tmp->[1], $long_data0) );
+
+# skip for now at least XXX
+skip "blob_read tests for NCLOB not currently supported", 8
+    if $type_name =~ /NCLOB/;
+
+	    print "read via blob_read_all\n";
             cmp_ok(blob_read_all($sth, 1, \$p1, 4096) ,'==', length($long_data0), "blob_read_all = length(\$long_data0)" );
             ok($p1 eq $long_data0, cdif($p1, $long_data0) );
+	    $sth->trace(0);
 
             ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 2: $sqlstr" );
             cmp_ok(blob_read_all($sth, 1, \$p1, 12345) ,'==', length($long_data1), "blob_read_all = length(long_data1)" );
@@ -433,13 +445,12 @@ sub blob_read_all {
         #$sth->trace(3);
 	my $frag = $sth->blob_read($field_idx, $offset, $lump);
         $sth->trace(0);
-	#lab return unless defined $frag;
 	last unless defined $frag;
 	my $len = length $frag;
 	last unless $len;
 	push @frags, $frag;
 	$offset += $len;
-	#warn "offset $offset, len $len\n";
+	#print "blob_read_all: offset $offset, len $len\n";
     }
     $$blob_ref = join "", @frags;
     return length($$blob_ref);

@@ -492,6 +492,7 @@ ora_utf8_to_bytes (ub1 *buffer, ub4 chars_wanted, ub4 max_bytes)
  * Europe? Deduce that from NLS_LANG? Possibly...
  */
 #define DBD_SET_UTF8(sv)   (cs_is_utf8? set_utf8(sv): 0)
+
 static int 
 set_utf8(SV *sv) {
     ub1 *c;
@@ -503,6 +504,8 @@ set_utf8(SV *sv) {
     }
     return 0;
 }
+#else
+#define DBD_SET_UTF8(sv)   0
 #endif
 
 static int	/* LONG and LONG RAW */
@@ -1298,6 +1301,13 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 /* does not seem to be needed, and the OCIAttrSet OCI_ATTR_CHARSET_FORM
 	was failing anyway in my tests using Oracle 9.0.1
 */
+/* But the docs say:
+    When you bind or define SQL NCHAR datatypes, you should set the
+    OCI_ATTR_CHARSET_FORM attribute to SQLCS_NCHAR. Otherwise, you can
+    lose data because the data is converted to the database character
+    set before converting to or from the national character set. This
+    occurs only if the database character set is not Unicode.
+*/
         if ( 0 && (fbh->dbtype == 1) ) {
 #define USE_NLS_NCHAR
 #ifdef USE_NLS_NCHAR
@@ -1439,9 +1449,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 			--datalen;
 		}
 		sv_setpvn(sv, p, (STRLEN)datalen);
-#ifdef UTF8_SUPPORT
 		DBD_SET_UTF8(sv);
-#endif
 	    }
 
 	} else if (rc == 1405) {	/* field is null - return undef	*/
@@ -1457,9 +1465,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 		    /* but it'll only be accessible via prior bind_column()	*/
 		    sv_setpvn(sv, (char*)&fb_ary->abuf[0],
 			  fb_ary->arlen[0]);
-#ifdef UTF8_SUPPORT 
 		    DBD_SET_UTF8(sv);
-#endif
 		}
 		if (ora_dbtype_is_long(fbh->dbtype))	/* double check */
 		    hint = ", LongReadLen too small and/or LongTruncOk not set";
@@ -1740,9 +1746,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	    lob_cols_hv = newHV();
 	sv = newSViv(col_dbtype);
 	(void)sv_setpvn(sv, col_name, col_name_len);
-#ifdef UTF8_SUPPORT
 	DBD_SET_UTF8(sv);
-#endif
 	(void)SvIOK_on(sv);   /* what a wonderful hack! */
 	hv_store(lob_cols_hv, col_name,col_name_len, sv,0);
     }
