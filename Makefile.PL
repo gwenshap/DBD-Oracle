@@ -62,6 +62,7 @@ if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
     $opts{CAPI} = 'TRUE' if $Config{archname} =~ /-object\b/i;
 }
 
+$opts{CCFLAGS} = "-P $Config{ccflags}" if $Config{cc} eq 'bcc32';  # force C++
 $opts{LINKTYPE} = 'static' if $Config{dlsrc} =~ /dl_none/;
 
 my(@MK, %MK, $MK_TEXT, %MK_expanding);	# parsed macros from Oracle's makefiles
