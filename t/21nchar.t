@@ -20,7 +20,6 @@ SKIP: {
     $dbh = db_handle();
 
     plan skip_all => "Not connected to oracle" if not $dbh;
-    plan skip_all => "Oracle version < 9" if not ( ORA_OCI >= 9 );  # XXX why?
 
     show_db_charsets( $dbh );
 

@@ -79,7 +79,7 @@ GetEnvOrRegKey(char *name)
     if (!GetRegKey(key, "NLS_LANG", val, &len))
 	return Nullch;
     val[len] = 0;
-    return val;
+    return &val[0];
 }
 static int
 GetRegKey(char *key, char *val, char *data, int *size)
@@ -116,15 +116,13 @@ dbd_init(dbistate)
 
 
 int
-dbd_discon_all(drh, imp_xxh)
-    SV *drh;
-    imp_xxh_t *imp_xxh;
+dbd_discon_all(SV *drh, imp_drh_t *imp_drh)
 {
     dTHR;
 
     /* The disconnect_all concept is flawed and needs more work */
     if (!dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
-	DBIh_SET_ERR_CHAR(drh, imp_xxh, Nullch, 1, "disconnect_all not implemented", Nullch, Nullch);
+	DBIh_SET_ERR_CHAR(drh, (imp_xxh_t*)imp_drh, Nullch, 1, "disconnect_all not implemented", Nullch, Nullch);
 	return FALSE;
     }
     return FALSE;
