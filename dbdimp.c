@@ -116,15 +116,15 @@ dbd_init(dbistate)
 
 
 int
-dbd_discon_all(drh, imp_drh)
+dbd_discon_all(drh, imp_xxh)
     SV *drh;
-    imp_drh_t *imp_drh;
+    imp_xxh_t *imp_xxh;
 {
     dTHR;
 
     /* The disconnect_all concept is flawed and needs more work */
     if (!dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
-	DBIh_SET_ERR_CHAR(drh, imp_drh, Nullch, 1, "disconnect_all not implemented", Nullch, Nullch);
+	DBIh_SET_ERR_CHAR(drh, imp_xxh, Nullch, 1, "disconnect_all not implemented", Nullch, Nullch);
 	return FALSE;
     }
     return FALSE;

@@ -8,7 +8,7 @@
 
   Fixed placeholder names to be case insensitive thanks to Charles Jardine.
   Fixed some LOB test problems with Oracle 8.1.7 by implementing ora_lob_append
-    with OCILobGetLength() and OCILobWrite(), insted of buggy OCILobAppend(),
+    with OCILobGetLength() and OCILobWrite(), instead of buggy OCILobWriteAppend(),
     if the Oracle client version is < 9.0. Thanks to Jeff Urlwin.
   Fixed reporting of length truncated in error message thanks to Jeff Urlwin.
   Fixed column_info() to handle TIMESTAMP and INTERVAL datatypes

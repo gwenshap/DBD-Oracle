@@ -281,11 +281,11 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
     imp_sth->auto_lob = 1;
     if (attribs) {
 	SV **svp;
-	IV tmp;
+	IV ora_auto_lob = 1;
 	DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
 	DBD_ATTRIB_GET_IV(  attribs, "ora_placeholders", 16, svp, ora_placeholders);
-	DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob",   12, svp, tmp);
-	imp_sth->auto_lob = (tmp) ? 1 : 0;
+	DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob",   12, svp, ora_auto_lob);
+	imp_sth->auto_lob = (ora_auto_lob) ? 1 : 0;
 	/* ora_check_sql only works for selects owing to Oracle behaviour */
 	DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql",  13, svp, ora_check_sql);
     }
