@@ -23,7 +23,7 @@ See Appendices for exact build configurations used by me an others.
 For HPUX 11 on Itanium see also
 http://www.nntp.perl.org/group/perl.dbi.users/23840
 
-=head1  First things First
+=head1  First things First:  Introduction
 
 The reason you are even reading this file is because you want to connect 
 to an Oracle database from your perl program using the DBD::Oracle DBI 
@@ -37,6 +37,30 @@ can connect to the target database using SQL*Plus (or any other Oracle
 supplied tool).  The (gory) details of the install are beyond the scope of
 this document, some information can be found in the section
 L<Compiling on a Client Machine>, or see your friendly Oracle DBA.
+
+One final remark, 3 years after this was first written.  This has been
+updated numberous times over the years.  And some of the new biuld
+recipe's see simpler than some of the original instructions in this file.
+
+I think one reason the recipe is getting simpler may be that the build
+hints, in the base perl build have gotten more right, as we have moved
+from perl 5.6.1 to the 5.8.4 (now the stable version).  Its too bad they don't
+include the +z switch (at least for when the compiler is the softbench C
+compiler for the bundled C compiler.
+
+Someday, if I ever find myself building on HP again I should probably
+update as many of these recipes (that I can test) by trying to remove 
+more of the special case stuff I have in my build scripts now.  
+Gram Ludlows's build for the default bundled C compiler shows that a lot
+of this may no longer be necessary.
+
+On the other hand, it would be bad if we deleted information that others
+might need, so I err on the side of too much, in the hope that the
+person who really needs the information, will not have to look beyond
+this file.
+
+   -- Lincoln
+
 
 =head1  Build your own Perl
  
