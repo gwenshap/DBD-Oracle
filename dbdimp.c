@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.23 1996/10/15 02:19:14 timbo Exp $
+   $Id: dbdimp.c,v 1.28 1996/10/29 18:17:23 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -15,6 +15,8 @@ DBISTATE_DECLARE;
 
 static SV *ora_long;
 static SV *ora_trunc;
+static SV *ora_cache;
+static SV *ora_cache_o;	/* temp hack for ora_open() cache override */
 
 
 void
@@ -22,8 +24,10 @@ dbd_init(dbistate)
     dbistate_t *dbistate;
 {
     DBIS = dbistate;
-    ora_long  = perl_get_sv("Oraperl::ora_long",  GV_ADDMULTI);
-    ora_trunc = perl_get_sv("Oraperl::ora_trunc", GV_ADDMULTI);
+    ora_long    = perl_get_sv("Oraperl::ora_long",    GV_ADDMULTI);
+    ora_trunc   = perl_get_sv("Oraperl::ora_trunc",   GV_ADDMULTI);
+    ora_cache   = perl_get_sv("Oraperl::ora_cache",   GV_ADDMULTI);
+    ora_cache_o = perl_get_sv("Oraperl::ora_cache_o", GV_ADDMULTI);
 }
 
 
@@ -69,9 +73,10 @@ ora_error(h, lda, rc, what)
 
 
 void
-fbh_dump(fbh, i)
+fbh_dump(fbh, i, aidx)
     imp_fbh_t *fbh;
     int i;
+    int aidx;	/* array index */
 {
     FILE *fp = DBILOGFP;
     fprintf(fp, "fbh %d: '%s' %s, ",
@@ -79,8 +84,9 @@ fbh_dump(fbh, i)
     fprintf(fp, "type %d,  dbsize %ld, dsize %ld, p%d s%d\n",
 	    fbh->dbtype, (long)fbh->dbsize, (long)fbh->dsize,
 	    fbh->prec, fbh->scale);
-    fprintf(fp, "   out: ftype %d, indp %d, bufl %d, rlen %d, rcode %d\n",
-	    fbh->ftype, fbh->indp, fbh->bufl, fbh->rlen, fbh->rcode);
+    fprintf(fp, "   out: ftype %d, bufl %d. cache@%d: indp %d, rlen %d, rcode %d\n",
+	    fbh->ftype, fbh->fb_ary->bufl, aidx, fbh->fb_ary->aindp[aidx],
+	    fbh->fb_ary->arlen[aidx], fbh->fb_ary->arcode[aidx]);
 }
 
 
@@ -118,7 +124,36 @@ dbtype_is_string(dbtype)	/* 'can we use SvPV to pass buffer?'	*/
 }
 
 
-/* ================================================================== */
+/* --- allocate and free oracle oci 'array' buffers --- */
+
+fb_ary_t *
+fb_ary_alloc(bufl, size)
+int bufl;
+int size;
+{
+    fb_ary_t *fb_ary;
+    /* these should be reworked to only to one Newz()	*/
+    /* and setup the pointers in the head fb_ary struct	*/
+    Newz(42, fb_ary, sizeof(fb_ary_t), fb_ary_t);
+    Newz(42, fb_ary->abuf,   size * bufl, ub1);
+    Newz(42, fb_ary->aindp,  size,        sb2);
+    Newz(42, fb_ary->arlen,  size,        ub2);
+    Newz(42, fb_ary->arcode, size,        ub2);
+    fb_ary->bufl = bufl;
+    return fb_ary;
+}
+
+void
+fb_ary_free(fb_ary)
+fb_ary_t *fb_ary;
+{
+    Safefree(fb_ary->abuf);
+    Safefree(fb_ary->aindp);
+    Safefree(fb_ary->arlen);
+    Safefree(fb_ary->arcode);
+    Safefree(fb_ary);
+}
+
 
 
 static void
@@ -306,16 +341,18 @@ dbd_st_prepare(sth, statement, attribs)
     imp_sth->cda->peo = 0;
     if (oparse(imp_sth->cda, (text*)imp_sth->statement, (sb4)-1,
                 (sword)oparse_defer, (ub4)oparse_lng)) {
-	SV  *msgsv;
+	SV  *msgsv, *sqlsv;
 	char msg[99];
-	sprintf(msg,"possibly parse error near character %d of %d in '",
-	    imp_sth->cda->peo+1, (int)strlen(imp_sth->statement));
+	sqlsv = sv_2mortal(newSVpv(imp_sth->statement,0));
+	sv_insert(sqlsv, imp_sth->cda->peo, 0, "<*>",3);
+	sprintf(msg,"error possibly near <*> indicator at char %d in '",
+		imp_sth->cda->peo+1);
 	msgsv = sv_2mortal(newSVpv(msg,0));
-	sv_catpv(msgsv, imp_sth->statement);
+	sv_catsv(msgsv, sqlsv);
 	sv_catpv(msgsv, "'");
-        ora_error(sth, imp_sth->cda, imp_sth->cda->rc, SvPV(msgsv,na));
+	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, SvPV(msgsv,na));
 	oclose(imp_sth->cda);	/* close the cursor	*/
-        return 0;
+	return 0;
     }
 
     /* long_buflen:	length for long/longraw (if >0)  */
@@ -329,14 +366,17 @@ dbd_st_prepare(sth, statement, attribs)
 	imp_sth->long_trunc_ok = 1;	/* can use blob_read()		*/
     }
 
+    if (dbis->debug >= 2)
+	fprintf(DBILOGFP, "    dbd_st_prepare'd sql f%d (lb %ld, lt %d)\n",
+	    imp_sth->cda->ft, (long)imp_sth->long_buflen, imp_sth->long_trunc_ok);
+
     /* Describe and allocate storage for results. This could	*/
     /* and possibly should be deferred until execution or some	*/
     /* output related information is fetched.			*/
-/* defered
-    if (!dbd_describe(dbh, imp_sth)) {
+/* was defered prior to 0.43 */
+    if (!dbd_describe(sth, imp_sth)) {
 	return 0;
     }
-*/
     DBIc_IMPSET_on(imp_sth);
     return 1;
 }
@@ -411,7 +451,7 @@ dbd_preparse(imp_sth, statement)
     if (imp_sth->all_params_hv) {
 	DBIc_NUM_PARAMS(imp_sth) = (int)HvKEYS(imp_sth->all_params_hv);
 	if (dbis->debug >= 2)
-	    fprintf(DBILOGFP, "scanned %d distinct placeholders\n",
+	    fprintf(DBILOGFP, "    dbd_preparse scanned %d distinct placeholders\n",
 		(int)DBIc_NUM_PARAMS(imp_sth));
     }
 }
@@ -429,20 +469,23 @@ dbd_describe(h, imp_sth)
     sb1 *cbuf_ptr;
     int t_cbufl=0;
     I32 num_fields;
+    int has_longs = 0;
     int i = 0;
 
     if (imp_sth->done_desc)
 	return 1;	/* success, already done it */
     imp_sth->done_desc = 1;
 
-    if (imp_sth->cda->ft == 34) {	/* SQL function "PL/SQL EXECUTE"	*/
+    if (imp_sth->cda->ft != FT_SELECT) {
 	if (dbis->debug >= 2)
-	    fprintf(DBILOGFP, "    dbd_describe skipped for pl/sql\n");
+	    fprintf(DBILOGFP, "    dbd_describe skipped for non-select (sql f%d)\n",
+		imp_sth->cda->ft);
+	/* imp_sth memory was cleared when created so no setup required here	*/
 	return 1;
     }
 
     if (dbis->debug >= 2)
-	fprintf(DBILOGFP, "    dbd_describe (for sql func %d after oci func %d)...\n",
+	fprintf(DBILOGFP, "    dbd_describe (for sql f%d after oci f%d)...\n",
 			imp_sth->cda->ft, imp_sth->cda->fc);
 
     if (!f_cbufl) {
@@ -453,17 +496,22 @@ dbd_describe(h, imp_sth)
     /* Get number of fields and space needed for field names	*/
     while(++i) {	/* break out within loop		*/
 	sb1 cbuf[257];	/* generous max column name length	*/
-	sb2 dbtype = 0;	/* workaround for problem log #405032	*/
+	sb2 dbtype = 0;	/* workaround for Oracle bug #405032	*/
+	sb4 dbsize;
 	if (i >= f_cbufl_max) {
 	    f_cbufl_max *= 2;
 	    Renew(f_cbufl, f_cbufl_max, sb4);
 	}
 	f_cbufl[i] = sizeof(cbuf);
-	odescr(imp_sth->cda, i, (sb4*)0, &dbtype,
+	odescr(imp_sth->cda, i, &dbsize, &dbtype,
 		cbuf, &f_cbufl[i], (sb4*)0, (sb2*)0, (sb2*)0, (sb2*)0);
         if (imp_sth->cda->rc || dbtype == 0)
 	    break;
-	t_cbufl += f_cbufl[i];
+	t_cbufl  += f_cbufl[i];
+	if (dbsize)
+	    imp_sth->t_dbsize += dbsize;
+	else if (dbtype_is_long(dbtype))
+	    ++has_longs;	/* hint to auto cache sizing code	*/
     }
     if (imp_sth->cda->rc && imp_sth->cda->rc != 1007) {
 	D_imp_dbh_from_sth;
@@ -474,6 +522,30 @@ dbd_describe(h, imp_sth)
     num_fields = i - 1;
     DBIc_NUM_FIELDS(imp_sth) = num_fields;
 
+    /* --- Setup the row cache for this query --- */
+    if      (SvOK(ora_cache_o)) imp_sth->cache_size = SvIV(ora_cache_o);
+    else if (SvOK(ora_cache))   imp_sth->cache_size = SvIV(ora_cache);
+    else                        imp_sth->cache_size = 0;   /* auto size	*/
+    /* deal with default (auto-size) and out of range cases		*/
+    if (imp_sth->cache_size < 1) {	/* 0 == try to pick 'optimal'	*/
+	/* Guess a maximum on-the-wire row width (but note t_dbsize	*/
+	/* doesn't include longs yet so this could be suboptimal) 	*/
+	int width = 8 + imp_sth->t_dbsize + num_fields*5;
+	/* How many rows fit in 2Kb? (2Kb is a reasonable compromise)	*/
+	imp_sth->cache_size = 2048 / width;
+	if (imp_sth->cache_size < 5)	       /* cache at least 5	*/
+	    imp_sth->cache_size = 5;
+	else	/* if query includes longs, limit auto-size to 10 rows	*/
+	if (has_longs && imp_sth->cache_size > 10)
+	    imp_sth->cache_size = 10;
+    }
+    if (imp_sth->cache_size > 32767)	/* keep within Oracle's limits  */
+	imp_sth->cache_size = 32767;
+    /* Initialise cache counters */
+    imp_sth->in_cache    = 0;
+    imp_sth->eod_errno = 0;
+
+
     /* allocate field buffers				*/
     Newz(42, imp_sth->fbh,      num_fields, imp_fbh_t);
     /* allocate a buffer to hold all the column names	*/
@@ -482,6 +554,7 @@ dbd_describe(h, imp_sth)
     cbuf_ptr = (sb1*)imp_sth->fbh_cbuf;
     for(i=1; i <= num_fields && imp_sth->cda->rc != 10; ++i) {
 	imp_fbh_t *fbh = &imp_sth->fbh[i-1];
+	fb_ary_t  *fb_ary;
 	int dbtype;
 
 	fbh->imp_sth = imp_sth;
@@ -506,6 +579,7 @@ dbd_describe(h, imp_sth)
 	    fbh->dbsize = buflen;
 	    fbh->dsize  = buflen;
 	    fbh->ftype  = dbtype;	/* get long in non-var form	*/
+	    imp_sth->t_dbsize += buflen;
 	} else {
 	    /* for the time being we fetch everything (except longs)	*/
 	    /* as strings, that'll change (IV, NV and binary data etc)	*/
@@ -513,34 +587,32 @@ dbd_describe(h, imp_sth)
 	    /* dbsize can be zero for 'select NULL ...'			*/
 	}
 
-	fbh->bufl  = fbh->dsize+1;	/* +1: STRING null terminator	*/
-
-	/* currently we use an sv, later we'll use an array	*/
-	fbh->sv = newSV((STRLEN)fbh->bufl);
-	(void)SvUPGRADE(fbh->sv, SVt_PV);
-	SvREADONLY_on(fbh->sv);
-	(void)SvPOK_only(fbh->sv);
-	fbh->buf = (ub1*)SvPVX(fbh->sv);
+	fbh->fb_ary = fb_ary = fb_ary_alloc(
+			fbh->dsize+1,	/* +1: STRING null terminator   */
+			imp_sth->cache_size
+		    );
 
 	/* DEFINE output column variable storage */
-	if (odefin(imp_sth->cda, i, fbh->buf, fbh->bufl,
-		fbh->ftype, -1, &fbh->indp,
-		(text*)0, -1, -1, &fbh->rlen, &fbh->rcode)) {
+	if (odefin(imp_sth->cda, i, fb_ary->abuf, fb_ary->bufl,
+		fbh->ftype, -1, fb_ary->aindp, (text*)0, -1, -1,
+		fb_ary->arlen, fb_ary->arcode)) {
 	    warn("odefin error on %s: %d", fbh->cbuf, imp_sth->cda->rc);
 	}
 
 	if (dbis->debug >= 2)
-	    fbh_dump(fbh, i);
+	    fbh_dump(fbh, i, 0);
     }
+
+    if (dbis->debug >= 2)
+	fprintf(DBILOGFP,
+	    "    dbd_describe'd %d columns (~%d data bytes, %d cache rows)\n",
+	    (int)num_fields, imp_sth->t_dbsize, imp_sth->cache_size);
 
     if (imp_sth->cda->rc && imp_sth->cda->rc != 1007) {
 	D_imp_dbh_from_sth;
 	ora_error(h, &imp_dbh->lda, imp_sth->cda->rc, "odescr failed");
 	return 0;
     }
-
-    if (dbis->debug >= 2)
-	fprintf(DBILOGFP, "    dbd_describe completed for %d columns\n", (int)num_fields);
 
     return 1;
 }
@@ -685,11 +757,8 @@ dbd_bind_ph(sth, ph_namesv, newvalue, attribs, is_inout, maxlen)
     }
     else {
 	STRLEN value_len;
-
 	phs->indp = 0;
-
 	/* XXX need to consider oraperl null vs space issues?	*/
-
 	if (is_inout) {	/* XXX */
 	    phs->progv = SvPV(phs->sv, value_len);
 	}
@@ -699,7 +768,6 @@ dbd_bind_ph(sth, ph_namesv, newvalue, attribs, is_inout, maxlen)
 	}
 	phs->alen = value_len + phs->alen_incnull;
     }
-
 
     return _dbd_rebind_ph(sth, imp_sth, phs, maxlen);
 }
@@ -722,7 +790,7 @@ dbd_st_execute(sth)	/* <0 is error, >=0 is ok (row count) */
 
     if (debug >= 2)
 	fprintf(DBILOGFP,
-	    "    dbd_st_execute (for sql func %d after oci func %d)...\n",
+	    "    dbd_st_execute (for sql f%d after oci f%d)...\n",
 			imp_sth->cda->ft, imp_sth->cda->fc);
 
     if (outparams) {	/* check validity of bound SV's	*/
@@ -753,16 +821,36 @@ dbd_st_execute(sth)	/* <0 is error, >=0 is ok (row count) */
 	}
     }
 
-    /* Trigger execution of the statement			*/
-    if (oexec(imp_sth->cda)) {  /* may change to oexfet later	*/
-        ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oexec error");
-	return -1;
+    /* reset cache counters */
+    imp_sth->in_cache   = 0;
+    imp_sth->next_entry = 0;
+    imp_sth->eod_errno  = 0;
+
+    /* Trigger execution of the statement */
+    if (DBIc_NUM_FIELDS(imp_sth) > 0) {  	/* is a SELECT	*/
+	/* The number of fields is used because imp_sth->cda->ft is unreliable.	*/
+	/* Specifically an update (5) may change to select (4) after odesc().	*/
+	if (oexfet(imp_sth->cda, (ub4)imp_sth->cache_size, 0, 0)
+		&& imp_sth->cda->rc != 1403 /* other than no more data */ ) {
+	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oexfet error");
+	    return -1;
+	}
+	imp_sth->in_cache = imp_sth->cda->rpc;	/* cache loaded */
+	if (imp_sth->cda->rc == 1403)
+	    imp_sth->eod_errno = 1403;
+    }
+    else {					/* NOT a select */
+	if (oexec(imp_sth->cda)) {
+	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oexec error");
+	    return -1;
+	}
     }
 
     if (debug >= 2)
-	fprintf(DBILOGFP, "    dbd_st_execute complete (rc %d, w %02x, rpc %ld, op%d)\n",
+	fprintf(DBILOGFP, "    dbd_st_execute complete (rc%d, w%02x, rpc%ld, eod%d, out%d)\n",
 		imp_sth->cda->rc,  imp_sth->cda->wrn,
-		imp_sth->cda->rpc, imp_sth->has_inout_params);
+		imp_sth->cda->rpc, imp_sth->eod_errno,
+		imp_sth->has_inout_params);
 
     if (outparams) {	/* check validity of bound SV's	*/
 	int i = outparams;
@@ -811,36 +899,59 @@ dbd_st_fetch(sth)
     int num_fields;
     int i;
     AV *av;
-    /* Check that execute() was executed sucessfuly. This also implies	*/
+
+    /* Check that execute() was executed sucessfully. This also implies	*/
     /* that dbd_describe() executed sucessfuly so the memory buffers	*/
     /* are allocated and bound.						*/
     if ( !DBIc_ACTIVE(imp_sth) ) {
 	ora_error(sth, NULL, 1, "no statement executing");
 	return Nullav;
     }
-    /* This will become ofen() once the buffer management is reworked.	*/
-    if (ofetch(imp_sth->cda)) {
-	if (imp_sth->cda->rc != 1403) {	/* was not just end-of-fetch	*/
-	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "ofetch error");
-	    /* should we ocan() here? */
-	} else {
-	    sv_setiv(DBIc_ERR(imp_sth), 0);	/* just end-of-fetch	*/
+
+    if (!imp_sth->in_cache) {	/* refill cache if empty	*/
+	int rows_returned;
+
+	if (imp_sth->eod_errno) {
+    end_of_data:
+	    if (imp_sth->eod_errno != 1403) {	/* was not just end-of-fetch	*/
+		ora_error(sth, imp_sth->cda, imp_sth->eod_errno, "ofetch error");
+	    } else {				/* is simply no more data	*/
+		sv_setiv(DBIc_ERR(imp_sth), 0);	/* ensure errno set to 0 here	*/
+		if (debug >= 2)
+		    fprintf(DBILOGFP, "    dbd_st_fetch no-more-data, rc=%d, rpc=%ld\n",
+			imp_sth->cda->rc, imp_sth->cda->rpc);
+	    }
+	    imp_sth->eod_errno = 0;		/* let user retry if they want	*/
+	    return Nullav;
 	}
-	if (debug >= 3)
-	    fprintf(DBILOGFP, "    dbd_st_fetch failed, rc=%d",
-		imp_sth->cda->rc);
-	return Nullav;
+
+	rows_returned = imp_sth->cda->rpc;	/* remember rpc before re-fetch	*/
+	if (ofen(imp_sth->cda, imp_sth->cache_size)) {
+	    /* Note that errors may happen after one or more rows have been	*/
+	    /* added to the cache. We record the error but don't handle it till	*/
+	    /* the cache is empty (which may be at once if no rows returned).	*/
+	    imp_sth->eod_errno = imp_sth->cda->rc;	/* store rc for later	*/
+	    if (imp_sth->cda->rpc == rows_returned)	/* no more rows fetched	*/
+		goto end_of_data;
+	    /* else fall through and return the first of the fetched rows	*/
+	}
+	imp_sth->in_cache   = imp_sth->cda->rpc - rows_returned;
+	imp_sth->next_entry = 0;
     }
 
     av = DBIS->get_fbav(imp_sth);
     num_fields = AvFILL(av)+1;
 
     if (debug >= 3)
-	fprintf(DBILOGFP, "    dbd_st_fetch %d fields\n", num_fields);
+	fprintf(DBILOGFP, "    dbd_st_fetch %d fields (cache: %d/%d/%d)\n",
+		num_fields, imp_sth->next_entry, imp_sth->in_cache,
+		imp_sth->cache_size);
 
     for(i=0; i < num_fields; ++i) {
 	imp_fbh_t *fbh = &imp_sth->fbh[i];
-	int rc = fbh->rcode;
+	int cache_entry = imp_sth->next_entry;
+	fb_ary_t *fb_ary = fbh->fb_ary;
+	int rc = fb_ary->arcode[cache_entry];
 	SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/
 
 	if (rc == 1406 && dbtype_is_long(fbh->dbtype)) {
@@ -855,8 +966,8 @@ dbd_st_fetch(sth)
 	}
 
 	if (rc == 0) {			/* the normal case		*/
-	    SvCUR(fbh->sv) = fbh->rlen;
-	    sv_setsv(sv, fbh->sv);	/* XXX can be optimised later	*/
+	    sv_setpvn(sv, (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl],
+			  fb_ary->arlen[cache_entry]);
 
 	} else if (rc == 1405) {	/* field is null - return undef	*/
 	    (void)SvOK_off(sv);
@@ -874,6 +985,11 @@ dbd_st_fetch(sth)
 		i, rc, SvPV(sv,na));
 
     }
+
+    /* update cache counters */
+    --imp_sth->in_cache;
+    ++imp_sth->next_entry;
+
     return av;
 }
 
@@ -957,6 +1073,7 @@ dbd_st_destroy(sth)
 {
     D_imp_sth(sth);
     D_imp_dbh_from_sth;
+    int fields;
     int i;
     /* Check if an explicit disconnect() or global destruction has	*/
     /* disconnected us from the database before attempting to close.	*/
@@ -971,9 +1088,12 @@ dbd_st_destroy(sth)
 
     /* Free off contents of imp_sth	*/
 
-    for(i=0; i < DBIc_NUM_FIELDS(imp_sth); ++i) {
+    fields = DBIc_NUM_FIELDS(imp_sth);
+    imp_sth->in_cache    = 0;
+    imp_sth->eod_errno = 1403;
+    for(i=0; i < fields; ++i) {
 	imp_fbh_t *fbh = &imp_sth->fbh[i];
-	sv_free(fbh->sv);
+	fb_ary_free(fbh->fb_ary);
     }
     Safefree(imp_sth->fbh);
     Safefree(imp_sth->fbh_cbuf);

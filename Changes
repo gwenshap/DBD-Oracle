@@ -1,3 +1,35 @@
+
+Changes in DBD::Oracle 0.43 (Oraperl 1.30), 29nd Oct 1996
+
+	Fixed serious 'false ora_errno 1 after short select' bug.
+	Worked around oracle bug that makes cda->ft unreliable.
+	Do not use DBD::Oracle 0.41 or 0.42.
+	Cursors are now 'describe'd at prepare time thus making
+	NUM_OF_FIELDS always available. Describe does nothing for
+	non-select operations. NUM_OF_FIELDS > 0 is now used to
+	select between oexec() and oexfet() in execute().
+	Added a more internal debugging. Improved test.pl.
+
+Changes in DBD::Oracle 0.42 (Oraperl 1.30), 28nd Oct 1996
+
+	Fixed serious 'cache empty after re-bind' bug.
+	Do not use DBD::Oracle 0.41.
+	Implemented oexfet (combined execute and cache fetch) for
+	select operations. This is a further significant speed up.
+	Many selects now make only one trip to Oracle (after prepare)
+	which combines the execute and fetching multiple rows.
+
+Changes in DBD::Oracle 0.41 (Oraperl 1.30), 22nd Oct 1996
+
+	Added the long overdue row cache to DBD::Oracle.
+	(Thanks to Reetnem@aol.com for providing a patch that prompted
+	me to complete the work.)
+	Oraperl $ora_cache and cache parameter to ora_open now work.
+	Default cache size is adjusted automatically for row width.
+	Major reworking of field buffer memory management.
+	Added a more internal debugging.
+	Further updates to the README files.
+
 Changes in DBD::Oracle 0.40 (Oraperl 1.29), 14th Oct 1996
 
 	WARNING - This release contains significant changes to the

@@ -37,11 +37,11 @@ Perl with DBI/DBD
 
 Below are various ways of connecting to an oracle database using
 SQL*Net 1.x and SQL*Net 2.x.  "Machine" is the computer the database is
-running on, "SID" is the SID of the database, "MS2" is the SQL*Net 2.x
+running on, "SID" is the SID of the database, "DB" is the SQL*Net 2.x
 connection descriptor for the database.
 
      BEGIN { 
-        $ENV{TWO_TASK}='MS2'; 
+        $ENV{TWO_TASK}='DB'; 
         $ENV{ORACLE_HOME} = '/home/oracle/product/7.x.x';
      }
      ora_login('','scott/tiger');
@@ -65,12 +65,17 @@ $lda = ora_login('T:Machine:SID','username','password');
 
 $lda = ora_login('','username@T:Machine:SID','password');
 
-$lda = ora_login('','username@MS2','password');
+$lda = ora_login('','username@DB','password');
 
-$lda = ora_login('MS2','username','password');
+$lda = ora_login('DB','username','password');
 
-$lda = ora_login('MS2','username/password','');
-
-
+$lda = ora_login('DB','username/password','');
 
 With thanks to James Taylor <james.taylor@srs.gov>.
+
+If you are having problems with login taking a long time (>10 secs say)
+then try using one of the ...@DB variants. E.g.,
+
+	$lda = ora_login('','username/password@DB','');
+
+Tim.

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.12 1996/10/15 02:19:14 timbo Exp $
+   $Id: dbdimp.h,v 1.16 1996/10/29 18:17:23 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -8,13 +8,16 @@
 
 */
 
-/* these are (almost) random values ! */
-#define MAX_COLS 1025
-
+/* #define MAX_COLS 1025 */
 
 #ifndef HDA_SIZE
 #define HDA_SIZE 512
 #endif
+
+#ifndef FT_SELECT
+#define FT_SELECT 4	/* from rdbms/demo/ocidem.h */
+#endif
+
 
 typedef struct imp_fbh_st imp_fbh_t;
 
@@ -47,14 +50,30 @@ struct imp_sth_st {
     int        done_desc;   /* have we described this sth yet ?	*/
     imp_fbh_t *fbh;	    /* array of imp_fbh_t structs	*/
     char      *fbh_cbuf;    /* memory for all field names       */
+    int       t_dbsize;     /* raw data width of a row		*/
     sb4   long_buflen;      /* length for long/longraw (if >0)	*/
     bool  long_trunc_ok;    /* is truncating a long an error	*/
 
-	/* (In/)Out Parameter Details */
+    /* Select Row Cache Details */
+    int       cache_size;
+    int       in_cache;
+    int       next_entry;
+    int       eod_errno;
+
+    /* (In/)Out Parameter Details */
     bool  has_inout_params;
 };
 #define IMP_STH_EXECUTING	0x0001
 
+
+typedef struct fb_ary_st fb_ary_t;    /* field buffer array	*/
+struct fb_ary_st { 	/* field buffer array EXPERIMENTAL	*/
+    ub2  bufl;		/* length of data buffer		*/
+    sb2  *aindp;	/* null/trunc indicator variable	*/
+    ub1  *abuf;		/* data buffer (points to sv data)	*/
+    ub2  *arlen;	/* length of returned data		*/
+    ub2  *arcode;	/* field level error status		*/
+};
 
 struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     imp_sth_t *imp_sth;	/* 'parent' statement */
@@ -70,37 +89,31 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     sb2  nullok;
 
     /* Our storage space for the field data as it's fetched	*/
-    sb2  indp;		/* null/trunc indicator variable	*/
     sword ftype;	/* external datatype we wish to get	*/
-    ub1  *buf;		/* data buffer (points to sv data)	*/
-    ub2  bufl;		/* length of data buffer		*/
-    ub2  rlen;		/* length of returned data		*/
-    ub2  rcode;		/* field level error status		*/
-
-    SV	*sv;
+    fb_ary_t *fb_ary;	/* field buffer array			*/
 };
 
 
 typedef struct phs_st phs_t;    /* scalar placeholder   */
 
-struct phs_st {	/* scalar placeholder EXPERIMENTAL	*/
-    SV	*sv;		/* the scalar holding the value		*/
+struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     sword ftype;	/* external OCI field type		*/
+
+    SV	*sv;		/* the scalar holding the value		*/
+
     sb2 indp;		/* null indicator			*/
-
-    /* fields for inout params */
-    bool is_inout;
     char *progv;
-    ub2 alen;
     ub2 arcode;
-    int alen_incnull;	/* 0 or 1 if alen should include null	*/
+    ub2 alen;
 
+    bool is_inout;
+    int alen_incnull;	/* 0 or 1 if alen should include null	*/
     char name[1];	/* struct is malloc'd bigger as needed	*/
 };
 
 
 void	ora_error _((SV *h, Lda_Def *lda, int rc, char *what));
-void	fbh_dump _((imp_fbh_t *fbh, int i));
+void	fbh_dump _((imp_fbh_t *fbh, int i, int cacheidx));
 
 void	dbd_init _((dbistate_t *dbistate));
 void	dbd_preparse _((imp_sth_t *imp_sth, char *statement));

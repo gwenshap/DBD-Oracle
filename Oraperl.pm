@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.29 1996/09/23 19:30:58 timbo Exp $
+# $Id: Oraperl.pm,v 1.31 1996/10/29 18:17:23 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -23,7 +23,7 @@ require 5.002;
 use DBI 0.70;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.29 $, 10);
+$VERSION = substr(q$Revision: 1.31 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -44,27 +44,22 @@ $safe = 1 unless defined $safe;
 
 # Help those who get core dumps from non-'safe' Oraperl (bad cursors)
 use sigtrap qw(ILL);
-$SIG{BUS} = $SIG{SEGV} = sub {
+if (!$safe) {
+    $SIG{BUS} = $SIG{SEGV} = sub {
 	print STDERR "Add BEGIN { \$Oraperl::safe=1 } above 'use Oraperl'.\n"
 		unless $safe;
 	goto &sigtrap::trap;
-};
-
-
-if ($debugdbi){
-    my $sw = DBI->internal;
-    $sw->debug($debugdbi);
-    print "Switch: $sw->{Attribution}, $sw->{Version}\n";
-    $sw->{DebugDispatch} = $debugdbi;
+    };
 }
 
-# Install Driver
+
+# Install Driver (use of install_driver is a special case here)
 $drh = DBI->install_driver('Oracle');
 if ($drh) {
-	print "DBD::Oracle driver installed as $drh\n" if $debug;
-	$drh->debug($debug);
-	$drh->{CompatMode} = 1;
-	$drh->{Warn}       = 0;
+    print "DBD::Oracle driver installed as $drh\n" if $debug;
+    $drh->debug($debug);
+    $drh->{CompatMode} = 1;
+    $drh->{Warn}       = 0;
 }
 
 
@@ -115,7 +110,8 @@ sub ora_logoff {
 #   &ora_close($csr)
 
 sub ora_open {
-    my($lda, $stmt, $cache) = @_;
+    my($lda, $stmt) = @_;
+    $Oraperl::ora_cache_o = $_[2];	# temp hack to pass cache through
 
     my $csr = $lda->prepare($stmt) or return undef;
 
@@ -250,7 +246,7 @@ Oraperl - Perl access to Oracle databases for old oraperl scripts
   &ora_commit($lda)
   &ora_rollback($lda)
   &ora_autocommit($lda, $on_off)
-  &ora_version
+  &ora_version()
 
   $ora_cache
   $ora_long
@@ -336,8 +332,6 @@ If the row cache size is not specified, a default size is
 used. As distributed, the default is five rows, but this
 may have been changed at your installation (see the
 &ora_version() function and $ora_cache variable below).
-
-B<DBD:> currently $cache is ignored. That should change soon.
 
 Examples:
 
@@ -590,7 +584,7 @@ program.
 
 Example:
 
-  oraperl -e '&ora_version'
+  perl -MOraperl -e 'ora_version()'
 
   This is Oraperl, version 2, patch level 0.
 
@@ -636,8 +630,6 @@ your installation.
 As a special case, assigning zero to $ora_cache resets it to the
 default value. Attempting to set $ora_cache to a negative value results
 in a warning.
-
-B<DBD:> Not yet supported.
 
 
 =item * $ora_long
@@ -807,10 +799,10 @@ with the DBI and DBD::Oracle modules whilst insulating users from
 the ongoing changes in their interfaces.)
 
 It is quite possible, indeed probable, that some differences in
-behaviour will exist. This should be confined to error handling.
+behaviour will exist. These are probably confined to error handling.
 
 B<All> differences in behaviour which are not documented here should be
-reported to Tim.Bunce@ig.co.uk and CC'd to dbi-users@fugue.com.
+reported to Tim.Bunce@ig.co.uk B<and> CC'd to dbi-users@fugue.com.
 
 
 =head1 SEE ALSO

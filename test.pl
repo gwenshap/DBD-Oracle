@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl -w
 
-# $Id: test.pl,v 1.25 1996/10/15 02:19:14 timbo Exp $
+# $Id: test.pl,v 1.28 1996/10/29 18:17:23 timbo Exp $
 #
 # Copyright (c) 1995, Tim Bunce
 #
@@ -10,7 +10,7 @@
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.25 $}."\n";
+print q{Oraperl test application $Revision: 1.28 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^Bad free/) ? warn "See README about Bad free() warnings!\n": warn @_;
@@ -18,10 +18,11 @@ $SIG{__WARN__} = sub {
 
 $opt_d = 0;		# debug
 $opt_l = 0;		# log
-$opt_c = 5;		# count for loops
+$opt_n = 5;		# num of loops
 $opt_m = 0;		# count for mem leek test
+$opt_c = 1;		# do cache test
 $opt_p = 1;		# test pl/sql code
-&Getopts('m:d:c:lp ') || die "Invalid options\n";
+&Getopts('m:d:n:clp ') || die "Invalid options\n";
 
 $ENV{PERL_DBI_DEBUG} = 2 if $opt_d;
 $ENV{ORACLE_HOME} = '/usr/oracle' unless $ENV{ORACLE_HOME};
@@ -74,7 +75,7 @@ eval 'DBI->internal->{DebugLog} = "test.log";'  if $opt_l;
 print "\nTesting repetitive connect/open/close/disconnect:\n";
 print "Expect sequence of digits, no other messages:\n";
 #DBI->internal->{DebugDispatch} = 2;
-foreach(1..$opt_c) { print "$_ "; &test2(); }
+foreach(1..$opt_n) { print "$_ "; &test2(); }
 print "\n";
 
 print "\nTest interaction of explicit close/logoff and implicit DESTROYs\n";
@@ -86,6 +87,8 @@ $csr2 = &ora_open($lda2, "select 42 from dual") || die "ora_open: $ora_errno: $o
 print "done.\n";
 
 &test3($opt_m) if $opt_m;
+
+&test_cache() if $opt_c;
 
 &test_plsql() if $opt_p;
 
@@ -107,7 +110,7 @@ sub test1 {
 
     # Test ora_do with harmless non-select statement
     &ora_do($lda, "set transaction read only ")
-			|| warn "ora_do: $ora_errno: $ora_errstr\n";
+			|| warn "ora_do: $ora_errno: $ora_errstr";
 
     # DBI::dump_results($lda->tables());
 
@@ -202,29 +205,62 @@ sub test3 {
 }
 
 
-sub test_plsql {
-
-	print "\nTesting PL/SQL interaction.\n";
-
+sub test_cache {
+    local($cache) = 5;
+    print "\nTesting row cache ($cache).\n";
     local($l) = &ora_login($dbname, $dbuser, '')
-			|| die "ora_login: $ora_errno: $ora_errstr\n";
+		    || die "ora_login: $ora_errno: $ora_errstr\n";
+    local($csr, $rows, $max);
+    local($start) = time;
+    foreach $max (1, 0, $cache-1, $cache, $cache+1) {
+	$csr = &ora_open($l, q{
+		select object_name from all_objects where rownum <= :1
+	}, $cache);
+	&ora_bind($csr, $max) || die $ora_errstr;
+	$rows = count_fetch($csr);
+	die "test_cache $rows/$max" if $rows != $max;
+	&ora_bind($csr, $max+1) || die $ora_errstr;
+	$rows = count_fetch($csr);
+	die "test_cache $rows/$max+1" if $rows != $max+1;
+    }
+    # this test will only show timing improvements when
+    # run over a modem link. It's primarily designed to
+    # test boundary cases in the cache code.
+    print "Test completed in ".(time-$start)." seconds.\n";
+}
+sub count_fetch {
+    local($csr) = @_;
+    local($rows) = 0;
+    while((@row) = &ora_fetch($csr)) {
+       ++$rows;
+    }
+    die "count_fetch $ora_errstr" if $ora_errno;
+    return $rows;
+}
+
+
+sub test_plsql {
+    print "\nTesting PL/SQL interaction.\n";
+    local($l) = &ora_login($dbname, $dbuser, '')
+		    || die "ora_login: $ora_errno: $ora_errstr\n";
     my $c;
 
+	# $l->debug(2);
     $c = &ora_open($l, q{
-		begin RAISE invalid_number; end;
+	    begin RAISE invalid_number; end;
     });
     # Expect ORA-01722: invalid number
     die "ora_open: $ora_errstr" unless $ora_errno == 1722;
 
     $c = &ora_open($l, q{
-		DECLARE FOO EXCEPTION;
-		begin raise foo; end;
+	    DECLARE FOO EXCEPTION;
+	    begin raise foo; end;
     });
     # Expect ORA-06510: PL/SQL: unhandled user-defined exception
     die "ora_open: $ora_errstr" unless $ora_errno == 6510;
 
     $c = &ora_open($l, q{
-		begin raise_application_error(-20101,'app error'); end;
+	    begin raise_application_error(-20101,'app error'); end;
     });
     # Expect our exception number and error text
     die "ora_open: $ora_errno $ora_errstr"

@@ -15,6 +15,7 @@ dbdimp.c
 test.pl
 t/base.t
 hints/svr4.pl
+.purify	Ignore most of the (many) problems in Oracle's libraries. Very sad.
 oraperl.ph	Old oraperl file included for completeness of emulation
 oraperl.ex/Readme	Oraperl examples (copied mostly unchanged from oraperl-2.4)
 oraperl.ex/bind.pl
