@@ -120,16 +120,29 @@ ora_lob_write(dbh, locator, offset, data)
     STRLEN data_len; /* bytes not chars */
     dvoid *bufp;
     sword status;
+    ub2 csform;
     CODE:
     bufp = SvPV(data, data_len);
     amtp = data_len;
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (0 && SvUTF8(data) && !IN_BYTES) { amtp = sv_len_utf8(data); }  */
+#ifdef LABHACK
+    if (1 && SvUTF8(data) && !IN_BYTES) { /* lab uncommented */
+        amtp = sv_len_utf8(data); 
+        csform = SQLCS_NCHAR;
+    } else {
+        csform = SQLCS_IMPLICIT;
+    }
+#endif
     OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset,
 	    bufp, (ub4)data_len, OCI_ONE_PIECE,
 	    NULL, NULL,
+#ifdef LABHACK
+		 ncharsetid, csform , status);
+#else
 	    0 /* indicate UTF8? */, SQLCS_IMPLICIT, status);
+#endif
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
 	ST(0) = &sv_undef;
@@ -150,16 +163,28 @@ ora_lob_append(dbh, locator, data)
     dvoid *bufp;
     sword status;
     ub4 startp;
+    ub2 csform;
     CODE:
     bufp = SvPV(data, data_len);
     amtp = data_len;
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
-    /* if (0 && SvUTF8(data) && !IN_BYTES) { amtp = sv_len_utf8(data); }  */
+#ifdef LABHACK
+    if (1 && SvUTF8(data) && !IN_BYTES) { /* lab uncommented */
+        amtp = sv_len_utf8(data); 
+        csform = SQLCS_NCHAR;
+    } else {
+        csform = SQLCS_IMPLICIT;
+    }
+#endif
 #ifdef OCI_HTYPE_DIRPATH_FN_CTX /* Oracle is >= 9.0 */
     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 			       &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
 			       NULL, NULL,
+#ifdef LABHACK
+			       ncharsetid, csform , status);
+#else
 			       0 /* indicate UTF8? */, SQLCS_IMPLICIT, status);
+#endif
     if (status != OCI_SUCCESS) {
        oci_error(dbh, imp_dbh->errhp, status, "OCILobWriteAppend");
        ST(0) = &sv_undef;
@@ -204,6 +229,7 @@ ora_lob_read(dbh, locator, offset, length)
     SV *dest_sv;
     dvoid *bufp;
     sword status;
+    ub2 csform;
     CODE:
     dest_sv = sv_2mortal(newSV(length));
     SvPOK_on(dest_sv);
@@ -213,17 +239,29 @@ ora_lob_read(dbh, locator, offset, length)
     /* http://www.lc.leidenuniv.nl/awcourse/oracle/appdev.920/a96584/oci16m40.htm#427818 */
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (0 && SvUTF8(dest_sv) && !IN_BYTES) { amtp = sv_len_utf8(dest_sv); }  */
+#ifdef LABHACK
+    if (1 && SvUTF8(dest_sv) && !IN_BYTES) { /* lab uncommented */
+        amtp = sv_len_utf8(dest_sv); 
+        csform = SQLCS_NCHAR;
+    } else {
+        csform = SQLCS_IMPLICIT;
+    }
+#endif
     OCILobRead_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset, /* offset starts at 1 */
 	    bufp, (ub4)bufp_len,
+#ifdef LABHACK
+	    0, 0, (ub2)ncharsetid, (ub1)csform, status);
+#else
 	    0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
+#endif
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobRead");
-	dest_sv = &sv_undef;
+        dest_sv = &sv_undef;
     }
     else {
-	SvCUR(dest_sv) = amtp; /* always bytes here */
-	*SvEND(dest_sv) = '\0';
+        SvCUR(dest_sv) = amtp; /* always bytes here */
+        *SvEND(dest_sv) = '\0';
     }
     ST(0) = dest_sv;
 

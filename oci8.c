@@ -643,7 +643,15 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
      * equivalent of the following:
      *		(void)SvUPGRADE(dest_sv, SVt_PV);
      */
-
+    ub2 csid = 0;
+    ub2 csform = SQLCS_IMPLICIT;
+#ifdef LABHACK
+    if ( 1 || SvUTF8(dest_sv) )
+    {
+        csid = ncharsetid;
+        csform = SQLCS_NCHAR;
+    }
+#endif
     if (ftype != 112) {
 	oci_error(sth, imp_sth->errhp, OCI_ERROR,
 	"blob_read not currently supported for non-CLOB types with OCI 8 "
@@ -676,7 +684,9 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 
       OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 			  &amtp, (ub4)1 + offset, buffer, buflen,
-			  0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
+                          0, 0, csid ,csform ,status );
+			  /* lab  0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status); */
+
       if (dbis->debug >= 3)
 	PerlIO_printf(DBILOGFP, "       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
 		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
@@ -1849,6 +1859,8 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
     lob_refetch_t *lr;
     D_imp_dbh_from_sth;
     SV *dbh = (SV*)DBIc_MY_H(imp_dbh);
+    ub2 csform = 0;
+    ub2 csid = SQLCS_IMPLICIT;
 
     if (!imp_sth->auto_lob)
 	return 1;	/* application doesn't want magical lob handling */
@@ -1886,9 +1898,25 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	    status = OCI_SUCCESS;
 	}
 	else if (amtp > 0) {	/* since amtp==0 & OCI_ONE_PIECE fail (OCI 8.0.4) */
+#ifdef LABHACK
+            if ( SvUTF8(phs->sv) )
+            {
+                csid = ncharsetid;
+                csform = SQLCS_NCHAR;
+            }
+            if( ! fbh->csid )
+            {
+                fbh->csid = csid;
+                fbh->csform = csform;
+            }
+#endif /* LABHACK */
 	    OCILobWrite_log_stat(imp_sth->svchp, errhp,
 		    fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
-		    0,0, 0,SQLCS_IMPLICIT, status);
+		    0,0, fbh->csid ,fbh->csform, status);
+		    /* 0,0, 0,SQLCS_IMPLICIT, status);*/
+            if (DBIS->debug >= 3)
+                PerlIO_printf(DBILOGFP, "lab       OCILobWrite with fbh->csid=%d fbh->csform=%d\n"
+                    ,fbh->csid ,fbh->csform );
 	}
 	else {			/* amtp==0 so truncate LOB to zero length */
 	    OCILobTrim_log_stat(imp_sth->svchp, errhp, fbh->desc_h, 0, status);
@@ -1897,7 +1925,8 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	    PerlIO_printf(DBILOGFP,
 		"       lob refetch %d for '%s' param: ftype %d, len %ld: %s %s\n",
 		i+1,fbh->name, fbh->dbtype, ul_t(amtp),
-		(rc==1405 ? "NULL" : (amtp > 0) ? "LobWrite" : "LobTrim"), oci_status_name(status));
+		(rc==1405 ? "NULL" : (amtp > 0) ? "LobWrite" : "LobTrim"), oci_status_name(status)
+                );
 	if (status != OCI_SUCCESS) {
 	    return oci_error(sth, errhp, status, "OCILobTrim/OCILobWrite/LOB refetch");
 	}

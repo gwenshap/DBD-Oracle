@@ -1,7 +1,7 @@
 #!perl -w
 
 use DBI;
-use DBD::Oracle qw(:ora_types ORA_OCI);
+use DBD::Oracle qw(:ora_types ORA_OCI SQLCS_NCHAR );
 use strict;
 use Test::More;
 
@@ -9,9 +9,18 @@ use Test::More;
 # Search for 'ocibug' to find code related to OCI LONG bugs.
 #
 
-my @test_sets;
-push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] if ORA_OCI >= 8;
-push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] if ORA_OCI >= 8;
+my $utf8_test = ($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i);
+my @test_sets ;
+if ( ORA_OCI >= 8 )
+{
+    push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
+    push @test_sets, [  "CLOB",	ORA_CLOB,	0 ] ;
+    if ( $utf8_test ) {
+        push @test_sets, [  "NCLOB",	ORA_CLOB,	0 ] ;
+    } else {
+        push @test_sets, [  "CLOB",	ORA_CLOB,	0 ] ;
+    }
+}
 push @test_sets, [ "LONG",	0 ,		0 ];
 push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
 
@@ -23,7 +32,6 @@ my $failed = 0;
 my %ocibug;
 my $table = "dbd_ora__drop_me";
 
-my $utf8_test = ($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i);
 
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
@@ -123,7 +131,7 @@ sub run_long_tests
     my $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
     if ($utf8_test) {
         #lab my $utf_x = eval q{ "0\x{263A}xyX" };
-        my $utf_x = "0\x{263A}xyX";
+        my $utf_x = "0\x{263A}xyX"; #lab: the ubiquitous smiley face
         $long_data0 = ($utf_x x 2048) x (1    );        # 10KB  < 64KB
         if (length($long_data0) > 10240) {
             diag "known bug in perl5.6.0 utf8 support, applying workaround\n";
@@ -136,6 +144,10 @@ sub run_long_tests
             # convert string from utf-8 to byte encoding
             $long_data0 = pack "C*", (unpack "C*", $long_data0);
         }
+        #} else { #lab
+        #    diag "\n\nsetting dbh->{ora_ph_csform} = SQLCS_NCHAR\n\n" ;
+        #    $dbh->{ora_ph_csform} = SQLCS_NCHAR;
+        #}
     }
     my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
     my $long_data2 = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
@@ -169,19 +181,20 @@ sub run_long_tests
         diag " --- insert some $type_name data (ora_type $type_num)\n";
         #lab ok(0, $sth = $dbh->prepare("insert into $table values (?, ?, SYSDATE)"), 1);
         my $sqlstr = "insert into $table values (?, ?, SYSDATE)" ;
-        ok( $sth = $dbh->prepare( $sqlstr ), "prepare: $sqlstr" ); #lab
-        $sth->bind_param(2, undef, { ora_type => $type_num }) or die "$type_name: $DBI::errstr" if $type_num;
-        #lab ok(0, $sth->execute(40, $long_data{40} = $long_data0), 1);
-        #lab ok(0, $sth->execute(41, $long_data{41} = $long_data1), 1);
-        #lab ok(0, $sth->execute(42, $long_data{42} = $long_data2), 1);
-        #lab ok(0, $sth->execute(43, $long_data{43} = undef), 1); # NULL
-        #,{ ora_csform => 2 } 
+        
+        ok( $sth = $dbh->prepare( $sqlstr ), "prepare: $sqlstr" ); 
+        my $bind_attr =  { ora_type => $type_num };
+        $bind_attr->{ora_csform} = SQLCS_NCHAR if $utf8_test and $type_name =~ /NCLOB/ ;
 
+        $sth->bind_param(2, undef, $bind_attr ) or die "$type_name: $DBI::errstr" if $type_num;
+
+        #$sth->trace(3);
         ok($sth->execute(40, $long_data{40} = $long_data0 ), "insert long data 40" );
         ok($sth->execute(41, $long_data{41} = $long_data1 ), "insert long data 41" );
+        $sth->trace(0);
         ok($sth->execute(42, $long_data{42} = $long_data2 ), "insert long data 42" );
         ok($sth->execute(43, $long_data{43} = undef), "insert long data undef 43" ); # NULL
-
+        $sth->trace(0);
         array_test();
 
         diag " --- fetch $type_name data back again -- truncated - LongTruncOk == 1\n";
