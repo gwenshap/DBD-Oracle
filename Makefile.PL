@@ -223,6 +223,10 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
   
       Please install OCI or send comments back to dbi-users\@perl.org
       if you have an OCI directory other than $OCIDIR.  
+
+      Alternatively, if you're using ActiveState perl on Windows try
+        ppm install ftp://ftp.esoftmatic.com/outgoing/DBI/5.8.3/DBI.ppd
+        ppm install ftp://ftp.esoftmatic.com/outgoing/DBI/5.8.3/DBD-Oracle.ppd
   
       } unless  (-e "$OH/$OCIDIR/include/oratypes.h" 
 	      && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib")

@@ -1,11 +1,6 @@
-=head1 Changes in DBD-Oracle 1.16 (svn rev XXX)   XXXX 2004
+=head1 Changes in DBD-Oracle 1.16 (svn rev 392)   17th July 2004
 
-TODO:
-Add to "Unable to find required Oracle OCI files" message some
-extra text for Windows users pointing them to PPM and Jeff's PPM repository.
-OCI_SUCCESS_WITH_INFO -> Warning?
-Add column_info test
-NEEDS TESTING - especially for Oracle 8.x, 9.0.x and Windows
+  NEEDS TESTING - especially for Oracle 8.x, 9.0.x and Windows
 
   NOTE:
   This release has major changes to Unicode support. See below.
