@@ -1,3 +1,9 @@
+Changes in DBD::Oracle 0.32 (Oraperl 1.25), 30th May 1996
+
+	Fixed memory leak when FETCH'ing attributes.
+	Fixed Makefile.PL FileHandle problem (forgot 'use FileHandle;').
+	Enhanced Makefile.PL support for Oracle 7.3.
+
 Changes in DBD::Oracle 0.31 (Oraperl 1.25), 20th May 1996
 
 	Makefile.PL for HP-UX now defaults to dynamic for hpux >= 10.

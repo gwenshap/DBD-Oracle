@@ -246,12 +246,6 @@ and the link command line includes '-L/usr/5lib -lc' then comment out the
 'CLIBS= $(OTHERLIBS) -L/usr/5lib -lc' line in the Makefile.
 
 -------------------------------------------------------------------------------
-Environment:  Solaris, GCC, Sanford Dickert <ncc1701a@isl.stanford.edu>
-
-Error: gcc: unrecognized option `-Y'
-Fix: Edit the Makefile to remove the space from '-Y P'.
-
--------------------------------------------------------------------------------
 Environment:  SVR4, stephen.zander@mckesson.com
 
 Error: can't load ./blib/arch/auto/DBD/Oracle/Oracle.so for module DBD::Oracle:

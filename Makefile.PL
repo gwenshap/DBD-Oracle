@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.36 1996/05/20 21:53:26 timbo Exp $
+# $Id: Makefile.PL,v 1.39 1996/05/30 13:49:31 timbo Exp $
 
 require 5.002;
 
@@ -7,6 +7,9 @@ use ExtUtils::MakeMaker 5.16, qw(&WriteMakefile $Verbose);
 use Getopt::Std;
 use Config;
 use strict;
+
+# Some MakeMaker's forged some FileHandle methods
+require FileHandle unless defined(&FileHandle::new);
 
 use DBI 0.69;	# This DBI must be installed before we can build a DBD
 
@@ -26,7 +29,7 @@ getopts('m:') or die "Invalid arguments";
 # --- Introduction
 
 print "\nConfiguring DBD::Oracle ...\n";
-print "\n\tRemember to actually read the README file!\n\n";
+print "\n>>>\tRemember to actually *READ* the README file!\n\n";
 
 # --- Where is Oracle installed...
 
@@ -48,6 +51,7 @@ print "Using Oracle in $OH\n";
 # Todo: add depend's for DBIXS etc
 # e.g., Oracle 7.x, Pro*C etc. How do we test for those?
 
+# XXX out of date for Oracle 7.3.2. Sigh.
 warn "Warning: OCI (Pro*C) does not appear to be installed.\n"
 	unless -f "$OH/lib/libocic.a"
 	   and -f "$OH/rdbms/demo/oratypes.h";
@@ -58,17 +62,19 @@ chomp $sysliblist;
 print "Oracle sysliblist: $sysliblist\n";
 
 
+my @mkfiles;
 my $oraclemk = $::opt_m || "$OH/proc/lib/proc.mk";
-# Apparently some Oracle 7.1.3 Pro*C makefiles might be here:
+$oraclemk = "$OH/precomp/demo/proc/proc.mk" unless -f $oraclemk; # 7.3.x
 $oraclemk = "$OH/proc16/lib/proc16.mk" unless -f $oraclemk;
 die "Unable to locate proc.mk (use -m /path/to/proc.mk to specify)\n"
     unless -f $oraclemk;
 
 my $linkwith = fetch_oci_macros();
-$linkwith =~ s/-Y P,/-YP,/ if $Config{'cc'} =~ /gcc/;
  
-print "Using $oraclemk (version ".($MK{mkver}||'unknown').")\n";
+print "Using @mkfiles ".($MK{mkver} ? "(version $MK{mkver})" : '')."\n";
 
+$linkwith = expand_mkvars($linkwith, 0);
+$linkwith =~ s/-Y P,/-YP,/ if $Config{'cc'} =~ /gcc/;
 
 my $OCIINCLUDE = $MK{INCLUDE} || '';
 
@@ -78,13 +84,15 @@ $opts{INC}  = "$OCIINCLUDE -I$OH/rdbms/demo -I\$(INSTALLSITEARCH)/DBI -I\$(INSTA
 $opts{dynamic_lib} = { OTHERLDFLAGS => '-L$(LIBHOME) $(COMPOBJS) '.$linkwith };
 $opts{OBJECT} = '$(O_FILES)';
 
+
+
 # --- Handle special cases ---
 
 # HP-UX 9 cannot link a non-PIC object file into a shared library.
 # Since the # .a libs that Oracle supplies contain non-PIC object
 # files, we sadly have to build static on HP-UX 9 :(
 if ($Config{osname} eq 'hpux' and $Config{osver} < 10) {
-    print "Warning: forced to build static not dynamic on $Config{osname}\n";
+    print "Warning: forced to build static not dynamic on $Config{osname} $Config{osver}\n";
     print "         See README and Makefile.PL for more information.\n";
     $opts{LINKTYPE} = 'static';
 }
@@ -112,10 +120,11 @@ print "  CC:       $MK{CC}\n"		if $MK{CC};
 print "  CFLAGS:   $MK{CFLAGS}\n"	if $MK{CFLAGS};
 print "  LDFLAGS:  $MK{LDFLAGS}\n"	if $MK{LDFLAGS};
 print "  LDSTRING: $MK{LDSTRING}\n"	if $MK{LDSTRING};
+print "Linking with $linkwith\n";
 
 # Assorted hints - these should be move to a hints subdirectory
-print "See README notes about SPARCompiler on Solaris\n"
-    if -d "/opt/SUNWspro/bin" and $Config{osname} eq 'solaris';
+#print "See README notes about SPARCompiler on Solaris\n"
+#    if -d "/opt/SUNWspro/bin" and $Config{osname} eq 'solaris';
 
 print "\n";
 
@@ -180,11 +189,11 @@ sub MY::post_constants {
 #
 ORACLE_HOME = '.$ENV{ORACLE_HOME}.'
 
-# The following text has been extracted from '.$oraclemk.'
+# The following text has been extracted from '."@mkfiles".'
 
 '.$MK.'
 
-# End of extract from '.$oraclemk.'
+# End of extract from '."@mkfiles".'
 #
 ###################################################################
 ';
@@ -220,12 +229,10 @@ sub fetch_oci_macros {
 	next unless $_;
 	last if m/^\w+\s*:/;	# gone too far, reached actual targets
 
-	# XXX temporary warning (for Oracle 7.3) till includes are supported
-	warn "$_ not processed\n" if m/^\s*include/i;
-
 	unless($MK{mkver}) {	# still need to get version number
 	    # This is tough since some versions of proc.mk split the
-	    # RCS header over three lines! Well that's Oracle for you.
+	    # RCS header over three lines! Later versions don't even
+	    # have one. That's Oracle for you.
 	    my $line = $_;
 	    $line =~ s/[\\\r\n]/ /g;
 	    $MK{mkver} = $mkver = $1
@@ -233,7 +240,7 @@ sub fetch_oci_macros {
 	}
 
 	# We always store values into %MK before checking %edit
-	$MK{$1} = $2 if m/^\s*(\w+)\s*=\s*(.*)/;
+	$MK{$1} = $2 if m/^\s*(\w+)\s*=\s*([\s\S]*)/;
 
 	next if m/^\s*\.SUFFIXES/;
 
@@ -244,9 +251,6 @@ sub fetch_oci_macros {
 	}
 
 	push(@MK, $_);
-
-	# have we seen enough now?	( this caused problems)
-	# last if ($MK{OCILDLIBS} or (int($mkver)==1 and $MK{TTLIBS}));
     }
 
     if ($MK{OCILDLIBS}) {
@@ -256,12 +260,15 @@ sub fetch_oci_macros {
 	if ($MK{LLIBOCIC}) {
 	    $linkwith = '$(LLIBOCIC) $(TTLIBS)';
 	} else {
+	    warn "Warning: Guessing what to link with.\n";
 	    $linkwith = '-locic $(TTLIBS)';	# XXX GUESS HACK
 	}
     }
+    elsif ($MK{PROLDLIBS}) {	# Oracle 7.3.x
+	$linkwith = '$(PROLDLIBS)';
+    }
     unless ($linkwith){
-	warn "ERROR parsing $oraclemk (version '$MK{mkver}'):\n";
-	warn "\tUnable to determine what to link with.\n";
+	die "ERROR parsing $oraclemk: Unable to determine what to link with.\n";
     }
     $MK = join("\n", @MK);
     $linkwith;
@@ -271,17 +278,37 @@ sub read_inc_file {
     my $file = shift;
     my $fh = new FileHandle "<$file" or die "Unable to read $file: $!";
     my @lines;
+    push(@mkfiles, $file);
     while(<$fh>) {
 	# soak up while looking for include directives
 	push(@lines, $_), next
 	    unless /^\s*include\s+(.*?)\s*$/m;
 	$file = $1;
 	# deal with "include $(ORACLE_HOME)/..."
-	$file =~ s/\$\((\w+)\)/$ENV{$1}/g;
+	# (can't use expand_mkvars() here)
+	$file =~ s/\$\(ORACLE_HOME\)/$ENV{ORACLE_HOME}/g;
 	push(@lines, read_inc_file($file));
     }
     return @lines;
 }
 
+sub expand_mkvars { 
+    my $string = shift;
+    my $strip  = shift;
+    # warn "Expanding: $string\n";
+    $string =~ s/\$\((\w+)\)/mkvar($1, $strip)/ge;
+    $string =~ s/\s*\\\n\s*/ /g;	# merge continuations
+    $string =~ s/\s+/ /g;			# shrink whitespace
+    $string;
+}
+sub mkvar { 
+    my $var = shift;
+    my $strip = shift;
+    my $default = $strip ? '' : "\$($var)";
+    # warn "Expand var: $var\n";
+    return $default if $var eq 'LIBHOME';
+    return $ENV{ORACLE_HOME} if $var eq 'ORACLE_HOME';
+    $MK{$var} ? expand_mkvars($MK{$var}, $strip) : $default;
+}
 
 __END__

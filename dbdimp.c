@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.17 1996/05/20 23:52:00 timbo Exp $
+   $Id: dbdimp.c,v 1.18 1996/05/30 13:42:11 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -260,7 +260,9 @@ dbd_db_FETCH(dbh, keysv)
 	return Nullsv;
     }
     if (cacheit) {	/* cache for next time (via DBI quick_FETCH)	*/
-	hv_store((HV*)SvRV(dbh), key, kl, retsv, 0);
+	SV **svp = hv_fetch((HV*)SvRV(dbh), key, kl, 1);
+	sv_free(*svp);
+	*svp = retsv;
 	(void)SvREFCNT_inc(retsv);	/* so sv_2mortal won't free it	*/
     }
     return sv_2mortal(retsv);
@@ -883,19 +885,19 @@ dbd_st_FETCH(sth, keysv)
 
     if (kl==11 && strEQ(key, "ora_lengths")) {
 	AV *av = newAV();
-	retsv = newRV((SV*)av);
+	retsv = newRV(sv_2mortal((SV*)av));
 	while(--i >= 0)
 	    av_store(av, i, newSViv((IV)imp_sth->fbh[i].dsize));
 
     } else if (kl==9 && strEQ(key, "ora_types")) {
 	AV *av = newAV();
-	retsv = newRV((SV*)av);
+	retsv = newRV(sv_2mortal((SV*)av));
 	while(--i >= 0)
 	    av_store(av, i, newSViv(imp_sth->fbh[i].dbtype));
 
     } else if (kl==4 && strEQ(key, "NAME")) {
 	AV *av = newAV();
-	retsv = newRV((SV*)av);
+	retsv = newRV(sv_2mortal((SV*)av));
 	while(--i >= 0)
 	    av_store(av, i, newSVpv((char*)imp_sth->fbh[i].cbuf,0));
 

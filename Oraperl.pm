@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.25 1996/05/07 20:47:15 timbo Exp $
+# $Id: Oraperl.pm,v 1.26 1996/05/30 13:24:24 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -18,11 +18,13 @@
 
 package Oraperl;
 
+require 5.002;
+
 require DBI;
 # use Carp;
 require Exporter;
 
-$VERSION = substr(q$Revision: 1.25 $, 10);
+$VERSION = substr(q$Revision: 1.26 $, 10);
 
 @ISA = qw(Exporter);
 
