@@ -42,7 +42,7 @@ if ($dbh->err && ($dbh->err==900 || $dbh->err==6553 || $dbh->err==600)) {
 my $tests;
 print "1..$tests\n";
 
-my($csr, $p1, $p2, $tmp);
+my($csr, $p1, $p2, $tmp, @tmp);
 #DBI->trace(4,"trace.log");
 
 
@@ -235,7 +235,8 @@ $dbh->{PrintError} = 0;
 if (1) {
     my $cur_query = q{
 	SELECT object_name, owner FROM all_objects
-	WHERE object_name LIKE :p1 ORDER BY object_name, owner
+	WHERE object_name LIKE :p1 and ROWNUM <= 3
+	ORDER BY object_name, owner
     };
     my $cur1 = 42;
     #$dbh->trace(4);
@@ -247,29 +248,27 @@ if (1) {
     ok(0, $parent->bind_param_inout(":cur1", \$cur1, 0, { ora_type => ORA_RSET } ));
     ok(0, $parent->execute());
     my @r;
-    push @r,$cur1->fetchrow_array;
-    push @r,$cur1->fetchrow_array;
-    push @r,$cur1->fetchrow_array;
-    $cur1->finish;
+    push @r, @tmp while @tmp = $cur1->fetchrow_array;
+    ok(0, @r == 3*2, "rows: ".@r);
     #$dbh->trace(0); $parent->trace(0);
-    my $s1 = $dbh->selectall_arrayref($cur_query, undef, "V%");
-    my @s1 = map { @$_ } @{$s1}[0..2];
-    ok(0, "@r" eq "@s1", "r=(@r), s=(@s1)");
 
-    # --- test rebind and execute
+    # compare results with normal execution of query
+    my $s1 = $dbh->selectall_arrayref($cur_query, undef, "V%");
+    my @s1 = map { @$_ } @$s1;
+    ok(0, "@r" eq "@s1", "\nref=(@r),\nsql=(@s1)");
+
+    # --- test re-bind and re-execute of same 'parent' statement
     my $cur1_str = "$cur1";
     #$dbh->trace(4); $parent->trace(4);
     ok(0, $parent->bind_param(":p1", "U%"));
     ok(0, $parent->execute());
     ok(0, "$cur1" ne $cur1_str);	# must be ref to new handle object
     @r = ();
-    push @r,$cur1->fetchrow_array;
-    push @r,$cur1->fetchrow_array;
-    push @r,$cur1->fetchrow_array; $cur1->finish;
+    push @r, @tmp while @tmp = $cur1->fetchrow_array;
     #$dbh->trace(0); $parent->trace(0); $cur1->trace(0);
     my $s2 = $dbh->selectall_arrayref($cur_query, undef, "U%");
-    my @s2 = map { @$_ } @{$s2}[0..2];
-    ok(0, "@r" eq "@s2", "r=(@r), s=(@s2)");
+    my @s2 = map { @$_ } @$s2;
+    ok(0, "@r" eq "@s2", "\nref=(@r),\nsql=(@s2)");
 }
 
 
@@ -286,7 +285,7 @@ $dbh->disconnect;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 62 }
+BEGIN { $tests = 63 }
 # end.
 
 __END__

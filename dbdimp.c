@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.56 1999/06/08 00:15:02 timbo Exp $
+   $Id: dbdimp.c,v 1.57 1999/06/14 00:41:48 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -883,6 +883,9 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	if (!dbd_describe(sth_csr, imp_sth_csr)) {
 	    return 0;
 	}
+#ifndef OCI_V8_SYNTAX
+	imp_sth_csr->cda->rpc= 0;	/* nothing already fetched into cache	*/
+#endif
     }
     return 1;
 }
@@ -1348,6 +1351,7 @@ dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
     ub4 retl = 0;
     SV *bufsv;
     imp_fbh_t *fbh = &imp_sth->fbh[field];
+    int ftype = fbh->ftype;
 
     bufsv = SvRV(destrv);
     sv_setpvn(bufsv,"",0);	/* ensure it's writable string	*/
@@ -1366,11 +1370,15 @@ dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
 	len = 65535;
     }
 
-	/* The +1 on field was a mistake that's too late to fix :-(	*/
+    switch (fbh->ftype) {
+	case 94: ftype =  8;	break;
+	case 95: ftype = 24;	break;
+    }
+
+    /* The +1 on field was a mistake that's too late to fix :-(	*/
     if (oflng(imp_sth->cda, (sword)field+1,
 	    ((ub1*)SvPVX(bufsv)) + destoffset, len,
-	    fbh->ftype, /* original long type	*/
-	    &retl, offset)) {
+	    ftype, &retl, offset)) {
 	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oflng error");
 	/* XXX database may have altered the buffer contents	*/
 	return 0;

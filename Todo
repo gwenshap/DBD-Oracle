@@ -1,4 +1,4 @@
-warn when oracle .mk files redefine a macro with a different value.
+OCI8 mem leak on connect
 
 warn (trace_msg?) if ORACLE_HOME changes after first connect
 relates to Apache::DBI scenario where changing ORACLE_HOME

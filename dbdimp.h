@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.34 1999/06/08 00:15:02 timbo Exp $
+   $Id: dbdimp.h,v 1.35 1999/06/14 00:41:48 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -242,6 +242,8 @@ int ora_dbtype_is_long _((int dbtype));
 int calc_cache_rows _((int num_fields, int est_width, int cache_rows, int has_longs));
 fb_ary_t *fb_ary_alloc _((int bufl, int size));
 int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
+
+#define OTYPE_IS_LONG(t)  ((t)==8 || (t)==24 || (t)==94 || (t)==95)
 
 #ifdef OCI_V8_SYNTAX
 

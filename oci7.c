@@ -1,7 +1,7 @@
 /*
-   $Id: oci7.c,v 1.10 1999/06/05 03:23:07 timbo Exp $
+   $Id: oci7.c,v 1.11 1999/06/14 00:41:48 timbo Exp $
 
-   Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
+   Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file,
@@ -147,7 +147,7 @@ dbd_describe(h, imp_sth)
 	if (imp_sth->cache_rows > 0)
 	    continue;		/* no need, user specified a size	*/
 	if (dbsize==0) {	/* is a LONG type or 'select NULL'	*/
-	    if (ora_dbtype_is_long(dbtype)) {
+	    if (OTYPE_IS_LONG(dbtype)) {
 		est_width += long_buflen;
 		++has_longs;	/* hint to auto cache sizing code	*/
 	    }
@@ -222,8 +222,7 @@ dbd_describe(h, imp_sth)
     for(i=1; i <= num_fields && imp_sth->cda->rc != 10; ++i) {
 	imp_fbh_t *fbh = &imp_sth->fbh[i-1];
 	fb_ary_t  *fb_ary;
-	int dbtype;
-	int alen_incnull;
+	sb4 defin_len;
 
 	fbh->imp_sth = imp_sth;
 	fbh->name    = (char*)cbuf_ptr;
@@ -248,34 +247,33 @@ dbd_describe(h, imp_sth)
 	    fbh->prec = fbh->dbsize;
 	}
 
-	/* Is it a LONG, LONG RAW, LONG VARCHAR or LONG VARRAW?		*/
-	/* If so we need to implement oraperl truncation hacks.		*/
-	/* This may change in a future release.				*/
-	/* Note that ora_dbtype_is_long() returns alternate dbtype to use	*/
-	if ( (dbtype = ora_dbtype_is_long(fbh->dbtype)) ) {
-	    long lbl = (fbh->dbtype==24) ? long_buflen * 2 : long_buflen;
+	if (OTYPE_IS_LONG(fbh->dbtype)) {
+	    long lbl;
+	    if (fbh->dbtype==24 || fbh->dbtype==95) {
+		lbl = long_buflen * 2;
+		fbh->ftype = 95;	/* get long in var raw form	*/
+	    }
+	    else {
+		lbl = long_buflen;
+		fbh->ftype = 94;	/* get long in var form	*/
+	    }
 	    fbh->dbsize = lbl;
 	    fbh->disize = lbl;
-	    fbh->ftype  = dbtype;	/* get long in non-var form	*/
-	    imp_sth->t_dbsize += lbl;
-	    alen_incnull = 0;
+	    defin_len = fbh->disize + 4;
 
 	} else {
 	    /* for the time being we fetch everything (except longs)	*/
 	    /* as strings, that'll change (IV, NV and binary data etc)	*/
 	    fbh->ftype = 5;		/* oraperl used 5 'STRING'	*/
-	    /* dbsize can be zero for 'select NULL ...'			*/
-	    imp_sth->t_dbsize += fbh->dbsize;
-	    alen_incnull = 1;
+	    defin_len = fbh->disize + 1;	/* +1: STRING null	*/
 	}
+	/* dbsize can be zero for 'select NULL ...'			*/
+        imp_sth->t_dbsize += fbh->dbsize;
 
-	fbh->fb_ary = fb_ary = fb_ary_alloc(
-	    fbh->disize + alen_incnull,	/* +1: STRING null terminator   */
-	    imp_sth->cache_rows
-	);
+	fbh->fb_ary = fb_ary = fb_ary_alloc(defin_len, imp_sth->cache_rows);
 
 	/* DEFINE output column variable storage */
-	if (odefin(imp_sth->cda, i, fb_ary->abuf, fb_ary->bufl,
+	if (odefin(imp_sth->cda, i, fb_ary->abuf, defin_len,
 		fbh->ftype, -1, fb_ary->aindp, (text*)0, -1, -1,
 		fb_ary->arlen, fb_ary->arcode)) {
 	    warn("odefin error on %s: %d", fbh->name, imp_sth->cda->rc);
@@ -353,6 +351,10 @@ dbd_st_fetch(sth, imp_sth)
 	}
 	imp_sth->next_entry = 0;
 	imp_sth->in_cache   = imp_sth->cda->rpc - previous_rpc;
+	if (debug >= 4)
+	    fprintf(DBILOGFP,
+		"    dbd_st_fetch load-cache: prev rpc %d, new rpc %ld, in_cache %d\n",
+		previous_rpc, (long)imp_sth->cda->rpc, imp_sth->in_cache);
 	assert(imp_sth->in_cache > 0);
     }
 
@@ -372,8 +374,9 @@ dbd_st_fetch(sth, imp_sth)
 	fb_ary_t *fb_ary = fbh->fb_ary;
 	int rc = fb_ary->arcode[cache_entry];
 	SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/
+	ub4 datalen;
 
-	if (rc == 1406 && ora_dbtype_is_long(fbh->dbtype)) {
+	if (rc == 1406 && OTYPE_IS_LONG(fbh->ftype)) {
 	    /* We have a LONG field which has been truncated.		*/
 	    int oraperl = DBIc_COMPAT(imp_sth);
 	    if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(ora_trunc))) {
@@ -388,31 +391,44 @@ dbd_st_fetch(sth, imp_sth)
 	}
 
 	if (rc == 0) {			/* the normal case		*/
-	    int datalen = fb_ary->arlen[cache_entry];
-	    char *p = (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl];
-	    /* if ChopBlanks check for Oracle CHAR type (blank padded)	*/
-	    if (ChopBlanks && fbh->dbtype == 96) {
-		while(datalen && p[datalen - 1]==' ')
-		    --datalen;
+	    char *p;
+	    if (fbh->ftype == 94 || fbh->ftype == 95) {   /* LONG VAR	*/
+		p = (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl];
+		datalen = *(ub4*)p;	/* XXX alignment ? */
+		p += 4;
+		sv_setpvn(sv, p, (STRLEN)datalen);
 	    }
-	    sv_setpvn(sv, p, (STRLEN)datalen);
+	    else {
+		datalen = fb_ary->arlen[cache_entry];
+		p = (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl];
+		/* if ChopBlanks check for Oracle CHAR type (blank padded)	*/
+		if (ChopBlanks && fbh->dbtype == 96) {
+		    while(datalen && p[datalen - 1]==' ')
+			--datalen;
+		}
+		sv_setpvn(sv, p, (STRLEN)datalen);
+	    }
 
 	} else if (rc == 1405) {	/* field is null - return undef	*/
+	    datalen = 0;
 	    (void)SvOK_off(sv);
 
 	} else {  /* See odefin rcode arg description in OCI docs	*/
 	    char buf[200];
 	    char *hint = "";
+	    datalen = 0;
 	    /* These may get more case-by-case treatment eventually.	*/
 	    if (rc == 1406) {		/* field truncated (see above)  */
-		/* Copy the truncated value anyway, it may be of use,	*/
-		/* but it'll only be accessible via prior bind_column()	*/
-		sv_setpvn(sv, (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl],
-			  fb_ary->arlen[cache_entry]);
-		if (ora_dbtype_is_long(fbh->dbtype)) {	/* double check */
+		if (OTYPE_IS_LONG(fbh->ftype)) { /* double check */
 		    hint = (DBIc_LongReadLen(imp_sth) > 65535)
 			 ? ", DBI attribute LongTruncOk not set and/or LongReadLen too small or > 65535 max"
 			 : ", DBI attribute LongTruncOk not set and/or LongReadLen too small";
+		}
+		else {
+		    /* Copy the truncated value anyway, it may be of use,	*/
+		    /* but it'll only be accessible via prior bind_column()	*/
+		    sv_setpvn(sv, (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl],
+			      fb_ary->arlen[cache_entry]);
 		}
 	    }
 	    else {
@@ -427,8 +443,8 @@ dbd_st_fetch(sth, imp_sth)
 	}
 
 	if (debug >= 5)
-	    fprintf(DBILOGFP, "        %d (rc=%d): %s\n",
-		i, rc, neatsvpv(sv,0));
+	    fprintf(DBILOGFP, "        %d (rc=%d, otype %d, len %lu): %s\n",
+		i, rc, fbh->dbtype, datalen, neatsvpv(sv,0));
     }
 
     /* update cache counters */
