@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.33 1996/03/05 02:04:42 timbo Exp $
+# $Id: Makefile.PL,v 1.35 1996/05/07 20:47:15 timbo Exp $
 
 require 5.002;
 
@@ -8,7 +8,7 @@ use Getopt::Std;
 use Config;
 use strict;
 
-use DBI 0.68;	# This DBI must be installed before we can build a DBD
+use DBI 0.69;	# This DBI must be installed before we can build a DBD
 
 my %opts = (
     NAME => 'DBD::Oracle',
@@ -64,6 +64,7 @@ $oraclemk = "$OH/proc16/lib/proc16.mk" unless -f $oraclemk;
 die "Unable to locate proc.mk (use -m /path/to/proc.mk to specify)\n"
     unless -f $oraclemk;
 my $linkwith = fetch_oci_macros();
+$linkwith =~ s/-Y P,/-YP,/ if $Config{'cc'} =~ /gcc/;
  
 print "Using $oraclemk version $MK{mkver}\n";
 
@@ -218,6 +219,9 @@ sub fetch_oci_macros {
 	push(@MK, '') if ($_ eq '' and $lastline ne '');
 	next unless $_;
 	last if m/^\w+\s*:/;	# gone too far, reached actual targets
+
+	# XXX temporary warning (for Oracle 7.3) till includes are supported
+	warn "$_ not processed\n" if m/^\s*include/i;
 
 	unless($MK{mkver}) {	# still need to get version number
 	    # This is tough since some versions of proc.mk split the

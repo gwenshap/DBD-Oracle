@@ -11,7 +11,6 @@ dbdimp.h
 dbdimp.c
 test.pl
 t/base.t
-t/main.t
 hints/svr4.pl
 oraperl.ph	Old oraperl file included for completeness of emulation
 oraperl.ex/Readme	Oraperl examples (copied unchanged from oraperl-2.4)

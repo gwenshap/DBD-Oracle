@@ -5,12 +5,16 @@ DBD::Oracle  --  an Oracle 7 interface for Perl 5.
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file.
 
-		WARNING: THIS IS ALPHA SOFTWARE.
-		    IT IS INCOMPLETE!
-		IT IS POSSIBLY UNRELIABLE!
+*  WARNING: THIS IS MOSTLY ALPHA SOFTWARE. Your mileage may vary.
 
-The only currently supported interface is via Oraperl.pm, the oraperl
-emulation layer. This is fairly complete. Execute "perldoc Oraperl" for info.
+   The only currently supported interface is via Oraperl.pm, the
+   oraperl emulation layer. This is fairly complete and stable.
+   Execute "perldoc Oraperl" for info.
+
+*  THE ORAPERL EMULATION IS NO LONGER ALPHA. IT IS NOW FULLY RELEASED.
+
+NOTE: Automatic configuration from Oracle 7.3 is not yet working
+      (Oracle have reorganised the makefiles yet again!).
 
 
 BEFORE BUILDING, TESTING AND INSTALLING this you will need to:
@@ -18,7 +22,7 @@ BEFORE BUILDING, TESTING AND INSTALLING this you will need to:
     Build, test and install Perl 5 (at least 5.002beta2).
     It is very important to test it and install it!
 
-    Build, test and install the DBI module (at least DBI 0.68).
+    Build, test and install the DBI module (at least DBI 0.69).
     It is very important to test it and install it!
 
     Remember to *read* the DBI README file!
@@ -67,6 +71,7 @@ Please include:
 3. The output of perl -V
 
 4. If you get a core dump, try to include a stack trace from it.
+   I may not be able to help you much without it.
    If the stack trace mentions XS_DynaLoader_dl_load_file then rerun
    make test after setting the environment variable PERL_DL_DEBUG to 2.
 
@@ -136,6 +141,9 @@ SGI Iris Indigo R4000 Irix 5.3:
 AIX 3.2
     Davide Migliavacca <davide.migliavacca@relay.inferentia.it>
 	Joerg Senekowitsch <joerg@pharmacy.isu.edu>
+
+AIX 4.1
+	Ken P. Nikolai <nikolai@facstaff.wisc.edu>
 
 
 ===============================================================================
@@ -245,6 +253,25 @@ Environment:  Solaris, GCC, Sanford Dickert <ncc1701a@isl.stanford.edu>
 
 Error: gcc: unrecognized option `-Y'
 Fix: Edit the Makefile to remove the space from '-Y P'.
+
+-------------------------------------------------------------------------------
+Environment:  SVR4, stephen.zander@mckesson.com
+
+Error: can't load ./blib/arch/auto/DBD/Oracle/Oracle.so for module DBD::Oracle:
+DynamicLinker:/usr/local/bin/perl:relocation error:symbol not found:setitimer
+Fix: Try adding the '-lc' to $ORACLE_HOME/rdbms/lib/sysliblist (just
+make sure it's not on a new line).
+
+-------------------------------------------------------------------------------
+Environment:  Solaris, GCC
+
+Error: Undefined symbols __cg92_used at link time.
+Fix: If you're compiling Oracle applications with gcc on Solaris you need to
+link with a file called $ORACLE_HOME/lib/__fstd.o. If you compile with the
+SparcWorks compiler you need to add the command line option on -xcg92
+to resolve these symbol problems cleanly.
+
+Alligator Descartes <descarte@hermetica.com>
 
 -------------------------------------------------------------------------------
 Environment:  SunOS 4.1.3, Oracle 7.1.3  John Carlson <carlson@tis.llnl.gov>

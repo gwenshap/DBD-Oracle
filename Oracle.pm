@@ -1,9 +1,11 @@
-#   $Id: Oracle.pm,v 1.23 1996/03/05 02:27:25 timbo Exp $
+#   $Id: Oracle.pm,v 1.27 1996/05/07 21:38:04 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file.
+
+my $oracle_home;
 
 {
     package DBD::Oracle;
@@ -12,16 +14,17 @@
     use DynaLoader ();
     @ISA = qw(DynaLoader);
 
-    $VERSION = '0.29';
-    my $Revision = substr(q$Revision: 1.23 $, 10);
+    $VERSION = '0.30';
+    my $Revision = substr(q$Revision: 1.27 $, 10);
 
-	require_version DBI 0.68;
+    require_version DBI 0.69;
 
     bootstrap DBD::Oracle $VERSION;
 
     $err = 0;		# holds error code   for DBI::err
     $errstr = "";	# holds error string for DBI::errstr
     $drh = undef;	# holds driver handle once initialised
+    %oratab = ();	# holds list of oratab databases (e.g., local)
 
     sub driver{
 	return $drh if $drh;
@@ -29,10 +32,8 @@
 
 	unless ($ENV{'ORACLE_HOME'}){
 	    foreach(qw(/usr/oracle /opt/oracle /home/oracle /usr/soft/oracle)){
-		$ENV{'ORACLE_HOME'}=$_,last if -d "$_/rdbms/lib";
+		$oracle_home = $_,last if -d "$_/rdbms/lib";
 	    }
-	    my $msg = ($ENV{ORACLE_HOME}) ? "set to $ENV{ORACLE_HOME}" : "not set!";
-	    warn "ORACLE_HOME $msg\n";
 	}
 
 	$class .= "::dr";
@@ -61,31 +62,66 @@
 	DBD::Oracle::errstr(@_);
     }
 
+    sub load_oratab {		# get list of 'local' databases
+	my($drh) = @_;
+	my $debug = $drh->debug;
+	foreach(qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
+	    warn "Checking for $_/oratab\n" if $debug;
+	    next unless open(ORATAB, "<$_/oratab");
+	    while(<ORATAB>) {
+		next unless m/^(\w+)\s*:\s*(.*?)\s*:/;
+		warn "Duplicate SID $1 in $_/oratab" if $DBD::Oracle::oratab{$1};
+		$DBD::Oracle::oratab{$1} = $2;	# store ORACLE_HOME value
+		warn "$DBD::Oracle::oratab{$1} = $_" if $debug;
+	    }
+	    close(ORATAB);
+	    last;
+       }
+    }
+
     sub connect {
 	my($drh, $dbname, $user, $auth)= @_;
 
 	if ($dbname){	# application is asking for specific database
 
-	    if ($dbname =~ /:/){	# Implies an Sql*NET connection
+	    # We can use the 'user/passwd@machine' form of user.
+	    # $TWO_TASK and $ORACLE_SID will be ignored in that case.
 
-		# We can use the 'user/passwd@machine' form of user:
+	    if ($dbname =~ /@/){	# Implies an Sql*NET connection
+
+		$user .= $dbname;
+	    }
+	    elsif ($dbname =~ /:/){	# Implies an Sql*NET connection
+
 		$user .= '@'.$dbname;
-		# $TWO_TASK and $ORACLE_SID will be ignored
-
-	    } else {
+	    }
+	    else {
 
 		# Is this a NON-Sql*NET connection (ORACLE_SID)?
 		# Or is it an alias for an Sql*NET connection (TWO_TASK)?
 		# Sadly the 'user/passwd@machine' form only works
 		# for Sql*NET connections.
 
-		# We need a solution to this problem!
-		# Perhaps we need to read and parse oracle
-		# alias files like /etc/tnsnames.ora (/etc/sqlnet)
+		load_oratab($drh) unless %DBD::Oracle::oratab;
 
-		$ENV{ORACLE_SID} = $dbname;
-		delete $ENV{TWO_TASK};
+		my $orahome = $DBD::Oracle::oratab{$dbname};
+		if ($orahome) { # is in oratab == is local
+		    warn "Changing ORACLE_HOME for $dbname"
+			if ($ENV{ORACLE_HOME} and $orahome ne $ENV{ORACLE_HOME});
+		    $ENV{ORACLE_HOME} = $orahome;
+		    $ENV{ORACLE_SID}  = $dbname;
+		    delete $ENV{TWO_TASK};
+		}
+		else {
+		    $user .= '@'.$dbname;	# assume it's an alias
+		}
 	    }
+	}
+
+	unless($ENV{ORACLE_HOME}) {	# last chance...
+	    $ENV{ORACLE_HOME} = $oracle_home if $oracle_home;
+	    my $msg = ($oracle_home) ? "set to $oracle_home" : "not set!";
+	    warn "ORACLE_HOME $msg\n";
 	}
 
 	# create a 'blank' dbh

@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.23 1995/11/16 23:34:47 timbo Exp $
+# $Id: Oraperl.pm,v 1.25 1996/05/07 20:47:15 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -22,7 +22,7 @@ require DBI;
 # use Carp;
 require Exporter;
 
-$VERSION = substr(q$Revision: 1.23 $, 10);
+$VERSION = substr(q$Revision: 1.25 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -102,7 +102,7 @@ sub ora_open {
 
 sub ora_do {
     # error => undef
-    # 0     => "OK"	(0 but true)
+    # 0     => "0E0"	(0 but true)
     # >0    => >0
     my($lda, $stmt) = @_;
 
@@ -117,7 +117,7 @@ sub ora_do {
     # Perhaps oracle is smart enough not to execute them again?
     my $ret = $csr->execute;
     my $rows = $csr->rows;
-    ($rows == 0) ? "OK" : $rows;
+    ($rows == 0) ? "0E0" : $rows;
 }
 
 
@@ -153,7 +153,7 @@ sub ora_types{
 sub ora_autocommit {
     my($lda, $mode) = @_;
     $lda->{AutoCommit} = $mode;
-    "OK";
+    "0E0";
 }
 sub ora_version {
     my($sw)  = DBI->internal;
@@ -435,6 +435,10 @@ This function is roughly equivalent to
 
  &ora_close( &ora_open($lda, $statement) )
 
+B<DBD:> oraperl v2 used to return the string 'OK' to indicate
+success with a zero numeric value. The Oraperl emulation now
+uses the string '0E0' to achieve the same effect since it does
+not cause any C<-w> warnings when used in a numeric context.
 
 =item * ora_logoff
 
@@ -763,7 +767,7 @@ It is quite possible, indeed probable, that some differences in
 behaviour will exist. This should be confined to error handling.
 
 B<All> differences in behaviour which are not documented here should be
-reported to Tim.Bunce@ig.co.uk and CC'd to perldb-interest@fugue.com.
+reported to Tim.Bunce@ig.co.uk and CC'd to dbi-users@fugue.com.
 
 
 =head1 SEE ALSO

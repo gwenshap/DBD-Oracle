@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.14 1996/03/05 02:27:25 timbo Exp $
+   $Id: dbdimp.c,v 1.15 1996/05/07 20:28:50 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -808,9 +808,9 @@ dbd_st_destroy(sth)
 	imp_fbh_t *fbh = &imp_sth->fbh[i];
 	sv_free(fbh->sv);
     }
-    safefree(imp_sth->fbh);
-    safefree(imp_sth->fbh_cbuf);
-    safefree(imp_sth->statement);
+    Safefree(imp_sth->fbh);
+    Safefree(imp_sth->fbh_cbuf);
+    Safefree(imp_sth->statement);
 
     if (imp_sth->bind_names) {
 	HV *hv = imp_sth->bind_names;

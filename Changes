@@ -1,3 +1,21 @@
+Changes in DBD::Oracle 0.30, 7th May 1996
+
+	THE ORAPERL EMULATION LAYER IS NOW FORMALLY RELEASED (NO LONGER ALPHA).
+
+	Note that the underlying DBI and DBD::Oracle interfaces remain alpha
+	because they are still subject to, possibly significant, change.
+
+	Oraperl v2 used to return the string 'OK' to indicate success
+	with a zero numeric value. The Oraperl emulation now uses the
+	string '0E0' to achieve the same effect since it does not cause
+	any -w warnings when used in a numeric context.
+
+	Fixed typecast warning (s/safefree/Safefree).
+	Automatically sets/resets ORACLE_HOME from oratab value for sid.
+ 
+    TO DO: Automatic configuration from Oracle 7.3 is not yet working 
+    (Oracle have reorganised the makefiles yet again!).
+
 Changes in DBD::Oracle 0.29, 2 March 1996
 
 	Fixed Makefile.PL to get DBIXS.h from right spot.
