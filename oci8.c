@@ -1950,6 +1950,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
                        PerlIO_printf(DBILOGFP, "     sv is utf8 but csid=%d and ncharsetid=%d (fixing csid)\n" );
                    csid = ncharsetid;
                 }
+                UTF8_FIXUP_CSID( csid, "post_execute_lobs" );
 #endif /* OCI_ATTR_CHARSET_ID */
 
                 fbh->csid = csid;
@@ -1957,8 +1958,8 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
             }
 
             if (DBIS->debug >= 3)
-                PerlIO_printf(DBILOGFP, "      calling OCILobWrite fbh->csid=%d fbh->csform=%d\n"
-                    ,fbh->csid ,fbh->csform );
+                PerlIO_printf(DBILOGFP, "      calling OCILobWrite fbh->csid=%d fbh->csform=%d amtp=%d\n",
+                    fbh->csid, fbh->csform, amtp );
 	    OCILobWrite_log_stat(imp_sth->svchp, errhp,
 		    fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
 		    0,0, fbh->csid ,fbh->csform, status);

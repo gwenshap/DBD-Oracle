@@ -1651,6 +1651,9 @@ DAMN!!!!
 
 TIM: Good luck. I probably won't be working on it again for a day or three.
 
+OK, I fixed it.  The problem was a missing call to UTF8_FIXUP_CSID in
+post_execute_lobs.  It now works with ALL 4 of my databases.NN
+
 XXX
 
 This may possibly get you what you want, but it is strongly recomended

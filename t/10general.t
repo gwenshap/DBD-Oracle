@@ -6,7 +6,7 @@ use DBI;
 use Oraperl;
 $| = 1;
 
-plan tests => 30;
+plan tests => 31;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '');
