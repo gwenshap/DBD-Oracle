@@ -92,4 +92,35 @@ Danial
 
 PS: Personal replies please, I have not subscribed to this list.
 
+On Wed, 2004-07-07 at 23:00, Hilmar Lapp <hlapp@gnf.org> wrote:
+> Alright. So after a lot of trial and error and poking around here is
+> what I found. I observed the leak as described below on a G5 running
+> Panther/perl 5.8.1, but not on a G4 laptop running Jaguar/perl 5.6.0,
+> when I kept DBI and DBD::Oracle versions identical on both boxes.
+>
+> Since everything is fine on the G5 when I go against Mysql, I suspect
+> the problem is with DBD::Oracle or even the Oracle OCI8 libraries under
+> a perl with multi-threading enabled (ithreads), which is how perl comes
+> on Panther. (note I wasn't actually using threads)
+>
+> So I finally went ahead and rebuilt my own perl (5.8.4) on Panther and
+> made sure I compiled it without multi-threading support. Sure enough,
+> when I install DBI and DBD::Oracle against that custom-built perl, the
+> memory leak disappears.
+>
+> This is probably worth mentioning in the README.macosx. Basically, you
+> won't be able to use DBD::Oracle under Panther for anything serious
+> unless you build your own perl with multi-threading disabled. Or maybe
+> Tim has a chance to spot where the problem lies ...
+>
+>       -hilmar
+>
+> (Also, as an aside, the -R option to nm given in README.macosx is not
+> supported by the system-nm, at least neither in Jaguar nor Panther. I
+> found though that the symbol table modification of libclntsh is no
+> longer necessary under Panther, so I hacked the Makefile.PL to allow me
+> to continue ... Under Jaguar I hacked one C source file of the Perl IO
+> lib to get rid of the symbol clash; I can post the patch if anyone's
+> interested.)
+
 

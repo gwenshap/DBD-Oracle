@@ -39,6 +39,12 @@ $ORACLE_HOME/lib/sysliblist just for the duration of the DBD::Oracle build
 (but I can't really recommend this approach as it may cause subtle
 problems later)
 
+If you find a memory leak that you can isolate to DBD::Oracle, and you're
+using a perl built with threading enabled, first try rebuilding perl without
+support for threads. Apart from making perl run faster it may also fix the leak.
+Please report memory leaks, with a small self-contained test script,
+to dbi-users@perl.org.
+
 -------------------------------------------------------------------------------
 Bad free() warnings:
 
