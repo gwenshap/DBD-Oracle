@@ -582,7 +582,7 @@ if ($os eq 'hpux') {
     sleep 3;
     $opts{DEFINE} .= ' $(HP64DEFINES)' if ($Config{archname} =~ /-thread\b/i and perl_is_64bit());
     # linker doesn't understand +DD64 flag Weiguo Sun <wesun@cisco.com>
-    $opts{dynamic_lib}->{OTHERLDFLAGS} =~ s/+DD64\b// if $opts{dynamic_lib}->{OTHERLDFLAGS};
+    $opts{dynamic_lib}->{OTHERLDFLAGS} =~ s/\+DD64\b// if $opts{dynamic_lib}->{OTHERLDFLAGS};
     # see also const_cccmd for -Aa to -Ae flag change
 }
 
