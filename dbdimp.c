@@ -68,7 +68,11 @@ dbd_init(dbistate)
     if ((p=getenv("DBD_ORACLE_SIGCHLD")))
 	ora_sigchld_restart = atoi(p);
 
-#ifdef LAB_THIS_IS_WRONG /*UTF8_SUPPORT*/
+#ifndef NEW_OCI_INIT
+/* lab: I think this is wrong, but I do not want to try 
+ *      for for backwords compatibility with old oracles...
+ */
+#ifdef UTF8_SUPPORT
     {
 	char *nls = getenv("NLS_LANG");
 	STRLEN nlslen;
@@ -76,6 +80,7 @@ dbd_init(dbistate)
 	    cs_is_utf8 = !strcasecmp(nls + nlslen - 4, "utf8");
 	}
     }
+#endif
 #endif
 }
 
