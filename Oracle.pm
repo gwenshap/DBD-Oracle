@@ -2260,7 +2260,7 @@ can't be used effectively if AutoCommit is enabled).
    my $length = 0;
    my $buffer = '';
    while( $length = read( BIN_FH, $buffer, $chunk_size ) ) {
-      $dbh->ora_lob_write( $bin_locator, $offset, $length );
+      $dbh->ora_lob_write( $bin_locator, $offset, $buffer );
       $offset += $length;
    }
 
@@ -2269,7 +2269,7 @@ can't be used effectively if AutoCommit is enabled).
    $length = 0;
    $buffer = '';
    while( $length = read( CHAR_FH, $buffer, $chunk_size ) ) {
-      $dbh->ora_lob_write( $char_locator, $offset, $length );
+      $dbh->ora_lob_write( $char_locator, $offset, $buffer );
       $offset += $length;
    }
 
@@ -2339,6 +2339,7 @@ than could be stored in memory at a given time.
    my $offset = 1;   # Offsets start at 1, not 0
    while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) ) {
       print STDOUT $data;
+      $offset += $length;
    }
 
 Notice that the select statement does not contain the phrase
