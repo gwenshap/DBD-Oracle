@@ -45,15 +45,14 @@ oci8.c
 ocitrace.h
 ora_explain.PL
 oraperl.ph	Old oraperl file included for completeness of emulation
-t/base.t
-t/cursor.t
-t/general.t
-t/long.t
-t/nchar.t
-t/meta.t
-t/ph_type.t
-t/plsql.t
-t/reauth.t
-t/select.t
-test.pl
+t/01base.t
+t/10general.t
+t/20select.t
+t/21nchar.t
+t/25plsql.t
+t/30long.t
+t/40ph_type.t
+t/50cursor.t
+t/60reauth.t
+t/70meta.t
 typemap
