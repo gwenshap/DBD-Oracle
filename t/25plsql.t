@@ -184,7 +184,7 @@ ok(0, $csr->bind_param_inout(':arg', \$p1, 20), 1);
 #	ORA-06502: PL/SQL: numeric or value error
 #	ORA-06512: at line 3 (DBD ERROR: OCIStmtExecute)
 $tmp = $csr->execute;
-#$tmp = undef if DBD::Oracle::ORA_OCI()==8; # because BindByName given huge max len
+#$tmp = undef if DBD::Oracle::ORA_OCI()>=8; # because BindByName given huge max len
 ok(0, !defined $tmp, 1);
 # rebind with more space - and it should work
 ok(0, $csr->bind_param_inout(':arg', \$p1, 200), 1);
