@@ -136,7 +136,7 @@ sub db_handle
     my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
         AutoCommit => 1,
         PrintError => 1,
-        ora_envhp  => 0,
+        ora_envhp  => 0, # force fresh environment (with current NLS env vars)
     });
     return $dbh;
 }
@@ -345,7 +345,7 @@ sub create_table
        #$sql =~ s/, */,\n\t/g;
        print "$sql\n" ;
     }
-    return 1;
+    return $table;
 #    ok( not $dbh->err, "create table $table..." );
 }
 
