@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.c,v 1.38 2003/03/27 16:44:15 timbo Exp $
+   $Id: oci8.c,v 1.42 2004/01/10 08:52:28 timbo Exp $
 
    Copyright (c) 1998,1999,2000,2001  Tim Bunce
 
@@ -18,10 +18,9 @@
 
 #ifdef OCI_V8_SYNTAX
 
+#define sv_set_undef(sv) if (SvROK(sv)) sv_unref(sv); else SvOK_off(sv)
 
 DBISTATE_DECLARE;
-
-extern int pp_exec_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec));
 
 
 void
@@ -185,29 +184,25 @@ oci_error(SV *h, OCIError *errhp, sword status, char *what)
 char *
 ora_sql_error(imp_sth_t *imp_sth, char *msg)
 {
-#ifdef OCI_ATTR_PARSE_ERROR_OFFSET_xxx
-    imp_sth->cda->peo = 0;
-    if (oparse(imp_sth->cda, (text*)imp_sth->statement, (sb4)-1,
-                (sword)0/*oparse_defer*/, (ub4)oparse_lng)
-    ) {  
-        char buf[99];
-        char *hint = "";
-        if (1) {        /* XXX could make optional one day */
-            SV  *msgsv, *sqlsv;
-            sprintf(buf,"error possibly near <*> indicator at char %d in '",
-                    imp_sth->cda->peo+1);
-            msgsv = sv_2mortal(newSVpv(buf,0));
-            sqlsv = sv_2mortal(newSVpv(imp_sth->statement,0));
-            sv_insert(sqlsv, imp_sth->cda->peo, 0, "<*>",3);
-            sv_catsv(msgsv, sqlsv);
-            sv_catpv(msgsv, "'");
-            hint = SvPV(msgsv,na);
-        }
-        ora_error(sth, imp_sth->cda, imp_sth->cda->rc, hint);
-        oclose(imp_sth->cda);   /* close the cursor             */
-        imp_sth->cda = NULL;
-        return 0; 
-    }
+#ifdef OCI_ATTR_PARSE_ERROR_OFFSET
+    D_imp_dbh_from_sth;
+    SV  *msgsv, *sqlsv;
+    char buf[99];
+    sword status = 0;
+    ub2 parse_error_offset = 0;
+    OCIAttrGet_stmhp_stat(imp_sth, &parse_error_offset, 0,
+                          OCI_ATTR_PARSE_ERROR_OFFSET, status);
+    imp_dbh->parse_error_offset = parse_error_offset;
+    if (!parse_error_offset)
+        return msg;
+    sprintf(buf,"error possibly near <*> indicator at char %d in '",
+	    parse_error_offset);
+    msgsv = sv_2mortal(newSVpv(buf,0));
+    sqlsv = sv_2mortal(newSVpv(imp_sth->statement,0));
+    sv_insert(sqlsv, parse_error_offset, 0, "<*>", 3);
+    sv_catsv(msgsv, sqlsv);
+    sv_catpv(msgsv, "'");
+    return SvPV(msgsv,na);
 #else
     imp_sth = imp_sth; /* not unused */
     return msg;
@@ -257,6 +252,7 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
     sword status = 0;
     ub4   oparse_lng   = 1;  /* auto v6 or v7 as suits db connected to	*/
     int   ora_check_sql = 1;	/* to force a describe to check SQL	*/
+    IV    ora_placeholders = 1;	/* find and handle placeholders */
 	/* XXX we set ora_check_sql on for now to force setup of the	*/
 	/* row cache. Change later to set up row cache using just a	*/
 	/* a memory size, perhaps also default $RowCacheSize to a	*/
@@ -266,6 +262,8 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 	oci_error(sth, NULL, OCI_ERROR, "Database disconnected");
         return 0;
     }
+
+    imp_dbh->parse_error_offset = 0;
 
     imp_sth->done_desc = 0;
     imp_sth->get_oci_handle = oci_st_handle;
@@ -285,7 +283,7 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 	SV **svp;
 	long tmp;
 	DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
-	/* JLU avoid warning */
+	DBD_ATTRIB_GET_IV(  attribs, "ora_placeholders", 16, svp, ora_placeholders);
 	DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob",   12, svp, tmp);
 	imp_sth->auto_lob = (U16)tmp;
 	/* ora_check_sql only works for selects owing to Oracle behaviour */
@@ -293,7 +291,9 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
     }
 
     /* scan statement for '?', ':1' and/or ':foo' style placeholders	*/
-    dbd_preparse(imp_sth, statement);
+    if (ora_placeholders)
+	dbd_preparse(imp_sth, statement);
+    else imp_sth->statement = savepv(statement);
 
     imp_sth->envhp = imp_dbh->envhp;
     imp_sth->errhp = imp_dbh->errhp;
@@ -320,8 +320,9 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 
     OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->stmt_type, 0, OCI_ATTR_STMT_TYPE, status);
     if (DBIS->debug >= 3)
-	PerlIO_printf(DBILOGFP, "    dbd_st_prepare'd sql %s\n",
-		oci_stmt_type_name(imp_sth->stmt_type));
+	PerlIO_printf(DBILOGFP, "    dbd_st_prepare'd sql %s (pl%d, al%d, cs%d)\n",
+		oci_stmt_type_name(imp_sth->stmt_type),
+		oparse_lng, imp_sth->auto_lob, ora_check_sql);
 
     DBIc_IMPSET_on(imp_sth);
 
@@ -380,7 +381,7 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
     *indpp  = &phs->indp;
     *piecep = OCI_ONE_PIECE;
     if (DBIS->debug >= 3)
- 	PerlIO_printf(DBILOGFP, "       in  '%s' [%ld,%ld]: len %2ld, ind %d%s\n",
+ 	PerlIO_printf(DBILOGFP, "       in  '%s' [%lu,%lu]: len %2lu, ind %d%s\n",
 		phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
 		(phs->desc_h) ? " via descriptor" : "");
     if (index > 0 || iter > 0)
@@ -531,18 +532,19 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 		    if (oraperl) sv_setiv(DBIc_ERR(imp_sth), 1406);
 		} else {
 		    char buf[300];
-		    sprintf(buf,"fetching field %d of %d. LONG value truncated from %ld to %ld. %s",
-			    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), datalen, bytelen,
+		    sprintf(buf,"fetching field %d of %d. LONG value truncated from %lu to %lu. %s",
+			    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), ul_t(datalen), ul_t(bytelen),
 			    "DBI attribute LongReadLen too small and/or LongTruncOk not set");
 		    oci_error(sth, NULL, OCI_ERROR, buf);
 		    sv_setiv(DBIc_ERR(imp_sth), (IV)24345); /* appropriate ORA error number */
-		    (void)SvOK_off(dest_sv);
+		    sv_set_undef(dest_sv);
 		    return 0;
 		}
 
 		if (DBIS->debug >= 3)
-		    PerlIO_printf(DBILOGFP, "       fetching field %d of %d. LONG value truncated from %ld to %ld.\n",
-			    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), datalen, bytelen);
+		    PerlIO_printf(DBILOGFP, "       fetching field %d of %d. LONG value truncated from %lu to %lu.\n",
+			    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth),
+			    ul_t(datalen), ul_t(bytelen));
 		datalen = bytelen;
 	    }
 	}
@@ -565,81 +567,12 @@ fetch_func_nty(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
     char *p = (char*)&fb_ary->abuf[0];
     ub4 datalen = *(ub4*)p;     /* XXX alignment ? */
     warn("fetch_func_nty unimplemented (datalen %d)", datalen);
-    SvOK_off(dest_sv);
+    sv_set_undef(dest_sv);
     return 1;
 }
 
 
 /* ------ */
-
-
-#ifdef moved_to_dbdimp
-int
-pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec) 
-{
-    if (pre_exec) {	/* pre-execute - allocate a statement handle */
-	dSP;
-	D_imp_dbh_from_sth;
-	SV *sth_i;
-        HV *init_attr = newHV();
-	int count;
-	if (DBIS->debug >= 3)
-	    PerlIO_printf(DBILOGFP, "       bind %s - allocating new sth...\n", phs->name);
-	ENTER;
-	PUSHMARK(SP);
-	XPUSHs(sv_2mortal(newRV(DBIc_MY_H(imp_dbh))));
-	XPUSHs(sv_2mortal(newRV((SV*)init_attr)));
-	PUTBACK;
-	count = perl_call_pv("DBI::_new_sth", G_ARRAY);
-	SPAGAIN;
-	if (count != 2)
-	    croak("panic: DBI::_new_sth returned %d values instead of 2", count);
-	sth_i = SvREFCNT_inc(POPs);
-	sv_setsv(phs->sv, SvREFCNT_inc(POPs));	/* outer handle */
-	PUTBACK;
-	LEAVE;
-	if (DBIS->debug >= 3)
-	    PerlIO_printf(DBILOGFP, "       bind %s - allocated %s...\n",
-		phs->name, neatsvpv(phs->sv, 0));
-
-    }
-    else {		/* post-execute - setup the statement handle */
-	dTHR;
-	SV * sth_csr = phs->sv;
-	D_impdata(imp_sth_csr, imp_sth_t, sth_csr);
-
-	if (DBIS->debug >= 3)
-	    PerlIO_printf(DBILOGFP, "       bind %s - initialising new %s...\n",
-		phs->name, neatsvpv(sth_csr,0));
-
-#ifdef OCI_V8_SYNTAX
-	/* copy appropriate handles from parent statement	*/
-	imp_sth_csr->envhp = imp_sth->envhp;
-	imp_sth_csr->errhp = imp_sth->errhp;
-	imp_sth_csr->srvhp = imp_sth->srvhp;
-	imp_sth_csr->svchp = imp_sth->svchp;
-
-	/* assign statement handle from placeholder descriptor	*/
-	imp_sth_csr->stmhp = phs->desc_h;
-	imp_sth_csr->disable_finish = 1;  /* else finish core dumps in kpuccan()! */
-
-	/* force stmt_type since OCIAttrGet(OCI_ATTR_STMT_TYPE) doesn't work! */
-	imp_sth_csr->stmt_type = OCI_STMT_SELECT;
-#else
-
-#endif
-
-	DBIc_IMPSET_on(imp_sth);
-
-	/* set ACTIVE so dbd_describe doesn't do explicit OCI describe */
-	DBIc_ACTIVE_on(imp_sth_csr);
-	if (!dbd_describe(sth_csr, imp_sth_csr)) {
-	    return 0;
-	}
-    }
-    return 1;
-}
-#endif
 
 
 int 
@@ -665,18 +598,6 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     sword status;
     ub4 lobEmpty = 0;
 
-    if (!SvPOK(phs->sv)) {     /* normalizations for special cases     */
-	if (SvOK(phs->sv)) {    /* ie a number, convert to string ASAP  */
-           if (!(SvROK(phs->sv) && phs->is_inout))
-               sv_2pv(phs->sv, &na);
-	}
-	else { /* ensure we're at least an SVt_PV (so SvPVX etc work)     */
-           SvUPGRADE(phs->sv, SVt_PV);
-	    phs->indp = -1;
-	    return 1;
-	}
-    }
-
     if (!phs->desc_h) {
 	++imp_sth->has_lobs;
 	phs->desc_t = OCI_DTYPE_LOB;
@@ -687,7 +608,17 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		    &lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);
     if (status != OCI_SUCCESS)
 	return oci_error(sth, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_LOBEMPTY");
-    phs->indp   = 0;
+
+    if (!SvPOK(phs->sv)) {     /* normalizations for special cases     */
+	if (SvOK(phs->sv)) {    /* ie a number, convert to string ASAP  */
+           if (!(SvROK(phs->sv) && phs->is_inout))
+               sv_2pv(phs->sv, &na);
+	}
+	else { /* ensure we're at least an SVt_PV (so SvPVX etc work)     */
+            SvUPGRADE(phs->sv, SVt_PV);
+	}
+    }
+    phs->indp   = (SvOK(phs->sv)) ? 0 : -1;
     phs->progv  = (void*)&phs->desc_h;
     phs->maxlen = sizeof(OCILobLocator*);
 
@@ -719,7 +650,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 	"blob_read not currently supported for non-CLOB types with OCI 8 "
 	"(but with OCI 8 you can set $dbh->{LongReadLen} to the length you need,"
 	"so you don't need to call blob_read at all)");
-	(void)SvOK_off(dest_sv);	/* signal error */
+	sv_set_undef(dest_sv);	/* signal error */
 	return 0;
     }
 
@@ -727,7 +658,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 			     lobl, &loblen, status);
     if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength");
-	(void)SvOK_off(dest_sv);	/* signal error */
+	sv_set_undef(dest_sv);	/* signal error */
 	return 0;
     }
 
@@ -748,12 +679,12 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 			  &amtp, (ub4)1 + offset, buffer, buflen,
 			  0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
       if (dbis->debug >= 3)
-	PerlIO_printf(DBILOGFP, "       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
-		fbh->field_num+1, oci_status_name(status), loblen, 
-		imp_sth->long_readlen, buflen, amtp);
+	PerlIO_printf(DBILOGFP, "       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
+		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
+		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
       if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCILobRead");
-	(void)SvOK_off(dest_sv);	/* signal error */
+	sv_set_undef(dest_sv);	/* signal error */
 	return 0;
       }
 
@@ -769,13 +700,15 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
       SvGROW(dest_sv, byte_destoffset + 1);
       if (dbis->debug >= 3)
 	PerlIO_printf(DBILOGFP,
-		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
-		fbh->field_num+1, "SKIPPED", loblen, imp_sth->long_readlen, buflen, amtp);
+		"       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
+		fbh->field_num+1, "SKIPPED", (unsigned long)loblen,
+		(unsigned long)imp_sth->long_readlen, (unsigned long)buflen,
+		(unsigned long)amtp);
     }
 
     if (dbis->debug >= 3)
-      PerlIO_printf(DBILOGFP, "    blob_read field %d, ftype %d, offset %ld, len %ld, destoffset %ld, retlen %ld\n",
-	      fbh->field_num+1, ftype, offset, len, destoffset, amtp);
+      PerlIO_printf(DBILOGFP, "    blob_read field %d, ftype %d, offset %ld, len %ld, destoffset %ld, retlen %lu\n",
+	      fbh->field_num+1, ftype, offset, len, destoffset, ul_t(amtp));
     
     SvCUR_set(dest_sv, byte_destoffset+amtp);
     *SvEND(dest_sv) = '\0'; /* consistent with perl sv_setpvn etc	*/
@@ -802,14 +735,14 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	"blob_read not currently supported for non-LOB types with OCI 8 "
 	"(but with OCI 8 you can set $dbh->{LongReadLen} to the length you need,"
 	"so you don't need to call blob_read at all)");
-	(void)SvOK_off(dest_sv);	/* signal error */
+	sv_set_undef(dest_sv);	/* signal error */
 	return 0;
     }
 
     OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, lobl, &loblen, status);
     if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength");
-	(void)SvOK_off(dest_sv);	/* signal error */
+	sv_set_undef(dest_sv);	/* signal error */
 	return 0;
     }
 
@@ -832,12 +765,12 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 			    0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
-		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
+		"       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
 		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
-		imp_sth->long_readlen, ul_t(buflen), ul_t(amtp));
+		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
 	if (status != OCI_SUCCESS) {
 	    oci_error(sth, imp_sth->errhp, status, "OCILobRead");
-	    (void)SvOK_off(dest_sv);	/* signal error */
+	    sv_set_undef(dest_sv);	/* signal error */
 	    return 0;
 	}
     }
@@ -845,9 +778,9 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	assert(amtp == 0);
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
-		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
+		"       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
 		fbh->field_num+1, "SKIPPED", ul_t(loblen),
-		imp_sth->long_readlen, ul_t(buflen), ul_t(amtp));
+		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
     }
 
     /*
@@ -904,7 +837,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 		    "DBI attribute LongReadLen too small and/or LongTruncOk not set");
 	    oci_error(sth, NULL, OCI_ERROR, buf);
 	    sv_setiv(DBIc_ERR(imp_sth), (IV)24345); /* appropriate ORA error number */
-	    (void)SvOK_off(dest_sv);
+	    sv_set_undef(dest_sv);
 	    return 0;
         }
     }
@@ -930,13 +863,13 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 				0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
 	    
 	    if (DBIS->debug >= 3) {
-		PerlIO_printf(DBILOGFP, "       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
-			      fbh->field_num+1, oci_status_name(status), loblen, 
-			      imp_sth->long_readlen, alloclen, amtp);
+		PerlIO_printf(DBILOGFP, "       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
+			      fbh->field_num+1, oci_status_name(status), ul_t(loblen),
+			      imp_sth->long_readlen, ul_t(alloclen), ul_t(amtp));
 	    }
 	    if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCILobRead");
-		(void)SvOK_off(dest_sv);
+		sv_set_undef(dest_sv);
 		return 0;
 	    }
 	           
@@ -958,7 +891,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 				    (ub1)OCI_FILE_READONLY, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCILobFileOpen");
-		(void)SvOK_off(dest_sv);
+		sv_set_undef(dest_sv);
 		return 0;
 	    }
 	}
@@ -968,16 +901,16 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	    0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
-		"       OCILobRead field %d %s: LOBlen %ldc, LongReadLen %ldc, BufLen %ldb, Got %ldc\n",
+		"       OCILobRead field %d %s: LOBlen %luc, LongReadLen %luc, BufLen %lub, Got %luc\n",
 		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
-		imp_sth->long_readlen, ul_t(buflen), ul_t(amtp));
+		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
 	if (fbh->dbtype == 114) {
 	    OCILobFileClose_log_stat(imp_sth->svchp, imp_sth->errhp,
 		lobloc, status);
 	}
 	if (status != OCI_SUCCESS) {
 	    oci_error(sth, imp_sth->errhp, status, "OCILobRead");
-	    (void)SvOK_off(dest_sv);
+	    sv_set_undef(dest_sv);
 	    return 0;
 	}
 	
@@ -995,9 +928,9 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	*SvEND(dest_sv) = '\0';
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
-		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
+		"       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
 		fbh->field_num+1, "SKIPPED", ul_t(loblen),
-		imp_sth->long_readlen, ul_t(buflen), ul_t(amtp));
+		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
     }
 
     SvPOK_on(dest_sv);
@@ -1034,7 +967,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 {
     D_imp_dbh_from_sth;
 	D_imp_drh_from_dbh ;
-    I32	long_readlen;
+    UV	long_readlen;
     ub4 num_fields;
     int has_longs = 0;
     int est_width = 0;		/* estimated avg row width (for cache)	*/
@@ -1048,8 +981,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     /* ora_trunc is checked at fetch time */
     /* long_readlen:	length for long/longraw (if >0), else 80 (ora app dflt)	*/
     /* Ought to be for COMPAT mode only but was relaxed before LongReadLen existed */
-    long_readlen = (SvOK(imp_drh -> ora_long) && SvIV(imp_drh -> ora_long)>0)
-				? SvIV(imp_drh -> ora_long) : DBIc_LongReadLen(imp_sth);
+    long_readlen = (SvOK(imp_drh -> ora_long) && SvUV(imp_drh->ora_long)>0)
+				? SvUV(imp_drh->ora_long) : DBIc_LongReadLen(imp_sth);
     if (long_readlen < 0)		/* trap any sillyness */
 	long_readlen = 80;		/* typical oracle app default	*/
 
@@ -1062,9 +995,9 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     }
 
     if (DBIS->debug >= 3)
-	PerlIO_printf(DBILOGFP, "    dbd_describe %s (%s, lb %ld)...\n",
+	PerlIO_printf(DBILOGFP, "    dbd_describe %s (%s, lb %lu)...\n",
 	    oci_stmt_type_name(imp_sth->stmt_type),
-	    DBIc_ACTIVE(imp_sth) ? "implicit" : "EXPLICIT", (long)long_readlen);
+	    DBIc_ACTIVE(imp_sth) ? "implicit" : "EXPLICIT", (unsigned long)long_readlen);
 
     /* We know it's a select and we've not got the description yet, so if the	*/
     /* sth is not 'active' (executing) then we need an explicit describe.	*/
@@ -1184,7 +1117,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	case 113:				/* BLOB		*/
 	case 114:				/* BFILE	*/
 		fbh->ftype  = fbh->dbtype;
-		fbh->disize = fbh->dbsize;
+		fbh->disize = fbh->dbsize *10 ;	/* XXX! */
 		fbh->fetch_func = (imp_sth->auto_lob)
 				? fetch_func_autolob : fetch_func_getrefpv;
 		fbh->bless  = "OCILobLocatorPtr";
@@ -1198,9 +1131,13 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 #endif
 
+	case 182:                  /* INTERVAL YEAR TO MONTH */
+	case 183:                  /* INTERVAL DAY TO SECOND */
+	case 187:                  /* TIMESTAMP */
 	case 188: 	           /* TIMESTAMP WITH TIME ZONE	*/
+	case 232:                  /* TIMESTAMP WITH LOCAL TIME ZONE */
 		/* actually dependent on NLS default date format*/
-		fbh->disize = 75;       /* a generous default   */
+		fbh->disize = 75;       /* XXX */
 		break;
 
 	default:
@@ -1410,7 +1347,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 	    }
 
 	} else if (rc == 1405) {	/* field is null - return undef	*/
-	    (void)SvOK_off(sv);
+	    sv_set_undef(sv);
 
 	} else {  /* See odefin rcode arg description in OCI docs	*/
 	    char buf[200];
@@ -1429,8 +1366,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 		if (ora_dbtype_is_long(fbh->dbtype))	/* double check */
 		    hint = ", LongReadLen too small and/or LongTruncOk not set";
 	    }
-	    else {
-		(void)SvOK_off(sv);	/* set field that caused error to undef	*/
+	    else {	/* set field that caused error to undef */
+	        sv_set_undef(sv);
 	    }
 	    ++err;	/* 'fail' this fetch but continue getting fields */
 	    /* Some should probably be treated as warnings but	*/
@@ -1623,14 +1560,14 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		break;
     default:
 	return oci_error(sth, errhp, OCI_ERROR,
-			"LOB refetch attempted for unsupported statement type");
+		"LOB refetch attempted for unsupported statement type (see also ora_auto_lob attribute)");
     }
     if (!tablename)
 	return oci_error(sth, errhp, OCI_ERROR,
 		"Unable to parse table name for LOB refetch");
 
     OCIHandleAlloc_ok(imp_sth->envhp, &dschp, OCI_HTYPE_DESCRIBE, status);
-    /* BEGIN NEW */
+#ifdef OCI_ATTR_OBJ_NAME /* not in 8.0.x */
     OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
 		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_SYN, dschp, status);
     if (status == OCI_SUCCESS) { /* There is a synonym, get the schema */
@@ -1648,7 +1585,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
       if (DBIS->debug >= 3)
 	PerlIO_printf(DBILOGFP, "       lob refetch synonym, schema=%s, name=%s, new tablename=%s\n", syn_schema, syn_name, tablename);
     }
-    /* END NEW */
+#endif /* OCI_ATTR_OBJ_NAME */
     OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
 	(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_TABLE, dschp, status);
     if (status != OCI_SUCCESS) {
@@ -1685,8 +1622,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	ub2 col_dbtype;
 	char *col_name;
 	ub4  col_name_len;
-        OCIParamGet_log_stat(collisthd, OCI_DTYPE_PARAM, errhp, (dvoid**)&colhd,
-                             i, status);
+        OCIParamGet_log_stat(collisthd, OCI_DTYPE_PARAM, errhp, (dvoid**)&colhd, i, status);
         if (status)
 	    break;
         OCIAttrGet_log_stat(colhd, OCI_DTYPE_PARAM, &col_dbtype, 0,
@@ -1870,22 +1806,24 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
     sword status;
     int i;
     OCIError *errhp = imp_sth->errhp;
-    ub4 rowid_iter = 0;
     lob_refetch_t *lr;
     D_imp_dbh_from_sth;
     SV *dbh = (SV*)DBIc_MY_H(imp_dbh);
 
+    if (!imp_sth->auto_lob)
+	return 1;	/* application doesn't want magical lob handling */
     if (row_count == 0)
 	return 1;	/* nothing to do */
     if (row_count  > 1)
 	return oci_error(sth, errhp, OCI_ERROR, "LOB refetch attempted for multiple rows");
 
-    if (!imp_sth->lob_refetch)
+    if (!imp_sth->lob_refetch) {
 	if (!init_lob_refetch(sth, imp_sth))
 	    return 0;	/* init_lob_refetch already called oci_error */
+    }
     lr = imp_sth->lob_refetch;
 
-    OCIAttrGet_stmhp_stat(imp_sth, (dvoid**)lr->rowid, &rowid_iter, OCI_ATTR_ROWID,
+    OCIAttrGet_stmhp_stat(imp_sth, lr->rowid, 0, OCI_ATTR_ROWID,
 			  status);
     if (status != OCI_SUCCESS)
 	return oci_error(sth, errhp, status, "OCIAttrGet OCI_ATTR_ROWID /LOB refetch");
@@ -1904,7 +1842,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
         SvUPGRADE(phs->sv, SVt_PV);	/* just in case */
 	amtp = SvCUR(phs->sv);		/* XXX UTF8? */
 	if (rc == 1405) {		/* NULL - return undef */
-	    (void)SvOK_off(phs->sv);
+	    sv_set_undef(phs->sv);
 	    status = OCI_SUCCESS;
 	}
 	else if (amtp > 0) {	/* since amtp==0 & OCI_ONE_PIECE fail (OCI 8.0.4) */

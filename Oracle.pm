@@ -1,7 +1,7 @@
 
 #   Oracle.pm,v 1.1 2002/07/05 06:34:47 richter Exp
 #
-#   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
+#   Copyright (c) 1994-2003 Tim Bunce
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file,
@@ -10,7 +10,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.14';
+$DBD::Oracle::VERSION = '1.15';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -32,9 +32,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     @EXPORT_OK = ('ORA_OCI');
     Exporter::export_ok_tags(qw(ora_types ora_session_modes));
 
-    my $Revision = substr(q$Revision: 1.96 $, 10);
+    my $Revision = substr(q$Revision: 1.101 $, 10);
 
-    require_version DBI 1.20;
+    require_version DBI 1.28;
 
     bootstrap DBD::Oracle $VERSION;
 
@@ -62,6 +62,14 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    });
 	DBD::Oracle::dr::init_oci($drh) ;
 	$drh->STORE('ShowErrorStatement', 1);
+
+	if ($DBI::VERSION >= 1.37) {
+	    DBD::Oracle::db->install_method("ora_lob_read");
+	    DBD::Oracle::db->install_method("ora_lob_write");
+	    DBD::Oracle::db->install_method("ora_lob_append");
+	    DBD::Oracle::db->install_method("ora_lob_trim");
+	    DBD::Oracle::db->install_method("ora_lob_length");
+	}
 
 	$drh;
     }
@@ -154,6 +162,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	) {
 	    next unless $d && open(FH, "<$d/tnsnames.ora");
 	    $drh->trace_msg("Loading $d/tnsnames.ora\n") if $debug;
+	    local *_;
 	    while (<FH>) {
 		next unless m/^\s*([-\w\.]+)\s*=/;
 		my $name = $1;
@@ -185,12 +194,16 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    $dbname =~ s/^\s+//;
 	    $dbname =~ s/\s+$//;
 	    my @dbname = map {
-		($n,$v) = split /\s*=\s*/, $_; (uc($n), $v)
+		($n,$v) = split /\s*=\s*/, $_, -1;
+		Carp::carp("DSN component '$_' is not in 'name=value' format")
+		    unless defined $v && defined $n;
+                (uc($n), $v)
 	    } split /\s*;\s*/, $dbname;
 	    my %dbname = ( PROTOCOL => 'tcp', @dbname );
 	    my $sid = delete $dbname{SID};
 	    return $drh->DBI::set_err(-1,
-		    "Can't connect using this syntax without specifying a HOST and a SID")
+		"Can't connect using this syntax without specifying a " .
+                "HOST and a SID")
 		unless $sid and $dbname{HOST};
 	    my @addrs;
 	    push @addrs, "$n=$v" while ( ($n,$v) = each %dbname );
@@ -199,7 +212,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 		$addrs = "(ADDRESS=$addrs)";
 	    }
 	    else {
-		$addrs = "(ADDRESS_LIST=(ADDRESS=$addrs(PORT=1526))"	# Oracle8
+		$addrs = "(ADDRESS_LIST=(ADDRESS=$addrs(PORT=1526))"	# Oracle8+
 				     . "(ADDRESS=$addrs(PORT=1521)))";	# Oracle7
 	    }
 	    $dbname = "(DESCRIPTION=$addrs(CONNECT_DATA=(SID=$sid)))";
@@ -257,8 +270,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# create a 'blank' dbh
 
         (my $user_only = $user) =~ s:/.*::;
-	my $dbh = DBI::_new_dbh($drh, {
+	my ($dbh, $dbh_inner) = DBI::_new_dbh($drh, {
 	    'Name' => $dbname,
+	    # these two are just for backwards compatibility
 	    'USER' => uc $user_only, 'CURRENT_USER' => uc $user_only,
 	    });
 
@@ -273,6 +287,14 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 		       undef, $attr->{ora_module_name});
 	    };
 	}
+	unless (length $user_only) {
+	    $user_only = $dbh->selectrow_array(q{
+		SELECT SYS_CONTEXT('userenv','session_user') FROM DUAL
+	    });
+	    $dbh_inner->{Username} = $user_only;
+	    # these two are just for backwards compatibility
+	    $dbh_inner->{USER} = $dbh_inner->{CURRENT_USER} = uc $user_only;
+	}
 
 	$dbh;
     }
@@ -282,6 +304,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 {   package DBD::Oracle::db; # ====== DATABASE ======
     use strict;
+    use DBI qw(:sql_types);
 
     sub prepare {
 	my($dbh, $statement, @attribs)= @_;
@@ -311,7 +334,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    # we know that Oracle 7 prepare does a describe so this will
 	    # actually talk to the server and is this a valid and cheap test.
 	    my $sth =  $dbh->prepare("select SYSDATE from DUAL /* ping */");
-	    # But Oracle 8 doesn't talk to server unless we describe the query
+	    # But Oracle 8+ doesn't talk to server unless we describe the query
 	    $ok = $sth && $sth->FETCH('NUM_OF_FIELDS');
 	};
 	return ($@) ? 0 : $ok;
@@ -388,7 +411,8 @@ SQL
 SELECT *
   FROM
 (
-  SELECT NULL         TABLE_CAT
+  SELECT /*+ RULE*/
+       NULL         TABLE_CAT
      , t.OWNER      TABLE_SCHEM
      , t.TABLE_NAME TABLE_NAME
      , decode(t.OWNER
@@ -441,7 +465,8 @@ SQL
 SELECT *
   FROM
 (
-  SELECT NULL              TABLE_CAT
+  SELECT /*+ RULE*/
+         NULL              TABLE_CAT
        , c.OWNER           TABLE_SCHEM
        , c.TABLE_NAME      TABLE_NAME
        , c.COLUMN_NAME     COLUMN_NAME
@@ -473,7 +498,8 @@ SQL
 SELECT *
   FROM
 (
-  SELECT to_char( NULL )    UK_TABLE_CAT
+  SELECT /*+ RULE*/
+         to_char( NULL )    UK_TABLE_CAT
        , uk.OWNER           UK_TABLE_SCHEM
        , uk.TABLE_NAME      UK_TABLE_NAME
        , uc.COLUMN_NAME     UK_COLUMN_NAME
@@ -528,7 +554,8 @@ SQL
 SELECT *
   FROM
 (
-  SELECT to_char( NULL )     TABLE_CAT
+  SELECT /*+ RULE*/
+         to_char( NULL )     TABLE_CAT
        , tc.OWNER            TABLE_SCHEM
        , tc.TABLE_NAME       TABLE_NAME
        , tc.COLUMN_NAME      COLUMN_NAME
@@ -652,77 +679,69 @@ SQL
 
     sub type_info_all {
 	my ($dbh) = @_;
-	my $names = {
-	    TYPE_NAME		=> 0,
-	    DATA_TYPE		=> 1,
-	    COLUMN_SIZE		=> 2,
-	    LITERAL_PREFIX	=> 3,
-	    LITERAL_SUFFIX	=> 4,
-	    CREATE_PARAMS	=> 5,
-	    NULLABLE		=> 6,
-	    CASE_SENSITIVE	=> 7,
-	    SEARCHABLE		=> 8,
-	    UNSIGNED_ATTRIBUTE	=> 9,
-	    FIXED_PREC_SCALE	=>10,
-	    AUTO_UNIQUE_VALUE	=>11,
-	    LOCAL_TYPE_NAME	=>12,
-	    MINIMUM_SCALE	=>13,
-	    MAXIMUM_SCALE	=>14,
-	    SQL_DATA_TYPE	=>15,
-	    SQL_DATETIME_SUB	=>16,
-	    NUM_PREC_RADIX	=>17,
-	};
-	my $ti = [
-	  $names,
-          [ 'LONG RAW', -4, '2147483647', '\'', '\'', undef, 1, '0', '0',
-            undef, '0', undef, undef, undef, undef, -4, undef, undef
-          ],
-          [ 'RAW', -3, 2000, '\'', '\'', 'max length', 1, '0', 3,
-            undef, '0', undef, undef, undef, undef, -3, undef, undef
-          ],
-          [ 'LONG', -1, '2147483647', '\'', '\'', undef, 1, 1, '0',
-            undef, '0', undef, undef, undef, undef, -1, undef, undef
-          ],
-          [ 'CHAR', 1, 2000, '\'', '\'', 'max length', 1, 1, 3,
-            undef, '0', '0', undef, undef, undef, 1, undef, undef
-          ],
-          [ 'NUMBER', 3, 38, undef, undef, 'precision,scale', 1, '0', 3,
-            '0', '0', '0', undef, '0', 38, 3, undef, 10
-          ],
-          [ 'DOUBLE', 8, 15, undef, undef, undef, 1, '0', 3,
-            '0', '0', '0', undef, undef, undef, 8, undef, 10
-          ]
-        ];
-	my $version = ( ora_server_version($dbh)->[0] < DBD::Oracle::ORA_OCI() )
-	            ?   ora_server_version($dbh)->[0] : DBD::Oracle::ORA_OCI();
-	if ( $version < 8 ) {
-	    push @$ti,
-	    [ 'VARCHAR2', 12, 2000, '\'', '\'', 'max length', 1, 1, 3,
-	      undef, '0', '0', undef, undef, undef, 12, undef, undef
-	    ];
-	}
-	else {
-	    push @$ti,
-	    [ 'VARCHAR2', 12, 4000, '\'', '\'', 'max length', 1, 1, 3,
-	      undef, '0', '0', undef, undef, undef, 12, undef, undef
-            ],
-	    [ 'BLOB', 30, 2147483647, '\'', '\'', undef, 1, 1, 0,
-	      undef, 0, undef, undef, undef, undef, 30, undef, undef
-            ],
-	    [ 'CLOB', 40, 2147483647, '\'', '\'', undef, 1, 1, 0,
-	      undef, 0, undef, undef, undef, undef, 40, undef, undef
-	    ];
-# whole bunch more need adding...
-#	    [ 'TIMESTAMP WITH TIME ZONE', 11, 34, '\'', '\'', undef, 1, '0', 3,
-#             undef, '0', '0', undef, '0', '9', 11, undef, undef
-#            ],
+        my $version = ( ora_server_version($dbh)->[0] < DBD::Oracle::ORA_OCI() )
+                    ?   ora_server_version($dbh)->[0] : DBD::Oracle::ORA_OCI();
+        my $vc2len = ( $version < 8 ) ? "2000" : "4000";
 
-	}
-	push @$ti,
-	[ 'DATE', 93, 19, '\'', '\'', undef, 1, 0, 3,
-	  undef, 0, 0, undef, 0, 0, 9, 3, undef
-        ];
-	return $ti;
+	my $type_info_all = [
+	    {
+		TYPE_NAME          =>  0,
+		DATA_TYPE          =>  1,
+		COLUMN_SIZE        =>  2,
+		LITERAL_PREFIX     =>  3,
+		LITERAL_SUFFIX     =>  4,
+		CREATE_PARAMS      =>  5,
+		NULLABLE           =>  6,
+		CASE_SENSITIVE     =>  7,
+		SEARCHABLE         =>  8,
+		UNSIGNED_ATTRIBUTE =>  9,
+		FIXED_PREC_SCALE   => 10,
+		AUTO_UNIQUE_VALUE  => 11,
+		LOCAL_TYPE_NAME    => 12,
+		MINIMUM_SCALE      => 13,
+		MAXIMUM_SCALE      => 14,
+		SQL_DATA_TYPE      => 15,
+		SQL_DATETIME_SUB   => 16,
+		NUM_PREC_RADIX     => 17,
+		INTERVAL_PRECISION => 18,
+	    },
+	    [ "LONG RAW",        SQL_LONGVARBINARY, 2147483647,"'",  "'",
+		undef,            1,0,0,undef,0,undef,
+		"LONG RAW",        undef,undef,SQL_LONGVARBINARY,undef,undef,undef, ],
+	    [ "RAW",             SQL_VARBINARY,     2000,      "'",  "'",
+		"max length",     1,0,3,undef,0,undef,
+		"RAW",             undef,undef,SQL_VARBINARY,    undef,undef,undef, ],
+	    [ "LONG",            SQL_LONGVARCHAR,   2147483647,"'",  "'",
+		undef,            1,1,0,undef,0,undef,
+		"LONG",            undef,undef,SQL_LONGVARCHAR,  undef,undef,undef, ],
+	    [ "CHAR",            SQL_CHAR,          2000,      "'",  "'",
+		"max length",     1,1,3,undef,0,0,
+		"CHAR",            undef,undef,SQL_CHAR,         undef,undef,undef, ],
+	    [ "DECIMAL",         SQL_DECIMAL,       38,        undef,undef,
+		"precision,scale",1,0,3,0,    0,0,
+		"DECIMAL",         0,    38,   SQL_DECIMAL,      undef,10,   undef, ],
+	    [ "DOUBLE PRECISION",SQL_DOUBLE,        15,        undef,undef,
+		undef, 1,0,3,0,    0,0,
+		"DOUBLE PRECISION",undef,undef,SQL_DOUBLE,       undef,10,   undef, ],
+	    [ "DATE",            SQL_TYPE_TIMESTAMP,19,        "'",  "'",
+		undef,            1,0,3,undef,0,0,
+		"DATE",            0,    0,    SQL_DATE,         3,    undef,undef, ],
+	    [ "VARCHAR2",        SQL_VARCHAR,       $vc2len,   "'",  "'",
+		"max length",     1,1,3,undef,0,0,
+		"VARCHAR2",        undef,undef,SQL_VARCHAR,      undef,undef,undef, ],
+	];
+	push @$type_info_all,
+	    [ "BLOB",            SQL_LONGVARBINARY, 2147483647,"'",  "'",
+		 undef,            1,1,0,undef,0,undef,
+		"BLOB",            undef,undef,SQL_LONGVARBINARY,undef,undef,undef, ],
+	    [ "BFILE",           SQL_LONGVARBINARY, 2147483647,"'",  "'",
+		undef,            1,1,0,undef,0,undef,
+		"BFILE",           undef,undef,SQL_LONGVARBINARY,undef,undef,undef, ],
+	    [ "CLOB",            SQL_LONGVARCHAR,   2147483647,"'",  "'",
+		undef,            1,1,0,undef,0,undef,
+		"CLOB",            undef,undef,SQL_LONGVARCHAR,  undef,undef,undef, ],
+	    if $version >= 8;
+	return $type_info_all;
     }
 
     sub plsql_errstr {
@@ -853,7 +872,7 @@ DBD::Oracle - Oracle database driver for the DBI module
 =head1 DESCRIPTION
 
 DBD::Oracle is a Perl module which works with the DBI module to provide
-access to Oracle databases (both version 7 and 8).
+access to Oracle databases.
 
 =head1 CONNECTING TO ORACLE
 
@@ -915,7 +934,9 @@ to load in the Oracle client libraries (via LD_LIBRARY_PATH, ldconfig,
 or similar on Unix).
 
 ORACLE_HOME can be left unset if you aren't using any of Oracle's
-executables, but it is not recommended and error messages may not display.
+executables, but it is I<not> recommended and error messages may not display.
+It should be set to the ORACLE_HOME directory of the version of Oracle
+that DBD::Oracle was compiled with.
 
 Discouraging the use of ORACLE_SID makes it easier on the users to see
 what is going on. (It's unfortunate that TWO_TASK couldn't be renamed,
@@ -929,7 +950,7 @@ SQL*Net 1.x and SQL*Net 2.x.  "Machine" is the computer the database is
 running on, "SID" is the SID of the database, "DB" is the SQL*Net 2.x
 connection descriptor for the database.
 
-B<Note:> Some of these formats may not work with Oracle 8.
+B<Note:> Some of these formats may not work with Oracle 8+.
 
   BEGIN {
      $ENV{ORACLE_HOME} = '/home/oracle/product/7.x.x';
@@ -977,7 +998,22 @@ that causes alternating connection attempts to fail! (In reality only
 a small proportion of people experience these problems.)
 
 
-=head2 Optimizing Oracle's listner
+To connect to a local database with a user which has been set-up to
+authenticate via the OS ("ALTER USER username IDENTIFIED EXTERNALLY"):
+
+  $dbh = DBI->connect('dbi:Oracle:','/','');
+
+Note the lack of a connection name (use the ORACLE_SID environment
+variable). If an explicit SID is used you'll probably get an ORA-01004 error.
+
+That only works for local databases. (Authentication to remote Oracle
+databases using your unix login name without a password and is possible
+but it's not secure and not recommended so not documented here. If you
+can't find the information elsewhere then you probably shouldn't be
+trying to do it.)
+
+
+=head2 Optimizing Oracle's listener
 
 [By Lane Sharman <lane@bienlogic.com>] I spent a LOT of time optimizing
 listener.ora and I am including it here for anyone to benefit from. My
@@ -1072,9 +1108,23 @@ The ORA_SYSDBA and ORA_SYSOPER constants can be imported using
 
   use DBD::Oracle qw(:ora_session_modes);
 
+This is one case where setting ORACLE_SID may be useful since
+connecting as SYSDBA or SYSOPER via SQL*Net is frequently disabled
+for security reasons.
+
 Example:
 
-  $dbh = DBI->connect($dsn, $usr, $pwd, { ora_session_mode => ORA_SYSDBA });
+  $dsn = "dbi:Oracle:";       # no dbname here
+  $ENV{ORACLE_SID} = "orcl";  # set ORACLE_SID as needed
+  delete $ENV{TWO_TASK};      # make sure TWO_TASK isn't set
+
+  $dbh = DBI->connect($dsn, "", "", { ora_session_mode => ORA_SYSDBA });
+
+It has been reported that this only works if $dsn does not contain a SID
+so that Oracle then uses the value of the ORACLE_SID (not TWO_TASK)
+environment variable to connect to a local instance. Also the username
+and password should be empty, and the user executing the script needs
+to be part of the dba group or osdba group.
 
 =item ora_oratab_orahome
 
@@ -1082,7 +1132,7 @@ Passing a true value for the ora_oratab_orahome attribute will make
 DBD::Oracle change $ENV{ORACLE_HOME} to make the Oracle home directory
 specified in the C</etc/oratab> file I<if> the database to connect to
 is specified as a SID that exists in the oratab file, and DBD::Oracle was
-built to use the Oracle 7 OCI API (not Oracle 8).
+built to use the Oracle 7 OCI API (not Oracle 8+).
 
 =item ora_module_name
 
@@ -1103,7 +1153,30 @@ to a already shared scalar which is initialized to an empty string.
 
   our $orashr : shared = '' ;
 
-  $dbh = DBI -> connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
+  $dbh = DBI->connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
+
+=item ora_use_proc_connection
+
+This attribute allows to create a DBI handle for an existing SQLLIB
+database connection. This can be used to share database connections
+between Oracle ProC code and DBI running in an embedded Perl interpreter.
+The SQLLIB connection id is appended after the "dbi:Oracle:" initial
+argument to DBI::connect.
+
+For example, if in ProC a connection is made like
+
+    EXEC SQL CONNECT 'user/pass@db' AT 'CONID';
+
+the connection may be used from DBI after running something like
+
+    my $dbh = DBI->connect("dbi:Oracle:CONID", "", "",
+                           { ora_use_proc_connection => 1 });
+
+To disconnect, first call $dbh->disconnect(), then disconnect in ProC.
+
+This attribute requires DBD::Oracle to be built with the -ProC
+option to Makefile.PL.  It is not available with OCI_V7. Not tested
+with Perl ithreads or with the ora_dbh_share connect attribute.
 
 =back
 
@@ -1152,6 +1225,11 @@ L<DBI/prepare> database handle method.
 
 =over 4
 
+=item ora_placeholders
+
+Set to false to disable processing of placeholders. Used mainly for loading a
+PL/SQL package that has been I<wrapped> with Oracle's C<wrap> utility.
+
 =item ora_parse_lang
 
 Tells the connected database how to interpret the SQL statement.
@@ -1162,18 +1240,19 @@ All other values have the same effect as 1.
 
 =item ora_auto_lob
 
-If 1 (default), fetching retreives the contents of the CLOB or BLOB column.
-If 0, fetching retreives the LOB Locator of the CLOB or BLOB column.
-(OCI8 and later only)
+If true (the default), fetching retreives the contents of the CLOB or
+BLOB column in most circumstances.  If false, fetching retreives the
+Oracle "LOB Locator" of the CLOB or BLOB value.  (OCI8 and later only)
 
-See the LOB tests in 05dbi.t of Oracle::OCI for examples
-of how to use LOB Locators.  See L</Handling LOBs> for more details.
+See L</Handling LOBs> for more details.
+See also the LOB tests in 05dbi.t of Oracle::OCI for examples
+of how to use LOB Locators.
 
 =item ora_check_sql
 
 If 1 (default), force SELECT statements to be described in prepare().
 If 0, allow SELECT statements to defer describe until execute().
-(OCI8 and later only)
+(OCI8 and later only.)
 
 See L</Prepare postponed till execute> for more information.
 
@@ -1208,9 +1287,11 @@ Additional values when DBD::Oracle was built using OCI 8 and later:
 
 See L</Binding Cursors> for the correct way to use ORA_RSET.
 
-See L</Handling LOBs> for the correct way to use ORA_CLOB and ORA_BLOB.
+See L</Handling LOBs> for how to use ORA_CLOB and ORA_BLOB.
 
-See also L<DBI/Placeholders and Bind Values> for more information.
+See L</Other Data Types> for more information.
+
+See also L<DBI/Placeholders and Bind Values>.
 
 =back
 
@@ -1352,12 +1433,108 @@ Also note that the NLS files $ORACLE_HOME/ocommon/nls/admin/data
 changed extension (from .d to .nlb) between 7.2.3 and 7.3.2.
 
 
+=head1 Other Data Types
+
+DBD::Oracle does not I<explicitly> support most Oracle data types.
+It simply asks Oracle to return them as strings and Oracle does so.
+Mostly.  Similarly when binding placeholder values DBD::Oracle binds
+them as strings and Oracle converts them to the appropriate type,
+such as DATE, when used.
+
+Some of these automatic conversions to and from strings use NLS
+setings to control the formating for output and the parsing for
+input. The most common example is the DATE type. The default NLS
+format for DATE might be DD-MON-YYYY and so when a DATE type is
+fetched that's how Oracle will format the date. NLS settings also
+control the default parsing of strings into DATE values. An error
+will be generated if the contents of the string don't match the
+NLS format. If you're dealing in dates which don't match the default
+NLS format then you can either change the default NLS format or, more
+commonly, use TO_CHAR(field, "format") and TO_DATE(?, "format")
+to explicitly specify formats for converting to and from strings.
+
+A slightly more subtle problem can occur with NUMBER types. The
+default NLS settings might format numbers with a fullstop ("C<.>")
+to separate thousands and a comma ("C<,>") as the decimal point.
+Perl will generate warnings and use incorrect values when numbers,
+returned and formatted as strings in this way by Oracle, are used
+in a numeric context.  You could explicitly convert each numeric
+value using the TO_CHAR(...) function but that gets tedious very
+quickly. The best fix is to change the NLS settings. That can be
+done for an individual connection by doing:
+
+  $dbh->do("ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '.,'");
+
+There are some types, like BOOLEAN, that Oracle does not automatically
+convert to or from strings (pity).  These need to be converted
+explicitly using SQL or PL/SQL functions.
+
+Examples:
+
+   # DATE values
+   my $sth0 = $dbh->prepare( <<SQL_END );
+   SELECT username, TO_CHAR( created, ? )
+      FROM all_users
+      WHERE created >= TO_DATE( ?, ? )
+   SQL_END
+   $sth0->execute( 'YYYY-MM-DD HH24:MI:SS', "2003", 'YYYY' );
+
+   # BOOLEAN values
+   my $sth2 = $dbh->prepare( <<PLSQL_END );
+   DECLARE
+      b0 BOOLEAN;
+      b1 BOOLEAN;
+      o0 VARCHAR2(32);
+      o1 VARCHAR2(32);
+
+      FUNCTION to_bool( i VARCHAR2 ) RETURN BOOLEAN IS
+      BEGIN
+         IF    i IS NULL          THEN RETURN NULL;
+         ELSIF i = 'F' OR i = '0' THEN RETURN FALSE;
+         ELSE                          RETURN TRUE;
+         END IF;
+      END;
+      FUNCTION from_bool( i BOOLEAN ) RETURN NUMBER IS
+      BEGIN
+         IF    i IS NULL THEN RETURN NULL;
+         ELSIF i         THEN RETURN 1;
+         ELSE                 RETURN 0;
+         END IF;
+      END;
+   BEGIN
+      -- Converting values to BOOLEAN
+      b0 := to_bool( :i0 );
+      b1 := to_bool( :i1 );
+
+      -- Converting values from BOOLEAN
+      :o0 := from_bool( b0 );
+      :o1 := from_bool( b1 );
+   END;
+   PLSQL_END
+   my ( $i0, $i1, $o0, $o1 ) = ( "", "Something else" );
+   $sth2->bind_param( ":i0", $i0 );
+   $sth2->bind_param( ":i1", $i1 );
+   $sth2->bind_param_inout( ":o0", \$o0, 32 );
+   $sth2->bind_param_inout( ":o1", \$o1, 32 );
+   $sth2->execute();
+   foreach ( $i0, $b0, $o0, $i1, $b1, $o1 ) {
+      $_ = "(undef)" if ! defined $_;
+   }
+   print "$i0 to $o0, $i1 to $o1\n";
+   # Result is : "'' to '(undef)', 'Something else' to '1'"
+
+
 =head1 PL/SQL Examples
 
-These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
+Most of these PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
 
-  # we assume this package already exists
-  my $plsql = q{
+   /*
+    * PL/SQL to create package with stored procedures invoked by
+    * Perl examples.  Execute using sqlplus.
+    *
+    * Use of "... OR REPLACE" prevents failure in the event that the
+    * package already exists.
+    */
 
     CREATE OR REPLACE PACKAGE plsql_example
     IS
@@ -1376,6 +1553,7 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
         RETURN VARCHAR2;
 
     END plsql_example;
+  /
 
     CREATE OR REPLACE PACKAGE BODY plsql_example
     IS
@@ -1413,7 +1591,8 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
       END;
 
     END plsql_example;
-  };
+  /
+  /* End PL/SQL for example package creation. */
 
   use DBI;
 
@@ -1426,7 +1605,7 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
   # See the DBI docs now if you're not familiar with RaiseError.
   $db->{RaiseError} = 1;
 
-  # Example 1
+  # Example 1	Eric Bartley <bartley@cc.purdue.edu>
   #
   # Calling a PLSQL procedure that takes no parameters. This shows you the
   # basic's of what you need to execute a PLSQL procedure. Just wrap your
@@ -1443,7 +1622,7 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
   $csr->execute;
 
 
-  # Example 2
+  # Example 2	Eric Bartley <bartley@cc.purdue.edu>
   #
   # Now we call a procedure that has 1 IN parameter. Here we use bind_param
   # to bind out parameter to the prepared statement just like you might
@@ -1471,7 +1650,7 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
   print 'After proc_in: $@=',"'$@', errstr=$DBI::errstr, ret_val=$ret_val\n";
 
 
-  # Example 3
+  # Example 3	Eric Bartley <bartley@cc.purdue.edu>
   #
   # Building on the last example, I've added 1 IN OUT parameter. We still
   # use a placeholders in the call to prepare, the difference is that
@@ -1502,7 +1681,7 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
   print "$test_num is ", ($is_odd) ? "odd - ok" : "even - error!", "\n";
 
 
-  # Example 4
+  # Example 4	Eric Bartley <bartley@cc.purdue.edu>
   #
   # What about the return value of a PLSQL function? Well treat it the same
   # as you would a call to a function from SQL*Plus. We add a placeholder
@@ -1526,6 +1705,10 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
 You can find more examples in the t/plsql.t file in the DBD::Oracle
 source directory.
 
+Oracle 9.2 appears to have a bug where a variable bound
+with bind_param_inout() that isn't assigned to by the executed
+PL/SQL block may contain garbage.
+See L<http://www.mail-archive.com/dbi-users@perl.org/msg18835.html>
 
 =head1 Private database handle functions
 
@@ -1645,49 +1828,46 @@ DBMS_OUTPUT.PUT, or DBMS_OUTPUT.NEW_LINE.
 =back
 
 
-=head1 Using DBD::Oracle with Oracle 8 - Features and Issues
-
-DBD::Oracle version 0.55 onwards can be built to use either the Oracle 7
-or Oracle 8 OCI (Oracle Call Interface) API functions. The new Oracle 8
-API is used by default and offers several advantages, including support
-for LOB types and cursor binding. Here's a quote from the Oracle OCI
-documentation:
-
-  The Oracle8 OCI has several enhancements to improve application
-  performance and scalability. Application performance has been improved
-  by reducing the number of client to server round trips required and
-  scalability improvements have been facilitated by reducing the amount
-  of state information that needs to be retained on the server side.
-
-=head2 Prepare postponed till execute
+=head1 Prepare postponed till execute
 
 With OCI8, the DBD::Oracle module can avoid an explicit 'describe' operation
 prior to the execution of the statement unless the application requests
 information about the results (such as $sth->{NAME}). This reduces
-communication with the server and increases performance. However, it also
-means that SQL errors are not detected until C<execute()> is called
-(instead of C<prepare()> as with OCI7).
+communication with the server and increases performance (reducing the
+number of PARSE_CALLS inside the server).
+
+However, it also means that SQL errors are not detected until
+C<execute()> (or $sth->{NAME} etc) is called instead of when
+C<prepare()> is called. Note that if the describe is triggered by the
+use of $sth->{NAME} or a similar attribute and the describe fails then
+I<an exception is thrown> even if C<RaiseError> is false!
 
 Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
 
-=head2 Handling LOBs
+=head1 Handling LOBs
 
-When fetching LOBs, they are treated just like LONGs and are subject to
-$sth->{LongReadLen} and $sth->{LongTruncOk}. Note that with OCI 7
-DBD::Oracle pre-allocates the whole buffer (LongReadLen) before
-constructing the returned column.  With OCI 8 it grows the buffer to
+=head2 Simple Usage
+
+The value of an Oracle LOB column is not the content of the LOB. It's a
+'LOB Locator' which, after being selected or inserted needs extra
+processing to read or write the content of the LOB.
+
+When fetching LOBs they are, by default, made to look just like LONGs and
+are subject to the LongReadLen and LongTruncOk attributes. Note that
+with OCI 7 DBD::Oracle pre-allocates the whole buffer (LongReadLen) at
+the time the statement is prepared.  With OCI 8+ it grows the buffer to
 the amount needed for the largest LOB to be fetched so far.
 
 When inserting or updating LOBs some I<major> magic has to be performed
 behind the scenes to make it transparent.  Basically the driver has to
-refetch the newly inserted 'LOB Locators' before being able to write to
-them.  However, it works, and I've made it as fast as possible, just
-one extra server-round-trip per insert or update after the first.
-For the time being, only single-row LOB updates are supported. Also
-passing LOBS to PL/SQL blocks doesn't work.
+insert a 'LOB Locator' and then refetch the newly inserted LOB
+Locator before being able to write the data into it.  However, it works
+well most of the time, and I've made it as fast as possible, just one
+extra server-round-trip per insert or update after the first.  For the
+time being, only single-row LOB updates are supported.
 
-To insert or update a large LOB, DBD::Oracle has to know in advance
-that it is a LOB type. So you need to say:
+To insert or update a large LOB using a placeholder, DBD::Oracle has to
+know in advance that it is a LOB type. So you need to say:
 
   $sth->bind_param($field_num, $lob_value, { ora_type => ORA_CLOB });
 
@@ -1695,16 +1875,7 @@ The ORA_CLOB and ORA_BLOB constants can be imported using
 
   use DBD::Oracle qw(:ora_types);
 
-or just use the corresponding integer values (112 and 113).
-
-To make scripts work with both Oracle7 and Oracle8, the Oracle7
-DBD::Oracle will treat the LOB ora_types as LONGs without error.
-So in any code you may have now that looks like
-
-  $sth->bind_param($idx, $value, { ora_type => 8 });
-
-you could change the 8 (LONG type) to ORA_CLOB or ORA_BLOB
-(112 or 113).
+or use the corresponding integer values (112 and 113).
 
 One further wrinkle: for inserts and updates of LOBs, DBD::Oracle has
 to be able to tell which parameters relate to which table fields.
@@ -1714,17 +1885,265 @@ then you need to tell it which field each LOB param relates to:
 
   $sth->bind_param($idx, $value, { ora_type=>ORA_CLOB, ora_field=>'foo' });
 
-There's curently no direct way to write a LOB in chunks using DBD::Oracle.
-However, it is possible (though inefficient), using DBMS_LOB.WRITEAPPEND in PL/SQL.
+There are some limitations inherent in the way DBD::Oracle makes typical
+LOB operations simple by hiding the LOB Locator processing:
 
-To INSERT a LOB, you need UPDATE privilege.
+ - Can't pass LOBs to/from PL/SQL (except as strings less than 32KB)
+ - Can't read/write LOBs in chunks (except via DBMS_LOB.WRITEAPPEND in PL/SQL)
+ - To INSERT a LOB, you need UPDATE privilege.
 
+The alternative is to disable the automatic LOB Locator processing.
 If L</ora_auto_lob> is 0 in prepare(), you can fetch the LOB Locators and
-do all the work yourself using Oracle::OCI.
+do all the work yourself using the ora_lob_*() methods and/or Oracle::OCI.
+See the L</LOB Methods> section below.
 
-=head2 Binding Cursors
+=head2 LOB Locator Methods
 
-Cursors can now be returned from PL/SQL blocks. Either from stored
+The following driver-specific methods let you manipulate "LOB Locators".
+LOB locators can be selected from tables directly, if the C<ora_auto_lob>
+attribute is false, or returned via PL/SQL procedure calls.
+
+(If using a DBI version earlier than 1.36 they must be called via the
+func() method. Note that methods called via func() don't honour
+RaiseError etc, and so it's important to check $dbh->err after each call.
+It's recommended that you upgrade to DBI 1.38 or later.)
+
+B<Warning:> Currently multi-byte character set issues have not been
+fully worked out.  So these methods may not do what you expect if
+either the perl data is utf8 or the CLOB is a multi-byte character set
+(including uft8). The current behaviour in these situations may not be
+correct and is B<subject to change>. I<Testing and patches are most welcome.>
+
+=over 4
+
+=item ora_lob_read
+
+  $data = $dbh->ora_lob_read($lob_locator, $offset, $length);
+
+Read a portion of the LOB. $offset starts at 1.
+Uses the Oracle OCILobRead function.
+
+=item ora_lob_write
+
+  $rc = $dbh->ora_lob_write($lob_locator, $offset, $data);
+
+Write/overwrite a portion of the LOB. $offset starts at 1.
+Uses the Oracle OCILobWrite function.
+
+=item ora_lob_append
+
+  $rc = $dbh->ora_lob_append($lob_locator, $data);
+
+Append $data to the LOB.
+Uses the Oracle OCILobWriteAppend function.
+
+=item ora_lob_trim
+
+  $rc = $dbh->ora_lob_trim($lob_locator, $length);
+
+Trims the length of the LOB to $length.
+Uses the Oracle OCILobTrim function.
+
+=item ora_lob_length
+
+  $length = $dbh->ora_lob_length($lob_locator);
+
+Returns the length of the LOB.
+Uses the Oracle OCILobGetLength function.
+
+=back
+
+=head2 LOB Locator Method Examples
+
+I<Note:> Make sure you first read the note in the section above about
+multi-byte character set issues with these methods.
+
+The following examples demonstrate the usage of LOB Locators
+to read, write, and append data, and to query the size of
+large data.
+
+The following examples assume a table containing two large
+object columns, one binary and one character, with a primary
+key column, defined as follows:
+
+   CREATE TABLE lob_example (
+      lob_id      INTEGER PRIMARY KEY,
+      bindata     BLOB,
+      chardata    CLOB
+   )
+
+It also assumes a sequence for use in generating unique
+lob_id field values, defined as follows:
+
+   CREATE SEQUENCE lob_example_seq
+
+
+=head2 Example: Inserting a new row with large data
+
+Unless enough memory is available to store and bind the
+entire lob data for insert all at once, the lob columns must
+be written iteratively, piece by piece.  In the case of a new row,
+this is performed by first inserting a row, with empty values in
+the lob columns, then modifying the row by writing the large data
+iteratively to the lob columns using their LOB locators as handles.
+
+The insert statement must create token values in the lob
+columns.  Here, we use the empty string for both the binary
+and character large object columns 'bindata' and 'chardata'.
+
+After the INSERT statement, a SELECT statement is used to
+acquire lob locators to the 'bindata' and 'chardata' fields
+of the newly inserted row.  Because these lob locators are
+subsequently written, they must be acquired from a select
+statement containing the clause 'FOR UPDATE' (lob locators
+are only valid within the transaction that fetched them, so
+can't be used effectively if AutoCommit is enabled).
+
+   my $lob_id = $dbh->selectrow_array( <<"   SQL" );
+      SELECT lob_example_seq.nextval FROM DUAL
+   SQL
+
+   my $sth = $dbh->prepare( <<"   SQL" );
+      INSERT INTO lob_example
+      ( lob_id, bindata, chardata )
+      VALUES ( ?, ?, ? )
+   SQL
+   $sth->execute( $lob_id, '', '' );
+
+   $sth = $dbh->prepare( <<"   SQL", { ora_auto_lob => 0 } );
+      SELECT bindata, chardata
+      FROM lob_example
+      WHERE lob_id = ?
+      FOR UPDATE
+   SQL
+   $sth->execute( $lob_id );
+   my ( $bin_locator, $char_locator ) = $sth->fetchrow_array();
+   $sth->finish();
+
+   open BIN_FH, "/binary/data/source" or die;
+   open CHAR_FH, "/character/data/source" or die;
+   my $chunk_size = 4096;   # Arbitrary chunk size
+
+   # BEGIN WRITING BIN_DATA COLUMN
+   my $offset = 1;   # Offsets start at 1, not 0
+   my $length = 0;
+   my $buffer = '';
+   while( $length = read( BIN_FH, $buffer, $chunk_size ) ) {
+      $dbh->ora_lob_write( $bin_locator, $offset, $length );
+      $offset += $length;
+   }
+
+   # BEGIN WRITING CHAR_DATA COLUMN
+   $offset = 1;   # Offsets start at 1, not 0
+   $length = 0;
+   $buffer = '';
+   while( $length = read( CHAR_FH, $buffer, $chunk_size ) ) {
+      $dbh->ora_lob_write( $char_locator, $offset, $length );
+      $offset += $length;
+   }
+
+
+In this example we demonstrate the use of ora_lob_write()
+iteratively to append data to the columns 'bin_data' and
+'char_data'.  Had we used ora_lob_append(), we could have
+saved ourselves the trouble of keeping track of the offset
+into the lobs.  The snippet of code beneath the comment
+'BEGIN WRITING BIN_DATA COLUMN' could look as follows:
+
+   my $buffer = '';
+   while ( read( BIN_FH, $buffer, $chunk_size ) ) {
+      $dbh->ora_lob_append( $bin_locator, $buffer );
+   }
+
+The scalar variables $offset and $length are no longer
+needed, because ora_lob_append() keeps track of the offset
+for us.
+
+
+=head2 Example: Updating an existing row with large data
+
+In this example, we demonstrate a technique for overwriting
+a portion of a blob field with new binary data.  The blob
+data before and after the section overwritten remains
+unchanged.  Hence, this technique could be used for updating
+fixed length subfields embedded in a binary field.
+
+   my $lob_id = 5;   # Arbitrary row identifier, for example
+
+   $sth = $dbh->prepare( <<"   SQL", { ora_auto_lob => 0 } );
+      SELECT bindata
+      FROM lob_example
+      WHERE lob_id = ?
+      FOR UPDATE
+   SQL
+   $sth->execute( $lob_id );
+   my ( $bin_locator ) = $sth->fetchrow_array();
+
+   my $offset = 100234;
+   my $data = "This string will overwrite a portion of the blob";
+   $dbh->ora_lob_write( $bin_locator, $offset, $data );
+
+After running this code, the row where lob_id = 5 will
+contain, starting at position 100234 in the bin_data column,
+the string "This string will overwrite a portion of the blob".
+
+=head2 Example: Streaming character data from the database
+
+In this example, we demonstrate a technique for streaming
+data from the database to a file handle, in this case
+STDOUT.  This allows more data to be read in and written out
+than could be stored in memory at a given time.
+
+   my $lob_id = 17;   # Arbitrary row identifier, for example
+
+   $sth = $dbh->prepare( <<"   SQL", { ora_auto_lob => 0 } );
+      SELECT chardata
+      FROM lob_example
+      WHERE lob_id = ?
+   SQL
+   $sth->execute( $lob_id );
+   my ( $char_locator ) = $sth->fetchrow_array();
+
+   my $chunk_size = 1034;   # Arbitrary chunk size, for example
+   my $offset = 1;   # Offsets start at 1, not 0
+   while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) {
+      print STDOUT $data;
+   }
+
+Notice that the select statement does not contain the phrase
+"FOR UPDATE".  Because we are only reading from the lob
+locator returned, and not modifying the lob it refers to,
+the select statement does not require the "FOR UPDATE"
+clause.
+
+=head2 Example: Truncating existing large data
+
+In this example, we truncate the data already present in a
+large object column in the database.  Specifically, for each
+row in the table, we truncate the 'bindata' value to half
+its previous length.
+
+After acquiring a lob locator for the column, we query its
+length, then we trim the length by half.  Because we modify
+the large objects with the call to ora_lob_trim(), we must
+select the lob locators 'FOR UPDATE'.
+
+   my $sth = $dbh->prepare( <<"   SQL", { ora_auto_lob => 0 } );
+      SELECT bindata
+      FROM lob_example
+      FOR UPATE
+   SQL
+   $sth->execute();
+   while( my ( $bin_locator ) = $sth->fetchrow_array() ) {
+      my $binlength = $dbh->ora_lob_length( $bin_locator );
+      if( $binlength > 0 ) {
+         $dbh->ora_lob_trim( $bin_locator, $binlength/2 );
+      }
+   }
+
+=head1 Binding Cursors
+
+Cursors can be returned from PL/SQL blocks. Either from stored
 procedure OUT parameters or from direct C<OPEN> statements, as show below:
 
   use DBI;
@@ -1751,6 +2170,7 @@ arguments in call to ...".
 
 Here's an alternative form using a function that returns a cursor:
 
+  # Create the function that returns a cursor
   $sth1 = $dbh->prepare(q{
     CREATE OR REPLACE FUNCTION sp_ListEmp RETURN types.cursorType
     AS l_cursor types.cursorType;
@@ -1759,16 +2179,141 @@ Here's an alternative form using a function that returns a cursor:
       RETURN l_cursor;
     END;
   });
-  $sth2 = $dbh->prepare(q{BEGIN :cursor := sp_ListEmp; END;});
+  # CREATE is executed in prepare().
+
+  # Use the function that returns a cursor
+  $sth1 = $dbh->prepare(q{BEGIN :cursor := sp_ListEmp; END;});
+  my $sth2;
+  $sth1->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
+  $sth1->execute;
+  # $sth2 is now a valid DBI statement handle for the cursor
+  while ( @row = $sth2->fetchrow_array ) { ... }
 
 To close the cursor you (currently) need to do this:
 
-  $sth3 = $dbh->prepare("BEGIN CLOSE :cursor END");
+  $sth3 = $dbh->prepare("BEGIN CLOSE :cursor; END;");
   $sth3->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
   $sth3->execute;
 
 See the C<curref.pl> script in the Oracle.ex directory in the DBD::Oracle
 source distribution for a complete working example.
+
+=head1 Returning A Recordset
+
+DBD::Oracle does not currently support binding a PL/SQL table (aka array)
+as an IN OUT parameter to any Perl data structure.  You cannot therefore call
+a PL/SQL function or procedure from DBI that uses a non-atomic data type as
+either a parameter, or a return value.  However, if you are using Oracle 9.0.1
+or later, you can make use of table (or pipelined) functions.
+
+For example, assume you have the existing PL/SQL Package :
+
+CREATE OR REPLACE PACKAGE Array_Example AS
+    --
+    TYPE tRec IS RECORD (
+        Col1    NUMBER,
+        Col2    VARCHAR2 (10),
+        Col3    DATE) ;
+    --
+    TYPE taRec IS TABLE OF tRec INDEX BY BINARY_INTEGER ;
+    --
+    FUNCTION Array_Func RETURN taRec ;
+    --
+END Array_Example ;
+
+CREATE OR REPLACE PACKAGE BODY Array_Example AS
+--
+FUNCTION Array_Func RETURN taRec AS
+--
+    l_Ret       taRec ;
+--
+BEGIN
+    FOR i IN 1 .. 5 LOOP
+        l_Ret (i).Col1 := i ;
+        l_Ret (i).Col2 := 'Row : ' || i ;
+        l_Ret (i).Col3 := TRUNC (SYSDATE) + i ;
+    END LOOP ;
+    RETURN l_Ret ;
+END ;
+--
+END Array_Example ;
+/
+
+Currently, there is no way to directly call the function
+Array_Example.Array_Func from DBI.  However, by making the following relatively
+painless additions, its not only possible, but extremely efficient.
+
+First, you need to create database object types that correspond to the record
+and table types in the package.  From the above example, these would be :
+
+  CREATE OR REPLACE TYPE tArray_Example__taRec
+  AS OBJECT (
+      Col1    NUMBER,
+      Col2    VARCHAR2 (10),
+      Col3    DATE
+  ) ;
+
+  CREATE OR REPLACE TYPE taArray_Example__taRec
+  AS TABLE OF tArray_Example__taRec ;
+
+Now, assuming the existing function needs to remain unchanged (it is probably
+being called from other PL/SQL code), we need to add a new function to the
+package.  Here's the new package specification and body :
+
+  CREATE OR REPLACE PACKAGE Array_Example AS
+      --
+      TYPE tRec IS RECORD (
+	  Col1    NUMBER,
+	  Col2    VARCHAR2 (10),
+	  Col3    DATE) ;
+      --
+      TYPE taRec IS TABLE OF tRec INDEX BY BINARY_INTEGER ;
+      --
+      FUNCTION Array_Func RETURN taRec ;
+      FUNCTION Array_Func_DBI RETURN taArray_Example__taRec PIPELINED ;
+      --
+  END Array_Example ;
+
+  CREATE OR REPLACE PACKAGE BODY Array_Example AS
+  --
+  FUNCTION Array_Func RETURN taRec AS
+      l_Ret  taRec ;
+  BEGIN
+      FOR i IN 1 .. 5 LOOP
+	  l_Ret (i).Col1 := i ;
+	  l_Ret (i).Col2 := 'Row : ' || i ;
+	  l_Ret (i).Col3 := TRUNC (SYSDATE) + i ;
+      END LOOP ;
+      RETURN l_Ret ;
+  END ;
+
+  FUNCTION Array_Func_DBI RETURN taArray_Example__taRec PIPELINED AS
+      l_Set  taRec ;
+  BEGIN
+      l_Set := Array_Func ;
+      FOR i IN l_Set.FIRST .. l_Set.LAST LOOP
+	  PIPE ROW (
+	      tArray_Example__taRec (
+		  l_Set (i).Col1,
+		  l_Set (i).Col2,
+		  l_Set (i).Col3
+	      )
+	  ) ;
+      END LOOP ;
+      RETURN ;
+  END ;
+  --
+  END Array_Example ;
+
+As you can see, the new function is very simple.  Now, it is a simple matter
+of calling the function as a straight-forward SELECT from your DBI code.  From
+the above example, the code would look something like this :
+
+  my $sth = $dbh->prepare('SELECT * FROM TABLE(Array_Example.Array_Func_DBI)');
+  $sth->execute;
+  while ( my ($col1, $col2, $col3) = $sth->fetchrow_array {
+    ...
+  }
 
 =head1 Timezones
 
@@ -1782,10 +2327,10 @@ users to the appropriate listener by setting TNS_ADMIN to a directory
 that contains a tnsnames.ora file that points to the port that their
 listener is on.
 
-[Brad Howerter, who supplied this info said: I've done this to simulate
+[Brad Howerter, who supplied this info said: "I've done this to simulate
 running a perl script at the end of the previous month even though it
 was the 6th of the new month.  I had the dba start up a listener with
-TZ=X+144.  (144 hours = 6 days)]
+TZ=X+144.  (144 hours = 6 days)"]
 
 
 =head1 Oracle Related Links
@@ -1823,8 +2368,11 @@ Also PL/Vision from RevealNet and Steven Feuerstein, and
 
 L<DBI>
 
-http://search.cpan.org/author/TIMB/DBD-Oracle/MANIFEST for all files in
-the DBD::Oracle source distribution including the examples in Oracle.ex/.
+http://search.cpan.org/~timb/DBD-Oracle/MANIFEST for all files in
+the DBD::Oracle source distribution including the examples in the
+Oracle.ex directory
+
+  http://search.cpan.org/search?query=Oracle&mode=dist
 
 =head1 AUTHOR
 
@@ -1832,7 +2380,8 @@ DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
 
 =head1 COPYRIGHT
 
-The DBD::Oracle module is Copyright (c) 1995,1996,1997,1998,1999 Tim Bunce. England.
+The DBD::Oracle module is Copyright (c) 1994-2004 Tim Bunce. Ireland.
+
 The DBD::Oracle module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself with the exception that it
 cannot be placed on a CD-ROM or similar media for commercial distribution
@@ -1842,8 +2391,10 @@ copy of the majority of the CPAN archive.
 =head1 ACKNOWLEDGEMENTS
 
 A great many people have helped me over the years. Far too many to
-name, but I thank them all.
+name, but I thank them all. Many are named in the Changes file.
 
 See also L<DBI/ACKNOWLEDGEMENTS>.
 
 =cut
+
+

@@ -10,6 +10,8 @@ bind.pl     Demonstrates how execute() and fetchrow_array() may be
 
 commit.pl   Demonstrates the use of commit() and rollback().
 
+curref.pl   Demonstrates how to use a cursor bind variable.
+
 ex.pl       Reads data from a table and prints it using a format.
             Also illustrates how to recognise NULL fields and bind_columns
             with known column names.

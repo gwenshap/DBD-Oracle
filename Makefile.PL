@@ -2,6 +2,7 @@
 ##
 ##  You should not need to edit this file.
 ##
+#vim: ts=8:sw=4
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.004 }
@@ -17,7 +18,7 @@ use strict;
 # For those not using Dynamic loading this means building a
 # new static perl in the DBI directory by saying 'make perl'
 # and then using _that_ perl to make this one.
-use DBI 1.20;
+use DBI 1.28;
 use DBI::DBD;	# DBD creation tools
 
 
@@ -70,6 +71,7 @@ my %mk_target_rules;
 # Options (rarely needed)
 # to turn off an option prefix with 'no', ie 'perl Makefile.PL -nob'
 $::opt_b = 1;	# try to use Oracle's own 'build' rule
+$::opt_r = 'build'; # With -b above, use this names build rule (eg -r=build64)
 $::opt_m = 0;	# path to proc.mk or oracle.mk file to read
 $::opt_p = '';	# alter preference for oracle.mk over proc
 $::opt_n = '';	# Oracle .mk macro name to use for library list to link with
@@ -84,15 +86,16 @@ $::opt_8 = 0;	# disable use of OCI 8 (where available)
 $::opt_f = 0;	# include text of oracle's .mk file within generated Makefile
 $::opt_F = 0;	# force - ignore errors
 $::opt_W = 0;	# just write a basic default Makefile (won't build)
+$::opt_ProC= 0;	# enable integration with ProC
 
 Getopt::Long::config( qw( no_ignore_case ) );
-GetOptions(qw(b! v! d! g! p! l! c! 8! f! F! W! m=s n=s s=s S=s))
+GetOptions(qw(b! r=s v! d! g! p! l! c! 8! f! F! W! m=s n=s s=s S=s ProC!))
 	or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
 $::opt_v = 1 if $::opt_d;
 $Verbose = 1 if $::opt_v;
-my $is_me = (-d "/home/timbo/dbi" && ($ENV{LOGNAME}||'') eq 'timbo'); # a reasonable guess
+my $is_me = (($ENV{LOGNAME}||'') eq 'timbo' and -d "/home/timbo/dbi/RCS");
 
 if ($::opt_W) {
     open(MK_PM, ">/dev/null") or die "Unable to create mk.pm: $!";
@@ -124,7 +127,7 @@ die qq{  The $ORACLE_ENV environment variable must be set.
 
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
-  on this machine (or a compatible archtecture).
+  on this machine (or a machine with a compatible architecture)
   See the README.clients file for more information.
   ABORTED!
 } unless (($os eq 'VMS') ? -d $OH : -d "$OH/lib/.");
@@ -132,7 +135,8 @@ die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
 print "Using Oracle in $OH\n";
 
 # We'll try to dig up some Oracle version information. Not essential.
-my (@inspdver, %inspdver); $inspdver{RDBMS} = 0;
+my @inspdver;
+my %inspdver = ( RDBMS => 0, rdbms_ver => 0 );
 if ($os ne 'VMS' and $os ne 'MSWin32' ) {
 
    if (open INST, "<$OH/install/unix.rgs") {
@@ -161,7 +165,13 @@ if ($os ne 'VMS' and $os ne 'MSWin32' ) {
     elsif ( "$OH/" =~ m!\D(1?\d)(\d)(\d)\D!) { # scary but handy
         $inspdver{RDBMS} = join ".", $1, $2, $3;
     }
-    else {
+
+    # hack up a simple floating point form of the version: 8.1.6 => 8.106
+    ($inspdver{rdbms_ver} = $inspdver{RDBMS}) =~ s/^(\d+\.\d+)\.(\d+).*/${1}0$2/;
+
+    print "Oracle version $inspdver{RDBMS} ($inspdver{rdbms_ver})\n" if $inspdver{RDBMS};
+
+    if (!DBI::looks_like_number($inspdver{rdbms_ver}) || $inspdver{rdbms_ver} < 7 || $inspdver{rdbms_ver} > 10) {
         print qq{
 WARNING: could not decode oracle version from
 $OH/orainst/inspdver, or $OH/install/unix.rgs
@@ -177,21 +187,14 @@ Oracle version based logic in Makefile.PL may produce erroneous results.
 	sleep 5;
     }
 }
-print "Oracle version $inspdver{RDBMS}\n" if $inspdver{RDBMS};
-# hack up a simple floating point form of the version: 8.1.6 => 8.106
-($inspdver{rdbms_ver} = $inspdver{RDBMS}) =~ s/^(\d+\.\d+)\.(\d+)/${1}0$2/;
-#print "\ninspdver{rdbms_ver}=". $inspdver{rdbms_ver} ."\n";
 
 # Check for symbol table problem in libclntsh.dylib.9.0 on MacOS X
 if ($os eq 'darwin') {
-    my $oracle_lib = "$OH/lib/libclntsh.dylib.9.0";
+    my $oracle_lib = "$OH/lib/libclntsh.dylib";
     open FH,"nm $oracle_lib |";
     my $stripped = 1;
     while (<FH> ) {
-	if (/^\s+U _(dlsym|dlclose)/) {
-	    $stripped = 0;
-	    last;
-	}
+	if (/^\s+U _(dlsym|dlclose)/) { $stripped = 0; last; }
     }
     close FH;
     unless ($stripped) {
@@ -199,16 +202,14 @@ if ($os eq 'darwin') {
     }
 }
 
-my @h_dirs = find_headers();
-
 symbol_search() if $::opt_s or $::opt_S;
 
 
 # --- How shall we link with Oracle? Let me count the ways...
 
 my @mkfiles;
-my $linkwith;
-my $linkwith_msg;
+my $linkwith = "";
+my $linkwith_msg = "";
 my $need_ldlp_env;
 
 if ($os eq 'VMS') {
@@ -291,19 +292,18 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
     $linkwith_msg = "-l$lib.";
     my $syslibs = read_sysliblist();
     print "Oracle sysliblist: $syslibs\n";
-    my $libdir = 'lib';
-    #Lincoln: if hpux, pick the right library path
-    if ( $os eq 'hpux' and $osvers >= 11 ) {
-	$libdir = hpux_libdir();
-    }
+    my $libdir = ora_libdir();
     $opts{LIBS} = [ "-L$OH/$libdir -l$lib $syslibs" ];
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
+    my @h_dirs = find_headers();
     my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
     $opts{INC}  = "$inc -I$dbi_arch_dir";
 }
 else {	# --- trawl the guts of Oracle's make files looking the how it wants to link
 
-    my @ora_libs = <$OH/lib/lib*>;
+    #Lincoln: pick the right library path
+    my $libdir = ora_libdir();
+    my @ora_libs = <$OH/$libdir/lib*>;
     if (@ora_libs < 6) { # just a helpful hint
 	warn "\nYou don't seem to have many Oracle libraries installed. If the"
 	    ."\nbuild fails you probably need to install more Oracle software.\n\n";
@@ -327,18 +327,22 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     my $libhome = expand_mkvars($MK{LIBHOME}, 0, 1) || "$OH/lib";
     $linkwith = expand_mkvars($linkvia, 0, 1);
 
-    #Lincoln: if hpux, pick the right library path
-    if ( $os eq 'hpux' and $osvers >= 11 ) {
-        my $libdir = hpux_libdir();
-        $linkwith =~ s!/lib\b!/$libdir!g; 
-        $libhome =~ s!/lib\b!/$libdir!g; 
-        #print "linkwith=$linkwith\n";
-    }
+    #now use logic based of oracle version 
+    $linkwith =~ s!/lib\b!/$libdir!g; 
+    $libhome =~ s!/lib\b!/$libdir!g; 
+    #print "linkwith=$linkwith\n";
 
 
-    if ($mk_target_rules{build} && $::opt_b) {
+    my @build_rules = grep { $mk_target_rules{$_} } qw(build build64 build32);
+    if (@build_rules && $::opt_b) {
 	print "\n";
-	print "Attempting to discover Oracle OCI build rules\n";
+
+	my $build_target = "build";
+	$build_target = "build32" if $mk_target_rules{build32};
+	$build_target = "build64" if $mk_target_rules{build64} && perl_is_64bit();
+	$build_target = $::opt_r if $::opt_r;
+
+	print "Attempting to discover Oracle OCI $build_target rules\n";
 
 	# create dummy C file to keep 'make $mkfile' happy
 	my $DBD_ORA_OBJ = 'DBD_ORA_OBJ';
@@ -349,65 +353,48 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	sleep 2; #
 	system("make $DBD_ORA_OBJ.o CC='$Config{cc}'"); # make a valid .o file.
 
-	my $make = "$Config{make} -f $mkfile build"
+	my $make = "$Config{make} -f $mkfile $build_target"
 		." ECHODO=echo ECHO=echo GENCLNTSH='echo genclntsh' CC=echo"
 		." OPTIMIZE= CCFLAGS="
 		." EXE=DBD_ORA_EXE OBJS=$DBD_ORA_OBJ.o";
-	print "by executing: ($make)\n";
+	print "by executing: [$make]\n";
 	my @cmds = `$make 2>&1`;
-	print "returned:\n[".join("\n[",@cmds)."]\n" if $::opt_v;
+	chomp @cmds;
+	print "returned:\n[".join("]\n[",@cmds)."]\n" if $::opt_v;
 	warn "Warning: Oracle build rule discovery failed ($?)\n" if $?;
-	warn "Add path to $Config{make} command into your PATH env var.\n"
-		if $? && "@cmds" =~ /make: not found/; # hint
+	warn "Add path to $Config{make} command into your PATH environment variable.\n"
+		if $? && "@cmds" =~ /make.*not found/; # hint
 
 	my @filtered_cmds;
         while (my $line = shift @cmds) {
 	    # join lines split with \'s
 	    while ($line =~ s/\\$/ /)  { $line .= shift @cmds; }
 	    # remove any echo's as the following line should be the result of the echo
-	    if ($line =~ /^\s*echo\s+/) {
-		$line = shift @cmds; # replace line with the next one
-		$line =~ s/^echo\s+//; # handle " echo echo ..." case
-	    }
+	    next if $line =~ /^\s*\S*echo\s+/;
+	    next if $line =~ /^\s*\S*make\s+/; # remove recursive calls to make
 	    next if $line =~ /^\s*$/; # remove any blank lines
 	    push @filtered_cmds, $line;
 	}
 	@cmds = @filtered_cmds;
 
-	print "reduced to:\n[".join("\n[",@cmds)."]\n" if $::opt_v;
-
-	# expand any shell-escapes that remain 
-	#@cmds = map { s/`(.*?[^\\])`/expand_shellescape("$1", 1)/esg; $_ } @cmds;
+	print "reduced to:\n[".join("]\n[",@cmds)."]\n" if $::opt_v;
 
 	my @prolog; push @prolog, shift @cmds while @cmds && $cmds[0] !~ /DBD_ORA_EXE/;
-	print "Oracle oci build prolog:\n\t+ ",  join("\n\t+ ", @prolog), "\n" if @prolog;
-	print "Oracle oci build command:\n\t+ ", join("\n\t+ ", @cmds), "\n";
- 	if (@cmds == 2) {
- 		# Newer Oracle (>8.0.5, it seems) seem to disregard ECHODO, in
- 		# which case the make output probably looked like this:
- 		#      echo foo `bar` baz
- 		#      foo shell-expanded-bar baz
- 		# So let's check for that, and fix things up if so
- 		if (my($foo) = ($cmds[0] =~ /^echo\s+([^`]+)`/)) {
- 			if ($cmds[1] =~ /^$foo/) {
- 				# The second line looks like the expanded
- 				# version of the first; let's fix it up like
- 				# we're expecting it to look and use it
- 				@cmds = ("true echo $cmds[1]");
- 			}
- 		}
- 	}
-	if (@cmds == 1) {
-	    my $build = $cmds[0];
-	    #$build =~ s/^\s*(true\s+)?(\S+)\s*//;	# remove 'true' and compiler/linker
-	    $build =~ s/$DBD_ORA_OBJ.o//;		# remove dummy object file
+	print "Oracle oci build prolog:\n \t[", join("]\n\t[", @prolog), "]\n" if @prolog;
+	print "Oracle oci build command:\n\t[", join("]\n\t[", @cmds  ), "]\n";
+	if (@cmds == 1 && (my $build = shift @cmds) =~ /DBD_ORA_EXE/) {
+	    $build =~ s/$DBD_ORA_OBJ.o//;	# remove dummy object file
 	    $build =~ s/\S+\s+DBD_ORA_EXE//;	# remove dummy exe file and preceding flag
+	    $build =~ s/-o build\S*//;		# remove -o target that confuses gcc at least on Sun
 	    $linkwith = $build;
 	    # delete problematic crt?.o on solaris
 	    $linkwith = del_crtobj($linkwith, 1) if $os eq 'solaris';
 	}
 	else {
-	    print "Unable to interpret Oracle build commands from $mkfile. Using fallback approach.\n";
+	    print "Unable to interpret Oracle build commands from $mkfile.\a\n";
+	    print "(Will continue by using fallback approach.)\n";
+	    print "Please report this to dbi-users\@perl.org. See README for what to include.\n";
+	    sleep 2;
 	    $::opt_b = 0;
 	}
 	unlink "$DBD_ORA_OBJ.c", "$DBD_ORA_OBJ.o" unless $os eq 'darwin';
@@ -429,31 +416,38 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     $linkwith =~ s:-R /:-R/:g if $os eq 'solaris';
 
     # modifications (mostly) by lbaxter@fleetcc.com
-    if ( ($os eq 'hpux') && ($osvers > 10) && ($Config{'cc'} eq 'cc') )
+    if ( ($os eq 'hpux') && ($osvers > 10) && (
+        $Config{'cc'} eq 'cc' or $Config{'gccversion'}) ) 
     {
         # these get dragged in from demo_rdbms.mk where Oracle uses them
         # the linker bitches about them not being valid options
         # in this context
-        $linkwith =~ s/-Wl,\+[sn]//g;
+
+        # (on my system, using gcc, the flags can't be removed entirely;
+        # instead, they have to be converted to the ld-compatible equivs.
+        # -- Sweth (<svc@sweth.net>)
+        if ( $Config{'cc'} eq 'cc' ) {
+           $linkwith =~ s/-Wl,\+[sn]//g;
+        } elsif ( $Config{'gccversion'} ) {
+           $linkwith =~ s/-Wl,(\+[sn])/$1/g;
+        };
 
         # Oracle 8.0.5 drags in these which also cause link errors:
         # this produces a good link with the 32bit version of oracle
         # (64bit version of 8.0.5 fails to link
         # someone else will have to hack that one out)
         $linkwith =~ s/\+D[AS]2\.0[W]* / /g;
-        #Lincoln: if hpux, pick the right library path
-        if ( $os eq 'hpux' and $osvers >= 11 ) {
-            my $libdir = hpux_libdir();
-            $linkwith =~ s!/lib\b!/$libdir!g; 
-            #print "linkwith=$linkwith\n";
-        }
+
+        #Lincoln: pick the right library path
+        my $libdir = ora_libdir();
+        $linkwith =~ s!/lib\b!/$libdir!g; 
 
         # A number of folks have had to add this library to resolve
         # undefined symbol errors reported at runtime by ld.sl (the 
         # library loader) libqsmashr defines LhrStringInsert()...
         # other libraries may have to be added (Lincoln Baxter <lbaxter@fleetcc.com>)
         # we check for the library's existence first... (8.0.5 does not have it)
-        if ( -r "$OH/lib/libqsmashr.sl" ) {
+        if ( -r "$OH/$libdir/libqsmashr.sl" ) {
            $linkwith =~ s/$/ -lqsmashr/ if ( $linkwith !~ m/-lqsmshr/ );
         }
 
@@ -508,10 +502,17 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
         }
 
         my $ccf = join " ", map { $_ || '' } @Config{qw(ccflags ccldflags cccdlflags)};
-        unless ($ccf =~ m/\+[zZ]/) {
+        if ($Config{cc} =~ /gcc/i) {
+	    print "Warning: perl was not built with -fpic or -fPIC in compiler flags.\n",
+		  "         You may need to rebuild perl from sources.\n",
+		  "         See instructions in README.hpux\n"
+		unless $ccf =~ m/-fpic\b/i;
+        }
+        else {
             print "Warning: perl was not built with +z or +Z in compiler flags.\n",
                   "         You may need to rebuild perl from sources.\n",
-                  "         See instructions in README.hpux\n";
+                  "         See instructions in README.hpux\n"
+        	unless $ccf !~ m/\+[zZ]/;
         }
     }
 
@@ -558,6 +559,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 
     my $OCIINCLUDE = expand_mkvars($MK{INCLUDE} || '', 0, 0);
     $OCIINCLUDE .= " -I$OH/rdbms/demo";
+    my @h_dirs = find_headers();
     my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
     $opts{INC}  = "$OCIINCLUDE $inc -I$dbi_arch_dir";
 }
@@ -572,6 +574,8 @@ if ($::opt_g && $os eq "MSWin32" && $Config::Config{cc} eq "cl") {
 $opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{gccversion} eq 'gcc';
 
 $opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
+
+$opts{DEFINE} .= ' -DCAN_USE_PRO_C' if $::opt_ProC;
 
 if ($::opt_8) {
     $opts{DEFINE} .= ' -DNO_OCI8';
@@ -606,26 +610,28 @@ if ($os eq 'hpux') {
 	print "*** Warning: If you have trouble, see README.hpux...\n"
 	     ."    you may have to build your own perl, or go hunting for libraries\n";
     }
+    print "*** Warning: If you have trouble, try perl Makefile.PL -l\n" unless $::opt_l;
     print "***$BELL\n";
     sleep 3;
-    $opts{DEFINE} .= ' $(HP64DEFINES)' if ($Config{archname} =~ /-thread\b/i and hpux_lib64());
+    $opts{DEFINE} .= ' $(HP64DEFINES)' if ($Config{archname} =~ /-thread\b/i and perl_is_64bit());
     # see also const_cccmd for -Aa to -Ae flag change
 }
 
 
 # --- check for Test::Harness bug 
 
+print "\nChecking for functioning wait.ph\n";
 eval { package WAIT; require 'wait.ph' };
 if (!$@ && !defined(&WAIT::WCOREDUMP)) { 
-    print "\n";
     print "You have a wait.ph file generated by perl h2ph utility.\n";
+    print "(I found it at $INC{'wait.ph'})\n";
     print "It does not define a WCOREDUMP function. That's probably an error.\n";
     print "If a DBD::Oracle test fails then you will probably see a message\n";
     print "from Test::Harness about WCOREDUMP being undefined. You can either ignore\n";
-    print "it or try to fix your wait.ph file. The message does not reflect the\n";
+    print "it or try to fix your wait.ph file. The message DOES NOT reflect the\n";
     print "cause of the test failure, it's just a problem interpreting the failure.\n";
-    print "\n";
 } 
+print "\n";
 
 
 # --- display summary information
@@ -828,7 +834,6 @@ sub read_sysliblist {
     my $syslibs = (-f "$OH/lib/sysliblist")
 	? read_file("$OH/lib/sysliblist")
 	: (-f "$OH/rdbms/lib/sysliblist") ? read_file("$OH/rdbms/lib/sysliblist") : '';
-    #$syslibs =~ s/-l:lib(\w+).(sl|a)\b/-l$1/g if $os eq 'hpux';
     if ($os eq "hpux") {
        $syslibs =~ s/-l:lib(\w+).(sl|a)\b/-l$1/g;
        $linkwith =~ m/-lcl\b/ or
@@ -838,20 +843,20 @@ sub read_sysliblist {
 }
 
 
-sub hpux_lib64 {
-    return ( $Config{ccflags} =~ /\+D(D64|A2\.0w)\b/ );
+sub perl_is_64bit { 
+    return defined $Config{use64bitall} ;
 }
-sub hpux_libdir {
+sub ora_libdir {
     my $libdir = 'lib' ;
-    if ( $inspdver{rdbms_ver} >= 9 ) {
-	$libdir = 'lib32' if !hpux_lib64();
+    if ( $inspdver{rdbms_ver} >= 9 )
+    {
+	$libdir = 'lib32' if ! perl_is_64bit() and -d "$OH/lib32";
     }
     elsif ( $inspdver{rdbms_ver} >= 8 ) {
-        $libdir = 'lib64' if hpux_lib64();
+        $libdir = 'lib64' if perl_is_64bit() and -d "$OH/lib64";
     }
     return $libdir;
 }
-
 
 sub del_crtobj {
     my $orig = shift;
@@ -1331,14 +1336,11 @@ You have an old copy which you should delete when installing this one.\n";
 	my ($ldrp) = m/^LD_RUN_PATH\s*=\s*(.*)/m;
 	# remove redundant /lib or /usr/lib as it can cause problems
 	$ldrp =~ s!:(/usr)?/lib$!!;
-	# if it's empty then set it manually
-	$ldrp ||= "$OH/lib:$OH/rdbms/lib";
-        #Lincoln: if hpux, pick the right library path
-        if ( $os eq 'hpux' and $osvers >= 11 ) {
-            my $libdir = hpux_libdir();
-            $ldrp =~ s!/lib\b!/$libdir!g; 
-            #print "ldrp=$ldrp\n";
-        }
+        # if it's empty then set it manually
+        #Lincoln: if pick the right library path
+        my $libdir = main::ora_libdir();
+        $ldrp ||= "$OH/$libdir:$OH/rdbms/$libdir";
+        #print "ldrp=$ldrp\n";
 
 	# stitch it back in
 	s/^LD_RUN_PATH\s*=\s*(.*)/LD_RUN_PATH=$ldrp/m;
@@ -1492,3 +1494,5 @@ sub check_security {
 }
 
 __END__
+
+

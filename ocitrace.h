@@ -1,4 +1,5 @@
 #ifdef OCI_V8_SYNTAX
+#ifndef DBD_OCI_TRACEON
 
 /* OCI functions "wrapped" to produce tracefile dumps (may be handy when giving
   diagnostic info to Oracle Support, or just learning about OCI)
@@ -188,6 +189,15 @@
 	  (void*)cx,(void*)cb,(ub2)csi,(ub1)csf,			\
 	  oci_status_name(stat)),stat : stat
 
+#define OCILobWriteAppend_log_stat(sv,eh,lh,am,bp,bl,p1,cx,cb,csi,csf,stat) \
+	stat=OCILobWriteAppend(sv,eh,lh,am,bp,bl,p1,cx,cb,csi,csf);		\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
+	  "%sLobWriteAppend(%p,%p,%p,%p,%p,%lu,%u,%p,%p,%u,%u)=%s\n",	\
+	  OciTp, (void*)sv,(void*)eh,(void*)lh,pul_t(am),	\
+	  (void*)bp,ul_t(bl),(ub1)p1,					\
+	  (void*)cx,(void*)cb,(ub2)csi,(ub1)csf,			\
+	  oci_status_name(stat)),stat : stat
+
 #define OCIParamGet_log_stat(hp,ht,eh,pp,ps,stat)                      \
 	stat=OCIParamGet(hp,ht,eh,pp,ps);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
@@ -260,4 +270,5 @@
 	  OciTp, (void*)sh,(void*)eh,ul_t(md),				\
 	  oci_status_name(stat)),stat : stat
 
+#endif /* !DBD_OCI_TRACEON */
 #endif /* OCI_V8_SYNTAX */

@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.h,v 1.18 2003/03/12 20:33:02 timbo Exp $
+   $Id: Oracle.h,v 1.19 2003/09/29 21:13:03 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -21,11 +21,11 @@
 
 #include <dbd_xsh.h>		/* installed by the DBI module	*/
 
-#ifdef yxyxyxyx
 /* These prototypes are for dbdimp.c funcs used in the XS file          */ 
 /* These names are #defined to driver specific names in dbdimp.h        */ 
 
 void	dbd_init _((dbistate_t *dbistate));
+void	dbd_init_oci_drh _((imp_drh_t * imp_drh));
 
 int	 dbd_db_login  _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, char *pwd));
 int	 dbd_db_do _((SV *sv, char *statement));
@@ -51,7 +51,6 @@ int	 dbd_st_STORE_attrib _((SV *sth, imp_sth_t *imp_sth, SV *keysv, SV *valuesv)
 SV	*dbd_st_FETCH_attrib _((SV *sth, imp_sth_t *imp_sth, SV *keysv));
 int	 dbd_bind_ph  _((SV *sth, imp_sth_t *imp_sth,
 		SV *param, SV *value, IV sql_type, SV *attribs, int is_inout, IV maxlen));
-#endif
 
 int	 dbd_db_login6 _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, char *pwd, SV *attr));
 int    dbd_describe _((SV *sth, imp_sth_t *imp_sth));

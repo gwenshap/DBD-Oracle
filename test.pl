@@ -4,7 +4,7 @@ use ExtUtils::testlib;
 
 die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 
-# $Id: test.pl,v 1.7 2003/03/25 17:40:10 timbo Exp $
+# $Id: test.pl,v 1.8 2004/01/10 08:52:28 timbo Exp $
 #
 # Copyright (c) 1995-1998, Tim Bunce
 #
@@ -19,7 +19,7 @@ die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.7 $}."\n";
+print q{Oraperl test application $Revision: 1.8 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^(Bad|Duplicate) free/)
@@ -196,17 +196,14 @@ sub test1 {
 
 sub test2 {		# also used by test_leak()
     my $skip_sth = shift;
-    local($l) = &ora_login($dbname, $dbuser, '');
-    warn "ora_login: $ora_errno: $ora_errstr\n" if $ora_errno;
-    return unless $l;
+    my $dbh = DBI->connect("dbi:Oracle:$dbname", $dbuser, '', { RaiseError=>1 });
     unless ($skip_sth) {
-	local($c) = &ora_open($l, "set transaction read only")#"select 42,42,42,42,42,42,42 from dual")
-			    || die "ora_open: $ora_errno: $ora_errstr\n";
-	local(@row);
-	@row = &ora_fetch($c);
-	&ora_close($c)	|| warn "ora_close($c):  $ora_errno: $ora_errstr\n";
+	my $sth = $dbh->prepare("select 42,'foo',sysdate from dual where ? >= 1");
+	$sth->execute(1);
+	my @row = $sth->fetchrow_array;
+	$sth->finish;
     }
-    &ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
+    $dbh->disconnect;
 }
 
 
@@ -214,10 +211,11 @@ sub test_leak {
     local($count) = @_;
     local($ps) = (-d '/proc') ? "ps -lp " : "ps -l";
     local($i) = 0;
-    print "\nMemory leak test:\n";
+    my $skip_sth = 0;
+    print "\nMemory leak test:".($skip_sth ? " (no prepare's)" : "")."\n";
     while(++$i <= $count) {
 	system("echo $i; $ps$$") if (($i % 10) == 0);
-	&test2(1);
+	&test2($skip_sth);
     }
     system("echo $i; $ps$$") if (($i % 10) == 0);
     print "Done.\n\n";
