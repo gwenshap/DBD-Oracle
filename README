@@ -83,14 +83,18 @@ Make sure you are using a recent perl 5.003 or preferably 5.004 and
 make sure it's on your path so you can say 'perl Makefile.PL' and
 not '/path/to/perl Makefile.PL'.
 
-If you have build/link or core dump problems try using
-"perl Makefile.PL -p".  If that helps then *please* let me know.
+If you have build/link or core dump problems try using one of these:
+	perl Makefile.PL -m 0
+	perl Makefile.PL -m 0 -c
+	perl Makefile.PL -m 0 -p
+	perl Makefile.PL -m 0 -p -c
+If one of them helps then please let me know.
 
 Do not hand edit the generated Makefile unless you are completely sure
 you understand the implications! Always try to make changes via the
 Makefile.PL command line and/or editing the Makefile.PL.
 
-You should not need to make any changes. If you do *please* let me
+You should not need to make any changes. If you do please let me
 know so that I can try to make it automatic in a later release.
 
 If you just can't login or login takes a long time then read
@@ -104,13 +108,14 @@ If you have linking problems (errors related to libraries or functions)
 then you could try forcing a 'static' build using:
 
 	make realclean
-	perl Makefile.PL LINKTYPE=static
+	perl Makefile.PL -XXX LINKTYPE=static
 	make
 	make perl (you'll need to use and install _this_ new perl binary)
 	make test
 	make -f Makefile.aperl inst_perl MAP_TARGET=perl
 	make install
 
+Where -XXX are zero or more options from the -m/-p/-c set listed above.
 
 >>> Also carefully read the README.help file which is full of useful
 >>> tips and workarounds for various problems of various systems.

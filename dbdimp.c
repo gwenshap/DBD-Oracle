@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.34 1998/05/25 22:11:34 timbo Exp $
+   $Id: dbdimp.c,v 1.35 1998/06/01 18:34:16 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -220,7 +220,8 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
 	    act.sa_flags |= SA_RESTART;
 	    sigaction( SIGCLD, &act, (struct sigaction*)0 );
 	    if (dbis->debug >= 3)
-		warn("errno %d, handler %lx, flags %lx",errno,act.sa_handler,act.sa_flags);
+		warn("dbd_db_login: sigaction errno %d, handler %lx, flags %lx",
+			errno,act.sa_handler,act.sa_flags);
 	    if (dbis->debug >= 2)
 		fprintf(DBILOGFP, "    dbd_db_login: set SA_RESTART on Oracle SIGCLD handler.\n");
 	}
@@ -663,22 +664,34 @@ dbd_describe(h, imp_sth)
 
     /* --- Setup the row cache for this query --- */
 
+    /* Use guessed average on-the-wire row width calculated above	*/
+    /* and add in overhead of 5 bytes per field plus 8 bytes per row.	*/
+    /* The n*5+8 was determined by studying SQL*Net v2 packets.		*/
+    /* It could probably benefit from a more detailed anaylsis.		*/
+    est_width += num_fields*5 + 8;
+
     if (has_longs)			/* override/disable caching	*/
 	imp_sth->cache_rows = 1;	/* else read_blob can't work	*/
 
-    else if (imp_sth->cache_rows < 1) {	/* automaticaly size the cache	*/
-	/*  0 == try to pick 'optimal' cache for this query.		*/
-	/* <0 == base cache on transfer size of -n bytes (default 2048)	*/
-	/* Use guessed average on-the-wire row width calculated above	*/
-	/* + overhead of 5 bytes per field plus 8 bytes per row.	*/
-	int width = est_width + num_fields*5 + 8;
-	/* How many rows fit in 2Kb? (2Kb is a reasonable compromise)	*/
-	int hunk  = 2048;		/* default cache size		*/
-	if (imp_sth->cache_rows < 0)	/* user is specifying txfr size	*/
-	    hunk = -imp_sth->cache_rows;/* is also approx cache size	*/
-	imp_sth->cache_rows = hunk / width;
-	if (imp_sth->cache_rows < 5)	/* always cache at least 5	*/
-	    imp_sth->cache_rows = 5;
+    else if (imp_sth->cache_rows < 1) {	/* automatically size the cache	*/
+	int txfr_size;
+	/*  0 == try to pick 'optimal' cache for this query (default)	*/
+	/* <0 == base cache on target transfer size of -n bytes.	*/
+	if (imp_sth->cache_rows == 0) {
+	    /* Oracle packets on ethernet have max size of around 1460.	*/
+	    /* We'll aim to fill our row cache with slightly less than	*/
+	    /* two packets (to err on the safe side and avoid a third	*/
+	    /* almost empty packet being generated in some cases).	*/
+	    txfr_size = 1460 * 1.6;	/* default transfer/cache size	*/
+	}
+	else {	/* user is specifying desired transfer size in bytes	*/
+	    txfr_size = -imp_sth->cache_rows;
+	}
+	imp_sth->cache_rows = txfr_size / est_width;	/* maybe 1 or 0	*/
+	/* To ensure good performance with large rows (near or larger	*/
+	/* than our target transfer size) we set a minimum cache size.	*/
+	if (imp_sth->cache_rows < 6)	/* is cache a 'useful' size?	*/
+	    imp_sth->cache_rows = (imp_sth->cache_rows>0) ? 6 : 4;
     }
     if (imp_sth->cache_rows > 32767)	/* keep within Oracle's limits  */
 	imp_sth->cache_rows = 32767;
@@ -749,11 +762,12 @@ dbd_describe(h, imp_sth)
 	if (dbis->debug >= 2)
 	    fbh_dump(fbh, i, 0);
     }
+    imp_sth->est_width = est_width;
 
     if (dbis->debug >= 2)
 	fprintf(DBILOGFP,
-	    "    dbd_describe'd %d columns (Row bytes: %d max, %d avg. Will prefetch %d rows)\n",
-	    (int)num_fields, imp_sth->t_dbsize, est_width, imp_sth->cache_rows);
+	"    dbd_describe'd %d columns (Row bytes: %d max, %d est avg. Cache: %d rows)\n",
+	(int)num_fields, imp_sth->t_dbsize, est_width, imp_sth->cache_rows);
 
     if (imp_sth->cda->rc && imp_sth->cda->rc != 1007) {
 	D_imp_dbh_from_sth;
@@ -915,6 +929,17 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     phs_t *phs;
 
     /* check if placeholder was passed as a number	*/
+
+    /* possible workaround for "unknown placeholder '3'" problem	*/
+    if (!SvNIOK(ph_namesv) && !SvPOK(ph_namesv)) {
+	/* force SvPOK true before following tests		*/
+	if (dbis->debug >= 2)
+	    fprintf(DBILOGFP,
+		"         bind warning: forcing placeholder flags: type %d, flags 0x%lx\n",
+		SvTYPE(ph_namesv), SvFLAGS(ph_namesv));
+	name = SvPV(ph_namesv, name_len);
+    }
+
     if (SvNIOK(ph_namesv) || (SvPOK(ph_namesv) && isDIGIT(*SvPVX(ph_namesv)))) {
 	name = namebuf;
 	sprintf(name, ":p%d", (int)SvIV(ph_namesv));
@@ -1203,7 +1228,7 @@ dbd_st_fetch(sth, imp_sth)
 	if (rc == 1406 && dbtype_is_long(fbh->dbtype)) {
 	    /* We have a LONG field which has been truncated.		*/
 	    int oraperl = DBIc_COMPAT(imp_sth);
-	    if ((oraperl) ? SvIV(ora_trunc) : DBIc_has(imp_sth,DBIcf_LongTruncOk)) {
+	    if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(ora_trunc))) {
 		/* user says truncation is ok */
 		/* Oraperl recorded the truncation in ora_errno so we	*/
 		/* so also but only for Oraperl mode handles.		*/
@@ -1227,19 +1252,21 @@ dbd_st_fetch(sth, imp_sth)
 	} else if (rc == 1405) {	/* field is null - return undef	*/
 	    (void)SvOK_off(sv);
 
-	} else if (rc == 1406) {	/* field truncated (see above)	*/
-	    /* copy the truncated value anyway, it may be of use	*/
-	    sv_setpvn(sv, (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl],
-			  fb_ary->arlen[cache_entry]);
-	    ++err;	/* 'fail' this fetch but continue getting fields */
-
 	} else {  /* See odefin rcode arg description in OCI docs	*/
-	    /* These may get case-by-case treatment eventually.	*/
+	    /* These may get more case-by-case treatment eventually.	*/
+	    if (rc == 1406) {		/* field truncated (see above)  */
+		/* Copy the truncated value anyway, it may be of use,	*/
+		/* but it'll only be accessible via prior bind_column()	*/
+		sv_setpvn(sv, (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl],
+			  fb_ary->arlen[cache_entry]);
+	    }
+	    else {
+		SvOK_off(sv);	/* set field that caused error to undef	*/
+	    }
+	    ++err;	/* 'fail' this fetch but continue getting fields */
 	    /* Some should probably be treated as warnings but	*/
 	    /* for now we just treat them all as errors		*/
-	    ora_error(sth, imp_sth->cda, rc, "ofetch rcode");
-	    (void)SvOK_off(sv);
-	    ++err;	/* 'fail' this fetch but continue getting fields */
+	    ora_error(sth, imp_sth->cda, rc, "ofetch field error");
 	}
 
 	if (debug >= 3)
@@ -1249,10 +1276,10 @@ dbd_st_fetch(sth, imp_sth)
 
     /* update cache counters */
     if (ora_fetchtest)			/* unless we're testing performance */
-		--ora_fetchtest;
-	else {
-		--imp_sth->in_cache;
-		++imp_sth->next_entry;
+	--ora_fetchtest;
+    else {
+	--imp_sth->in_cache;
+	++imp_sth->next_entry;
     }
 
     return (err) ? Nullav : av;
@@ -1463,6 +1490,14 @@ dbd_st_FETCH_attrib(sth, imp_sth, keysv)
 	/* Use { ora_type => 11 } when binding to a placeholder	*/
 	retsv = newSVpv((char*)&imp_sth->cda->rid, sizeof(imp_sth->cda->rid));
 	cacheit = FALSE;
+
+    } else if (kl==17 && strEQ(key, "ora_est_row_width")) {
+	retsv = newSViv(imp_sth->est_width);
+	cacheit = TRUE;
+
+    } else if (kl==14 && strEQ(key, "ora_cache_rows")) {
+	retsv = newSViv(imp_sth->cache_rows);
+	cacheit = TRUE;
 
     } else if (kl==4 && strEQ(key, "NAME")) {
 	AV *av = newAV();

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.20 1998/05/25 22:11:34 timbo Exp $
+   $Id: dbdimp.h,v 1.21 1998/06/01 18:34:16 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -96,6 +96,7 @@ struct imp_sth_st {
     int       in_cache;
     int       next_entry;
     int       eod_errno;
+    int       est_width;    /* est'd avg row width on-the-wire	*/
 
     /* (In/)Out Parameter Details */
     bool  has_inout_params;

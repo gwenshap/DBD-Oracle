@@ -28,25 +28,6 @@ print "1..$tests\n";
 
 my($csr, $p1, $p2);
 
-# --- test named numeric in/out parameters
-#$dbh->trace(2);
-my $sql = q{
-	declare foo char(500);
-    begin
-    foo := :p1;
-    foo := :p2;
-    foo := :p3;
-    foo := :p4;
-    end;
-};
-ok(0, $csr = $dbh->prepare($sql), 1);
-
-foreach (1..3) {
-	ok(0, $dbh->do($sql, undef, 7,8,9,1), 1);
-#	ok(0, $csr->execute(7,8,9,1), 1);
-}
-
-
     # To do
     #   test NULLs at first bind
     #   NULLs later binds.
@@ -58,7 +39,7 @@ $dbh->disconnect;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 6 }
+BEGIN { $tests = 2 }
 # end.
 
 __END__

@@ -75,6 +75,8 @@ printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os 
 		die "\nTest aborted.\n";
     }
 	# test_other($l);
+	print `sleep 1; echo Backticks OK` || "Backticks failed: $!\n"
+		if ($os ne 'MSWin32' and $os ne 'VMS');
 	&ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
 }
 $start = time;
@@ -141,6 +143,8 @@ sub test1 {
 	print "Names:   '",join("',\t'", &ora_titles($csr)),"'\n";
 	print "Lengths: '",join("',\t'", &ora_lengths($csr)),"'\n";
 	print "Types:   '",join("',\t'", &ora_types($csr)),"'\n";
+	print "Est row width:    $csr->{ora_est_row_width}\n";
+	print "Prefetch cache:   $csr->{ora_cache_rows}\n";
 
 	print "Data rows:\n";
 	#$csr->debug(2);

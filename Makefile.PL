@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.59 1998/05/25 22:11:34 timbo Exp $
+# $Id: Makefile.PL,v 1.60 1998/06/01 18:34:16 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -47,20 +47,21 @@ my %opts = (
 my(@MK, %MK, $MK, %MK_expanding);	# parsed macros from Oracle's makefiles
 
 # Options (rarely needed)
-$::opt_m = '';		# path to proc.mk or oracle.mk file to read
+$::opt_m = undef;	# path to proc.mk or oracle.mk file to read
 $::opt_p = '';		# prefer oracle.mk over proc
-$::opt_g = '';		# enable debugging (s/-O/-g/g)
-$::opt_s = '';		# Find a symbol, Don't build a Makefile
+$::opt_g = '';		# enable debugging (-g for compiler and linker)
+$::opt_c = '';		# disable linking to clntsh (LCLSH/LLIBCLNTSH in *.mk)
+$::opt_s = '';		# Find a symbol in oracle libs, Don't build a Makefile
+$::opt_S = '';		# Find a symbol in oracle & system libs, Don't build a Makefile
 $::opt_v = 0;		# be more verbose
 $::opt_d = 0;		# much more verbose for debugging
 $::opt_old = 0;		# old style .mk file parsing
 
-GetOptions(qw(v! d! g! old! p! m=s s=s)) or die "Invalid arguments";
+GetOptions(qw(v! d! g! old! p! m=s s=s S=s)) or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
 $::opt_v = 1 if $::opt_d;
 $Verbose = 1 if $::opt_v;
-my $use_clntsh = 1;
 
 
 # --- Introduction
@@ -83,14 +84,36 @@ die "$ORACLE_ENV environment variable ($OH) not valid.\n" unless -d $OH;
 
 print "Using Oracle in $OH\n";
 
-if ($::opt_s) {
+if ($os ne 'VMS' and $os ne 'MSWin32' and -d "$OH/orainst") {
+    open INST, "$OH/orainst/inspdver |";
+    my @inspdver = <INST>;
+    close INST;
+    foreach (@inspdver) {
+	next unless $::opt_v
+	    or	m/Common Libraries/i
+	    or 	m/RDBMS/i	or m/PL.SQL/i
+	    or 	m/Precomp/i	or m/Pro\*C/i;
+	print;
+    }
+}
+
+if ($::opt_s or $::opt_S) {
+    $::opt_s ||= $::opt_S;
     print "Searching for symbol '$::opt_s' in $OH ...\n";
     my $dlext = $Config{dlext};
     system(qq{	cd $OH; for i in lib/*.[ao] lib/*.$dlext */lib/*.[ao];
-	do echo "  searching \$i ..."; nm \$i | grep $::opt_s;
-	done
+	do echo "  searching oracle \$i ..."; nm \$i | grep $::opt_s; done
     });
+	if ($::opt_S) {
+		my @libpth = split ' ', $Config{libpth};
+		print "Searching for symbol '$::opt_s' in @libpth ...\n";
+		@libpth = map { ("$_/lib*.$dlext", "$_/lib*.a") } @libpth;
+		system(qq{	cd $OH; for i in @libpth;
+		do echo "  searching \$i ..."; nm \$i | grep $::opt_s; done
+		});
+	}
     print "Search done.\n";
+    print "(Please only include the 'interesting' parts when mailing.)\n";
     exit;
 }
 
@@ -139,11 +162,17 @@ elsif ($os eq 'MSWin32') {
 
 # --- UNIX Variants ---
 
-elsif (@_=grep { m:/lib(clntsh|oracle).$Config{so}$:o } <$OH/lib/lib*>) {
+elsif (@_=grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } <$OH/lib/lib*>
+	and !defined $::opt_m) {			# use -m 0 to disable this direct-link approach
     # --- the simple modern way ---
-    my $lib = ("@_" =~ m:/libclntsh\.:) ? "clntsh" : "oracle";
-    $linkwith_msg = "$lib";
-    $opts{LIBS} = [ "-L$OH/lib -l$lib" ];
+    foreach(@_) { s:\Q$OH/lib/::g }
+    print "Found direct-link candidates: @_\n";
+    my $lib = ("@_" =~ m:lib(cl(ie)?ntsh)\.:) ? $1 : "oracle";
+    $linkwith_msg = "-l$lib.";
+    my $syslibs = read_file("$OH/rdbms/lib/sysliblist");
+    $syslibs =~ s/-l:lib(\w+).sl\b/-l$1/g;	# for hp-ux
+    print "Oracle sysliblist: $syslibs\n";
+    $opts{LIBS} = [ "-L$OH/lib -l$lib $syslibs" ];
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
     $opts{INC}  = "-I$OH/rdbms/demo -I$dbi_arch_dir";
 }
@@ -155,30 +184,33 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	if @ora_libs < 6; # just a helpful hint
 
     my $mkfile = find_mkfile();
-    my $linkvia  = fetch_oci_macros($mkfile);
-    my $libhome  = expand_mkvars($MK{LIBHOME}, 0, 1, 0) || "$OH/lib";
+    my $linkvia = fetch_oci_macros($mkfile);
+    my $libhome = expand_mkvars($MK{LIBHOME}, 0, 1, 0) || "$OH/lib";
     $linkwith = expand_mkvars($linkvia,     0, 1, 0);
     $linkwith =~ s/-Y P,/-YP,/g if $Config{'cc'} =~ /gcc/;
     $linkwith =~ s:-R /:-R/:g if $os eq 'solaris';
 
     # get a cut down $linkwith to pass to MakeMaker liblist
     my $linkwith_s = expand_mkvars($linkwith, 1, 1, 0);
-    # delete problematic crt?.o on solaris
-    $linkwith_s = del_crtobj($linkwith_s) if $os eq 'solaris';
     # convert "/full/path/libFOO.a" into "-L/full/path -lFOO"
     $linkwith_s =~ s!(\S+)/lib(\w+).a!-L$1 -l$2!g;
+
+    # Platform specific fix-ups:
+    # delete problematic crt?.o on solaris
+    $linkwith_s = del_crtobj($linkwith_s) if $os eq 'solaris';
+    $linkwith_s =~ s/-l:lib(\w+).sl\b/-l$1/g;	# for hp-ux
+    $linkwith_s .= " -lc" if $Config{archname} eq 'i386-dynixptx';
+    if ($os eq 'solaris' and $osvers >= 2.3 and $linkwith_s =~ /-lthread/) {
+	print "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
+	print "Deleting -lthread from link list as a possible workround.\n";
+	$linkwith_s =~ s/\s*-lthread\b/ /g;
+    }
 
     # extract object files, keep for use later
     my @linkwith_o;
     push @linkwith_o, $1 while $linkwith_s =~ s/(\S+\.[oa])\b//;
     # also extract AIX .exp files since they confuse MakeMaker
     push @linkwith_o, $1 while $linkwith_s =~ s/(-bI:\S+\.exp)\b//;
-
-    if ($os eq 'solaris' and $osvers >= 2.3 and $linkwith_s =~ /-lthread/) {
-	print "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
-	print "Deleting -lthread from link list as a possible workround.\n";
-	$linkwith_s =~ s/\s*-lthread\b/ /g;
-    }
 
     $linkwith_msg = "@linkwith_o $linkwith_s [from $linkvia]";
     my $OCIINCLUDE = $MK{INCLUDE} || '';
@@ -308,27 +340,6 @@ sub MY::postamble {
 }
 
 
-sub MY::post_constants {
-    my $self = shift;
-
-    # Oracle Definitions, based on $(ORACLE_HOME)/proc/lib/proc.mk
-    # Please let me know if this does, or does not, work for you.
-    '
-###################################################################
-#
-ORACLE_HOME = '.$OH.'
-
-# The following text has been extracted from '.join("\n#\t", '', @mkfiles).'
-
-'.$MK.'
-
-# End of extract from '."@mkfiles".'
-#
-###################################################################
-';
-}
-
-
 sub del_crtobj {
     my $orig = shift;
 	my $str;
@@ -346,11 +357,14 @@ sub find_mkfile {
     my @mkfiles;
     my @mkplaces = qw(
 	proc/lib/proc.mk    precomp/demo/proc/proc.mk	precomp/demo/proc/demo_proc.mk
-	rdbms/lib/oracle.mk rdbms/demo/oracle.mk	rdbms/demo/demo_rdbms.mk
 	proc16/lib/proc16.mk
+	rdbms/lib/oracle.mk rdbms/demo/oracle.mk	rdbms/demo/demo_rdbms.mk
     );
-    # if -p then remove oracle.mk from search list and thus prefer Pro*C
-    @mkplaces = grep { !m/(oracle|rdbms)\.mk\b/ } @mkplaces if $::opt_p;
+    if ($::opt_p) {
+	# if -p then copy oracle.mk to start of search list and thus prefer it
+	my @ora = grep { !m/(oracle|rdbms)\.mk\b/ } @mkplaces;
+	unshift @mkplaces, @ora;
+    }
     if ($::opt_m) {
 	$::opt_m = cwd()."/$::opt_m" unless $::opt_m =~ m:/\\:;
 	die "-m $::opt_m: not found" unless -f $::opt_m;
@@ -483,10 +497,10 @@ sub fetch_oci_macros {
 	push(@MK, $_);
     }
 
-    if ($MK{LCLSH} and $use_clntsh) {
+    if ($MK{LCLSH} and !$::opt_c) {
 	$linkvia = '$(LCLSH)';
     }
-    elsif ($MK{LLIBCLNTSH} and $use_clntsh) {
+    elsif ($MK{LLIBCLNTSH} and !$::opt_c) {
 	$linkvia = '$(LLIBCLNTSH)';
     }
     elsif ($MK{OCILDLIBS}) {
@@ -581,9 +595,24 @@ sub mkvar {
     return expand_mkvars($val, $strip, $backtick, $level+1); # can recurse
 }
 
+
+sub read_file {
+    my $file = shift;
+    unless (open(ROL, "<$file")) {
+	warn "Unable to open $file: $!";
+	return "";
+    }
+    my $text = join "", <ROL>;
+    $text =~ s/\n+/ /g;
+    close ROL;
+    return $text;
+}
+
+
 sub find_bin{
     my $bin = shift;
-    foreach(split(/:/, $ENV{PATH})){
+    my $path_sep = $Config{path_sep};
+    foreach (split(/$path_sep/, $ENV{PATH})){
 	return "$_/$bin" if -x "$_/$bin";
     }
     return "<$bin not found>";
@@ -593,8 +622,31 @@ sub find_bin{
 {
     package MY; # SUPER needs package context, $self is not sufficient
 
+
+    sub post_constants {
+	my $self = shift;
+	# Oracle Definitions, based on $(ORACLE_HOME)/proc/lib/proc.mk
+	# Please let me know if this does, or does not, work for you.
+	'
+###################################################################
+#
+ORACLE_HOME = '.$OH.'
+
+# The following text has been extracted from '.join("\n#\t", '', @mkfiles).'
+
+'.$MK.'
+
+# End of extract from '."@mkfiles".'
+#
+###################################################################
+';
+    }
+
+
     sub const_cccmd {
 	my($self) = shift;
+	print "Using DBD::Oracle $self->{VERSION}.\n";
+
 	local($_) = $self->SUPER::const_cccmd(@_);
 	# If perl Makefile.PL *-g* then switch on debugging
 	if ($::opt_g) {

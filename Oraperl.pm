@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.36 1998/05/25 22:11:34 timbo Exp $
+# $Id: Oraperl.pm,v 1.37 1998/06/01 18:34:16 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -25,7 +25,7 @@ require 5.002;
 use DBI 0.84;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.36 $, 10);
+$VERSION = substr(q$Revision: 1.37 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -224,9 +224,9 @@ $Oraperl::ora_trunc = 0; 	# long trunc is error, oraperl default
 # -----------------------------------------------------------------
 #
 # Non-oraperl extensions added here to make it easy to still run
-# script using oraperl (by avoiding $csr->readblob(...))
+# script using oraperl (by avoiding $csr->blob_read(...))
 
-*ora_readblob = _func_ref('st::readblob');
+*ora_readblob = _func_ref('st::blob_read');
 
 
 1;
@@ -421,9 +421,9 @@ other datatypes is always considered a error.
 B<DBD:> The optional second parameter to ora_fetch is not supported.
 A DBI usage error will be generated if a second parameter is supplied.
 Use the global variable $ora_trunc instead. Also note that the
-experimental DBI readblob method can be used to retrieve a long:
+experimental DBI blob_read method can be used to retrieve a long:
 
-  $csr->readblob($field, $offset, $len [, \$dest, $destoffset]);
+  $csr->blob_read($field, $offset, $len [, \$dest, $destoffset]);
 
 If truncation occurs, $ora_errno will be set to 1406.  &ora_fetch()
 will complete successfully if truncation is permitted, otherwise it

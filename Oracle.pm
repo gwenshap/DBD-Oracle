@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.49 1998/05/25 22:26:55 timbo Exp $
+#   $Id: Oracle.pm,v 1.50 1998/06/01 18:34:16 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.48';
+$DBD::Oracle::VERSION = '0.49';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -22,7 +22,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use Exporter ();
     @ISA = qw(DynaLoader Exporter);
 
-    my $Revision = substr(q$Revision: 1.49 $, 10);
+    my $Revision = substr(q$Revision: 1.50 $, 10);
 
     require_version DBI 0.92;
 
@@ -31,8 +31,6 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     $err = 0;		# holds error code   for DBI::err    (XXX SHARED!)
     $errstr = "";	# holds error string for DBI::errstr (XXX SHARED!)
     $drh = undef;	# holds driver handle once initialised
-    %oratab = ();	# holds list of oratab databases (e.g., local)
-    %tnstab = ();	# holds list of names in tnsnames.ora
 
     sub driver{
 	return $drh if $drh;
@@ -66,52 +64,65 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 {   package DBD::Oracle::dr; # ====== DRIVER ======
     use strict;
-    my %oratab;
-    my %tnstab;
 
-    sub load_oratab {	# get list of 'local' database SIDs
-	my ($drh) = @_;
-	my $debug = $drh->debug;
-	foreach (qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
-	    next unless defined $_;
-	    next unless open(ORATAB, "<$_/oratab");
-	    warn "Loading $_/oratab\n" if $debug;
-	    while (<ORATAB>) {
-		next unless m/^\s*(\w+)\s*:\s*(.*?)\s*:/;
-		$oratab{$1} = $2;	# store ORACLE_HOME value
-		warn "Found $oratab{$1} = $_" if $debug;
-	    }
-	    close(ORATAB);
-	    last;
-	}
-	$oratab{' dummy '} = 1;	# prevent reloads
-    }
+    my %dbnames = ();	# holds list of known databases (oratab + tnsnames)
 
-    sub load_tnstab {	# get list of 'remote' database connection identifiers
+    sub load_dbnames {
 	my ($drh) = @_;
 	my $debug = $drh->debug;
 	my $oracle_home = $ENV{$ORACLE_ENV} || '';
+	local *FH;
 	my $d;
-	foreach $d ($ENV{TNS_ADMIN}, "$oracle_home/network/admin", '/var/opt/oracle') {
+
+	# get list of 'local' database SIDs from oratab
+	foreach $d (qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
 	    next unless defined $d;
-	    next unless open(TNSTAB, "<$d/tnsnames.ora");
-	    warn "Loading $d/tnsnames.ora\n" if $debug;
-	    while (<TNSTAB>) {
-		next unless m/^\s*([\w\.]+)\s*=/;
-		$tnstab{$1} = 1;
-		warn "Found $1" if $debug;
+	    next unless open(FH, "<$d/oratab");
+	    warn "Loading $d/oratab\n" if $debug;
+	    while (<FH>) {
+		next unless m/^\s*(\w+)\s*:\s*(.*?)\s*:/;
+		$dbnames{$1} = $2;	# store ORACLE_HOME value
+		warn "Found $1 \@ $2.\n" if $debug;
 	    }
-	    close(TNSTAB);
+	    close FH;
 	    last;
 	}
-	$tnstab{' dummy '} = 1;	# prevent reloads
+
+	# get list of 'remote' database connection identifiers
+	foreach $d ($ENV{TNS_ADMIN}, "$oracle_home/network/admin", '/var/opt/oracle') {
+	    next unless defined $d;
+	    next unless open(FH, "<$d/tnsnames.ora");
+	    warn "Loading $d/tnsnames.ora\n" if $debug;
+	    while (<FH>) {
+		next unless m/^\s*([-\w\.]+)\s*=/;
+		if ($debug) {
+		    warn "Found $1. ".($dbnames{$1} ? "(oratab entry overridded)" : "")."\n";
+		}
+		$dbnames{$1} = 0; # exists but false (to distinguish from oratab)
+	    }
+	    close FH;
+	    last;
+	}
+
+	eval q{
+	    warn "Fetching ORACLE_SID from Registry.\n" if $debug;
+	    require Tie::Registry;
+	    import Tie::Registry;
+	    $Registry->Delimeter("/");
+	    my $hkey= $Registry->{"LMachine/Software/Oracle/"};
+	    my $sid = $hkey->{ORACLE_SID};
+	    my $home= $hkey->{ORACLE_HOME} || $ENV{ORACLE_HOME};
+	    $dbnames{$sid} = $home if $sid and $home;
+	    warn "Found $sid \@ $home.\n" if $debug;
+	} if ($^O eq "MSWin32");
+
+	$dbnames{' dummy '} = 1;	# mark as loaded (even if empty)
     }
 
     sub data_sources {
 	my $drh = shift;
-	load_oratab($drh) unless %oratab;
-	load_tnstab($drh) unless %tnstab;
-	return (keys %oratab, keys %tnstab);	# done't eliminate dups
+	load_dbnames($drh) unless %dbnames;
+	return (keys %dbnames);
     }
 
 
@@ -140,18 +151,20 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 		# Sadly the 'user/passwd@machine' form only works
 		# for Sql*NET connections.
 
-		load_oratab($drh) unless %oratab;
-		load_tnstab($drh) unless %tnstab;
+		load_dbnames($drh) unless %dbnames;
 
-		if ($tnstab{$dbname}) {
-		    $user .= '@'.$dbname;	# assume it's a TNS alias
-		}
-		elsif ($oratab{$dbname}) {	# is in oratab == is local
-		    warn "Changing $ORACLE_ENV for $dbname"
-			if ($ENV{$ORACLE_ENV} and $oratab{$dbname} ne $ENV{$ORACLE_ENV});
-		    $ENV{$ORACLE_ENV} = $oratab{$dbname};
-		    $ENV{ORACLE_SID}  = $dbname;
-		    delete $ENV{TWO_TASK};
+		if (exists $dbnames{$dbname}) {	# known name
+		    my $dbhome = $dbnames{$dbname};	# local=>ENV, remote=>0
+		    if ($dbhome) {
+			warn "Changing $ORACLE_ENV for $dbname to $dbhome"
+			    if ($ENV{$ORACLE_ENV} and $dbhome ne $ENV{$ORACLE_ENV});
+			$ENV{ORACLE_SID}  = $dbname;
+			$ENV{$ORACLE_ENV} = $dbhome;
+			delete $ENV{TWO_TASK};
+		    }
+		    else {
+			$user .= '@'.$dbname;	# it's a known TNS alias
+		    }
 		}
 		else {
 		    $user .= '@'.$dbname;	# assume it's a TNS alias

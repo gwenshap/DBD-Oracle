@@ -25,8 +25,12 @@ unless($dbh) {
 }
 
 # ORA-00900: invalid SQL statement
-if (!$dbh->prepare(q{begin RAISE INVALID_NUMBER; end;}) && $dbh->err==900) {
-	warn "Your Oracle server doesn't support PL/SQL - Tests skipped.\n";
+# ORA-06553: PLS-213: package STANDARD not accessible
+my $tst = $dbh->prepare(q{declare foo char(50); begin RAISE INVALID_NUMBER; end;});
+if ($dbh->err && ($dbh->err==900 || $dbh->err==6553)) {
+	warn "Your Oracle server doesn't support PL/SQL"	if $dbh->err== 900;
+	warn "Your Oracle PL/SQL is not properly installed"	if $dbh->err==6553;
+	warn "Tests skipped\n";
 	print "1..0\n";
 	exit 0;
 }
