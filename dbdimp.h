@@ -189,7 +189,10 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
     SV	*sv;		/* the scalar holding the value		*/
     int sv_type;	/* original sv type at time of bind	*/
-    ub1 csform;		/* charset form for this placeholder    */
+    ub2 csid_orig;	/* original oracle default csid 	*/
+    ub2 csid;		/* 0 for automatic			*/
+    ub1 csform;		/* 0 for automatic			*/
+    ub4 maxdata_size;	/* set OCI_ATTR_MAXDATA_SIZE if >0	*/
     bool is_inout;
 
     IV  maxlen;		/* max possible len (=allocated buffer)	*/

@@ -38,6 +38,7 @@
     See POD for more information and documentation.
   Added support for "... RETURNING lob_locator_column INTO ?"
     using $sth->bind_param_inout(2, \$loc, 0, {ora_type => ORA_BLOB});
+  Added bind_param() ora_csform, ora_csid, and ora_maxdata_size attributes.
   Added bind_param() support for SQL_BLOB & SQL_CLOB thanks to Stephen Clouse.
   Added $dbh->ora_can_unicode and $dbh->ora_nls_parameters thanks to Andy Hassall.
 

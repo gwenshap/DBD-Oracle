@@ -386,19 +386,20 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 	    imp_dbh->proc_handles = 0;
 
-#ifdef NEW_OCI_INIT
+#ifdef NEW_OCI_INIT	/* XXX needs merging into use_proc_connection branch */
 
+	    /* Get CLIENT char and nchar charset id values */
             OCINlsEnvironmentVariableGet_log_stat( &charsetid, 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
-                    "OCINlsEnvironmentVariableGet. (database charset) Check ORACLE_HOME and NLS settings etc.");
+                    "OCINlsEnvironmentVariableGet(OCI_NLS_CHARSET_ID) Check ORACLE_HOME and NLS settings etc.");
                 return 0;
             }
 
             OCINlsEnvironmentVariableGet_log_stat( &ncharsetid, 0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
-                    "OCINlsEnvironmentVariableGet. (database Ncharset) Check ORACLE_HOME and NLS settings etc.");
+                    "OCINlsEnvironmentVariableGet(OCI_NLS_NCHARSET_ID) Check ORACLE_HOME and NLS settings etc.");
                 return 0;
             }
 
@@ -617,7 +618,7 @@ dbd_db_login6_out:
     DBIc_IMPSET_on(imp_dbh);	/* imp_dbh set up now			*/
     DBIc_ACTIVE_on(imp_dbh);	/* call disconnect before freeing	*/
     imp_dbh->ph_type = 1;	/* SQLT_CHR "(ORANET TYPE) character string" */
-    imp_dbh->ph_csform = SQLCS_IMPLICIT;
+    imp_dbh->ph_csform = 0;	/* meaning auto (see dbd_rebind_ph)	*/
 
     if (!imp_drh->envhp)	/* cache first envhp info drh as future default */
 	imp_drh->envhp = imp_dbh->envhp;
@@ -767,13 +768,15 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
     }
     else if (kl==11 && strEQ(key, "ora_ph_type")) {
         if (SvIV(valuesv)!=1 && SvIV(valuesv)!=5 && SvIV(valuesv)!=96 && SvIV(valuesv)!=97)
-	    croak("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
-	imp_dbh->ph_type = SvIV(valuesv);
+	    warn("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
+	else
+	    imp_dbh->ph_type = SvIV(valuesv);
     }
     else if (kl==13 && strEQ(key, "ora_ph_csform")) {
         if (SvIV(valuesv)!=SQLCS_IMPLICIT && SvIV(valuesv)!=SQLCS_NCHAR)
-	    croak("ora_ph_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR)");
-	imp_dbh->ph_csform = (ub1)SvIV(valuesv);
+	    warn("ora_ph_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR)");
+	else
+	    imp_dbh->ph_csform = (ub1)SvIV(valuesv);
     }
     else {
 	return FALSE;
@@ -1263,10 +1266,13 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     int done = 0;
     int at_exec;
     int trace_level = DBIS->debug;
+    ub1 csform;
+    ub2 csid;
 
-    if (trace_level >= 4)
-	PerlIO_printf(DBILOGFP, "       binding %s with ftype %d\n",
-		phs->name, phs->ftype);
+    if (trace_level >= 5)
+	PerlIO_printf(DBILOGFP, "       rebinding %s (%s, ftype %d, csid %d, csform %d, inout %d)\n",
+		phs->name, (SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
+		phs->ftype, phs->csid, phs->csform, phs->is_inout);
 
     switch (phs->ftype) {
     case SQLT_CLOB:
@@ -1316,40 +1322,67 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	}
     }
 
+    /* some/all of the following should perhaps move into dbd_phs_in() */
 
-    /* if SvUTF8(phs->sv) then switch to csform=SQLCS_NCHAR if ncharsetid
-     * is UTF8 and charsetid isn't (if charsetid is then there's no need to change)
-     */
-    if ( SvUTF8(phs->sv)		/* value is UTF8	*/
-	&& (phs->csform == SQLCS_IMPLICIT)
-	&& CS_IS_UTF8(ncharsetid)	/* and NCHAR set is	*/
-	&& !CS_IS_UTF8(charsetid)	/*	-- but CHAR set isn't	*/
-    ) {  
-	phs->csform = SQLCS_NCHAR;	/* XXX this is sticky */
-	if (trace_level >= 3)
-	    PerlIO_printf(DBILOGFP, "       bind %s: promoted this placeholder to SQLCS_NCHAR (csid %d)",
-		  phs->name, ncharsetid);
+    csform = phs->csform;
+
+    if (SvUTF8(phs->sv) && !csform) {
+    	/* try to default the csform to avoid translation through non-unicode */
+	/* given Oracle policy that NCHAR==Unicode this should be fine */
+	csform = SQLCS_NCHAR;
+    	/* in some cases this isn't right for LOBs but those are rare and */
+	/* the application can use an explicit ora_csform bind attribute. */
     }
 
+    if (csform) {
+    	/* set OCI_ATTR_CHARSET_FORM before we get the default OCI_ATTR_CHARSET_ID */
+	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
+	    &csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
+	if ( status != OCI_SUCCESS ) {
+	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)")); 
+	    return 0;
+	}
+    }
+
+    if (!phs->csid_orig) {	/* get the default csid Oracle would use */
+	OCIAttrGet_log_stat(phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
+		OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
+    }
+
+    /* if app has specified a csid then use that, else use default */
+    csid = (phs->csid) ? phs->csid : phs->csid_orig;
+
+    /* if data is utf8 but charset isn't then switch to utf8 csid */
+    if (SvUTF8(phs->sv) && !CS_IS_UTF8(csid))
+        csid = utf8_csid; /* not al32utf8_csid here on purpose */
 
     if (trace_level >= 3)
-	PerlIO_printf(DBILOGFP, "       bind %s <== %s (ftype %d, csform %d, maxdata %ld)\n",
-	      phs->name, neatsvpv(phs->sv,0), phs->ftype, phs->csform, (long)phs->maxlen);
+	PerlIO_printf(DBILOGFP, "       bind %s <== %s "
+		"(%s, %s, csid %d->%d->%d, ftype %d, csform %d->%d, maxlen %lu, maxdata_size %lu)\n",
+	      phs->name, neatsvpv(phs->sv,0),
+	      (phs->is_inout) ? "inout" : "in",
+	      (SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
+	      phs->csid_orig, phs->csid, csid,
+	      phs->ftype, phs->csform, csform,
+	      (unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
 
-    OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
-	&phs->csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
-    if ( status != OCI_SUCCESS ) {
-	oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)")); 
-	return 0;
+
+    if (csid) {
+	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
+	    &csid, (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
+	if ( status != OCI_SUCCESS ) {
+	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)")); 
+	    return 0;
+	}
     }
 
-    if (phs->csform != SQLCS_IMPLICIT ) {
-	    OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
-		neatsvpv(phs->sv,0), (ub4)phs->maxlen, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
-	    if ( status != OCI_SUCCESS ) {
-		oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)")); 
-		return 0;
-	    }
+    if (phs->maxdata_size) {
+	OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
+	    neatsvpv(phs->sv,0), (ub4)phs->maxdata_size, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
+	if ( status != OCI_SUCCESS ) {
+	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)")); 
+	    return 0;
+	}
     }
 
     return 1;
@@ -1442,7 +1475,10 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_csform", 10, 0)) != NULL) {
 		if (SvIV(*svp) == SQLCS_IMPLICIT || SvIV(*svp) == SQLCS_NCHAR)
 		    phs->csform = (ub1)SvIV(*svp);
-		else warn("Can't set ora_csform to invalid value %d", SvIV(*svp));
+		else warn("ora_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR), not %d", SvIV(*svp));
+	    }
+	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_maxdata_size", 16, 0)) != NULL) {
+		phs->maxdata_size = SvUV(*svp);
 	    }
 	}
 	if (sql_type)

@@ -1335,6 +1335,23 @@ See L</Other Data Types> for more information.
 
 See also L<DBI/Placeholders and Bind Values>.
 
+=item ora_csform
+
+Specify the OCI_ATTR_CHARSET_FORM for the bind value. Valid values
+are SQLCS_IMPLICIT (1) and SQLCS_NCHAR (2). Both those constants can
+be imported from the DBD::Oracle module. Rarely needed.
+
+=item ora_csid
+
+Specify the I<integer> OCI_ATTR_CHARSET_ID for the bind value. 
+Character set names can't be used currently.
+
+=item ora_maxdata_size
+
+Specify the integer OCI_ATTR_MAXDATA_SIZE for the bind value. 
+May be needed if a character set conversion from client to server
+causes the data to use more space and so fail with a truncation error.
+
 =back
 
 =head1 Metadata
