@@ -66,6 +66,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    DBD::Oracle::db->install_method("ora_lob_append");
 	    DBD::Oracle::db->install_method("ora_lob_trim");
 	    DBD::Oracle::db->install_method("ora_lob_length");
+	    DBD::Oracle::db->install_method("ora_nls_parameters");
+	    DBD::Oracle::db->install_method("ora_can_unicode");
 	}
 
 	$drh;
@@ -846,6 +848,41 @@ SELECT version
   FROM product_component_version
  WHERE product LIKE ?
 SQL
+    }
+
+    sub ora_nls_parameters {
+	my $dbh = shift;
+	my $refresh = shift;
+
+	if ($refresh || !defined $dbh->{ora_nls_parameters}) {
+	    $dbh->{ora_nls_parameters} =
+	      {
+	       map { $_->[0] => $_->[1] }
+	           @{$dbh->selectall_arrayref(q{
+                       SELECT parameter, value FROM v$nls_parameters})}
+	      };
+	}
+
+	return \%{$dbh->{ora_nls_parameters}};
+    }
+
+    sub ora_can_unicode {
+	# 0 = No Unicode support.
+	# 1 = National character set is Unicode-based.
+	# 2 = Database character set is Unicode-based.
+	# 3 = Both character sets are Unicode-based.
+	my $dbh = shift;
+	return $dbh->{ora_can_unicode} if defined $dbh->{ora_can_unicode};
+
+	$dbh->{ora_can_unicode}  = 0;
+
+	$dbh->{ora_can_unicode} += 1
+	  if ($dbh->ora_nls_parameters->{'NLS_NCHAR_CHARACTERSET'} =~ /UTF/);
+
+	$dbh->{ora_can_unicode} += 2
+	  if ($dbh->ora_nls_parameters->{'NLS_CHARACTERSET'} =~ /UTF/);
+
+	return $dbh->{ora_can_unicode};
     }
 
 }   # end of package DBD::Oracle::db
@@ -1843,6 +1880,25 @@ DBMS_OUTPUT.PUT, or DBMS_OUTPUT.NEW_LINE.
 
 Starts a new session against the current database using the credentials
 supplied.
+
+=item ora_nls_parameters ( [ $refresh ] )
+
+Returns a hash reference containing the current NLS parameters, as given
+by the v$nls_parameters view. The values fetched are cached between calls.
+To cause the latest values to be fetched, pass a true value to the function.
+
+=item ora_can_unicode
+
+Returns a number indicating whether either of the database character sets
+is a Unicode encoding.
+
+0 = Neither character set is a Unicode encoding.
+
+1 = National character set is a Unicode encoding.
+
+2 = Database character set is a Unicode encoding.
+
+3 = Both character sets are Unicode encodings.
 
 =back
 

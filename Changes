@@ -27,6 +27,7 @@
   Added $dbh->{ora_parse_error_offset} docs thanks to Andy Hassall.
   Added $dbh->reauthenticate($user,$pass) docs thanks to Andy Hassall.
   Corrected typo in ora_lob_read() example thanks to Johannes Wierny.
+  Added $dbh->ora_can_unicode and $dbh->ora_nls_parameters thanks to Andy Hassall.
 
 =head1 Changes in DBD-Oracle 1.15   27th January 2004
 
