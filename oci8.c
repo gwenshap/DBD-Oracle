@@ -918,6 +918,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
             sv_set_undef(dest_sv);
             return 0;
         }
+        UTF8_FIXUP_CSID( csid ,"fetch_func_auto_lob" );
 
 	if (fbh->dbtype == 114) {
 	    OCILobFileOpen_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
@@ -1977,8 +1978,12 @@ X            }
                 if (status != OCI_SUCCESS) {
                     return oci_error(sth, errhp, status, "OCILobCharSetId");
                 }
-                if ( SvUTF8(phs->sv) && ! (csid == ncharsetid) && (DBIS->debug >= 3) )
-                    PerlIO_printf(DBILOGFP, "lab       how come sv is UTF8 and csid != ncharsetid\n" );
+                if ( SvUTF8(phs->sv) && ! (csid == ncharsetid) )
+                {
+                   if ( (DBIS->debug >= 3) )
+                       PerlIO_printf(DBILOGFP, "     sv is utf8 but csid=%d and ncharsetid=%d (fixing csid)\n" );
+                   csid = ncharsetid;
+                }
 #endif /* OCI_ATTR_CHARSET_ID */
 
                 fbh->csid = csid;
@@ -1986,13 +1991,15 @@ X            }
             }
 #endif /* SKIP_THIS */
 #endif /* LABHACK */
+            if (DBIS->debug >= 3)
+                PerlIO_printf(DBILOGFP, "lab       calling OCILobWrite fbh->csid=%d fbh->csform=%d\n"
+                    ,fbh->csid ,fbh->csform );
 	    OCILobWrite_log_stat(imp_sth->svchp, errhp,
 		    fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
 		    0,0, fbh->csid ,fbh->csform, status);
-		    /* 0,0, 0,SQLCS_IMPLICIT, status);*/
-            if (DBIS->debug >= 3)
-                PerlIO_printf(DBILOGFP, "lab       OCILobWrite with fbh->csid=%d fbh->csform=%d\n"
-                    ,fbh->csid ,fbh->csform );
+            if (status != OCI_SUCCESS) {
+                return oci_error(sth, errhp, status, "OCILobWrite in post_execute_lobs");
+            }
 	}
 	else {			/* amtp==0 so truncate LOB to zero length */
 	    OCILobTrim_log_stat(imp_sth->svchp, errhp, fbh->desc_h, 0, status);

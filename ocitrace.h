@@ -41,8 +41,8 @@
    stat = OCILobCharSetId( envhp, errhp, locp, csidp ); \
 	(DBD_OCI_TRACEON) \
    ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-         "OCILobCharSetId(%p,%p,%p,%d)=%s\n",\
-         (void*)envhp, (void*)errhp, (void*)locp, *csidp, oci_status_name(stat)),stat \
+         "%sLobCharSetId(%p,%p,%p,%d)=%s\n",\
+         OciTp, (void*)envhp, (void*)errhp, (void*)locp, *csidp, oci_status_name(stat)),stat \
    : stat
 
 /* added by lab */
@@ -50,8 +50,8 @@
    stat = OCILobCharSetForm( envhp, errhp, locp, formp ); \
 	(DBD_OCI_TRACEON) \
    ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-         "OCILobCharSetForm(%p,%p,%p,%d)=%s\n",\
-         (void*)envhp, (void*)errhp, (void*)locp, *formp, oci_status_name(stat)),stat \
+         "%sLobCharSetForm(%p,%p,%p,%d)=%s\n",\
+         OciTp, (void*)envhp, (void*)errhp, (void*)locp, *formp, oci_status_name(stat)),stat \
    : stat
 
 /* added by lab */
@@ -59,8 +59,8 @@
    stat = OCINlsEnvironmentVariableGet(  valp, size, item, charset, rsizep ); \
 	(DBD_OCI_TRACEON) \
    ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-         "OCINlsEnvironmentVariableGet(%p,%d,%d,%d,%d)=%s\n",\
-         (void*)valp, size, item, charset, (void*)rsizep, oci_status_name(stat)),stat \
+         "%sNlsEnvironmentVariableGet(%d,%d,%d,%d,%d)=%s\n",\
+         OciTp, *valp, size, item, charset, *rsizep, oci_status_name(stat)),stat \
    : stat
 
 /* added by lab */
@@ -68,8 +68,8 @@
    stat = OCIEnvNlsCreate(envp, mode, ctxp, f1, f2, f3, sz, usremepp ,chset, nchset ); \
 	(DBD_OCI_TRACEON) \
    ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-         "OCINlsEnvCreate(%p,%d,%d,%p,%p,%p,%d,%p,%d,%d)=%s\n", \
-         (void*)envp, mode, ctxp, f1, f2, f3, sz, usremepp ,chset, nchset, oci_status_name(stat)),stat \
+         "%sNlsEnvCreate(%p,%d,%d,%p,%p,%p,%d,%p,%d,%d)=%s\n", \
+         OciTp, (void*)envp, mode, ctxp, f1, f2, f3, sz, usremepp ,chset, nchset, oci_status_name(stat)),stat \
    : stat
 
 

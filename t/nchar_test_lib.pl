@@ -3,6 +3,14 @@ use warnings;
 use Data::Dumper;
 
 
+sub long_test_cols
+{
+   my ($type) = @_ ;
+   return 
+   [
+      [ lng => $type ],
+   ];
+}
 sub char_cols
 {
     [ 
@@ -73,6 +81,7 @@ my $tdata_hr = {
         cols => nchar_cols(),
         rows => wide_data()
     }
+    ,
 };
 sub test_data
 {
@@ -106,7 +115,7 @@ sub show_test_data
     return $cnt;
 }
 
-sub table { 'dbd_ora_nchar__drop_me' ; }
+sub table { 'dbd_ora__drop_me' ; }
 sub drop_table
 {
     my ($dbh) = @_;
@@ -262,13 +271,15 @@ sub create_table
     }
     $sql .= " dt date )";
 
-    $dbh->do(qq{ drop table $table }) if $drop;
+    drop_table( $dbh ) if $drop;
+    #$dbh->do(qq{ drop table $table }) if $drop;
     $dbh->do($sql);
     if ($dbh->err && $dbh->err==955) {
         $dbh->do(qq{ drop table $table });
         warn "Unexpectedly had to drop old test table '$table'\n" unless $dbh->err;
         $dbh->do($sql);
     }
+    return 1;
 #    ok( not $dbh->err, "create table $table..." );
 }
 

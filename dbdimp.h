@@ -220,6 +220,25 @@ extern ub2 utf8_csid;
 extern ub2 charsetid;
 extern ub2 ncharsetid;
 extern ub2 cs_is_utf8;
+extern ub2 al32utf8_csid;
+extern ub2 al16utf16_csid; 
+
+#define CS_IS_UTF8( cs ) \
+   (  ( cs == utf8_csid ) \
+	|| ( cs == al32utf8_csid ) \
+	|| ( cs == al16utf16_csid ) \
+   )
+
+#define UTF8_FIXUP_CSID( csid ,where ) \
+    if ( CS_IS_UTF8( csid ) && (csid != ncharsetid) ) { \
+        if (DBIS->debug >= 2) \
+            PerlIO_printf(DBILOGFP, \
+               "    csid is UTF8 (%d) setting it ncharsetid=%d (in %s)\n", \
+                    csid ,ncharsetid, where ); \
+        csid = ncharsetid; \
+    }
+
+
 #endif
 
 void dbd_init_oci _((dbistate_t *dbistate));

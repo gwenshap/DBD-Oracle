@@ -43,6 +43,8 @@ ub2 charsetid = 0;
 ub2 ncharsetid = 0;
 ub2 cs_is_utf8 = 0;
 ub2 utf8_csid = 871;
+ub2 al32utf8_csid = 873;
+ub2 al16utf16_csid = 2000; 
 
 static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
 static int ora_sigchld_restart = 1;
@@ -279,8 +281,8 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     ub4 use_proc_connection = 0;
     SV **use_proc_connection_sv;
     D_imp_drh_from_dbh;
-    ub2 al32utf8_csid = 873;
-    ub2 al16utf16_csid = 2000;
+    /* ub2 al32utf8_csid = 873;
+    ub2 al16utf16_csid = 2000; */
 
     imp_dbh->envhp = imp_drh->envhp;	/* will be NULL on first connect */
 
@@ -547,9 +549,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
      * ncharsetid as the id most likely to be a UTF8 charset.  If it becomes possible to
      * distinquish later, we can get smarter.
      */
-    cs_is_utf8 = ( ncharsetid == utf8_csid )
-	       || ( ncharsetid == al32utf8_csid )
-	       || ( ncharsetid == al16utf16_csid ) ;
+    cs_is_utf8 = CS_IS_UTF8( ncharsetid );
     if ( cs_is_utf8 )
 	utf8_csid = ncharsetid;
     if (DBIS->debug >= 3) {
@@ -1531,7 +1531,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     {
         /* set csform implicitly if sv is UTF8 and it is not already set ... */
         if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && cs_is_utf8  /* && column supports utf8? */ ) {
-            if (0 || DBIS->debug >= 2) {
+            if (DBIS->debug >= 2) {
                 PerlIO_printf(DBILOGFP, "      sv was UTF8, implicitly setting phs->csform=%d\n" ,SQLCS_NCHAR ); 
             }
             phs->csform = SQLCS_NCHAR;

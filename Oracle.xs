@@ -143,6 +143,7 @@ ora_lob_write(dbh, locator, offset, data)
 	ST(0) = &sv_undef;
         return;
     }
+    UTF8_FIXUP_CSID( csid ,"ora_lob_write" );
 #endif
 #endif
     OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
@@ -193,6 +194,7 @@ ora_lob_append(dbh, locator, data)
 	ST(0) = &sv_undef;
         return;
     }
+    UTF8_FIXUP_CSID( csid ,"ora_lob_append" );
 #endif
 #endif
 #ifdef OCI_HTYPE_DIRPATH_FN_CTX /* Oracle is >= 9.0 */
@@ -266,13 +268,14 @@ ora_lob_read(dbh, locator, offset, length)
 	dest_sv = &sv_undef;
         return;
     }
-#ifdef OCI_ATTR_CHARSET_ID
+#ifdef OCI_ATTR_CHARSET_ID 
     OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
 	dest_sv = &sv_undef;
         return;
     }
+    UTF8_FIXUP_CSID( csid ,"ora_lob_read" );
 #endif
 #endif
     OCILobRead_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
