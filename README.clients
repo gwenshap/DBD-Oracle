@@ -1,0 +1,65 @@
+This file contains some random notes relating to minimal Oracle
+configurations for building and/or using DBD::Oracle / Oraperl.
+
+-------------------------------------------------------------------------------
+From: James Cooper <pixel@coe.missouri.edu>
+
+>      [...], what do I need in addition to perl5 to access an Oracle database 
+>      on another system from a unix box (Solaris 2.5) that doesn't have an 
+>      oracle database running on it ?
+>      
+>      In other words are their some oracle shared objects, etc. I need ?
+
+I don't have experience with Solaris, but on IRIX 5.3, I simply installed
+SQL*Net (ORACLE_HOME/network/admin/*) and the OCI libraries which are in
+ORACLE_HOME/lib. You'll also need the header files from
+ORACLE_HOME/sqllib/public/*.h and ORACLE_HOME/rdbms/demo/*.h (you won't
+need them all, but you can get rid of them after DBD::Oracle compiles).
+
+So just put that stuff on your client box and install DBI and DBD::Oracle
+there.  Once DBD::Oracle is installed you can remove the OCI libraries and
+headers (make sure to keep SQL*Net!)
+
+Other than that, getting it working isn't too hard.  If you're not
+familiar with SQL*Net, let me know.  I'm no expert, but I know the basics.
+The main thing is to have a good tnsnames.ora file in
+ORACLE_HOME/network/admin
+
+-------------------------------------------------------------------------------
+From: Jon Meek <meekj@Cyanamid.COM>
+
+For my compilation of DBD-Oracle/Solaris2.5/Oracle7.2.x(x=2, I think), I
+just pulled the required files in the rdbms directory from the Oracle CD.
+The files I needed were:
+
+$ ls -lR
+drwxr-xr-x   2 oracle   apbr         512 May 15 17:43 demo/
+drwxr-xr-x   2 oracle   apbr         512 May 15 16:20 lib/
+drwxr-xr-x   2 oracle   apbr         512 May 15 16:18 mesg/
+drwxr-xr-x   2 oracle   apbr         512 May 15 17:38 public/
+
+./demo:
+-r--r--r--   1 oracle   apbr        4509 Jun 29  1995 ociapr.h
+-r--r--r--   1 oracle   apbr        5187 Jun 29  1995 ocidfn.h
+-rw-rw-r--   1 oracle   apbr        6659 Jun 29  1995 oratypes.h
+
+./lib:
+-rw-r--r--   1 oracle   apbr        1132 Jul  6  1995 clntsh.mk
+-rwxr-xr-x   1 oracle   apbr        5623 Jul 17  1995 genclntsh.sh*
+-rw-r--r--   1 oracle   apbr       15211 Jul  5  1995 oracle.mk
+-rw-r--r--   2 oracle   apbr        3137 May 15 16:20 osntab.s
+-rw-r--r--   2 oracle   apbr        3137 May 15 16:20 osntabst.s
+-rw-r--r--   1 oracle   apbr           9 May 15 16:19 psoliblist
+-rw-r--r--   1 oracle   apbr          39 May 15 16:21 sysliblist
+
+./mesg:
+-r--r--r--   1 oracle   apbr      183296 Jul 11  1995 oraus.msb
+-r--r--r--   1 oracle   apbr      878114 Jul 11  1995 oraus.msg
+
+./public:
+-r--r--r--   1 oracle   apbr        5187 Jun 29  1995 ocidfn.h
+
+Jon
+
+-------------------------------------------------------------------------------
+

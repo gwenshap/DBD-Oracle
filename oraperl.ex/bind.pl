@@ -1,4 +1,3 @@
-#!/usr/local/bin/oraperl
 #
 # bind.pl
 #

@@ -1,4 +1,4 @@
-#   $Id: Oracle.pm,v 1.36 1996/08/22 23:20:19 timbo Exp $
+#   $Id: Oracle.pm,v 1.37 1996/09/23 19:30:58 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -16,8 +16,8 @@ require 5.002;
     use DynaLoader ();
     @ISA = qw(DynaLoader);
 
-    $VERSION = '0.38';
-    my $Revision = substr(q$Revision: 1.36 $, 10);
+    $VERSION = '0.39';
+    my $Revision = substr(q$Revision: 1.37 $, 10);
 
     require_version DBI 0.69;
 
@@ -68,6 +68,7 @@ require 5.002;
 	my($drh) = @_;
 	my $debug = $drh->debug;
 	foreach(qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
+		next unless defined $_;
 	    warn "Checking for $_/oratab\n" if $debug;
 	    next unless open(ORATAB, "<$_/oratab");
 	    while(<ORATAB>) {

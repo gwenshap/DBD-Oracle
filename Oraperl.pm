@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.28 1996/06/21 18:25:00 timbo Exp $
+# $Id: Oraperl.pm,v 1.29 1996/09/23 19:30:58 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -20,10 +20,10 @@ package Oraperl;
 
 require 5.002;
 
-use DBI 0.69;
+use DBI 0.70;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.28 $, 10);
+$VERSION = substr(q$Revision: 1.29 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -133,9 +133,9 @@ sub ora_do {
     # error => undef
     # 0     => "0E0"	(0 but true)
     # >0    => >0
-    my($lda, $stmt) = @_;
+    my($lda, $stmt, @params) = @_;	# @params are an extension to the original Oraperl.
 
-    return $lda->do($stmt);	# SEE DEFAULT METHOD IN DBI.pm
+    return $lda->do($stmt, undef, @params);	# SEE DEFAULT METHOD IN DBI.pm
 
     # OLD CODE:
     # $csr is local, cursor will be closed on exit
@@ -144,7 +144,7 @@ sub ora_do {
     # We must be carefull not to execute them again! This needs careful
     # examination and thought.
     # Perhaps oracle is smart enough not to execute them again?
-    my $ret = $csr->execute;
+    my $ret = $csr->execute(@params);
     my $rows = $csr->rows;
     ($rows == 0) ? "0E0" : $rows;
 }
@@ -728,6 +728,22 @@ Note that the substitution variables must be assigned consecutively
 beginning from 1 for each SQL statement, as &ora_bind() assigns its
 parameters in this order. Named substitution variables (for example,
 :NAME, :TELNO) are not permitted.
+
+B<DBD:> Substitution variables are now bound as type 1 (VARCHAR2)
+and not type 5 (STRING) by default. This can alter the behaviour of
+SQL code which compares a char field with a substitution variable.
+See the String Comparison section in the Datatypes chapter of the
+Oracle OCI manual for more details.
+
+You can work around this by using DBD::Oracle's ability to specify
+the Oracle type to be used on a per field basis:
+
+  $char_attrib = { ora_type => 5 }; # 5 = STRING (ala oraperl2.4)
+  $csr = ora_open($dbh, "select foo from bar where x=:1 and y=:2");
+  $csr->bind_param(1, $value_x, $char_attrib);
+  $csr->bind_param(2, $value_y, $char_attrib);
+  ora_bind($csr);  # bind with no parameters since we've done bind_param()'s
+
 
 =head1 DEBUGGING
 

@@ -54,7 +54,7 @@ that then you can test DBD::Oracle knowing that it should work.
 
 The test will connect to the database using the value of the
 ORACLE_USER environment variable so you should set that to the
-correct value before starting the test.
+correct value before starting the test. Please read README.login.
 
 	make test
 	make test TEST_VERBOSE=1   (if any of the t/* tests fail)
@@ -70,6 +70,12 @@ Makefile.PL command line and/or editing the Makefile.PL.
 
 You should not need to make any changes. If you do *please* let me
 know so that I can try to make it automatic in a later release.
+
+If you just can't login then read README.login and edit test.pl to suit.
+
+If you can't get it to build on a minimally configured client system
+then read README.client, it might help but basically I can't help much.
+Others on the dbi-users mailing list probably can.
 
 Please don't post problems to comp.lang.perl.misc or perl5-porters.
 This software is supported via the dbi-users mailing list.  For more
@@ -196,74 +202,83 @@ With thanks to james.taylor@srs.gov and desilva@ind70.industry.net.
 
 
 ===============================================================================
-Some Users of DBD::Oracle on Specific Platforms:
+Some users of DBD::Oracle on non-sun platforms:
 (this is VERY out of date now, there are MANY users on many platforms)
 
-Solaris 1:
-	Myself.
-	John D Groenveld <groenvel@cse.psu.edu>
-	Christian Murphy <r1938c@ismuc.sps.mot.com>
-
-Solaris 2:
-	Myself.
-	David Moellenhoff <David_Moellenhoff@msi-gateway1.metropolis.com>
-	James Taylor <james.taylor@srs.gov>
-	Jay Krish <krishnam@hollynet.usc.edu>
-	John D Groenveld <groenvel@cse.psu.edu>
-	Joe Hildebrand <hildebra@arls2007.den.mmc.com>
-	John Liptak <jliptak@coefmd3.mnet.uswest.com>
-	Philip Kizer <pckizer@tamu.edu>
-	Alan Johnson <alan.johnson@gel.com>
-	Jim Fox <fox@austin.asc.slb.com>
-
 HP-UX 9:
-	Terry Greenlaw <z50816@mip.lasc.lockheed.com>
-	Les Troyer <t2078@dcs2.nfuel.com>
-	Norbert Kiesel <nk@ipgate.col.sw-ley.de>
-	Greg Anderson <greg@ftp.netgate.net>
-	Johann Griessler <griess@atc.co.at>
-	Dave Venus <DVENUS@delphi.com>
+    Terry Greenlaw <z50816@mip.lasc.lockheed.com>
+    Les Troyer <t2078@dcs2.nfuel.com>
+    Norbert Kiesel <nk@ipgate.col.sw-ley.de>
+    Greg Anderson <greg@ftp.netgate.net>
+    Johann Griessler <griess@atc.co.at>
+    Dave Venus <DVENUS@delphi.com>
 
 Unisys U6000/300:
-	Alan Burlison <aburlison@cix.compulink.co.uk>
+    Alan Burlison <aburlison@cix.compulink.co.uk>
 
 SCO 3:
-	Joel Rosi-Schwartz <joel@techne.co.uk>
-	Greg Gerber <ggerber@grctechs.va.grci.com>
+    Greg Gerber <ggerber@grctechs.va.grci.com>
 
 Sequent DYNIX/ptx 2:
-	Alligator Descartes <descarte@mcqueen.com>
-	Jonathan Lemon <jlemon@americantv.com>
+    Alligator Descartes <descarte@mcqueen.com>
+    Jonathan Lemon <jlemon@americantv.com>
+
+Motorola M88100 (SVR3.2):
+    Christian Murphy <r1938c@ismuc.sps.mot.com>
+
+DEC UNIX 3.2:
+    David J. DeWolfe <SXDJD@orca.alaska.edu>
+
+
+DEC Alpha, OSF/1 v2:
+    Royal Hansen <rivory@minerva.cis.yale.edu>
+    Jonathan Olson <jbolson@peruvian.cs.utah.edu>
+    Greg Gerber <ggerber@grctechs.va.grci.com>
+    Davide Migliavacca <davide.migliavacca@relay.inferentia.it>
+
+SGI Iris Indigo R4000 Irix 5.3:
+    Andrew G Wood <agw@mail.nerc-bas.ac.uk>
+
+AIX 3.2
+    Davide Migliavacca <davide.migliavacca@relay.inferentia.it>
+    Joerg Senekowitsch <joerg@pharmacy.isu.edu>
+
+AIX 4.1
+    Ken P. Nikolai <nikolai@facstaff.wisc.edu>
 
 NT:
     Jim Fox <fox@austin.asc.slb.com>
 
-Motorola M88100 (SVR3.2):
-	Christian Murphy <r1938c@ismuc.sps.mot.com>
-
-DEC UNIX 3.2:
-	David J. DeWolfe <SXDJD@orca.alaska.edu>
-
-
-DEC Alpha, OSF/1 v2:
-	Royal Hansen <rivory@minerva.cis.yale.edu>
-	Jonathan Olson <jbolson@peruvian.cs.utah.edu>
-	Greg Gerber <ggerber@grctechs.va.grci.com>
-    Davide Migliavacca <davide.migliavacca@relay.inferentia.it>
-
-SGI Iris Indigo R4000 Irix 5.3:
-	Andrew G Wood <agw@mail.nerc-bas.ac.uk>
-
-AIX 3.2
-    Davide Migliavacca <davide.migliavacca@relay.inferentia.it>
-	Joerg Senekowitsch <joerg@pharmacy.isu.edu>
-
-AIX 4.1
-	Ken P. Nikolai <nikolai@facstaff.wisc.edu>
-
 
 ===============================================================================
 Platform or Oracle Version specific notes:
+
+Note that although some of these refer to specific systems and versions the
+same or similar problems may exist on other systems or versions.
+
+-------------------------------------------------------------------------------
+Can't find libclntsh.so at run time:
+
+Dave Moellenhoff <dmoellen@clarify.com>:  libclntsh.so is the shared
+library composed of all the other Oracle libs you used to have to
+statically link.  Oracle didn't start providing it until 7.2 and later.
+libclntsh.so should be in $ORACLE_HOME/lib.  If it's missing, try
+running $ORACLE_HOME/rdbms/lib/genclntsh.sh and it should create it.
+
+Also: Never copy libclntsh.so to a different machine or Oracle version.
+If DBD::Oracle was built on a machine with a different path to libclntsh.so
+then you'll need to set set an environment variable, typically
+LD_LIBRARY_PATH, to include the directory containing libclntsh.so.
+
+-------------------------------------------------------------------------------
+Error while trying to retrieve text for error ...:
+
+From Lou Henefeld <LHenefeld@gnn.com>: We discovered that we needed
+some files from the $ORACLE_HOME/ocommon/nls/admin/data directory:
+    lx00001.nlb, lx10001.nlb, lx1boot.nlb, lx20001.nlb
+If your national language is different from ours (American English), 
+you will probably need different nls data files.
+
 
 -------------------------------------------------------------------------------
 Oracle 7.3 on Solaris 2.5 (maybe others):
@@ -280,7 +295,7 @@ If any of these work please let me know (include full version info).
 -------------------------------------------------------------------------------
 Bad free() warnings:
 
-These are generally cause by problems in Oracle's own library code.
+These are generally caused by problems in Oracle's own library code.
 You can use this code to hide them:
 
     $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /^Bad free/ }
@@ -298,6 +313,17 @@ the core file and then send it to me along with the other information
 requested in the 'If you have problems' section.
 
 -------------------------------------------------------------------------------
+8-bit text is returned as '?' characters.
+
+Make sure the following environment vaiables are set:
+	NLS_LANG, ORA_NLS, ORA_NLS32 
+Thanks to Robin Langdon <robin@igis.se> for this information.
+Example:
+   $ENV{NLS_LANG}  = "american_america.we8iso8859p1";
+   $ENV{ORA_NLS}   = "/home/oracle/ocommon/nls/admin/data";
+   $ENV{ORA_NLS32} = "/home/oracle/ocommon/nls/admin/data";
+
+-------------------------------------------------------------------------------
 HP-UX 9.x: Terry Greenlaw <z50816@mip.lasc.lockheed.com>
 
 I traced a problem with "ld: Invalid loader fixup needed" to the file
@@ -309,6 +335,13 @@ appears to only link statically under HU-UX 9.x [10.x is okay].
 
 You'll need to build DBD::Oracle statically linked into the perl binary.
 See the static linking notes below.
+
+HP-UX 10 and Oracle 7.2.x do work together when creating dynamic libraries.
+The problem was older Oracle libraries were built without the +z flag to cc,
+and were therefore position-dependent libraries that can't be linked
+dynamically. Newer Oracle releases don't have this problem and it may be
+possible to even use the newer Oracle libraries under HP-UX 9. Oracle 7.3
+will ONLY work under HP-UX 10, however.
 
 -------------------------------------------------------------------------------
 For platforms which require static linking.
@@ -332,7 +365,7 @@ version of the DBI in order that it be automatically included when
 you do the 'make perl' above.
 
 -------------------------------------------------------------------------------
-Oracle 7.1: Syntax error in oratypes.h
+Error: Syntax error in oratypes.h
 
 Try uncommenting the '#define signed' line in Oracle.h
 
@@ -354,6 +387,7 @@ This workaround is based on information from Kevin Stock.
 
 -------------------------------------------------------------------------------
 Oracle 7.1.4/5: ORA-01002: fetch out of sequence
+
 Edited from Message-ID: <3qaui9$ae@usenet.rpi.edu> and
 <3qb5dp$2nc@usenet.rpi.edu> in comp.databases.oracle
 From: finkej@ts.its.rpi.edu (Jon Finke)
@@ -382,11 +416,12 @@ Information Technology Services     518 276 8185 (voice) | 518 276 2809 (fax)
 Rensselaer Polytechnic Institute    110 8th Street, Troy NY, 12180
 
 -------------------------------------------------------------------------------
-ORA-00604: error occurred at recursive SQL level  (DBD: login failed)
+Error: ORA-00604: error occurred at recursive SQL level  (DBD: login failed)
 
 This can happen if TWO_TASK is defined but you connect using ORACLE_SID.
 
 -------------------------------------------------------------------------------
+Error: ld: Undefined symbols _environ _dlopen _dlclose ...
 Environment:  SunOS 4.1.3, Oracle 7.1.6  Steve Livingston <mouche@hometown.com>
 
 If you get link errors like: ld: Undefined symbols _environ _dlopen _dlclose ...
@@ -402,9 +437,9 @@ Fix: Try adding the '-lc' to $ORACLE_HOME/rdbms/lib/sysliblist (just
 make sure it's not on a new line).
 
 -------------------------------------------------------------------------------
+Error: Undefined symbols __cg92_used at link time.
 Environment:  Solaris, GCC
 
-Error: Undefined symbols __cg92_used at link time.
 Fix: If you're compiling Oracle applications with gcc on Solaris you need to
 link with a file called $ORACLE_HOME/lib/__fstd.o. If you compile with the
 SparcWorks compiler you need to add the command line option on -xcg92
@@ -432,11 +467,6 @@ Problem: ERROR EVENT: DBI::dr=HASH(0x14011fee8)->DBI::default_handler:
 
 Solution: Add '#define A_OSF' to Oracle.h above '#include <oratypes.h>' and
 complain to Oracle about bugs in their header files on 64 bit systems.
-
-Problem: Unable to connect
-
-Solution: Try using something like this: "scott/tiger@t:HOST_IP:INSTANCE"
-and not just "scott/tiger".
 
 ===============================================================================
 

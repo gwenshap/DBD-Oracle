@@ -1,10 +1,10 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.49 1996/08/22 23:41:31 timbo Exp $
+# $Id: Makefile.PL,v 1.50 1996/09/23 19:30:58 timbo Exp $
 
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
 
 use ExtUtils::MakeMaker 5.16, qw(&WriteMakefile $Verbose);
-use Getopt::Std;
+use Getopt::Long;
 use Config;
 use strict;
 
@@ -25,13 +25,13 @@ my %opts = (
 );
 my(@MK, %MK, $MK);	# parsed macros from Oracle proc.mk file
 
-# Options, typically only used for debugging
+# Options (rarely needed)
 $::opt_m = '';		# path to proc.mk or oracle.mk file to read
 $::opt_g = '';		# enable debugging (s/-O/-g/g)
 $::opt_s = '';		# Find a symbol, Don't build a Makefile
 $::opt_v = 0;		# be verbose
 
-getopts('gm:s:v') or die "Invalid arguments";
+GetOptions('v!', 'g!', 'm=s', 's=s') or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
 
@@ -47,8 +47,9 @@ print "\n Configuring DBD::Oracle ...\n
 
 unless ($ENV{ORACLE_HOME}){
     warn "\$ORACLE_HOME not defined. Searching for Oracle...\n";
-    foreach(qw(/usr/oracle /home/oracle /opt/oracle)){
-	$ENV{ORACLE_HOME}=$_,last if -d "$_/rdbms/lib";
+    foreach(qw(/usr/oracle /home/oracle /opt/oracle /home/oracle/home)){
+        $ENV{ORACLE_HOME}=$_,last
+	    if -d "$_/rdbms" or -d "$_/precomp" or -d "$_/ocommon";
     }
     die "Unable to determine ORACLE_HOME" unless $ENV{ORACLE_HOME};
 }
@@ -61,8 +62,9 @@ print "Using Oracle in $OH\n";
 
 warn "\nWARNING: Oracle OCI (Pro*C) does not appear to be installed.\n"
 	."You must install Pro*C before you can build DBD::Oracle properly.\n\n"
-    unless (-f "$OH/lib/libocic.a" and -f "$OH/rdbms/demo/oratypes.h")
-	or (-f "$OH/precomp/demo/proc/proc.mk");	# 7.3.x
+    unless (-f "$OH/lib/libocic.a"
+			and (-f "$OH/rdbms/demo/oratypes.h" or -f "$OH/rdbms/public/oratypes.h"))
+		or (-f "$OH/precomp/demo/proc/proc.mk");	# 7.3.x
 # XXX Todo: validate user has all the right Oracle stuff installed.
 
 # Using -m to specify oracle.mk might work but is NOT supported.
@@ -269,7 +271,7 @@ sub fetch_oci_macros {
 	chomp;
 	push(@MK, '') if ($_ eq '' and $lastline ne '');
 	next unless $_;
-	last if m/^\w+\s*:/;	# gone too far, reached actual targets
+	last if m/^\w+\s*:[^=]/;	# gone too far, reached actual targets
 
 	unless($MK{mkver}) {	# still need to get version number
 	    # This is tough since some versions of proc.mk split the
@@ -310,7 +312,8 @@ sub fetch_oci_macros {
 	$linkwith = '$(PROLDLIBS)';
     }
     unless ($linkwith){
-	die "ERROR parsing $procmk: Unable to determine what to link with.\n";
+	die "ERROR parsing $procmk: Unable to determine what to link with.\n"
+	."Please send me copies of these files (one per mail message):\n@mkfiles\n";
     }
     $MK = join("\n", @MK);
     return $linkwith;
@@ -332,6 +335,7 @@ sub read_inc_file {
 	$file =~ s/\$\(ORACLE_HOME\)/$ENV{ORACLE_HOME}/g;
 	push(@lines, read_inc_file($file));
     }
+    print "Read a total of ".@lines." lines from $file (including inclusions)\n" if $::opt_v;
     return @lines;
 }
 

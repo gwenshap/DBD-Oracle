@@ -1,3 +1,13 @@
+Changes in DBD::Oracle 0.39 (Oraperl 1.28), ??th Aug 1996
+
+	Fix for DEC "target := MACRO = string" Makefile syntax.
+	Added README notes from Dave Moellenhoff, Lou Henefeld and others.
+	Added README.login from James Taylor.
+	Added README.client with various notes about building DBD::Oracle
+	on minimaly configured client systems.
+	Extra parameters to ora_do are now passed to DBI's do().
+	(This is an extension to the original oraperl ora_do.)
+
 Changes in DBD::Oracle 0.38 (Oraperl 1.28), 22th Aug 1996
 
 	Overhaul of Makefile variable parsing. Should now cope with

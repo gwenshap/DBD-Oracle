@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl -w
 
-# $Id: test.pl,v 1.23 1996/08/22 23:41:31 timbo Exp $
+# $Id: test.pl,v 1.24 1996/09/23 19:30:58 timbo Exp $
 #
 # Copyright (c) 1995, Tim Bunce
 #
@@ -10,7 +10,7 @@
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.23 $}."\n";
+print q{Oraperl test application $Revision: 1.24 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^Bad free/) ? warn "See README about Bad free() warnings!\n": warn @_;
@@ -87,6 +87,7 @@ print "done.\n";
 
 $dur = time - $start;
 print "\nTest complete ($dur seconds).\n";
+print "If the tests above have produced the 'expected' output then they have passed.\n";
 
 exit 0;
 
