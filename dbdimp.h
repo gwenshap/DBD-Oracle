@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.24 1998/12/02 02:48:32 timbo Exp $
+   $Id: dbdimp.h,v 1.25 1998/12/10 01:19:19 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -103,16 +103,21 @@ struct imp_dbh_st {
 };
 
 
+typedef struct lob_refetch_st lob_refetch_t;
+
 /* Define sth implementor data structure */
 struct imp_sth_st {
     dbih_stc_t com;		/* MUST be first element in structure	*/
 
 #ifdef OCI_V8_SYNTAX
-    OCIError *errhp;		/* copy of dbh pointer	*/
-    OCIServer *srvhp;		/* copy of dbh pointer	*/
-    OCISvcCtx *svchp;		/* copy of dbh pointer	*/
-    OCIStmt *stmhp;
-    ub2 stmt_type;		/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
+    OCIEnv	*envhp;		/* copy of dbh pointer	*/
+    OCIError	*errhp;		/* copy of dbh pointer	*/
+    OCIServer	*srvhp;		/* copy of dbh pointer	*/
+    OCISvcCtx	*svchp;		/* copy of dbh pointer	*/
+    OCIStmt	*stmhp;
+    ub2 	stmt_type;		/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
+    int  	has_lobs;
+    lob_refetch_t *lob_refetch;
 #else
     Cda_Def *cda;	/* currently just points to cdabuf below */
     Cda_Def cdabuf;
@@ -161,14 +166,15 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
 #ifdef OCI_V8_SYNTAX
     OCIParam  *parmdp;
     OCIDefine *defnp;
-    void *descriptorh;	/* descriptor if needed (LOBs etc)	*/
-    ub4   descriptort;	/* OCI type of descriptorh		*/
+    void *desc_h;	/* descriptor if needed (LOBs etc)	*/
+    ub4   desc_t;	/* OCI type of descriptorh		*/
     int  (*fetch_func) _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv));
     ub2  dbsize;
     ub2  dbtype;	/* actual type of field (see ftype)	*/
     ub1  prec;
     sb1  scale;
     ub1  nullok;
+    void *special;	/* hook for special purposes (LOBs etc)	*/
 #else
     sb4  dbsize;
     sb2  dbtype;	/* actual type of field (see ftype)	*/
@@ -186,59 +192,6 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     fb_ary_t *fb_ary;	/* field buffer array			*/
 };
 
-/*	Table 6-13 Attributes Belonging to Columns of Tables or Views 
-
- Attribute                      Description                                                 Attribute
-                                                                                            Datatype  
- OCI_ATTR_DATA_SIZE  		the maximum size of the column. This length is returned in
-                                bytes and not characters for strings and raws. It returns 22 for
-                                NUMBERs.  
-                                                                                            ub2  
- OCI_ATTR_DATA_TYPE  
-                                the data type of the column. See "Note on Datatype Codes"
-                                on page 6-4.  
-                                                                                            ub2  
- OCI_ATTR_PRECISION  
-                                the precision of numeric columns. If a describe returns a value
-                                of zero for precision or -127 for scale, this indicates that the
-                                item being described is uninitialized; i.e., it is NULL in the data
-                                dictionary.  
-                                                                                            ub1  
- OCI_ATTR_SCALE  
-                                the scale of numeric columns. If a describe returns a value of
-                                zero for precision or -127 for scale, this indicates that the
-                                item being described is uninitialized; i.e., it is NULL in the data
-                                dictionary.  
-                                                                                            sb1  
- OCI_ATTR_IS_NULL  
-                                returns 0 if null values are not permitted for the column  
-                                                                                            ub1  
- OCI_ATTR_TYPE_NAME  
-                                returns a string which is the type name. The returned value
-                                will contain the type name if the data type is SQLT_NTY or
-                                SQLT_REF. If the data type is SQLT_NTY, the name of the
-                                named data type's type is returned. If the data type is
-                                SQLT_REF, the type name of the named data type pointed to
-                                by the REF is returned  
-                                                                                            text *  
- OCI_ATTR_SCHEMA_NAME  
-                                returns a string with the schema name under which the type
-                                has been created  
-                                                                                            text *  
- OCI_ATTR_REF_TDO  
-                                the REF of the TDO for the type, if the column type is an
-                                object type  
-                                                                                            OCIRef *  
- OCI_ATTR_CHARSET_ID  
-                                the character set id, if the column is of a string/character type
-                                 
-                                                                                            ub2  
- OCI_ATTR_CHARSET_FORM  
-                                the character set form, if the column is of a string/character
-                                type  
-                                                                                            ub1  
-*/
-
 
 typedef struct phs_st phs_t;    /* scalar placeholder   */
 
@@ -255,6 +208,8 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     ub4 aryelem_cur;	/* current elements in allocated array	*/
 #ifdef OCI_V8_SYNTAX
     OCIBind *bndhp;
+    void *desc_h;	/* descriptor if needed (LOBs etc)	*/
+    ub4   desc_t;	/* OCI type of desc_h			*/
 #endif
 
     /* these will become an array one day */

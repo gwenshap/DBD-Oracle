@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.69 1998/11/29 00:14:07 timbo Exp $
+# $Id: Makefile.PL,v 1.70 1998/12/10 01:19:19 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -141,30 +141,35 @@ if ($os eq 'VMS') {
 
 elsif ($os eq 'MSWin32') {
     my $OCIDIR = "";
+    my $OCILIB = "OCI";
+    if ($::opt_8) {	# opt_8 means DISABLE use of OCI 8 API
+	$OCILIB = "OCIW32";
+    }
     find( sub {
 	print "Found $_\n" if /^OCI\d+/i;
 	$OCIDIR = $_ if /^OCI\d\d$/i && $OCIDIR lt $_;
 	$File::Find::prune = 1 if -d $_ && $_ ne "." && $_ ne "..";
     }, $OH );
-    print "Using OCI directory: $OCIDIR\n";
+    print "Using $OCILIB in directory: $OCIDIR\n";
 
     my $oci_compiler_dir = ($Config{cc} eq 'bcc32' ? "BORLAND" : "MSVC");
+
     die qq{
     Unable to find required Oracle OCI files for the build.  Please check
     that you have your OCI installed in your oracle home ($OH) 
     directory and that it has the following files (and probably more):
 
 	$OH\\$OCIDIR\\include\\oratypes.h
-	$OH\\$OCIDIR\\lib\\$oci_compiler_dir\\ociw32.lib
+	$OH\\$OCIDIR\\lib\\$oci_compiler_dir\\$OCILIB.lib
 
     Please install OCI or send comments back to dbi-users\@fugue.com you 
     have an OCI directory other than $OCIDIR.  
 
     } unless  (-e "$OH/$OCIDIR/include/oratypes.h" 
-	    && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/ociw32.lib");
+	    && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib");
 
     my $OCIINCLUDE = "-I$OH/$OCIDIR/include -I$OH/rdbms/demo";
-    $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir OCIW32" ];
+    $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir $OCILIB" ];
     #$opts{SKIP} = ['processPL'];    # XXX added because it caused problems with Nmake...
     $opts{INC}  = "$OCIINCLUDE -I$dbi_arch_dir";
 }
@@ -544,7 +549,10 @@ sub fetch_oci_macros {
     if (!$linkvia && ($MK{OCISHAREDLIBS} || $MK{OCISTATICLIBS})) {
 	$linkvia = '';
 	if ($MK{OCISTATICLIBS} &&
-		(($opts{LINKTYPE}||'') eq 'static' || $::opt_c)) {
+		(  ($opts{LINKTYPE}||'') eq 'static'
+		|| "@ARGV" =~ m/\bLINKTYPE=static\b/
+		|| $::opt_c)
+    ) {
 	    $linkvia .= '$(DEF_ON) '   if $MK{DEF_ON};
 	    $linkvia .= '$(SSCOREED) ' if $MK{SSCOREED};
 	    $linkvia .= '$(OCISTATICLIBS)';

@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.h,v 1.3 1998/12/02 02:48:32 timbo Exp $
+   $Id: oci8.h,v 1.4 1998/12/10 01:19:19 timbo Exp $
 
    Copyright (c) 1998  Tim Bunce
 
@@ -9,6 +9,18 @@
    for commercial distribution without the prior approval of the author.
 
 */
+
+#define OCIAttrGet_stmhp(imp_sth, p, l, a) \
+	OCIAttrGet(imp_sth->stmhp, OCI_HTYPE_STMT, (dvoid*)(p), (l), (a), imp_sth->errhp)
+#define OCIAttrGet_parmdp(imp_sth, parmdp, p, l, a) \
+	OCIAttrGet(parmdp, OCI_DTYPE_PARAM, (dvoid*)(p), (l), (a), imp_sth->errhp)
+
+#define OCIHandleAlloc_ok(envhp, p, t) \
+	if (OCIHandleAlloc((envhp), (dvoid**)(p), (t), 0, 0)==OCI_SUCCESS) ; \
+	else croak("OCIHandleAlloc (type %d) failed",t)
+#define OCIDescriptorAlloc_ok(envhp, p, t) \
+	if (OCIDescriptorAlloc((envhp), (dvoid**)(p), (t), 0, 0)==OCI_SUCCESS) ; \
+	else croak("OCIDescriptorAlloc (type %d) failed",t)
 
 
 static char *
@@ -123,7 +135,7 @@ int fetch_func_lob(sth, imp_sth, fbh, dest_sv)
     ub4 loblen = 0;
     ub4 getlen;
     ub4 amtp = 0;
-    OCILobLocator *lobl = (OCILobLocator*)fbh->descriptorh;
+    OCILobLocator *lobl = (OCILobLocator*)fbh->desc_h;
     sword status;
 
     status = OCILobGetLength(imp_sth->svchp, imp_sth->errhp, lobl, &loblen);
@@ -132,23 +144,19 @@ int fetch_func_lob(sth, imp_sth, fbh, dest_sv)
 	return 0;
     }
 
-    getlen = imp_sth->long_readlen;
-    if (loblen < getlen)
-	getlen = loblen;
-    amtp = getlen;	/* set right semantics */
+    getlen = (loblen > imp_sth->long_readlen) ? imp_sth->long_readlen : loblen;
+    amtp = getlen;	/* set right semantics for OCILobRead */
 
     SvUPGRADE(dest_sv, SVt_PV);
     SvGROW(dest_sv, getlen+1);
 
     status = OCILobRead(imp_sth->svchp, imp_sth->errhp, lobl,
-	&amtp, 1,
-	SvPVX(dest_sv), getlen,
-	(dvoid *)0, (sb4 (*)(dvoid *, const dvoid *, ub4, ub1)) 0,
-	(ub2) 0, (ub1) SQLCS_IMPLICIT);
+	&amtp, 1, SvPVX(dest_sv), getlen, 0, 0, 0, SQLCS_IMPLICIT);
     if (dbis->debug >= 3)
-	fprintf(DBILOGFP, "    OCILobRead %s: %ld/%ld/%ld\n",
+	fprintf(DBILOGFP, "       OCILobRead %s: %ld/%ld/%ld\n",
 	    oci_status_name(status), getlen, amtp, imp_sth->long_readlen);
-    if (status == OCI_NEED_DATA) {
+
+    if (status == OCI_NEED_DATA) {		/* LOB was truncated	*/
 	int oraperl = DBIc_COMPAT(imp_sth);
 	if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(ora_trunc))) {
 	    /* user says truncation is ok */
@@ -192,7 +200,6 @@ dbd_describe(h, imp_sth)
     int i = 0;
     sword status;
 
-
     if (imp_sth->done_desc)
 	return 1;	/* success, already done it */
     imp_sth->done_desc = 1;
@@ -229,7 +236,7 @@ dbd_describe(h, imp_sth)
 	}
     }
 
-    status = OCIAttrGet_stmhp(imp_sth, &num_fields, 0, OCI_ATTR_PARAM_COUNT)
+    status = OCIAttrGet_stmhp(imp_sth, &num_fields, 0, OCI_ATTR_PARAM_COUNT);
     if (status != OCI_SUCCESS) {
 	oci_error(h, imp_sth->errhp, status, "OCIAttrGet OCI_ATTR_PARAM_COUNT");
 	return 0;
@@ -241,6 +248,7 @@ dbd_describe(h, imp_sth)
     /* Get number of fields and space needed for field names	*/
     for(i = 1; i <= num_fields; ++i) {
 	ub4 atrlen;
+	int avg_width = 0;
 	imp_fbh_t *fbh = &imp_sth->fbh[i-1];
 	fbh->imp_sth   = imp_sth;
 	fbh->field_num = i;
@@ -277,6 +285,7 @@ dbd_describe(h, imp_sth)
 		if (!fbh->scale && !fbh->prec)	  /* always 0!	*/
 		     fbh->disize = 38 + 2;	  /* max prec	*/
 		else fbh->disize = fbh->prec + 2; /* sign + dot	*/
+		avg_width = 4;     /* > approx +/- 1_000_000 ?  */
 		break;
 
 	case  12:				/* DATE		*/
@@ -290,6 +299,7 @@ dbd_describe(h, imp_sth)
 		fbh->ftype  = 8;
 		break;
 	case  24:				/* LONG RAW	*/
+		avg_width   = fbh->dbsize;
 		fbh->disize = fbh->dbsize;
 		fbh->dbsize = long_readlen * 2;
 		fbh->ftype  = 24;
@@ -306,14 +316,9 @@ dbd_describe(h, imp_sth)
 	case 113:				/* BLOB		*/
 		fbh->ftype  = fbh->dbtype;
 		fbh->disize = fbh->dbsize;
-		fbh->fetch_func  = fetch_func_lob;
-		fbh->descriptort = OCI_DTYPE_LOB;
-	        status = OCIDescriptorAlloc(imp_dbh->envhp, (dvoid **)&fbh->descriptorh,
-				     fbh->descriptort, 0, 0);
-		if (status != OCI_SUCCESS) {
-		    oci_error(h, imp_sth->errhp, status, "OCIDescriptorAlloc");
-		    return 0;
-		}
+		fbh->fetch_func = fetch_func_lob;
+		fbh->desc_t = OCI_DTYPE_LOB;
+	        OCIDescriptorAlloc_ok(imp_dbh->envhp, &fbh->desc_h, fbh->desc_t);
 		break;
 
 	case 105:				/* MLSLABEL	*/
@@ -327,33 +332,13 @@ dbd_describe(h, imp_sth)
 
 	/* dbsize can be zero for 'select NULL ...'			*/
 	imp_sth->t_dbsize += fbh->dbsize;
+	if (!avg_width)
+	    avg_width = fbh->dbsize;
+	imp_sth->est_width += avg_width;
 
 	if (dbis->debug >= 2)
 	    fbh_dump(fbh, i, 0);
-
-	/* now we calculate the approx average on-the-wire width of	*/
-	/* each field (and thus row) to determine a 'good' cache size.	*/
-	if (fbh->dbsize==0) {	/* is a LONG type or 'select NULL'	*/
-	    if (dbtype_is_long(fbh->dbtype)) {
-		est_width += long_readlen;
-		++has_longs;	/* hint to auto cache sizing code	*/
-	    }
-	}
-	else		/* deal with dbtypes with overblown dbsizes	*/
-	switch(fbh->dbtype) {
-	case 1:     /* VARCHAR2 - result of to_char() has dbsize==75	*/
-		    /* for all but small strings we take off 25%	*/
-		    est_width += (fbh->dbsize < 32) ? fbh->dbsize : fbh->dbsize-(fbh->dbsize>>2);
-		    break;
-	case 2:     /* NUMBER - e.g., from a sum() or max(), dbsize==22	*/
-		    /* Most numbers are _much_ smaller than 22 bytes	*/
-		    est_width += 4;	/* > approx +/- 1_000_000 ?	*/
-		    break;
-	default:    est_width += fbh->dbsize;
-		    break;
-	}
     }
-    imp_sth->est_width = est_width;
 
     /* --- Setup the row cache for this query --- */
 
@@ -390,8 +375,8 @@ dbd_describe(h, imp_sth)
 	fb_ary = fbh->fb_ary;
 
 	status = OCIDefineByPos(imp_sth->stmhp, &fbh->defnp, imp_sth->errhp, (ub4) i,
-	    (fbh->descriptorh) ? (dvoid*)&fbh->descriptorh : (dvoid*)fb_ary->abuf,
-	    (fbh->descriptorh) ?                        -1 :         fbh->disize,
+	    (fbh->desc_h) ? (dvoid*)&fbh->desc_h : (dvoid*)fb_ary->abuf,
+	    (fbh->desc_h) ?                   -1 :         fbh->disize,
 	    fbh->ftype,
 	    fb_ary->aindp, fb_ary->arlen, fb_ary->arcode, OCI_DEFAULT);
 	if (status != OCI_SUCCESS) {
@@ -498,7 +483,7 @@ dbd_st_fetch(sth, imp_sth)
 		}
 		sv_setpvn(sv, p, (STRLEN)datalen);
 	    }
-	    else if (fbh->descriptorh) {
+	    else if (fbh->desc_h) {
 		if (!fbh->fetch_func(sth, imp_sth, fbh, sv))
 		    ++err;	/* fetch_func already called oci_error */
 	    }
@@ -542,3 +527,350 @@ dbd_st_fetch(sth, imp_sth)
 }
 
 
+#ifdef not_used_curently
+static char *
+rowid2hex(OCIRowid *rowid)
+{
+    int i;
+    SV *sv = sv_2mortal(newSVpv("",0));
+    for (i = 0; i < OCI_ROWID_LEN; i++) {
+	char buf[6];
+	sprintf(buf, "%02X ", (int)(((ub1*)rowid)[i]));
+	sv_catpv(sv, buf);
+    }
+    return SvPVX(sv);
+}
+#endif
+
+
+static void *
+alloc_via_sv(STRLEN len, SV **svp, int mortal)
+{
+    SV *sv = newSVpv("",0);
+    sv_grow(sv, len+1);
+    memset(SvPVX(sv), 0, len);
+    if (mortal)
+	sv_2mortal(sv);
+    if (svp)
+	*svp = sv;
+    return SvPVX(sv);
+}
+
+
+char *
+find_ident_after(char *src, char *after, STRLEN *len, int copy)
+{
+    int seen_key = 0;
+    char *orig = src;
+    char *p;
+    while(*src) {
+	if (*src == '\'' || *src == '"') {
+	    char delim = *src;
+	    while(*src && *src != delim) ++src;
+	}
+	else if (*src == '-' && src[1] == '-') {
+	    while(*src && *src != '\n') ++src;
+	}
+	else if (*src == '/' && src[1] == '*') {
+	    while(*src && !(*src == '*' && src[1]=='/')) ++src;
+	}
+	else if (isALPHA(*src)) {
+	    if (seen_key) {
+		char *start = src;
+		while(*src && (isALPHA(*src) || *src=='.'))
+		    ++src;
+		*len = src - start;
+		if (copy) {
+		    p = alloc_via_sv(*len, 0, 1);
+		    strncpy(p, start, *len);
+		    p[*len] = '\0';
+		    return p;
+		}
+		return start;
+	    }
+	    else if (  toLOWER(*src)==toLOWER(*after)
+		    && (src==orig ? 1 : !isALPHA(src[-1]))
+	    ) {
+		p = after;
+		while(*p && *src && toLOWER(*p)==toLOWER(*src))
+		    ++p, ++src;
+		if (!*p)
+		    seen_key = 1;
+	    }
+	    ++src;
+	}
+	else
+	    ++src;
+    }
+    return NULL;
+}
+
+
+struct lob_refetch_st {
+    SV *sql_select;
+    OCIStmt *stmthp;
+    OCIBind *bindhp;
+    OCIRowid *rowid;
+    OCIParam *parmdp_tmp;
+    OCIParam *parmdp_lob;
+    int num_fields;
+    SV *fbh_ary_sv;
+    imp_fbh_t *fbh_ary;
+};
+
+
+static int
+init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
+{
+    SV *sv;
+    SV *sql_select;
+    HV *lob_cols_hv = NULL;
+    sword status;
+    OCIError *errhp = imp_sth->errhp;
+    OCIDescribe  *dschp = NULL;
+    OCIParam *parmhp = NULL, *collisthd = NULL;
+    ub2 numcols = 0;
+    imp_fbh_t *fbh;
+    int unmatched_params;
+    I32 i;
+    char *p;
+    lob_refetch_t *lr = NULL;
+
+    STRLEN tablename_len;
+    char *tablename = find_ident_after(imp_sth->statement,
+				"into", &tablename_len, 1);
+    if (!tablename)
+	return oci_error(sth, errhp, OCI_ERROR,
+		"Unable to parse table name for LOB refetch");
+
+    OCIHandleAlloc_ok(imp_sth->envhp, &dschp, OCI_HTYPE_DESCRIBE);
+    status = OCIDescribeAny(imp_sth->svchp, errhp, tablename, strlen(tablename),
+		OCI_OTYPE_NAME, 1, OCI_PTYPE_TABLE, dschp);
+    if (status != OCI_SUCCESS) {
+	OCIHandleFree(dschp, OCI_HTYPE_DESCRIBE);
+	return oci_error(sth, errhp, status, "OCIDescribeAny/LOB refetch");
+    }
+
+    status =   OCIAttrGet(dschp,  OCI_HTYPE_DESCRIBE,
+				&parmhp, 0, OCI_ATTR_PARAM, errhp)
+	    || OCIAttrGet(parmhp, OCI_DTYPE_PARAM,
+				&numcols, 0, OCI_ATTR_NUM_COLS, errhp)
+	    || OCIAttrGet(parmhp, OCI_DTYPE_PARAM,
+				&collisthd, 0, OCI_ATTR_LIST_COLUMNS, errhp);
+    if (status != OCI_SUCCESS) {
+	OCIHandleFree(dschp, OCI_HTYPE_DESCRIBE);
+	return oci_error(sth, errhp, status, "OCIDescribeAny/OCIAttrGet/LOB refetch");
+    }
+    if (dbis->debug >= 3)
+	fprintf(DBILOGFP, "       lob refetch from table %s, %d columns:\n",
+	    tablename, numcols);
+
+    for (i = 1; i <= numcols; i++) {
+	OCIParam *colhd;
+	ub2 col_dbtype;
+	text *col_name;
+	ub4  col_name_len;
+        if ((status=OCIParamGet(collisthd, OCI_DTYPE_PARAM, errhp, (dvoid**)&colhd, i)))
+	    break;
+        if ((status=OCIAttrGet(colhd, OCI_DTYPE_PARAM, &col_dbtype, 0,
+              OCI_ATTR_DATA_TYPE, errhp)))
+                break;
+        if ((status=OCIAttrGet(colhd, OCI_DTYPE_PARAM, &col_name, &col_name_len,
+              OCI_ATTR_NAME, errhp)))
+                break;
+	if (dbis->debug >= 3)
+	    fprintf(DBILOGFP, "       lob refetch table col %d: '%.*s' otype %d\n",
+		(int)i, (int)col_name_len,col_name, col_dbtype);
+	if (col_dbtype != SQLT_CLOB && col_dbtype != SQLT_BLOB)
+	    continue;
+	if (!lob_cols_hv)
+	    lob_cols_hv = newHV();
+	sv = newSViv(col_dbtype);
+	sv_setpvn(sv, col_name, col_name_len);
+	SvIOK_on(sv);   /* what a wonderful hack! */
+	hv_store(lob_cols_hv, col_name,col_name_len, sv,0);
+    }
+    if (status != OCI_SUCCESS) {
+	OCIHandleFree(dschp, OCI_HTYPE_DESCRIBE);
+	return oci_error(sth, errhp, status,
+		    "OCIDescribeAny/OCIParamGet/OCIAttrGet/LOB refetch");
+    }
+    if (!lob_cols_hv)
+	return oci_error(sth, errhp, OCI_ERROR,
+		    "LOB refetch failed, no lobs in table");
+
+    /*	our bind params are in imp_sth->all_params_hv
+	our table cols are in lob_cols_hv
+	we now iterate through our bind params
+	and allocate them to the appropriate table columns
+    */
+    Newz(1, lr, 1, lob_refetch_t);
+    unmatched_params = 0;
+    lr->num_fields = 0;
+    lr->fbh_ary = alloc_via_sv(sizeof(imp_fbh_t) * HvFILL(lob_cols_hv)+1,
+			&lr->fbh_ary_sv, 0);
+
+    sql_select = newSVpv("select ",0);
+
+    hv_iterinit(imp_sth->all_params_hv);
+    while( (sv = hv_iternextsv(imp_sth->all_params_hv, &p, &i)) != NULL ) {
+	int matched = 0;
+	phs_t *phs = (phs_t*)(void*)SvPVX(sv);
+	if (sv == &sv_undef || !phs)
+	    croak("panic: unbound params");
+	if (phs->ftype != SQLT_CLOB && phs->ftype != SQLT_BLOB)
+	    continue;
+	hv_iterinit(lob_cols_hv);
+	while( (sv = hv_iternextsv(lob_cols_hv, &p, &i)) != NULL ) {
+	    char sql_field[200];
+	    if (SvIV(sv) != phs->ftype)
+		continue;
+	    matched = 1;
+	    sprintf(sql_field, "%s%s \"%s\"",
+		(SvCUR(sql_select)>7)?", ":"", p, &phs->name[1]);
+	    sv_catpv(sql_select, sql_field);
+	    if (dbis->debug >= 3)
+		fprintf(DBILOGFP,
+		"       lob refetch %s param: otype %d, matched field '%s' (%s)\n",
+		    phs->name, phs->ftype, p, sql_field);
+	    hv_delete(lob_cols_hv, p, i, 0);
+	    fbh = &lr->fbh_ary[lr->num_fields++];
+	    fbh->name = phs->name;
+	    fbh->dbtype = phs->ftype;
+	    fbh->ftype  = fbh->dbtype;
+	    fbh->disize = 99;
+	    fbh->desc_t = OCI_DTYPE_LOB;
+	    OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
+	    break;
+	}
+	if (!matched) {
+	    ++unmatched_params;
+	    if (dbis->debug >= 3)
+		fprintf(DBILOGFP,
+		    "       lob refetch %s param: otype %d, UNMATCHED\n",
+		    phs->name, phs->ftype);
+	}
+    }
+    if (unmatched_params) {
+	/* not all the lob columns in the table were accounted for */
+        Safefree(lr);
+	return oci_error(sth, errhp, OCI_ERROR,
+	    "Can't refetch LOBs, LOB column mismatch (too many or wrong type)");
+    }
+
+    sv_catpv(sql_select, " from ");
+    sv_catpv(sql_select, tablename);
+    sv_catpv(sql_select, " where rowid = :rid");
+    if (dbis->debug >= 3)
+	fprintf(DBILOGFP,
+	    "       lob refetch sql: %s\n", SvPVX(sql_select));
+    lr->sql_select = sql_select;
+
+    lr->stmthp = NULL;
+    lr->bindhp = NULL;
+    lr->rowid  = NULL;
+    lr->parmdp_tmp = NULL;
+    lr->parmdp_lob = NULL;
+
+
+    OCIHandleAlloc_ok(imp_sth->envhp, &lr->stmthp, OCI_HTYPE_STMT);
+    status = OCIStmtPrepare(lr->stmthp, errhp,
+		SvPVX(sql_select), SvCUR(sql_select), OCI_NTV_SYNTAX, OCI_DEFAULT);
+    if (status != OCI_SUCCESS)
+	return oci_error(sth, errhp, status, "OCIStmtPrepare/LOB refetch");
+
+    /* bind the rowid input */
+    OCIDescriptorAlloc_ok(imp_sth->envhp, &lr->rowid, OCI_DTYPE_ROWID);
+    status = OCIBindByName(lr->stmthp, &lr->bindhp, errhp, ":rid", 4,
+           &lr->rowid, sizeof(OCIRowid*), SQLT_RDD, 0,0,0,0,0, OCI_DEFAULT);
+    if (status != OCI_SUCCESS)
+	return oci_error(sth, errhp, status, "OCIBindByPos/LOB refetch");
+
+    /* define the output fields */
+    for(i=0; i < lr->num_fields; ++i) {
+	OCIDefine *defnp = NULL;
+	imp_fbh_t *fbh = &lr->fbh_ary[i];
+	phs_t *phs;
+	SV **phs_svp = hv_fetch(imp_sth->all_params_hv, fbh->name,strlen(fbh->name), 0);
+	if (!phs_svp)
+	    croak("panic: LOB refetch for '%s' param (%d) - name not found",
+		fbh->name,i+1);
+	phs = (phs_t*)(void*)SvPVX(*phs_svp);
+	fbh->special = phs;
+	if (dbis->debug >= 3)
+	    fprintf(DBILOGFP,
+		"       lob refetch %ld for '%s' param: ftype %d setup\n",
+		i+1,fbh->name, fbh->dbtype);
+	status = OCIDefineByPos(lr->stmthp, &defnp, errhp, i+1,
+			 &fbh->desc_h, -1, fbh->ftype, 0,0,0, OCI_DEFAULT);
+	if (status != OCI_SUCCESS)
+	    return oci_error(sth, errhp, status, "OCIDefineByPos/LOB refetch");
+    }
+
+    imp_sth->lob_refetch = lr;	/* structure copy */
+    return 1;
+}
+
+
+static int
+post_insert_lobs(sth, imp_sth)	/* XXX leaks handles on error */
+    SV *	sth;
+    imp_sth_t *imp_sth;
+{
+    /* To insert a new LOB transparently (without using 'INSERT . RETURNING .')	*/
+    /* we have to insert an empty LobLocator and then fetch it back from the	*/
+    /* server before we can call OCILobWrite on it! This function handles that.	*/
+    sword status;
+    int i;
+    OCIError *errhp = imp_sth->errhp;
+    ub4 rowid_iter = 0;
+    lob_refetch_t *lr;
+
+    if (!imp_sth->lob_refetch)
+	if (!init_lob_refetch(sth, imp_sth))
+	    return 0;
+    lr = imp_sth->lob_refetch;
+
+    status = OCIAttrGet_stmhp(imp_sth, (dvoid**)lr->rowid, &rowid_iter, OCI_ATTR_ROWID);
+    if (status != OCI_SUCCESS)
+	return oci_error(sth, errhp, status, "OCIAttrGet OCI_ATTR_ROWID /LOB refetch");
+
+    status = OCIStmtExecute(imp_sth->svchp, lr->stmthp, errhp,
+		1, 0, NULL, NULL, OCI_DEFAULT);	/* execute and fetch */
+    if (status != OCI_SUCCESS)
+	return oci_error(sth, errhp, status, "OCIStmtExecute/LOB refetch");
+
+    for(i=0; i < lr->num_fields; ++i) {
+	imp_fbh_t *fbh = &lr->fbh_ary[i];
+	phs_t *phs = (phs_t*)fbh->special;
+	ub4 amtp = SvCUR(phs->sv);
+	if (dbis->debug >= 3)
+	    fprintf(DBILOGFP,
+		"       lob refetch %d for '%s' param: ftype %d, len %ld\n",
+		i+1,fbh->name, fbh->dbtype, amtp);
+	status = OCILobWrite(imp_sth->svchp, errhp,
+		fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
+		0,0, 0,SQLCS_IMPLICIT);
+	if (status != OCI_SUCCESS) {
+	    oci_error(sth, errhp, status, "OCILobWrite");
+	    return -2;
+	}
+    }
+
+    return 1;
+}
+
+static void
+ora_free_lob_refetch(imp_sth_t *imp_sth)
+{
+    lob_refetch_t *lr = imp_sth->lob_refetch;
+    int i;
+    for(i=0; i < lr->num_fields; ++i) {
+	imp_fbh_t *fbh = &lr->fbh_ary[i];
+	ora_free_fbh_contents(fbh);
+    }
+    sv_free(lr->sql_select);
+    sv_free(lr->fbh_ary_sv);
+    Safefree(imp_sth->lob_refetch);
+    imp_sth->lob_refetch = NULL;
+}

@@ -4,6 +4,40 @@ DBISTATE_DECLARE;
  
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle
 
+I32
+constant()
+    PROTOTYPE:
+    ALIAS:
+    OCI = 0
+    ORA_VARCHAR2= 1
+    ORA_NUMBER	= 2
+    ORA_LONG	= 8
+    ORA_ROWID	= 11
+    ORA_DATE	= 12
+    ORA_RAW	= 23
+    ORA_LONGRAW	= 24
+    ORA_CHAR	= 96
+    ORA_MLSLABEL= 105
+    ORA_NTY	= 108
+    ORA_CLOB	= 112
+    ORA_BLOB	= 113
+    CODE:
+    if (!ix) {
+	char *what = GvNAME(CvGV(cv));
+	if (strEQ(what,"OCI"))
+#ifdef OCI_V8_SYNTAX
+	    RETVAL = 8;
+#else
+	    RETVAL = 7;
+#endif
+	else croak("Unknown DBD::Oracle constant '%s'", what);
+    }
+    else RETVAL = ix;
+    OUTPUT:
+    RETVAL
+
+MODULE = DBD::Oracle    PACKAGE = DBD::Oracle
+
 INCLUDE: Oracle.xsi
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::st

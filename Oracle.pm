@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.59 1998/12/02 02:48:32 timbo Exp $
+#   $Id: Oracle.pm,v 1.60 1998/12/10 01:19:19 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.54_91';
+$DBD::Oracle::VERSION = '0.54_92';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -21,10 +21,19 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use DynaLoader ();
     use Exporter ();
     @ISA = qw(DynaLoader Exporter);
+    %EXPORT_TAGS = (
+	ora_types => [ qw(
+	    ORA_VARCHAR2 ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
+	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_MLSLABEL ORA_NTY
+	    ORA_CLOB ORA_BLOB
+	) ],
+    );
+    Exporter::export_ok_tags('ora_types');
 
-    my $Revision = substr(q$Revision: 1.59 $, 10);
 
-    require_version DBI 0.92;
+    my $Revision = substr(q$Revision: 1.60 $, 10);
+
+    require_version DBI 1.02;
 
     bootstrap DBD::Oracle $VERSION;
 
@@ -128,9 +137,15 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 
     sub connect {
-	my($drh, $dbname, $user, $auth)= @_;
+	my ($drh, $dbname, $user, $auth)= @_;
 
-	if ($dbname){	# application is asking for specific database
+	# If the application is asking for specific database
+	# then we have to mung the 
+
+	if (DBD::Oracle::OCI() >= 8) {
+	    $dbname = $1 if !$dbname && $user =~ s/\@(.*)//;
+	}
+	elsif ($dbname) {
 
 	    # We can use the 'user/passwd@machine' form of user.
 	    # $TWO_TASK and $ORACLE_SID will be ignored in that case.
