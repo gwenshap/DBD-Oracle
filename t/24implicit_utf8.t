@@ -39,6 +39,7 @@ SKIP: {
         SKIP: { 
             set_nls_nchar( $nchar_cset ,1 ); 
             $dbh = db_handle();
+	    show_db_charsets($dbh);
             skip "failed to connect to oracle with NLS_NCHAR=$nchar_cset" ,$testcount if not $dbh;
             drop_table($dbh);
             create_table( $dbh, $tdata );

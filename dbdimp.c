@@ -1321,9 +1321,11 @@ dbd_rebind_ph(sth, imp_sth, phs)
     phs_t *phs;
 {
     ub2 *alen_ptr = NULL;
+    sword status;
     int done = 0;
+    int trace_level = DBIS->debug;
 
-    if (DBIS->debug >= 4)
+    if (trace_level >= 4)
 	PerlIO_printf(DBILOGFP, "       binding %s with ftype %d\n",
 		phs->name, phs->ftype);
 
@@ -1340,7 +1342,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
     }
     if (done != 1) {
 	if (done == 2) { /* the rebind did the OCI bind call itself successfully */
-	    if (DBIS->debug >= 3)
+	    if (trace_level >= 3)
 		PerlIO_printf(DBILOGFP, "       bind %s done with ftype %d\n",
 			phs->name, phs->ftype);
 	    return 1;
@@ -1348,8 +1350,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
 	return 0;	 /* the rebind failed	*/
     }
 
-    if (phs->maxlen > phs->maxlen_bound) {
-	sword status;
+    if (1 ||phs->maxlen > phs->maxlen_bound) {
 	int at_exec = (phs->desc_h == NULL);
 	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 		(text*)phs->name, (sb4)strlen(phs->name),
@@ -1378,10 +1379,43 @@ dbd_rebind_ph(sth, imp_sth, phs)
 	}
     }
 
+
+    /* if SvUTF8(phs->sv) then switch to csform=SQLCS_NCHAR if ncharsetid
+     * is UTF8 and charsetid isn't (if charsetid is then there's no need to change)
+     */
+    if ( SvUTF8(phs->sv)		/* value is UTF8	*/
+	&& (phs->csform == SQLCS_IMPLICIT)
+	&& CS_IS_UTF8(ncharsetid)	/* and NCHAR set is	*/
+	&& !CS_IS_UTF8(charsetid)	/*	-- but CHAR set isn't	*/
+    ) {  
+	phs->csform = SQLCS_NCHAR;	/* XXX this is sticky */
+	if (trace_level >= 3)
+	    PerlIO_printf(DBILOGFP, "       bind %s: promoted this placeholder to SQLCS_NCHAR (csid %d)",
+		  phs->name, ncharsetid);
+    }
+
+
     phs->maxlen_bound = phs->maxlen ? phs->maxlen : 1;
-    if (DBIS->debug >= 3)
-	PerlIO_printf(DBILOGFP, "       bind %s done with ftype %d\n",
-		phs->name, phs->ftype);
+    if (trace_level >= 3)
+	PerlIO_printf(DBILOGFP, "       bind %s <== %s (ftype %d, csform %d, maxdata %ld)\n",
+	      phs->name, neatsvpv(phs->sv,0), phs->ftype, phs->csform, (long)phs->maxlen);
+
+    OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
+	&phs->csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
+    if ( status != OCI_SUCCESS ) {
+	oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)")); 
+	return 0;
+    }
+
+    if (phs->csform != SQLCS_IMPLICIT ) {
+	    OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
+		neatsvpv(phs->sv,0), (ub4)phs->maxlen, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
+	    if ( status != OCI_SUCCESS ) {
+		oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)")); 
+		return 0;
+	    }
+    }
+
     return 1;
 }
 
@@ -1401,7 +1435,6 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     STRLEN name_len;
     char *name = Nullch;
     char namebuf[32];
-    int rebind_ok;
     phs_t *phs;
 
     /* check if placeholder was passed as a number	*/
@@ -1476,10 +1509,10 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_field",9, 0)) != NULL) {
 		phs->ora_field = SvREFCNT_inc(*svp);
 	    }
-	    /* XXX this may be change to work automatically if bound value is utf8 */
 	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_csform", 10, 0)) != NULL) {
 		if (SvIV(*svp) == SQLCS_IMPLICIT || SvIV(*svp) == SQLCS_NCHAR)
 		    phs->csform = (ub1)SvIV(*svp);
+		else warn("Can't set ora_csform to invalid value %d", SvIV(*svp));
 	    }
 	}
 	if (sql_type)
@@ -1518,59 +1551,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	phs->sv = SvREFCNT_inc(newvalue);	/* point to live var	*/
     }
 
-    rebind_ok = dbd_rebind_ph(sth, imp_sth, phs);
-
-
-    /*
-     * API:
-     *	  $sth->bind_param(1, $value, { ora_csform => SQLCS_NCHAR });
-     * also
-     *    $dbh->{ora_ph_csform} = SQLCS_NCHAR;	# default all future ph to SQLCS_NCHAR
-     */
-    
-    if ( rebind_ok )  /* here we set csform if needed */
-    {
-        sword status;
-	/* if SvUTF8(phs->sv) then switch to csform=SQLCS_NCHAR if ncharsetid
-	 * is UTF8 and charsetid isn't (if charsetid is then there's no need to change)
-	 */
-        if ( SvUTF8(phs->sv)		/* value is UTF8	*/
-	    && (phs->csform == SQLCS_IMPLICIT)
-	    && CS_IS_UTF8(ncharsetid)	/* and NCHAR set is	*/
-	/* XXX This next condition ought to work but breaks if NLS_LANG=.utf8
-	 * In other words if charsetid=utf8 we can't just skip the OCI_ATTR_CHARSET_FORM
-	 * (I got "ORA-01461: can bind a LONG value only for insert into a LONG column" errors
-	 * from t/24implicit_utf8.t - which is the only test affected by this, I think)
-	*/
-	    /* && !CS_IS_UTF8(charsetid)	-- but CHAR set isn't	*/
-	) {  
-            phs->csform = SQLCS_NCHAR;
-        }
-
-        if ( phs->csform != SQLCS_IMPLICIT ) {
-            if (DBIS->debug >= 2) { 
-                PerlIO_printf(DBILOGFP, "       bind %s <== %s (SQLCS_NCHAR, type %ld, csform %d, maxdata=%ld)\n",
-		      name, neatsvpv(newvalue,0), (long)sql_type, phs->csform, (long)phs->maxlen);
-            }
-
-	    /* docs say must set OCI_ATTR_CHARSET_FORM before OCI_ATTR_CHARSET_ID */
-            OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
-                &phs->csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
-            if ( status != OCI_SUCCESS ) {
-                oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)")); 
-                rebind_ok = 0;
-            }
-
-            OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
-                neatsvpv(newvalue,0), (ub4)phs->maxlen, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
-            if ( status != OCI_SUCCESS ) {
-                oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)")); 
-                rebind_ok = 0;
-            }
-        }
-    }
-
-    return rebind_ok;
+    return dbd_rebind_ph(sth, imp_sth, phs);
 }
 
 
