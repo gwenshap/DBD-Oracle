@@ -1284,7 +1284,7 @@ All other values have the same effect as 1.
 
 If true (the default), fetching retreives the contents of the CLOB or
 BLOB column in most circumstances.  If false, fetching retreives the
-Oracle "LOB Locator" of the CLOB or BLOB value.  (OCI8 and later only)
+Oracle "LOB Locator" of the CLOB or BLOB value.
 
 See L</Handling LOBs> for more details.
 See also the LOB tests in 05dbi.t of Oracle::OCI for examples
@@ -1294,7 +1294,6 @@ of how to use LOB Locators.
 
 If 1 (default), force SELECT statements to be described in prepare().
 If 0, allow SELECT statements to defer describe until execute().
-(OCI8 and later only.)
 
 See L</Prepare postponed till execute> for more information.
 
@@ -2069,7 +2068,7 @@ $refresh parameter to it.
 
 =head1 Prepare postponed till execute
 
-With OCI8, the DBD::Oracle module can avoid an explicit 'describe' operation
+The DBD::Oracle module can avoid an explicit 'describe' operation
 prior to the execution of the statement unless the application requests
 information about the results (such as $sth->{NAME}). This reduces
 communication with the server and increases performance (reducing the
@@ -2439,6 +2438,23 @@ To close the cursor you (currently) need to do this:
 
 See the C<curref.pl> script in the Oracle.ex directory in the DBD::Oracle
 source distribution for a complete working example.
+
+=head1 Returning A Value from an INSERT
+
+Oracle supports an extended SQL insert syntax which will return one
+or more of the values inserted. This can be particularly useful for
+single-pass insertion of values with re-used sequence values
+(avoiding a separate "select seq.nextval from dual" step).
+
+  $sth = $dbh->prepare(qq{
+      INSERT INTO foo (id, bar)
+      VALUES (foo_id_seq.nextval, :bar)
+      RETURNING id INTO :id
+  });
+  $sth->bind_param(":bar", 42);
+  $sth->bind_param_inout(":id", \my $new_id, 99);
+  $sth->execute;
+  print "The id of the new record is $new_id\n";
 
 =head1 Returning A Recordset
 
