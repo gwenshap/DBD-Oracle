@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.89 2001/08/29 19:38:31 timbo Exp $
+#   $Id: Oracle.pm,v 1.92 2001/08/31 16:23:59 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.09';
+$DBD::Oracle::VERSION = '1.12';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -32,9 +32,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.89 $, 10);
+    my $Revision = substr(q$Revision: 1.92 $, 10);
 
-    require_version DBI 1.02;
+    require_version DBI 1.20;
 
     bootstrap DBD::Oracle $VERSION;
 
@@ -409,8 +409,13 @@ SQL
 	$sth;
 }
 
+
     sub primary_key_info {
-	my($dbh, $attr) = @_;
+        my($dbh, $catalog, $schema, $table) = @_;
+        if (ref $catalog eq 'HASH') {
+            ($schema, $table) = @$catalog{'TABLE_SCHEM','TABLE_NAME'};
+            $catalog = undef;
+        }                  
 	my $Sql = <<'SQL';
 SELECT *
   FROM
@@ -433,7 +438,7 @@ SELECT *
  ORDER BY TABLE_SCHEM, TABLE_NAME, KEY_SEQ
 SQL
 	my $sth = $dbh->prepare($Sql) or return undef;
-	$sth->execute(@$attr{'TABLE_SCHEM','TABLE_NAME'}) or return undef;
+	$sth->execute($schema, $table) or return undef;
 	$sth;
 }
 

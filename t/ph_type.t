@@ -39,12 +39,16 @@ $^W = 1;
 print "1..$tests\n";
 
 my ($sth,$expect,$tmp);
+my $table = "dbd_oracle_test__drop_me";
 
-# drop table but do not even warn if not there
-eval { $dbh->do("DROP TABLE foobar") };
+# drop table but don't warn if not there
+eval {
+  local $dbh->{PrintError} = 0;
+  $dbh->do("DROP TABLE $table");
+};
 #warn $@ if $@;
 
-ok(0, $dbh->do("CREATE TABLE foobar (test VARCHAR2(2), foo VARCHAR2(20))"));
+ok(0, $dbh->do("CREATE TABLE $table (test VARCHAR2(2), foo VARCHAR2(20))"));
 
 my $val_with_trailing_space = "trailing ";
 my $val_with_embedded_nul = "embedded\0nul";
@@ -70,14 +74,14 @@ for my $test_ary (@tests) {
   ok(0, $dbh->{ora_ph_type} =  $ph_type );
   ok(0, $dbh->{ora_ph_type} == $ph_type );
 
-  ok(0, $sth = $dbh->prepare("INSERT INTO foobar VALUES (?,?)"));
+  ok(0, $sth = $dbh->prepare("INSERT INTO $table VALUES (?,?)"));
   ok(0, $sth->execute("ts", $val_with_trailing_space));
   ok(0, $sth->execute("en", $val_with_embedded_nul));
   ok(0, $sth->execute("em", '')); # empty string
 
   ok(0, $tmp = $dbh->selectall_hashref(qq{
 	SELECT test, foo, length(foo) as len, nvl(foo,'ISNULL') as isnull
-	FROM foobar
+	FROM $table
   }, "test"));
   ok(0, keys(%$tmp) == 3);
   ok(0, $tmp->{en}->{foo});
@@ -111,9 +115,10 @@ for my $test_ary (@tests) {
 last if $trace;
 }
 
+ok(0, $dbh->do("DROP TABLE $table"));
 ok(0, $dbh->disconnect );
 
-BEGIN { $tests = 52 }
+BEGIN { $tests = 53 }
 
 
 __END__
