@@ -215,9 +215,10 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 extern int ora_fetchtest;
 
 #ifdef UTF8_SUPPORT
+extern ub2 utf8_csid;
 extern ub2 charsetid;
 extern ub2 ncharsetid;
-extern int cs_is_utf8;
+extern ub2 cs_is_utf8;
 #endif
 
 void dbd_init_oci _((dbistate_t *dbistate));

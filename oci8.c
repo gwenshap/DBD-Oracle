@@ -1242,10 +1242,22 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
                               but we will use the charsetid we got at 
                               startup... */
         if ( 0 || (fbh->dbtype == 1) ) {
-            ub2 csid = ( fbh->csform == 2 ) ? ncharsetid : charsetid;
-            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csid, /* &fbh->csid, */
+#define USE_NLS_NCHAR
+#ifdef USE_NLS_NCHAR
+            ub2 csid = ( fbh->csform == 2 ) ? ncharsetid : charsetid; 
+            /* ub2 csform = ((fbh->csform == 2) && cs_is_utf8) ? fbh->csform : 1 ; */
+            ub2 csform = fbh->csform;
+            /* ub2 csform = (fbh->csform == 2) ? fbh->csform : 1 ; */
+#else
+            ub2 csid = fbh->csid;  
+            ub2 csform = fbh->csform;
+#endif
+            if (1 || DBIS->debug >= 2 )
+               PerlIO_printf(DBILOGFP, "    calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
+
+            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csid, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
-            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform,
+            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csform, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
         }
 #endif

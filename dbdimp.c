@@ -39,11 +39,11 @@ int is_extproc = 0;
 #ifdef UTF8_SUPPORT
 ub2 charsetid = 0;
 ub2 ncharsetid = 0;
-int database_is_widemode = 0;
-int cs_is_utf8 = 0;
-int utf8_csid = 871;
-int al32utf8_csid = 873;
-int al16utf16_csid = 2000;
+ub2 database_is_widemode = 0;
+ub2 cs_is_utf8 = 0;
+ub2 utf8_csid = 871;
+ub2 al32utf8_csid = 873;
+ub2 al16utf16_csid = 2000;
 #endif
 
 static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */

@@ -34,6 +34,7 @@ sub narrow_data
     [
         [ "\x{03}", "control-C"        ],
         [ "a",      "lowercase a"      ],
+        [ "b",      "lowercase b"      ],
         [ "\x{A1}", "upside down bang" ],
         [ "\x{A2}", "cent char"        ],
         [ "\x{A3}", "brittish pound"   ],
@@ -44,6 +45,7 @@ sub utf8_narrow_data
     [
         [ "\x{03}", "control-C"        ],
         [ "a",      "lowercase a" ],
+        [ "b",      "lowercase b" ],
         [ "\x{08A1}", "upside down bang" ],
         [ "\x{08A2}", "cent char"        ],
         [ "\x{08A3}", "brittish pound"   ],
