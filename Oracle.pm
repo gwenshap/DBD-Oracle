@@ -2237,9 +2237,9 @@ can't be used effectively if AutoCommit is enabled).
    my $sth = $dbh->prepare( <<"   SQL" );
       INSERT INTO lob_example
       ( lob_id, bindata, chardata )
-      VALUES ( ?, ?, ? )
+      VALUES ( ?, EMPTY_BLOB(),EMPTY_CLOB() )
    SQL
-   $sth->execute( $lob_id, '', '' );
+   $sth->execute( $lob_id );
 
    $sth = $dbh->prepare( <<"   SQL", { ora_auto_lob => 0 } );
       SELECT bindata, chardata
