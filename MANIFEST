@@ -50,6 +50,9 @@ t/10general.t
 t/15nls.t
 t/20select.t
 t/21nchar.t
+t/22nchar_utf8.t
+t/23wide_db.t
+t/24implicit_utf8.t
 t/25plsql.t
 t/30long.t
 t/40ph_type.t
@@ -57,3 +60,4 @@ t/50cursor.t
 t/60reauth.t
 t/70meta.t
 typemap
+META.yml                                 Module meta-data (added by MakeMaker)
