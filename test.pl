@@ -4,7 +4,7 @@ use ExtUtils::testlib;
 
 die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 
-# $Id: test.pl,v 1.32 1998/11/29 00:14:07 timbo Exp $
+# $Id: test.pl,v 1.33 1998/12/16 00:19:34 timbo Exp $
 #
 # Copyright (c) 1995-1998, Tim Bunce
 #
@@ -12,14 +12,14 @@ die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 # License or the Artistic License, as specified in the Perl README file.
 
 # XXX
-# XXX  Please note that this code is a random hotch-potch of tests and
-# XXX  test frameworks and is in *no way* a to be used as a style guide!
+# XXX  PLEASE NOTE THAT THIS CODE IS A RANDOM HOTCH-POTCH OF TESTS AND
+# XXX  TEST FRAMEWORKS AND IS IN *NO WAY* A TO BE USED AS A STYLE GUIDE!
 # XXX
 
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.32 $}."\n";
+print q{Oraperl test application $Revision: 1.33 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^(Bad|Duplicate) free/)
@@ -152,20 +152,21 @@ sub test1 {
 	$csr->{RaiseError} = 1;
 
 	print "Fields:    ",scalar(&ora_fetch($csr)),"\n";
-	die "ora_fetch in scalar context error\n" unless &ora_fetch($csr)==5;
+	die "ora_fetch in scalar context error" unless &ora_fetch($csr)==5;
 	print "Names:     ",DBI::neat_list([&ora_titles($csr)],	0,"\t"),"\n";
 	print "Lengths:   ",DBI::neat_list([&ora_lengths($csr)],0,"\t"),"\n";
 	print "OraTypes:  ",DBI::neat_list([&ora_types($csr)],	0,"\t"),"\n";
 	print "SQLTypes:  ",DBI::neat_list($csr->{TYPE},		0,"\t"),"\n";
 	print "Scale:     ",DBI::neat_list($csr->{SCALE},		0,"\t"),"\n";
 	print "Precision: ",DBI::neat_list($csr->{PRECISION},	0,"\t"),"\n";
+	print "Nullable:  ",DBI::neat_list($csr->{NULLABLE},	0,"\t"),"\n";
 	print "Est row width:    $csr->{ora_est_row_width}\n";
 	print "Prefetch cache:   $csr->{RowsInCache}\n" if $csr->{RowsInCache};
 
 	print "Data rows:\n";
 	#$csr->debug(2);
 	while(@fields = $csr->fetchrow_array) {
-	    die "ora_fetch returned .".@fields." fields instead of 5!"
+	    die "ora_fetch returned ".@fields." fields instead of 5!"
 		    if @fields != 5;
 	    die "Perl list/scalar context error" if @fields==1;
 	    print "    fetch: ", DBI::neat_list(\@fields),"\n";

@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.69 1998/11/29 00:14:07 timbo Exp timbo $
+# $Id: Makefile.PL,v 1.71 1998/12/16 00:23:12 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -10,6 +10,14 @@ use Cwd;
 use File::Find;
 use strict;
 
+# This DBI must be installed before we can build a DBD.
+# For those not using Dynamic loading this means building a
+# new static perl in the DBI directory by saying 'make perl'
+# and then using _that_ perl to make this one.
+use DBI 1.02;
+use DBI::DBD;	# DBD creation tools
+
+
 # Some MakeMaker's forged some FileHandle methods
 require FileHandle unless defined(&FileHandle::new);
 
@@ -20,23 +28,18 @@ BEGIN { if ($^O eq 'VMS') {
     import  VMS::Filespec;
 }}
 
-# This DBI must be installed before we can build a DBD.
-# For those not using Dynamic loading this means building a
-# new static perl in the DBI directory by saying 'make perl'
-# and then using _that_ perl to make this one.
-use DBI 1.02;
-use DBI::DBD;	# DBD creation tools
 
 my $dbi_dir      = dbd_dbi_dir();
 my $dbi_arch_dir = dbd_dbi_arch_dir();
 my $os = $^O;
 my $osvers = $Config{osvers};
 $osvers =~ s/^\s*(\d+\.\d+).*/$1/;	# drop sub-sub-version: 2.5.1 -> 2.5
+my $exe_ext = ($os eq 'VMS') ? '.pl' : '';
 
 my %opts = (
     NAME => 'DBD::Oracle',
     VERSION_FROM => 'Oracle.pm',
-    EXE_FILES => [ 'ora_explain' ],
+    EXE_FILES => [ "ora_explain$exe_ext" ],
     OBJECT => '$(O_FILES)',
     DEFINE => '',
     DIR  => [],
@@ -466,8 +469,8 @@ sub fetch_oci_macros {
 
     $edit{ORA_NLS} = $edit{ORA_NLS33} = q{
 	print "Deleting $_\n",
-	    "because it is not already set in the environment\n",
-	    "and it can cause ORA-01019 errors.\n";
+	    "  because it is not already set in the environment\n",
+	    "  and it can cause ORA-01019 errors.\n";
 	$_ = '';
     } unless $ENV{ORA_NLS} || $ENV{ORA_NLS33};
 

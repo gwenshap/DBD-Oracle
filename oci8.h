@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.h,v 1.3 1998/12/02 02:48:32 timbo Exp $
+   $Id: oci8.h,v 1.5 1998/12/16 00:23:12 timbo Exp $
 
    Copyright (c) 1998  Tim Bunce
 
@@ -774,7 +774,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
     sv_catpv(sql_select, " from ");
     sv_catpv(sql_select, tablename);
-    sv_catpv(sql_select, " where rowid = :rid");
+    sv_catpv(sql_select, " where rowid = :rid for update"); /* get row with lock */
     if (dbis->debug >= 3)
 	fprintf(DBILOGFP,
 	    "       lob refetch sql: %s\n", SvPVX(sql_select));

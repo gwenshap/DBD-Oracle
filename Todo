@@ -1,12 +1,8 @@
-Oracle 8 esp *LOBS
-
-SCALE, PRECISION
+SCALE, PRECISION return 0!
 
 prepare("insert .. into ... RETURNING foo INTO :bar")
 
 bind_param(... { TYPE => SQL_* }) esp SQL_LONGVARCHAR etc
-
-use DBD::Oracle qw(:ora_types);
 
 $sth = $dbh->prepare("select ... for update");
 $dbh->commit;
@@ -19,9 +15,6 @@ $drh->debug oddities (re data_source debugging)
 
 ora_bind() failed err = ORA-01026: multiple buffers of size > 4000 in
 the bind list (DBD: oexec error)
-
-DBI::st=HASH(0x5b5c2c) debug level set to 2 ... (add perl version
-number and other info here).
 
 http://outside.organic.com/mail-archives/dbi-users/Nov1997/0116.html
 

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.42 1998/12/02 02:48:32 timbo Exp $
+   $Id: dbdimp.c,v 1.44 1998/12/16 00:41:53 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -1163,7 +1163,8 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
     status = OCIStmtExecute(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
 		(is_select) ? 0 : 1,
 		0, 0, 0,
-		(DBIc_has(imp_dbh,DBIcf_AutoCommit))
+		/* we don't AutoCommit on select so LOB locators work */
+		(DBIc_has(imp_dbh,DBIcf_AutoCommit) && !is_select)
 			? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT);
     if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCIStmtExecute");

@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.59 1998/12/02 02:48:32 timbo Exp $
+#   $Id: Oracle.pm,v 1.61 1998/12/16 00:23:12 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.54_93';
+$DBD::Oracle::VERSION = '0.55';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -31,7 +31,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.59 $, 10);
+    my $Revision = substr(q$Revision: 1.61 $, 10);
 
     require_version DBI 1.02;
 
@@ -142,7 +142,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# If the application is asking for specific database
 	# then we have to mung the
 
-	if (DBD::Oracle::OCI() >= 8) {
+	if (DBD::Oracle::ORA_OCI() >= 8) {
 	    $dbname = $1 if !$dbname && $user =~ s/\@(.*)//;
 	}
 	elsif ($dbname) {
@@ -197,7 +197,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    'USER' => $user, 'CURRENT_USER' => $user,
 	    });
 
-	# Call Oracle OCI orlon func in Oracle.xs file
+	# Call Oracle OCI logon func in Oracle.xs file
 	# and populate internal handle data.
 	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth)
 	    or return undef;
@@ -220,8 +220,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    'Statement' => $statement,
 	    });
 
-	# Call Oracle OCI oparse func in Oracle.xs file.
-	# (This will actually also call oopen for you.)
+	# Call Oracle OCI parse func in Oracle.xs file.
 	# and populate internal handle data.
 
 	DBD::Oracle::st::_prepare($sth, $statement, @attribs)
@@ -388,6 +387,10 @@ DBD::Oracle - Oracle database driver for the DBI module
   $dbh = DBI->connect("dbi:Oracle:$dbname", $user, $passwd);
 
   # See the DBI module documentation for full details
+
+  # for some advanced uses you may need Oracle type values:
+  use DBD::Oracle qw(:ora_types);
+
 
 =head1 DESCRIPTION
 
@@ -576,7 +579,8 @@ If it generates any errors which look relevant then please talk to yor
 Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
 
-=head2 International NLS / 8-bit text issues
+
+=head1 International NLS / 8-bit text issues
 
 If 8-bit text is returned as '?' characters or can't be inserted
 make sure the following environment vaiables are set correctly:
@@ -792,6 +796,11 @@ for LOB type. Here's a quote from the Oracle OCI documentation:
 rewriting of the internals of the drivers. There are bound to be some
 minor problems.)
 
+The DBD::Oracle module will avoid an explicit 'describe' operation
+prior to the execution of the statement unless the application requests
+information about the results (such as $sth->{NAME}). This reduces
+Communication with the server and increases performance.
+
 When fetching LOBs, they are treated just like LONGs and are subject to
 $sth->{LongReadLen} and $sth->{LongTruncOk}.
 
@@ -802,8 +811,8 @@ them.  However, it works, and I've made it as fast as possible (just
 one extra server-round-trip per insert or update after the first).
 For the time being, only single-row LOB updates are supported.
 
-To insert or update a LOB, DBD::Oracle has to know in advance that it
-is a LOB type, there's no way around this. So you need to say:
+To insert or update a large LOB, DBD::Oracle has to know in advance
+that it is a LOB type. So you need to say:
 
 	$sth->bind_param($idx, $value, { ora_type => ORA_CLOB });
 
@@ -822,17 +831,21 @@ So any code you may have now that looks like
 should change the 8 (LONG type) to ORA_CLOB or ORA_BLOB
 (or 112 or 113).
 
+
 =head1 Oracle on Linix
 
 To join the oracle-on-linux mailing list, see:
 
   http://www.datamgmt.com/maillist.html
   http://www.eGroups.com/list/oracle-on-linux
+  http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
   mailto:oracle-on-linux-subscribe@egroups.com
+
 
 =head1 Commercial Oracle Tools
 
-Assorted tools and references for general information. No recommendation implied.
+Assorted tools and references for general information.
+No recommendation implied.
 
 PL/Vision from RevealNet and Steven Feuerstein.
 
@@ -845,13 +858,14 @@ SoftTree Technologies: http://www.SoftTreeTech.com
 http://www.databasegroup.com
 
 
+=head1 BUGS
+
+For $sth->{SCALE} and $sth->{PRECISION} Oracle always returns 0. Both
+with Oracle 7 and Oracle 8 OCI. Any idea why?
+
 =head1 SEE ALSO
 
 L<DBI>
-
-Linux uses should read:
-
-  http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
 
 =head1 AUTHOR
 
@@ -866,6 +880,9 @@ cannot be placed on a CD-ROM or similar media for commercial distribution
 without the prior approval of the author.
 
 =head1 ACKNOWLEDGEMENTS
+
+A great many people have helped me over the years. Far too many to
+name, but I thank them all.
 
 See also L<DBI/ACKNOWLEDGEMENTS>.
 

@@ -1,3 +1,16 @@
+Changes in DBD::Oracle 0.55 (Oraperl 1.37), 16th December 1998
+
+  Major internal work to support Oracle 8 OCI.
+  Oracle 8 LOBs are supported and treated as LONGs (DBD::Oracle works
+  hard to hide the complexities of handling Lob Locators for you).
+  See Oracle 8 section in the docs for more details.
+  Added $sth->{TYPE}.
+  SCALE & PRECISION are implemented but return 0 (Oracle bug?).
+  DBI 1.02 or later is required.
+  Assorted build time Makefile.PL improvements.
+  Builds with 5.004_04, 5.005_02 and 5.005_54 (not _53).
+  Added "use DBD::Oracle qw(:ora_types);"
+
 Changes in DBD::Oracle 0.54 (Oraperl 1.37), 14th August 1998
 
   Added $dbh->type_info_all.

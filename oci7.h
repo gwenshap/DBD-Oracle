@@ -1,5 +1,5 @@
 /*
-   $Id: oci7.h,v 1.2 1998/11/29 00:14:07 timbo Exp $
+   $Id: oci7.h,v 1.3 1998/12/16 00:19:34 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -199,11 +199,11 @@ dbd_describe(h, imp_sth)
 	int dbtype;
 
 	fbh->imp_sth = imp_sth;
-	fbh->name    = cbuf_ptr;
+	fbh->name    = (char*)cbuf_ptr;
 	fbh->cbufl   = f_cbufl[i];
 	/* DESCRIBE */
 	odescr(imp_sth->cda, i,
-		&fbh->dbsize, &fbh->dbtype,  fbh->name,  &fbh->cbufl,
+		&fbh->dbsize, &fbh->dbtype, (sb1*)fbh->name,  &fbh->cbufl,
 		&fbh->disize, &fbh->prec,   &fbh->scale, &fbh->nullok);
 	fbh->name[fbh->cbufl] = '\0';	 /* ensure null terminated	*/
 	cbuf_ptr += fbh->cbufl + 1;	 /* increment name pointer	*/

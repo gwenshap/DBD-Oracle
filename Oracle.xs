@@ -8,7 +8,7 @@ I32
 constant()
     PROTOTYPE:
     ALIAS:
-    OCI = 0
+    ORA_OCI = 0
     ORA_VARCHAR2= 1
     ORA_NUMBER	= 2
     ORA_LONG	= 8
@@ -24,7 +24,7 @@ constant()
     CODE:
     if (!ix) {
 	char *what = GvNAME(CvGV(cv));
-	if (strEQ(what,"OCI"))
+	if (strEQ(what,"ORA_OCI"))
 #ifdef OCI_V8_SYNTAX
 	    RETVAL = 8;
 #else
