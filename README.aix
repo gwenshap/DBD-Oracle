@@ -120,3 +120,33 @@ with
    LDFLAGS32=-b32
 
 Have fun: KC.
+--------------------------------------------------------------------------------------
+
+Date: Wed, 30 Jun 2004 23:34:24 -0500
+From: "SCHULTZ, DARYLE (SBCSI)" <ds8183@sbc.com>
+
+Got it to work.  Using dbd 1.16
+
+Perl 5.8.4 built like this, with Visual Age 6.0:
+
+config_args='-Dcc=xlc_r -Dusenm -Dprefix=/appl/datasync/work/perl5
+-Dusethreads -Duse64bitall -des'
+==============================================
+
+Used DBI 1.42
+=============================================
+Added this to top of Oracle.h:
+#define A_OSF
+
+#include <oratypes.h>
+=======================
+Set LIBPATH to point to 64bit Oracle libs first.
+export LIBPATH=$ORACLE_HOME/lib:$ORACLE_HOME/lib32:/usr/lib
+
+Use:   perl Makefile.PL -nob
+
+Change all references in Makefile  of LD_RUN_PATH to be LIBPATH.
+Change nothing else, left all flags in Makefile, including -q64.
+Passed make, and all tests.
+
+--------------------------------------------------------------------------------------
