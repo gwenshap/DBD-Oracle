@@ -351,9 +351,11 @@ sub run_long_tests
 
 
         SKIP: {
-            skip( "ORA_OCI < 8 && $type_name =~ /LOB/i" ,1+(13*4) ) if not ( ORA_OCI >= 8 && ($type_name =~ /LOB/i) );
+            skip( "not (ORA_OCI >= 8 && $type_name =~ /LOB/i)" ,1+(13*4) ) if not ( ORA_OCI >= 8 && ($type_name =~ /LOB/i) );
 
             diag "\n --- testing ora_auto_lob to access $type_name LobLocator\n\n";
+            my $data_fmt = "%03d foo!";
+
             $sqlstr = qq{
                     SELECT lng, idx FROM $table ORDER BY idx
                     FOR UPDATE -- needed so lob locator is writable
@@ -361,57 +363,76 @@ sub run_long_tests
             my $ll_sth = $dbh->prepare($sqlstr, { ora_auto_lob => 0 } );  # 0: get lob locator instead of lob contents
             ok($ll_sth ,"prepare $sqlstr" );
             ok($ll_sth->execute ,"execute $sqlstr" );
-            my $data_fmt = "%03d foo!";
 
             while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
                 diag "$idx: ".DBI::neat($lob_locator)."\n";
-                next if !defined($lob_locator) && $idx == 43;
+                last if !defined($lob_locator) && $idx == 43;
 
                 ok($lob_locator, "lob_locator false");
-                is(ref $lob_locator , 'OCILobLocatorPtr', 'ref $lob_locator' );
+                is(ref $lob_locator , 'OCILobLocatorPtr', '$lob_locator is a OCILobLocatorPtr' );
                 ok( (ref $lob_locator and $$lob_locator), "lob_locator deref ptr false" ) ;
                 my $data = sprintf $data_fmt, $idx;
+                print "\nlincoln: could it be that ora_lob_write is the function that is trashing things...\n\n" if $utf8_test;
+                $dbh->trace(9) if $utf8_test;
                 ok($dbh->func($lob_locator, 1, $data, 'ora_lob_write') ,"ora_lob_write" ); #lab: is this trashing things?
+                $dbh->trace(0);
+
             }
             #$dbh->commit;
-            #$ll_sth = $dbh->prepare($sqlstr, { ora_auto_lob => 0 } );  # 0: get lob locator instead of lob contents
+            if ( 0 ) {
+                my $tsql = "select length(lng),idx from $table order by idx" ;
+                my $tsth = $dbh->prepare( $tsql );
+                $tsth->execute();
+                while ( my ( $l,$i ) = $tsth->fetchrow_array() )
+                {
+                    last if not defined $l;
+                    print "$i: $l\n";
+                }
+            }
             #diag "RE prepare: $sqlstr\n" ;
-            ok($ll_sth->execute,"execute (again 1) $sqlstr" );
-            while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
-                diag "$idx locator: ".DBI::neat($lob_locator)."\n";
-                #next if !defined($lob_locator) && $idx == 43;
-                SKIP: {
-                    skip "long_data{idx} not ndefined" ,7 if ! defined $long_data{$idx};
+            #$ll_sth = $dbh->prepare($sqlstr, { ora_auto_lob => 0 } );  # 0: get lob locator instead of lob contents
+            SKIP: { #28
+                if ( $utf8_test ) {
+                   diag "ora_lob_read does not work (possibily after ora_lob_write) when charset is utf8 (patches welcome)" ;
+                }
+                ok($ll_sth->execute,"execute (again 1) $sqlstr" );
+                while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
+                    diag "$idx locator: ".DBI::neat($lob_locator)."\n";
+                    #next if !defined($lob_locator) && $idx == 43;
+                    SKIP: {
+                        skip "long_data{idx} not ndefined" ,7 if ! defined $long_data{$idx};
 
-                    diag "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
-                $dbh->trace(3) if $utf8_test; #look here
-                    my $content = $dbh->func($lob_locator, 1, 20, 'ora_lob_read');
-                $dbh->trace(0);
-                    diag "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
-                    ok($content,"content is true" );
-                    diag "$idx content: ".DBI::neat($content)."\n";
-                    cmp_ok(length($content) ,'==', 20 ,"lenth(content)" );
+                        diag "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
 
-                    # but prefix has been overwritten:
-                    my $data = sprintf $data_fmt, $idx;
-                    ok(substr($content,0,length($data)) eq $data ,"content=data" );
+                    $dbh->trace(9) if $utf8_test; #look here
+                        my $content = $dbh->func($lob_locator, 1, 20, 'ora_lob_read');
+                    $dbh->trace(0);
+                        diag "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
+                        ok($content,"content is true" );
+                        diag "$idx content: ".DBI::neat($content)."\n";
+                        cmp_ok(length($content) ,'==', 20 ,"lenth(content)" );
 
-                    # ora_lob_length agrees:
-                    my $len = $dbh->func($lob_locator, 'ora_lob_length');
-                    ok(!$DBI::err ,"DBI::errstr" );
-                    cmp_ok($len ,'==', length($long_data{$idx}) ,"len($len)=length(long_data{idx})" );
+                        # but prefix has been overwritten:
+                        my $data = sprintf $data_fmt, $idx;
+                        ok(substr($content,0,length($data)) eq $data ,"length(content)=length(data)" );
 
-                    # now trim the length
-                    $dbh->func($lob_locator, $idx, 'ora_lob_trim');
-                    ok(!$DBI::err, "DBI::errstr" );
+                        # ora_lob_length agrees:
+                        my $len = $dbh->func($lob_locator, 'ora_lob_length');
+                        ok(!$DBI::err ,"DBI::errstr" );
+                        cmp_ok($len ,'==', length($long_data{$idx}) ,"length(long_data{idx}) = length of locator data" );
 
-                    # and append some text
-                    $dbh->func($lob_locator, "12345", 'ora_lob_append');
-                    ok(!$DBI::err ,"DBI::errstr" );
-                    if ($DBI::err && $DBI::errstr =~ /ORA-24801:/) {
-                        warn " If you're using Oracle < 8.1.7 then the OCILobWriteAppend error is probably\n";
-                        warn " due to Oracle bug #886191 and is not a DBD::Oracle problem\n";
-                        --$failed; # don't trigger long message below just for this
+                        # now trim the length
+                        $dbh->func($lob_locator, $idx, 'ora_lob_trim');
+                        ok(!$DBI::err, "DBI::errstr" );
+
+                        # and append some text
+                        $dbh->func($lob_locator, "12345", 'ora_lob_append');
+                        ok(!$DBI::err ,"DBI::errstr" );
+                        if ($DBI::err && $DBI::errstr =~ /ORA-24801:/) {
+                            warn " If you're using Oracle < 8.1.7 then the OCILobWriteAppend error is probably\n";
+                            warn " due to Oracle bug #886191 and is not a DBD::Oracle problem\n";
+                            --$failed; # don't trigger long message below just for this
+                        }
                     }
                 }
             }

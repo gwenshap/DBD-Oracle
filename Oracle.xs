@@ -145,9 +145,6 @@ ora_lob_write(dbh, locator, offset, data)
     }
 #endif
 #endif
-    if (DBIS->debug >= 2 )
-	PerlIO_printf(DBILOGFP, "    Calling OCILobWrite with csid=%d csform=%d\n",csid, csform );
-
     OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset,
 	    bufp, (ub4)data_len, OCI_ONE_PIECE,
@@ -196,8 +193,6 @@ ora_lob_append(dbh, locator, data)
 	ST(0) = &sv_undef;
         return;
     }
-    if (DBIS->debug >= 2 )
-	PerlIO_printf(DBILOGFP, "    Calling OCILobWriteAppend with csid=%d csform=%d\n",csid, csform );
 #endif
 #endif
 #ifdef OCI_HTYPE_DIRPATH_FN_CTX /* Oracle is >= 9.0 */
@@ -280,8 +275,6 @@ ora_lob_read(dbh, locator, offset, length)
     }
 #endif
 #endif
-    if (DBIS->debug >= 2 )
-	PerlIO_printf(DBILOGFP, "    Calling OCILobRead with csid=%d csform=%d\n",csid, csform );
     OCILobRead_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset, /* offset starts at 1 */
 	    bufp, (ub4)bufp_len,

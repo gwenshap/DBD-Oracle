@@ -41,7 +41,7 @@
    stat = OCILobCharSetId( envhp, errhp, locp, csidp ); \
 	(DBD_OCI_TRACEON) \
    ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-         "OCILobCharSetForm(%p,%p,%p,%d)=%s\n",\
+         "OCILobCharSetId(%p,%p,%p,%d)=%s\n",\
          (void*)envhp, (void*)errhp, (void*)locp, *csidp, oci_status_name(stat)),stat \
    : stat
 
@@ -50,8 +50,8 @@
    stat = OCILobCharSetForm( envhp, errhp, locp, formp ); \
 	(DBD_OCI_TRACEON) \
    ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-         "OCILobCharSetForm(%p,%p,%p,%p)=%s\n",\
-         (void*)envhp, (void*)errhp, (void*)locp, (void*)formp, oci_status_name(stat)),stat \
+         "OCILobCharSetForm(%p,%p,%p,%d)=%s\n",\
+         (void*)envhp, (void*)errhp, (void*)locp, *formp, oci_status_name(stat)),stat \
    : stat
 
 /* added by lab */
