@@ -59,46 +59,47 @@ static sql_fbh_t ora2sql_type _((imp_fbh_t* fbh));
 void ora_free_phs_contents _((phs_t *phs));
 static void dump_env_to_trace();
 
-#ifndef OCI_ATTR_ENV_CHARSET_ID
-#ifdef WIN32
-static char *
-GetEnvOrRegKey(char *name)
-{
-#define REG_BUFSIZE 80
-    char key[REG_BUFSIZE+1];
-    char val[REG_BUFSIZE+1];
-    int  len = REG_BUFSIZE;
-    char *e = getenv(name);
-    if (e)
-	return e;
-    if (!GetRegKey("SOFTWARE\\ORACLE\\ALL_HOMES", "LAST_HOME", val, &len))
-	return Nullch;
-    val[2] = 0;
-    len = REG_BUFSIZE;
-    sprintf(key, "SOFTWARE\\ORACLE\\HOME%s", val);
-    if (!GetRegKey(key, "NLS_LANG", val, &len))
-	return Nullch;
-    val[len] = 0;
-    return &val[0];
-}
 static int
-GetRegKey(char *key, char *val, char *data, int *size)
+GetRegKey(char *key, char *val, char *data, unsigned long *size)
 {
+#ifdef WIN32
+    unsigned long len = *size - 1;
     HKEY hKey;
-    long len = *size - 1;
     long ret;
 
     ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key, 0, KEY_QUERY_VALUE, &hKey);
     if (ret != ERROR_SUCCESS)
         return 0;
     ret = RegQueryValueEx(hKey, val, NULL, NULL, data, size);
+    RegCloseKey(hKey);
     if ((ret != ERROR_SUCCESS) || (*size >= len))
         return 0;
-    RegCloseKey(hKey);
     return 1;
+#else
+    return 0;
+#endif
 }
-#endif
-#endif
+
+static char *
+GetEnvOrRegKey(char *name, char *buf, unsigned long size)
+{
+#define WIN32_REG_BUFSIZE 80
+    char last_home_id[WIN32_REG_BUFSIZE+1];
+    char ora_home_key[WIN32_REG_BUFSIZE+1];
+    unsigned long len = WIN32_REG_BUFSIZE;
+    char *e = getenv(name);
+    if (e)
+	return e;
+    if (!GetRegKey("SOFTWARE\\ORACLE\\ALL_HOMES", "LAST_HOME", last_home_id, &len))
+	return Nullch;
+    last_home_id[2] = 0;
+    sprintf(ora_home_key, "SOFTWARE\\ORACLE\\HOME%s", last_home_id);
+    size -= 1; /* allow room for null termination */
+    if (!GetRegKey(ora_home_key, "NLS_LANG", buf, &size))
+	return Nullch;
+    buf[size] = 0;
+    return buf;
+}
 
 void
 dbd_init(dbistate)
@@ -517,10 +518,11 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	*  but we only care about UTF8 so we'll just check for that and use the
 	*  the hardcoded utf8_csid if found
 	*/  
-	char *nls = GetEnvOrRegKey("NLS_LANG");
+	char buf[81];
+	char *nls = GetEnvOrRegKey("NLS_LANG", buf, sizeof(buf)-1);
 	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8"))
 	    charsetid = utf8_csid;
-	nls = GetEnvOrRegKey("NLS_NCHAR");
+	nls = GetEnvOrRegKey("NLS_NCHAR", buf, sizeof(buf)-1);
 	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8"))
 	     ncharsetid = utf8_csid;
     }
