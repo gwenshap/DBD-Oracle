@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.47 1996/07/26 21:09:53 timbo Exp $
+# $Id: Makefile.PL,v 1.49 1996/08/22 23:41:31 timbo Exp $
 
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
 
@@ -29,8 +29,9 @@ my(@MK, %MK, $MK);	# parsed macros from Oracle proc.mk file
 $::opt_m = '';		# path to proc.mk or oracle.mk file to read
 $::opt_g = '';		# enable debugging (s/-O/-g/g)
 $::opt_s = '';		# Find a symbol, Don't build a Makefile
+$::opt_v = 0;		# be verbose
 
-getopts('gm:s:') or die "Invalid arguments";
+getopts('gm:s:v') or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
 
@@ -38,14 +39,15 @@ $::opt_g &&= '-g';	# convert to actual string
 
 
 print "\n Configuring DBD::Oracle ...\n
->>>\tRemember to actually *READ* the README file!\n
+>>>\tRemember to actually *READ* the README file!
+   \tEspecially if you have any problems.\n
 " unless $::opt_s;
 
 # --- Where is Oracle installed...
 
 unless ($ENV{ORACLE_HOME}){
     warn "\$ORACLE_HOME not defined. Searching for Oracle...\n";
-    foreach(qw(/usr/oracle /opt/oracle /usr/soft/oracle)){
+    foreach(qw(/usr/oracle /home/oracle /opt/oracle)){
 	$ENV{ORACLE_HOME}=$_,last if -d "$_/rdbms/lib";
     }
     die "Unable to determine ORACLE_HOME" unless $ENV{ORACLE_HOME};
@@ -61,24 +63,32 @@ warn "\nWARNING: Oracle OCI (Pro*C) does not appear to be installed.\n"
 	."You must install Pro*C before you can build DBD::Oracle properly.\n\n"
     unless (-f "$OH/lib/libocic.a" and -f "$OH/rdbms/demo/oratypes.h")
 	or (-f "$OH/precomp/demo/proc/proc.mk");	# 7.3.x
-# Todo: validate we have all the right stuff installed
+# XXX Todo: validate user has all the right Oracle stuff installed.
 
 # Using -m to specify oracle.mk might work but is NOT supported.
 my $procmk = $::opt_m || "$OH/proc/lib/proc.mk";
 $procmk = "$OH/precomp/demo/proc/proc.mk" unless -f $procmk; # 7.3.x
 $procmk = "$OH/proc16/lib/proc16.mk"      unless -f $procmk;
-die "Unable to locate proc.mk (use -m /path/to/proc.mk to specify)\n"
-    unless -f $procmk;
+die q{
+	Unable to locate proc.mk in your Oracle installation.
+
+	proc.mk is part of the Oracle Pro*C product. You need to build
+	DBD::Oracle on a system which has Oracle Pro*C installed.
+
+	If proc.mk is installed somewhere non-standard you can use
+		perl Makefile.PL -m /path/to/proc.mk
+	to specify where it is.
+} unless -f $procmk;
 
 my @mkfiles;
 my $linkwith = fetch_oci_macros();
-my $libhome  = expand_mkvars($MK{LIBHOME}, 0, 0) || "$OH/lib";
-$linkwith    = expand_mkvars($linkwith, 0, 0);
+my $libhome  = expand_mkvars($MK{LIBHOME}, 0, 1, 0) || "$OH/lib";
+$linkwith    = expand_mkvars($linkwith,    0, 1, 0);
 $linkwith =~ s/-Y P,/-YP,/g if $Config{'cc'} =~ /gcc/;
 $linkwith =~ s:-R /:-R/:g if $Config{osname} eq 'solaris';
 
 # get a cut down $linkwith to pass to MakeMaker liblist
-my $linkwith_s = expand_mkvars($linkwith, 1, 1);
+my $linkwith_s = expand_mkvars($linkwith, 1, 1, 0);
 # convert "/full/path/libFOO.a" into "-L/full/path -lFOO"
 $linkwith_s =~ s!([/\w.]+)/lib(\w+).a!-L$1 -l$2!g;
 # extract object files, keep for use later
@@ -141,6 +151,7 @@ if ($ENV{LOGNAME} eq 'timbo' and $ENV{S_ARCH_SW}){  # a reasonable guess
 	$opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith'
 	    . ' -Wbad-function-cast -Wcast-qual' if $Config{cc} eq 'gcc';
 }
+$Verbose = 1 if $::opt_v;
 
 # log key platform information to help me help you quickly
 print "System: perl$] @Config{qw(myuname)}\n";
@@ -302,13 +313,13 @@ sub fetch_oci_macros {
 	die "ERROR parsing $procmk: Unable to determine what to link with.\n";
     }
     $MK = join("\n", @MK);
-	print "Using @mkfiles ".($MK{mkver} ? "(version $MK{mkver})" : '')."\n";
     return $linkwith;
 }
 
 sub read_inc_file {
     my $file = shift;
     my $fh = new FileHandle "<$file" or die "Unable to read $file: $!";
+    print "Reading $file.\n";
     my @lines;
     push(@mkfiles, $file);
     while(<$fh>) {
@@ -324,43 +335,52 @@ sub read_inc_file {
     return @lines;
 }
 
+sub expand_shellescape { 
+    my($orig, $level) = @_;
+    my $cmd = $orig;
+    warn "\n$level * Evaluating \`$orig\`\n" if $::opt_v;
+    # ensure we have no $(...) vars left - strip out undefined ones:
+    $cmd =~ s/\$\((\w+)\)/mkvar($1, 1, 0, $level+1)/ge;
+    warn "\n$level * After reducing to \`$cmd\`\n" if $::opt_v and $cmd ne $orig;
+    my $result = `$cmd`;
+    warn "$level * Returned $result\n\n" if $::opt_v;
+    $result;
+}
 sub expand_mkvars { 
-    my $string = shift;
-    my $strip  = shift;
-    my $backtick  = shift;
-    # warn "Expanding: $string\n";
-    $string =~ s/\$\((\w+)\)/mkvar($1, $strip, $backtick)/ge;
-    $string =~ s/\s*\\\n\s*/ /g;	# merge continuations
-	$string =~ s/`(.*?)`/`$1`/eg if $backtick;
-    $string =~ s/\s+/ /g;			# shrink whitespace
-    $string;
+    my($string, $strip, $backtick, $level) = @_;
+    local($_) = $string;
+    warn "$level Expanding $_\n" if $::opt_v;
+    s/\$\((\w+)\)/mkvar($1, $strip, $backtick, $level+1)/ge;
+    s/`(.*?[^\\])`/expand_shellescape($1, $level+1)/esg if $backtick;
+    s/\s*\\\n\s*/ /g;	# merge continuations
+    s/\s+/ /g;			# shrink whitespace
+    warn "$level Expanded $string\n  to       $_\n\n" if $::opt_v and $_ ne $string;
+    $_;
 }
 sub mkvar { 
-    my $var = shift;
-    my $strip = shift;
-    my $backtick  = shift;
+    my($var, $strip, $backtick, $level) = @_;
     my $default = $strip ? '' : "\$($var)";
-    # warn "Expand var: $var\n";
+    warn "$level Variable: $var\n" if $::opt_v;
     return '$(LIBHOME)' if $var eq 'LIBHOME' && !$strip; # gets noisy
     return $ENV{ORACLE_HOME} if $var eq 'ORACLE_HOME';
-    $MK{$var} ? expand_mkvars($MK{$var}, $strip, $backtick) : $default;
+    $MK{$var} ? expand_mkvars($MK{$var}, $strip, $backtick, $level+1) : $default;
 }
 
 sub find_bin{
-	my $bin = shift;
-	foreach(split(/:/, $ENV{PATH})){
-		return "$_/$bin" if -x "$_/$bin";
-	}
-	return "<$bin not found>";
+    my $bin = shift;
+    foreach(split(/:/, $ENV{PATH})){
+	return "$_/$bin" if -x "$_/$bin";
+    }
+    return "<$bin not found>";
 }
 
 {	# If perl Makefile.PL *-g* then switch on debugging
     package MY; # SUPER needs package context, $self is not sufficient
     sub const_cccmd {
-		my($self) = shift;
-		local($_) = $self->SUPER::const_cccmd(@_);
-		s/\s-O\d?\b/ -g/g if $::opt_g;
-		$_;
+	my($self) = shift;
+	local($_) = $self->SUPER::const_cccmd(@_);
+	s/\s-O\d?\b/ -g/g if $::opt_g;
+	$_;
     }
 
 }

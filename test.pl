@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl -w
 
-# $Id: test.pl,v 1.21 1996/06/19 00:48:09 timbo Exp $
+# $Id: test.pl,v 1.23 1996/08/22 23:41:31 timbo Exp $
 #
 # Copyright (c) 1995, Tim Bunce
 #
@@ -10,7 +10,11 @@
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.21 $}."\n";
+print q{Oraperl test application $Revision: 1.23 $}."\n";
+
+$SIG{__WARN__} = sub {
+	($_[0] =~ /^Bad free/) ? warn "See README about Bad free() warnings!\n": warn @_;
+};
 
 $opt_d = 0;		# debug
 $opt_l = 0;		# log
@@ -21,8 +25,8 @@ $opt_m = 0;		# count for mem leek test
 $ENV{PERL_DBI_DEBUG} = 2 if $opt_d;
 $ENV{ORACLE_HOME} = '/usr/oracle' unless $ENV{ORACLE_HOME};
 
-$dbname = $ARGV[0] || '';		# $ENV{TWO_TASK} || $ENV{ORACLE_SID} || 'crgs';
-$dbuser = $ENV{ORACLE_USERID} || 'crgs/crgs';
+$dbname = $ARGV[0] || '';	# $ENV{TWO_TASK} || $ENV{ORACLE_SID} || 'crgs';
+$dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 
 eval '$Oraperl::safe = 1'       if $] >= 5;
 eval 'use Oraperl; 1' || die $@ if $] >= 5;
@@ -30,13 +34,15 @@ eval 'use Oraperl; 1' || die $@ if $] >= 5;
 &ora_version;
 
 print "\nConnecting\n",
-      " to '$dbname' (from command line, else uses ORACLE_SID/TWO_TASK)\n";
-print " as '$dbuser' (via ORACLE_USERID environment var or default)\n";
+      " to '$dbname' (from command line, else uses ORACLE_SID or TWO_TASK - recommended)\n";
+print " as '$dbuser' (via ORACLE_USERID env var or default - recommend name/passwd\@dbname)\n";
+printf("(ORACLE_SID='%s', TWO_TASK='%s')\n", $ENV{ORACLE_SID}||'', $ENV{TWO_TASK}||'');
 
 {	# test connect works first
 	local($l) = &ora_login($dbname, $dbuser, '');
     unless($l) {
 		warn "ora_login: $ora_errno: $ora_errstr\n";
+		# Try to help dumb users who don't know how to connect to oracle...
 	    warn "\nHave you set the environment variable ORACLE_USERID ?\n"
 			if ($ora_errno == 1017);	# ORA-01017: invalid username/password
 	    warn "\nHave you included your password in ORACLE_USERID ? (e.g., 'user/passwd')\n"
@@ -45,7 +51,13 @@ print " as '$dbuser' (via ORACLE_USERID environment var or default)\n";
 			if ($ora_errno == 2700);	# error translating ORACLE_SID
 	    warn "\nORACLE_SID or TWO_TASK possibly not right, or server not running.\n"
 			if ($ora_errno == 1034);	# ORA-01034: ORACLE not available
-		die "\nCould not connect to database. Test aborted.\n";
+	    warn "\nTWO_TASK possibly not set correctly right.\n"
+			if ($ora_errno == 12545);
+		warn "\n";
+        warn "Try to connect to the database using an oracle tool like sqlplus\n";
+        warn "only if that works should you suspect problems with DBD::Oracle.\n";
+        warn "Try leaving dbname value empty and set dbuser to name/passwd\@dbname.\n";
+		die "\nTest aborted.\n";
     }
 	&ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
 }

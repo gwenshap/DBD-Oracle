@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.21 1996/07/26 21:05:34 timbo Exp $
+   $Id: dbdimp.c,v 1.22 1996/08/22 23:20:19 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -427,13 +427,13 @@ dbd_bind_ph(sth, ph_namesv, newvalue, attribs)
     SV **svp;
     STRLEN name_len;
     char *name;
+    char buf[90];
     phs_t *phs;
 
     STRLEN value_len;
     void  *value_ptr;
 
     if (SvNIOK(ph_namesv) ) {	/* passed as a number	*/
-	char buf[90];
 	name = buf;
 	sprintf(name, ":p%d", (int)SvIV(ph_namesv));
 	name_len = strlen(name);

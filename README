@@ -5,15 +5,17 @@ DBD::Oracle  --  an Oracle 7 interface for Perl 5.
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file.
 
-** WARNING: THIS IS MOSTLY ALPHA SOFTWARE. Your mileage may vary.      **
+   PLEASE READ THE ENTIRE README FILE CAREFULLY !
 
-** THE ORAPERL EMULATION IS NO LONGER ALPHA. IT IS NOW FULLY RELEASED. **
 
-   The only currently supported interface is via Oraperl.pm, the
-   oraperl emulation layer. This is fairly complete and stable.
-   Execute "perldoc Oraperl" for info.
+*  WARNING: THIS IS MOSTLY ALPHA SOFTWARE. Your mileage may vary.       *
 
-   PLEASE READ THE ENTIRE README FILE!
+*  THE ORAPERL EMULATION IS NO LONGER ALPHA. IT IS NOW FULLY RELEASED.  *
+
+*  The only currently supported interface is via Oraperl.pm, the        *
+*  oraperl emulation layer. This is fairly complete and stable.         *
+*  Execute "perldoc Oraperl" after installing for full information.     *
+
 
 
 *BEFORE* BUILDING, TESTING AND INSTALLING this you will need to:
@@ -21,30 +23,53 @@ DBD::Oracle  --  an Oracle 7 interface for Perl 5.
     Build, test and install Perl 5 (at least 5.002beta2).
     It is very important to TEST it and INSTALL it!
 
-    Build, test and install the DBI module (at least DBI 0.69).
+    Build, test and install the DBI module (at least DBI 0.71).
     It is very important to TEST it and INSTALL it!
 
     Remember to *read* the DBI README file!
 
+    Install enough Oracle software to enable DBD::Oracle to build.
+    That includes Pro*C.
 
-BUILDING
+
+BUILDING:
 
 	perl Makefile.PL
 	make
+
+If you have problems see the 'IF YOU HAVE PROBLEMS' section below.
+If it's builds without error you can then run the tests. For the
+main test to work it must be able to connect to an Oracle database.
+
+Don't worry about most warnings, specifically "end-of-loop code not
+reached", "ANSI C forbids braced-groups within expressions", "cast
+increases required alignment of target type" and "passing arg 2 of
+`oerhms' with different width due to prototype".
+
+You will need to set either the TWO_TASK or ORACLE_SID environment
+variables to the correct values for your database. Consult Oracle
+documentation for more details. Test your setting by connecting to
+the database using an Oracle tool such as sqlplus. Once you can do
+that then you can test DBD::Oracle knowing that it should work.
+
+The test will connect to the database using the value of the
+ORACLE_USER environment variable so you should set that to the
+correct value before starting the test.
+
 	make test
 	make test TEST_VERBOSE=1   (if any of the t/* tests fail)
 
 	make install (if the tests look okay)
 
-Do NOT hand edit the generated Makefile unless you are completely sure
+
+IF YOU HAVE PROBLEMS:
+
+Do not hand edit the generated Makefile unless you are completely sure
 you understand the implications! Always try to make changes via the
 Makefile.PL command line and/or editing the Makefile.PL.
 
-You should never need to make any changes. If you do *please* let me
+You should not need to make any changes. If you do *please* let me
 know so that I can try to make it automatic in a later release.
-
-
-IF YOU HAVE PROBLEMS:
 
 Please don't post problems to comp.lang.perl.misc or perl5-porters.
 This software is supported via the dbi-users mailing list.  For more
@@ -56,7 +81,7 @@ may take a few days to be processed).
 Please post details of any problems (or changes you needed to make) to
 dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk.
 
-Please include:
+** IT IS IMPORTANT TO INCLUDE THE FOLLOWING INFORMATION:
 
 1. A complete log of a all steps of the build, e.g.:
 
@@ -69,11 +94,18 @@ Please include:
 
 3. The output of perl -V
 
-4. If you get a core dump when using Oraperl try adding this *before*
-   your 'use Oraperl' line: BEGIN { $Oraperl::safe = 1 }
-   (unless your version of Oraperl.pm already has $safe=1 in it).
+4. If you get errors like "undefined symbol", "symbol not found"
+   or "Text relocation remains" then include the output of
+   "perl Makefile.PL -s XXX" where XXX is the name of one of the
+   symbols.  Please don't send the entire output of this command,
+   just any obviously 'interesting' parts (if there are any).
 
-5. If you still get a core dump rebuild DBD::Oracle with debugging
+5. If you get a core dump when using Oraperl try adding this *before*
+   your 'use Oraperl' line: BEGIN { $Oraperl::safe = 1 }
+   unless your version of Oraperl.pm already has $safe=1 in it
+   (it does by default now).
+
+6. If you still get a core dump rebuild DBD::Oracle with debugging
    enabled by executing: perl Makefile.PL -g  (note the -g option)
    then rerun the code to get a new core dump file, finally use a 
    debugger (gdb, sdb, dbx, adb etc) to get a stack trace from it.
@@ -82,9 +114,15 @@ Please include:
    you don't have a good debugger on your system. If desparate try:
      make perl; ./perl script; echo '$c' | adb ./perl core
 
-6. If the stack trace mentions XS_DynaLoader_dl_load_file then rerun
+7. If the stack trace mentions XS_DynaLoader_dl_load_file then rerun
    make test after setting the environment variable PERL_DL_DEBUG to 2.
 
+It is important to check that you are using the latest version before
+posting. If you're not then I'm *very* likely to simply say "upgrade to
+the latest". You would do yourself a favour by upgrading beforehand.
+
+Please remember that I'm _very_ busy. Try to help yourself first,
+then try to help me help you by following these guidelines.
 
 Regards,
 Tim.

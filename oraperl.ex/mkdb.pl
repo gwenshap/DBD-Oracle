@@ -13,11 +13,6 @@
 #
 # Date:		25th September 1992
 
-# First make sure that we are running under some form of perl.
-
-eval "echo 'You must specify oraperl or coraperl.' ; exit"
-	if 0;
-
 eval 'use Oraperl; 1' || die $@ if $] >= 5;
 
 # make sure that we really are running (c)oraperl

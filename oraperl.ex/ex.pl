@@ -1,4 +1,4 @@
-#!/usr/local/bin/oraperl
+#
 
 eval 'use Oraperl; 1' || die $@ if $] >= 5;
 
