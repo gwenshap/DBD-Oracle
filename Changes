@@ -1,3 +1,17 @@
+Changes in DBD::Oracle 1.03 12th July 1999
+
+  Added "perl Makefile.PL -b" configure option. Links DBD::Oracle
+    using same linker args as Oracle's own OCI demo applications.
+  Added connect("dbi:Oracle:host=foo;sid=bar", ...) syntax.
+  Added OCI8 function trace at level 6, useful for Oracle support.
+  Added ora_session_mode attribute to connect.
+  Added test for Oracle security problem. See README.sec.
+  Updated ora_explain tool to v1.1 thanks to Alan Burlison.
+  Contributions from Michael Chase (plus docs from Andy Duncan):
+  Documented plsql_errstr & dbms_output_enable/_put/_get.
+  Enhanced $dbh->func('plsql_errstr') output.
+  Replaced old Oraperl examples with DBI/DBD::Oracle ones.
+
 Changes in DBD::Oracle 1.02 14th June 1999
 
   LongReadLen no longer limited to 64KB for OCI 7 & 8!

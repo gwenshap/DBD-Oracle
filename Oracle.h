@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.h,v 1.16 1999/06/05 03:23:07 timbo Exp $
+   $Id: Oracle.h,v 1.17 1999/07/12 03:20:42 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -27,7 +27,7 @@
 
 void	dbd_init _((dbistate_t *dbistate));
 
-int	 dbd_db_login _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, char *pwd));
+int	 dbd_db_login  _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, char *pwd));
 int	 dbd_db_do _((SV *sv, char *statement));
 int	 dbd_db_commit     _((SV *dbh, imp_dbh_t *imp_dbh));
 int	 dbd_db_rollback   _((SV *dbh, imp_dbh_t *imp_dbh));
@@ -51,6 +51,7 @@ int	 dbd_bind_ph  _((SV *sth, imp_sth_t *imp_sth,
 		SV *param, SV *value, IV sql_type, SV *attribs, int is_inout, IV maxlen));
 #endif
 
+int	 dbd_db_login6 _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, char *pwd, SV *attr));
 int    dbd_describe _((SV *sth, imp_sth_t *imp_sth));
 ub4    ora_blob_read_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
                    long offset, long len, long destoffset));

@@ -4,6 +4,16 @@ Platform or Oracle Version specific notes, hints, tips etc:
 Note that although some of these refer to specific systems and versions the
 same or similar problems may exist on other systems or versions.
 
+Most of this mess is due to Oracle's fondness for changing the
+build/link process for OCI applications between versions.
+
+-------------------------------------------------------------------------------
+If you get compiler errors refering to Perl's own header files
+(.../CORE/*.h) then there is something wrong with your installation.
+It is best to use a Perl that was built on the system you are trying to
+use and it's also important to use the same compiler that was used to
+build the Perl you are using.
+
 -------------------------------------------------------------------------------
 Assorted runtime problems are caused by Oracle version mismatches:
 
@@ -112,7 +122,7 @@ HP-UX: General
 HP's bundled C compiler is dumb. Very dumb. You're almost bound to have
 problems if you use it - you'll certainly need to do a 'static link'
 (see elsewhere). It is recommended that you use HP's ANSI C compiler
-(which costs) fetch and build the free GNU GCC compiler (v2.7.2.2 or later).
+(which costs) or fetch and build the free GNU GCC compiler (v2.7.2.2 or later).
 
 Note that using shared libraries on HP-UX 10.10 (and others?) requires
 patch 441647. With thanks to John Liptak <jliptak@coefmd3.uswc.uswest.com>.
@@ -158,7 +168,7 @@ into a perl binary:
 	make
 	make perl                  (makes a perl binary in current directory)
 	make test FULLPERL=./perl  (run tests using the new perl binary)
-    make install
+	make install
 
 You will probably need to have already built and installed a static
 version of the DBI in order that it be automatically included when
@@ -213,31 +223,6 @@ Verbrugghen jverbrug@be.oracle.com)
 Connection/Login takes a long time
 
 Try connect('', 'user/passwd@tnsname', '').  See README.login and item above.
-
--------------------------------------------------------------------------------
-Oracle 7.1.4/5: ORA-01002: fetch out of sequence
-
-Edited from Message-ID: <3qaui9$ae@usenet.rpi.edu> and
-<3qb5dp$2nc@usenet.rpi.edu> in comp.databases.oracle
-From: finkej@ts.its.rpi.edu (Jon Finke)
-
-Every test run results in an "ORA-01002: fetch out of sequence" error.
-
-The manual claims that this is the result of calling "ofetch" before
-oparse/oexec, or running out of things to fetch.   Yet, I am calling
-oopen, oparse, oexec, (odesc, odefin) all without error.  As a control
-case, I also built the cdemo2 program, and it appears to be calling
-the same routines, yet it is successful.  
-
-Note: In the "broken" program, I am currently calling odsc in a loop
-      for each column in the query, and then calling odefin, while in the 
-      "working" program, I call odescr/odefin, odesc/odefin for each column.
-      In both cases, the calls to odefin seem reasonable.
-
-Both programs are attempting the query "select user,uid from dual".
-
-This is a known problem in version 7.1.4, and it will be fixed in 7.1.6.
-The Oracle bug report is #239128.
 
 -------------------------------------------------------------------------------
 Error: ORA-00604: error occurred at recursive SQL level  (DBD: login failed)
@@ -322,6 +307,16 @@ Problem: 0 ORA-00000: normal, successful completion
 
 Solution: Add '#define A_OSF' to Oracle.h above '#include <oratypes.h>' and
 complain to Oracle about bugs in their header files on 64 bit systems.
+
+-------------------------------------------------------------------------------
+Link errors or test core dumps
+
+Try each of these in turn (follow each with a make && make test):
+	perl Makefile.PL -b
+	perl Makefile.PL -c
+	perl Makefile.PL -l
+	perl Makefile.PL -n LIBCLNTSH
+let me know if this helps.
 
 -------------------------------------------------------------------------------
 Some runtime problems might be related to perl's malloc.

@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.76 1999/06/14 00:41:48 timbo Exp $
+#   $Id: Oracle.pm,v 1.77 1999/07/12 03:20:42 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.02';
+$DBD::Oracle::VERSION = '1.03';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -32,7 +32,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.76 $, 10);
+    my $Revision = substr(q$Revision: 1.77 $, 10);
 
     require_version DBI 1.02;
 
@@ -141,9 +141,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	# get list of 'remote' database connection identifiers
 	foreach $d ( $ENV{TNS_ADMIN},
-	  "$oracle_home/net80/admin",
-	  "$oracle_home/network/admin",
-	  '/var/opt/oracle'
+	  ".",							# current directory
+	  "$oracle_home/network/admin",	# OCI 7 and 8.1
+	  "$oracle_home/net80/admin",	# OCI 8.0
+	  "/var/opt/oracle"
 	) {
 	    next unless $d && open(FH, "<$d/tnsnames.ora");
 	    $drh->trace_msg("Loading $d/tnsnames.ora\n") if $debug;
@@ -173,21 +174,49 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub connect {
 	my ($drh, $dbname, $user, $auth, $attr)= @_;
 
+	if ($dbname =~ /;/) {
+	    my ($n,$v);
+	    $dbname =~ s/^\s+//;
+	    $dbname =~ s/\s+$//;
+	    my @dbname = map {
+		($n,$v) = split /\s*=\s*/, $_; (uc($n), $v)
+	    } split /\s*;\s*/, $dbname;
+	    my %dbname = ( PROTOCOL => 'tcp', @dbname );
+	    my $sid = delete $dbname{SID};
+	    my $ora = delete $dbname{ORACLE};
+	    return $drh->DBI::set_err(-1,
+		    "Can't connect using this syntax without specifying a HOST and a SID")
+		unless $sid and $dbname{HOST};
+	    my @addrs;
+	    push @addrs, "$n=$v" while ( ($n,$v) = each %dbname );
+	    my $addrs = "(" . join(")(", @addrs) . ")";
+	    $dbname{PORT} ||= ($ora eq 7) ? 1521 : 1526 if $ora;
+	    if ($dbname{PORT}) {
+		$addrs = "(ADDRESS=$addrs)";
+	    }
+	    else {
+		$addrs = "(ADDRESS_LIST=(ADDRESS=$addrs(PORT=1526))"	# Oracle8
+				     . "(ADDRESS=$addrs(PORT=1521)))";	# Oracle7
+	    }
+	    $dbname = "(DESCRIPTION=$addrs(CONNECT_DATA=(SID=$sid)))";
+	    $drh->trace_msg("connect using '$dbname'");
+	}
+
 	# If the application is asking for specific database
-	# then we have to mung the
+	# then we may have to mung the dbname
 
 	if (DBD::Oracle::ORA_OCI() >= 8) {
-	    $dbname = $1 if !$dbname && $user =~ s/\@(.*)//;
+	    $dbname = $1 if !$dbname && $user =~ s/\@(.*)//s;
 	}
 	elsif ($dbname) {	# OCI 7 handling below
 
 	    # We can use the 'user/passwd@machine' form of user.
 	    # $TWO_TASK and $ORACLE_SID will be ignored in that case.
-	    if ($dbname =~ /@/){	# Implies an Sql*NET connection
+	    if ($dbname =~ /^@/){	# Implies an Sql*NET connection
 		$user = "$user/$auth$dbname";
 		$auth = "";
 	    }
-	    elsif ($dbname =~ /:/){	# Implies an Sql*NET connection
+	    elsif ($dbname =~ /^\w?:/){	# Implies an Sql*NET connection
 		$user = "$user/$auth".'@'.$dbname;
 		$auth = "";
 	    }
@@ -357,16 +386,21 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub plsql_errstr {
 	# original version thanks to Bob Menteer
 	my $sth = shift->prepare_cached(q{
-	    select line,position,text from user_errors order by sequence
-	});
-	return undef unless $sth;
+	    SELECT name, type, line, position, text
+	    FROM user_errors ORDER BY name, type, sequence
+	}) or return undef;
 	$sth->execute or return undef;
-	my (@msg, $line,$pos,$text);
-	while(($line,$pos,$text) = $sth->fetchrow){
-	    push @msg, "Error in PL/SQL block" unless @msg;
+	my ( @msg, $oname, $otype, $name, $type, $line, $pos, $text );
+	$oname = $otype = 0;
+	while ( ( $name, $type, $line, $pos, $text ) = $sth->fetchrow_array ) {
+	    if ( $oname ne $name || $otype ne $type ) {
+		push @msg, "Errors for $type $name:";
+		$oname = $name;
+		$otype = $type;
+	    }
 	    push @msg, "$line.$pos: $text";
 	}
-	join("\n", @msg);
+	return join( "\n", @msg );
     }
 
     #
@@ -455,6 +489,8 @@ DBD::Oracle - Oracle database driver for the DBI module
 
   $dbh = DBI->connect("dbi:Oracle:$dbname", $user, $passwd);
 
+  $dbh = DBI->connect("dbi:Oracle:host=$host;sid=$sid", $user, $passwd);
+
   # See the DBI module documentation for full details
 
   # for some advanced uses you may need Oracle type values:
@@ -472,6 +508,18 @@ This is a topic which often causes problems. Mainly due to Oracle's many
 and sometimes complex ways of specifying and connecting to databases.
 (James Taylor and Lane Sharman have contributed much of the text in
 this section.)
+
+=head2 Connecting without environment variables or tnsname.ora file
+
+If you use the C<host=$host;sid=$sid> style syntax, for example:
+
+  $dbh = DBI->connect("dbi:Oracle:host=myhost.com;sid=ORCL", $user, $passwd);
+
+then DBD::Oracle will construct a full connection descriptor string
+for you and Oracle will not need to consult the tnsname.ora file.
+If a C<port> number is not specified then the descriptor try
+both 1526 and 1521 in that order.
+
 
 =head2 Oracle environment variables
 
@@ -551,12 +599,14 @@ Here are some variations (not setting TWO_TASK)
 
   $dbh = DBI->connect('dbi:Oracle:DB','username/password','')
 
+  $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=ORCL;port=1521', 'scott/tiger', '')
+
   $dbh = DBI->connect('dbi:Oracle:', q{scott/tiger@(DESCRIPTION=
   (ADDRESS=(PROTOCOL=TCP)(HOST= foobar)(PORT=1521))
-  (CONNECT_DATA=(SID=foobarSID)))}, "")
+  (CONNECT_DATA=(SID=ORCL)))}, "")
 
 If you are having problems with login taking a long time (>10 secs say)
-then you might have tripped up on an Oracle bug. Yoy can try using one
+then you might have tripped up on an Oracle bug. You can try using one
 of the ...@DB variants as a workaround. E.g.,
 
   $dbh = DBI->connect('','username/password@DB','');
@@ -576,12 +626,12 @@ make it better, please let me know!
 
  LISTENER =
   (ADDRESS_LIST =
-        (ADDRESS =
-          (PROTOCOL = TCP)
-          (Host = aa.bbb.cc.d)
-          (Port = 1521)
-					(QUEUESIZE=10)
-        )
+    (ADDRESS =
+      (PROTOCOL = TCP)
+      (Host = aa.bbb.cc.d)
+      (Port = 1521)
+      (QUEUESIZE=10)
+    )
   )
 
  STARTUP_WAIT_TIME_LISTENER = 0
@@ -592,10 +642,10 @@ make it better, please let me know!
     (SID_DESC =
       (SID_NAME = xxxx)
       (ORACLE_HOME = /xxx/local/oracle7-3)
-			(PRESPAWN_MAX = 40)
-			(PRESPAWN_LIST=
-				(PRESPAWN_DESC=(PROTOCOL=tcp) (POOL_SIZE=40) (TIMEOUT=120))
-			)
+        (PRESPAWN_MAX = 40)
+        (PRESPAWN_LIST=
+        (PRESPAWN_DESC=(PROTOCOL=tcp) (POOL_SIZE=40) (TIMEOUT=120))
+      )
     )
   )
 
@@ -647,6 +697,16 @@ Protocol Adapter".
 If it generates any errors which look relevant then please talk to yor
 Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
+
+
+=head2 Connect Attributes
+
+The ora_session_mode attribute can be used to connect with SYSDBA
+authorization and SYSOPER authorization.
+
+  $mode = 2;	# SYSDBA
+  $mode = 4;	# SYSOPER
+  DBI->connect($dsn, $user, $passwd, { ora_session_mode => $mode });
 
 
 =head1 International NLS / 8-bit text issues
@@ -847,6 +907,123 @@ You can find more examples in the t/plsql.t file in the DBD::Oracle
 source directory.
 
 
+=head1 Private database handle functions
+
+These functions are called through the method func()
+which is described in the DBI documentation.
+
+=head2 plsql_errstr
+
+This function returns a string which describes the errors
+from the most recent PL/SQL function, procedure, package,
+or package body compile in a format similar to the output
+of the SQL*Plus command 'show errors'.
+
+The function returns undef if the error string could not
+be retrieved due to a database error.
+Look in $dbh->errstr for the cause of the failure.
+
+If there are no compile errors, an empty string is returned.
+
+Example:
+
+    # Show the errors if CREATE PROCEDURE fails
+    $dbh->{RaiseError} = 0;
+    if ( $dbh->do( q{
+        CREATE OR REPLACE PROCEDURE perl_dbd_oracle_test as
+        BEGIN
+            PROCEDURE filltab( stuff OUT TAB ); asdf
+        END; } ) ) {} # Statement succeeded
+    }
+    elsif ( 6550 != $dbh->err ) { die $dbh->errstr; } # Utter failure
+    my $msg = $dbh->func( 'plsql_errstr' );
+    die $dbh->errstr if ! defined $msg;
+    die $msg if $msg;
+
+
+=head2 dbms_output_enable / dbms_output_put / dbms_output_get
+
+These functions use the PL/SQL DBMS_OUTPUT package to store and
+retrieve text using the DBMS_OUTPUT buffer.  Text stored in this buffer
+by dbms_output_put or any PL/SQL block can be retrieved by
+dbms_output_get or any PL/SQL block connected to the same database
+session.
+
+Stored text is not available until after dbms_output_put or the PL/SQL
+block that saved it completes its execution.  This means you B<CAN NOT>
+use these functions to monitor long running PL/SQL procedures.
+
+Example 1:
+
+  # Enable DBMS_OUTPUT and set the buffer size
+  $dbh->{RaiseError} = 1;
+  $dbh->func( 1000000, 'dbms_output_enable' );
+
+  # Put text in the buffer . . .
+  $dbh->func( @text, 'dbms_output_put' );
+
+  # . . . and retreive it later
+  @text = $dbh->func( 'dbms_output_get' );
+
+Example 2:
+
+  $dbh->{RaiseError} = 1;
+  $sth = $dbh->prepare(q{
+    DECLARE tmp VARCHAR2(50);
+    BEGIN
+      SELECT SYSDATE INTO tmp FROM DUAL;
+      dbms_output.put_line('The date is '||tmp);
+    END;
+  });
+  $sth->execute;
+
+  # retreive the string
+  $date_string = $dbh->func( 'dbms_output_get' );
+
+
+=over 4
+
+=item dbms_output_enable ( [ buffer_size ] )
+
+This function calls DBMS_OUTPUT.ENABLE to enable calls to package
+DBMS_OUTPUT procedures GET, GET_LINE, PUT, and PUT_LINE.  Calls to
+these procedures are ignored unless DBMS_OUTPUT.ENABLE is called
+first.
+
+The buffer_size is the maximum amount of text that can be saved in the
+buffer and must be between 2000 and 1,000,000.  If buffer_size is not
+given, the default is 20,000 bytes.
+
+=item dbms_output_put ( [ @lines ] )
+
+This function calls DBMS_OUTPUT.PUT_LINE to add lines to the buffer.
+
+If all lines were saved successfully the function returns 1.  Depending
+on the context, an empty list or undef is returned for failure.
+
+If any line causes buffer_size to be exceeded, a buffer overflow error
+is raised and the function call fails.  Some of the text might be in
+the buffer.
+
+=item dbms_output_get
+
+This function calls DBMS_OUTPUT.GET_LINE to retrieve lines of text from
+the buffer.
+
+In an array context, all complete lines are removed from the buffer and
+returned as a list.  If there are no complete lines, an empty list is
+returned.
+
+In a scalar context, the first complete line is removed from the buffer
+and returned.  If there are no complete lines, undef is returned.
+
+Any text in the buffer after a call to DBMS_OUTPUT.GET_LINE or
+DBMS_OUTPUT.GET is discarded by the next call to DBMS_OUTPUT.PUT_LINE,
+DBMS_OUTPUT.PUT, or DBMS_OUTPUT.NEW_LINE.
+
+=back
+
+
 =head1 Using DBD::Oracle with Oracle 8 - Features and Issues
 
 DBD::Oracle version 0.55 onwards can be built to use either the Oracle 7
@@ -917,7 +1094,7 @@ then you need to tell it which field each LOB param relates to:
 =head2 Binding Cursors
 
 Cursors can now be returned from PL/SQL blocks. Either from stored
-procedures or from direct C<OPEN> statements, as show below:
+procedure OUT parameters or from direct C<OPEN> statements, as show below:
 
   use DBI;
   use DBD::Oracle qw(:ora_types);

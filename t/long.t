@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -w
+#!perl -w
 
 use DBI;
 use DBD::Oracle qw(:ora_types ORA_OCI);
@@ -68,6 +68,7 @@ my $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
 my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
 my $long_data2 = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
 
+# special hack for long_data0 since RAW types need pairs of HEX
 $long_data0 = "00FF" x (length($long_data0) / 2) if $type_name =~ /RAW/i;
 
 my $len_data0 = length($long_data0);
@@ -94,7 +95,7 @@ if (!create_table("lng $type_name", 1)) {
 }
 
 print " --- insert some $type_name data\n";
-ok(0, $sth = $dbh->prepare("insert into $table values (?, ?)"), 1);
+ok(0, $sth = $dbh->prepare("insert into $table values (?, ?, SYSDATE)"), 1);
 $sth->bind_param(2, undef, { ora_type => $type_num }) or die $DBI::errstr
     if $type_num;
 ok(0, $sth->execute(40, $long_data0), 1);
@@ -266,7 +267,7 @@ END {
 
 sub create_table {
     my ($fields, $drop) = @_;
-    my $sql = "create table $table ( idx integer, $fields )";
+    my $sql = "create table $table ( idx integer, $fields, dt date )";
     $dbh->do(qq{ drop table $table }) if $drop;
     $dbh->do($sql);
     if ($dbh->err && $dbh->err==955) {

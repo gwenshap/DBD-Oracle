@@ -1,7 +1,7 @@
 /*
-   $Id: dbdimp.h,v 1.35 1999/06/14 00:41:48 timbo Exp $
+   $Id: dbdimp.h,v 1.36 1999/07/12 03:20:42 timbo Exp $
 
-   Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
+   Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file,
@@ -41,6 +41,7 @@
 #define _int64 long long
 #endif
 
+
 /* This is slightly backwards because we want to auto-detect OCI8  */
 /* and thus the existance of oci.h while still working for Oracle7 */
 #include <oratypes.h>
@@ -69,6 +70,7 @@
 #endif						/* === ------------ === */
 
 /* ------ end of Oracle include files ------ */
+
 
 
 /* ====== define data types ====== */
@@ -254,20 +256,7 @@ int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 void ora_free_lob_refetch _((SV *sth, imp_sth_t *imp_sth));
 int post_execute_lobs _((SV *sth, imp_sth_t *imp_sth, ub4 row_count));
 ub4 ora_parse_uid _((imp_dbh_t *imp_dbh, char **uidp, char **pwdp));
-
-#define OCIAttrGet_stmhp(imp_sth, p, l, a) \
-	OCIAttrGet(imp_sth->stmhp, OCI_HTYPE_STMT, (dvoid*)(p), (l), (a), imp_sth->errhp)
-
-#define OCIAttrGet_parmdp(imp_sth, parmdp, p, l, a) \
-	OCIAttrGet(parmdp, OCI_DTYPE_PARAM, (dvoid*)(p), (l), (a), imp_sth->errhp)
-
-#define OCIHandleAlloc_ok(envhp, p, t) \
-	if (OCIHandleAlloc(    (envhp), (dvoid**)(p), (t), 0, 0)==OCI_SUCCESS) ; \
-	else croak("OCIHandleAlloc (type %d) failed",t)
-
-#define OCIDescriptorAlloc_ok(envhp, p, t) \
-	if (OCIDescriptorAlloc((envhp), (dvoid**)(p), (t), 0, 0)==OCI_SUCCESS) ; \
-	else croak("OCIDescriptorAlloc (type %d) failed",t)
+char *ora_sql_error _((imp_sth_t *imp_sth, char *msg));
 
 sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
               dvoid **bufpp, ub4 *alenp, ub1 *piecep, dvoid **indpp));
@@ -276,12 +265,13 @@ sb4 dbd_phs_out _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
              dvoid **indpp, ub2 **rcodepp));
 int dbd_rebind_ph_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
-
 #else	/* is OCI 7 */
 
 void ora_error _((SV *h, Lda_Def *lda, int rc, char *what));
 
 #endif /* OCI_V8_SYNTAX */
+
+#include "ocitrace.h"
 
 
 
@@ -289,6 +279,7 @@ void ora_error _((SV *h, Lda_Def *lda, int rc, char *what));
 
 #define dbd_init		ora_init
 #define dbd_db_login		ora_db_login
+#define dbd_db_login6		ora_db_login6
 #define dbd_db_do		ora_db_do
 #define dbd_db_commit		ora_db_commit
 #define dbd_db_rollback		ora_db_rollback

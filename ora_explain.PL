@@ -28,7 +28,7 @@ my $script = <<'SCRIPT';
 use strict;
 use File::Basename;
 use DBI;
-use Tk 800;
+use Tk;
 use Tk::Balloon;
 use Tk::ErrorDialog;
 use Tk::ROText;
@@ -70,7 +70,7 @@ $w->Callback(-b3command => $ent);
 
 package main;
 use vars qw($VERSION);
-$VERSION = "1.0";
+$VERSION = "1.1";
 
 # Globals
 #   $ProgName        Program name (without pathname)
@@ -1030,22 +1030,24 @@ $GrabDetails->delete("1.0", "end");
 busy(1);
 my $qry = $Db->prepare(qq(
    $SqlMarker select executions, disk_reads, buffer_gets, rows_processed,
-                     sorts, loads, parse_calls
+                     sorts, loads, parse_calls, first_load_time
    from v\$sqlarea where address = :1
 )) || die("Statement info:\n$DBI::errstr\n");
 
 # Read the info.  Note that the statement *may* have been purged from the cache!
 $qry->execute($address);
 if (! (my ($executions, $disk_reads, $buffer_gets, $rows_processed,
-           $sorts, $loads, $parse_calls)
+           $sorts, $loads, $parse_calls, $first_load_time)
    = $qry->fetchrow_array()))
    {
    $GrabDetails->insert("1.0", "This statement is no longer in the SQL cache");
    }
 else
    {
+   $first_load_time =~ s!/! !;
    $GrabDetails->insert("1.0", "First executed by user", "bold",
-                        "      $puid\n");
+                        "      $puid   ", "",
+                        "        at", "bold", "   $first_load_time\n");
    $GrabDetails->insert("end", "Total                       ", "bold");
    $GrabDetails->insert("end", sprintf("Executions:     %8d\n", $executions));
    my $fmt =
@@ -1091,14 +1093,15 @@ if (! eval { disp_sql_cache_info($tag, $puid); })
 
 ################################################################################
 # Scan v$sqlarea for SQL statements matching the specified conditions.
-#    $order_by is a v$sqlarea colum name used to rank the statements
+#    $order_by is a v$sqlarea column name used to rank the statements
+#    $sort_by is "asc" or "desc"
 #    $user is who first issued the statement (case insensitive)
 #    $pattern is a perl regexp used to filter the SQL
 #    $rows is the maximum number of rows to display
 
-sub grab($$$$$$)
+sub grab($$$$$$$)
 {
-my ($ordering, $order_by, $no_sys, $user, $pattern, $rows) = @_;
+my ($ordering, $order_by, $sort_by, $no_sys, $user, $pattern, $rows) = @_;
 
 # Check we are logged on
 die("You are not logged on to Oracle\n") if (! $Db);
@@ -1111,6 +1114,7 @@ $user   = uc($user);
 # Clear the frames
 $GrabSql->delete("1.0", "end");
 $GrabDetails->delete("1.0", "end");
+$GrabStatus->configure(-text => "Please wait...");
 
 # Define the callbacks for highlighting etc
 my $highlight = sub
@@ -1134,9 +1138,9 @@ $qry1 .= qq{ and user_id = parsing_user_id}; # if($user || $no_sys);
 $qry1 .= qq{ and username = :1} if ($user);
 $qry1 .= qq{ and username not in ('SYS', 'SYSTEM')} if ($no_sys);
 if ($ordering eq "total")
-   { $qry1 .= qq{ order by $order_by desc}; }
+   { $qry1 .= qq{ order by $order_by $sort_by}; }
 elsif ($ordering eq "average")
-   { $qry1 .= qq{ order by $order_by / greatest(executions, 1) desc}; }
+   { $qry1 .= qq{ order by $order_by / greatest(executions, 1) $sort_by}; }
 $qry1 = $Db->prepare($qry1) || die("SQL Cache capture:\n$DBI::errstr\n");
 
 my $qry2;
@@ -1221,37 +1225,49 @@ $GrabMain->protocol("WM_DELETE_WINDOW", sub { $GrabMain->withdraw(); });
 # Defaults & callbacks
 my $ordering = "";
 my $order_by = "";
+my $sort_by  = "";
 my $no_sys   = 1;
 my $user     = "";
 my $pattern  = "";
 my $rows     = 100;
 my $grab_cb = sub
    {
-   if (! eval { grab($ordering, $order_by, $no_sys, $user, $pattern, $rows); })
+   if (! eval { grab($ordering, $order_by, $sort_by, $no_sys,
+                     $user, $pattern, $rows); })
       { error($GrabMain, $@); }
    };
-my (%ord_bn);   # For "order by" buttons
+my (%ord_bn, %sort_bn);   # For "order by" and "sort order" buttons
 my $ord_bn_cb = sub
    {
    if ($ordering eq "")
       {
       $order_by = "";
+      $sort_by = "";
       foreach my $bn (values(%ord_bn))
+         { $bn->configure(-state => "disabled"); }
+      foreach my $bn (values(%sort_bn))
          { $bn->configure(-state => "disabled"); }
       }
    elsif ($ordering eq "total")
       {
       $order_by = "disk_reads" if ($order_by eq "");
+      $sort_by = "desc" if ($sort_by eq "");
       foreach my $bn (values(%ord_bn))
+         { $bn->configure(-state => "normal"); }
+      foreach my $bn (values(%sort_bn))
          { $bn->configure(-state => "normal"); }
       }
    else # $ordering eq "average"
       {
       $order_by = "disk_reads"
          if ($order_by eq "" || $order_by eq "executions");
+       $sort_by = "desc" if ($sort_by eq "");
       foreach my $bn (values(%ord_bn))
          { $bn->configure(-state => "normal"); }
       $ord_bn{executions}->configure(-state => "disabled");
+      $ord_bn{first_load_time}->configure(-state => "disabled");
+      foreach my $bn (values(%sort_bn))
+         { $bn->configure(-state => "normal"); }
       }
    };
 
@@ -1342,27 +1358,46 @@ $ord_bn{rows_processed} =
    $frame3->Radiobutton(-text => "Rows processed", -highlightthickness => 0,
                         -value => "rows_processed", -variable => \$order_by,
                         -command => $ord_bn_cb)
-      ->grid(-column => 2, -row => 0, -sticky => "w");
+      ->grid(-column => 0, -row => 1, -sticky => "w");
 $ord_bn{sorts} =
    $frame3->Radiobutton(-text => "Sorts", -highlightthickness => 0,
                         -value => "sorts", -variable => \$order_by,
                         -command => $ord_bn_cb)
-      ->grid(-column => 0, -row => 1, -sticky => "w");
+      ->grid(-column => 1, -row => 1, -sticky => "w");
 $ord_bn{loads} =
    $frame3->Radiobutton(-text => "Loads", -highlightthickness => 0,
                         -value => "loads", -variable => \$order_by,
                         -command => $ord_bn_cb)
-      ->grid(-column => 1, -row => 1, -sticky => "w");
+      ->grid(-column => 0, -row => 2, -sticky => "w");
 $ord_bn{parse_calls} =
    $frame3->Radiobutton(-text => "Parse calls", -highlightthickness => 0,
                         -value => "parse_calls", -variable => \$order_by,
                         -command => $ord_bn_cb)
-      ->grid(-column => 2, -row => 1, -sticky => "w");
+      ->grid(-column => 1, -row => 2, -sticky => "w");
 $ord_bn{executions} =
    $frame3->Radiobutton(-text => "Executions", -highlightthickness => 0,
                         -value => "executions", -variable => \$order_by,
                         -command => $ord_bn_cb)
-      ->grid(-column => 0, -row => 2, -sticky => "w");
+      ->grid(-column => 0, -row => 3, -sticky => "w");
+$ord_bn{first_load_time} =
+   $frame3->Radiobutton(-text => "First load", -highlightthickness => 0,
+                        -value => "first_load_time", -variable => \$order_by,
+                        -command => $ord_bn_cb)
+      ->grid(-column => 1, -row => 3, -sticky => "w");
+$frame3->pack(-side => "left", -padx => 6);
+
+# Sort order frame
+$frame3 = $frame2->Frame(-highlightthickness => 1);
+$sort_bn{desc} =
+   $frame3->Radiobutton(-text => "Descending", -highlightthickness => 0,
+                        -value => "desc", -variable => \$sort_by,
+                        -command => $ord_bn_cb)
+      ->grid(-column => 0, -row => 0, -sticky => "w");
+$sort_bn{asc} =
+   $frame3->Radiobutton(-text => "Ascending", -highlightthickness => 0,
+                        -value => "asc", -variable => \$sort_by,
+                        -command => $ord_bn_cb)
+      ->grid(-column => 0, -row => 1, -sticky => "w");
 $frame3->pack(-side => "right", -padx => 6);
 $frame2->grid(-column => 0, -row => 1, -sticky => "w", -columnspan => 2);
 

@@ -1,35 +1,38 @@
 Changes
 MANIFEST
 Makefile.PL
+Oracle.ex/Readme
+Oracle.ex/bind.pl
+Oracle.ex/commit.pl
+Oracle.ex/ex.pl
+Oracle.ex/japh
+Oracle.ex/mktable.pl
+Oracle.ex/oradump.pl
+Oracle.ex/proc.pl
+Oracle.ex/sql
+Oracle.ex/tabinfo.pl
 Oracle.h
 Oracle.pm
 Oracle.xs
 Oraperl.pm
 README
 README.clients
+README.explain
 README.help
 README.login
 README.longs
+README.sec
 README.win32
-README.explain
 README.wingcc	Notes about building with mingw32 and cygwin32
-oci.def		OCI.DLL export declarations
 Todo
 dbdimp.c
 dbdimp.h
 hints/svr4.pl
+oci.def		OCI.DLL export declarations
 oci7.c
 oci8.c
+ocitrace.h
 ora_explain.PL
-oraperl.ex/Readme	Oraperl examples (copied mostly unchanged from oraperl-2.4)
-oraperl.ex/bind.pl
-oraperl.ex/commit.pl
-oraperl.ex/ex.pl
-oraperl.ex/japh
-oraperl.ex/mkdb.pl
-oraperl.ex/oradump.pl
-oraperl.ex/sql
-oraperl.ex/tabinfo.pl
 oraperl.ph	Old oraperl file included for completeness of emulation
 t/base.t
 t/general.t

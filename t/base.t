@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -w
+#!perl -w
 
 # Base DBD Driver Test
 

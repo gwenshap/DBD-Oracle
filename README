@@ -67,9 +67,15 @@ value before starting the test. Please read README.login.
 
 *** IF YOU HAVE PROBLEMS:
 
-Make sure you are using a recent perl 5.003 or preferably 5.004 and
-make sure it's on your path so you can say 'perl Makefile.PL' and
-not '/path/to/perl Makefile.PL'.
+Make sure you are using a recent perl (5.004_05, 5.005_03 or later) and
+make sure it's on your PATH so you can say 'perl Makefile.PL' and not
+'/path/to/perl Makefile.PL'.
+
+If you get compiler errors refering to Perl's own header files
+(.../CORE/*.h) then there is something wrong with your installation.
+It is best to use a Perl that was built on the system you are trying to
+use and it's also important to use the same compiler that was used to
+build the Perl you are using.
 
 If you have build/link or core dump problems try:
 	perl Makefile.PL -p

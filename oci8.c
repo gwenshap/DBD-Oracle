@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.c,v 1.19 1999/06/14 00:41:48 timbo Exp $
+   $Id: oci8.c,v 1.20 1999/07/12 03:20:42 timbo Exp $
 
    Copyright (c) 1998  Tim Bunce
 
@@ -87,15 +87,15 @@ oci_error(SV *h, OCIError *errhp, sword status, char *what)
     sv_setpv(errstr, "");
     if (errhp) {
 	text errbuf[1024];
-	ub4 recno = 0;
 	sb4 errcode = 0;
+	ub4 recno = 0;
 	sb4 eg_errcode = 0;
 	sword eg_status;
-	while( (eg_status = OCIErrorGet(errhp, ++recno, (text*)NULL,
-			    &eg_errcode, errbuf,
-			    (ub4)sizeof(errbuf), OCI_HTYPE_ERROR)) != OCI_NO_DATA
-		&& eg_status != OCI_INVALID_HANDLE
-		&& recno < 100
+	while( ++recno
+	    && OCIErrorGet_log_stat(errhp, recno, (text*)NULL, &eg_errcode, errbuf,
+		(ub4)sizeof(errbuf), OCI_HTYPE_ERROR, eg_status) != OCI_NO_DATA
+	    && eg_status != OCI_INVALID_HANDLE
+	    && recno < 100
 	) {
 	    if (DBIS->debug >= 4 || recno>1/*XXX temp*/)
 		fprintf(DBILOGFP, "    OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
@@ -130,6 +130,39 @@ oci_error(SV *h, OCIError *errhp, sword status, char *what)
     }
     DBIh_EVENT2(h, ERROR_event, DBIc_ERR(imp_xxh), errstr);
     return 0;	/* always returns 0 */
+}
+
+
+char *
+ora_sql_error(imp_sth_t *imp_sth, char *msg)
+{
+#ifdef OCI_ATTR_PARSE_ERROR_OFFSET_xxx
+    imp_sth->cda->peo = 0;
+    if (oparse(imp_sth->cda, (text*)imp_sth->statement, (sb4)-1,
+                (sword)0/*oparse_defer*/, (ub4)oparse_lng)
+    ) {  
+        char buf[99];
+        char *hint = "";
+        if (1) {        /* XXX could make optional one day */
+            SV  *msgsv, *sqlsv;
+            sprintf(buf,"error possibly near <*> indicator at char %d in '",
+                    imp_sth->cda->peo+1);
+            msgsv = sv_2mortal(newSVpv(buf,0));
+            sqlsv = sv_2mortal(newSVpv(imp_sth->statement,0));
+            sv_insert(sqlsv, imp_sth->cda->peo, 0, "<*>",3);
+            sv_catsv(msgsv, sqlsv);
+            sv_catpv(msgsv, "'");
+            hint = SvPV(msgsv,na);
+        }
+        ora_error(sth, imp_sth->cda, imp_sth->cda->rc, hint);
+        oclose(imp_sth->cda);   /* close the cursor             */
+        imp_sth->cda = NULL;
+        return 0; 
+    }
+#else
+    imp_sth = imp_sth; /* not unused */
+    return msg;
+#endif
 }
 
 
@@ -187,17 +220,17 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
     default: oparse_lng = OCI_NTV_SYNTAX;	break;
     }
 
-    OCIHandleAlloc_ok(imp_dbh->envhp, &imp_sth->stmhp, OCI_HTYPE_STMT);
-    status = OCIStmtPrepare(imp_sth->stmhp, imp_sth->errhp,
+    OCIHandleAlloc_ok(imp_dbh->envhp, &imp_sth->stmhp, OCI_HTYPE_STMT, status);
+    OCIStmtPrepare_log_stat(imp_sth->stmhp, imp_sth->errhp,
 	       (text*)imp_sth->statement, (ub4)strlen(imp_sth->statement),
-	       oparse_lng, OCI_DEFAULT);
+	       oparse_lng, OCI_DEFAULT, status);
     if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCIStmtPrepare");
-	OCIHandleFree(imp_sth->stmhp, OCI_HTYPE_STMT);
+	OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
 	return 0;
     }
 
-    OCIAttrGet_stmhp(imp_sth, &imp_sth->stmt_type, 0, OCI_ATTR_STMT_TYPE);
+    OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->stmt_type, 0, OCI_ATTR_STMT_TYPE, status);
     if (DBIS->debug >= 3)
 	fprintf(DBILOGFP, "    dbd_st_prepare'd sql %s\n",
 		oci_stmt_type_name(imp_sth->stmt_type));
@@ -265,7 +298,7 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
     *indpp  = &phs->indp;
     *rcodepp= &phs->arcode;
     if (DBIS->debug >= 3)
- 	fprintf(DBILOGFP, "       dbd_phs_out '%s' (%ld,%ld): len %ld, piece %d%s\n",
+ 	fprintf(DBILOGFP, "       dbd_phs_out '%s' (%ld,%ld): len %2ld, piece %d%s\n",
 		phs->name, iter, index, phs->alen, *piecep,
 		(phs->desc_h) ? " via descriptor" : "");
     if (index > 0 || iter > 0)
@@ -381,8 +414,8 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	OCIDescriptorAlloc_ok(imp_sth->envhp,
 			&phs->desc_h, phs->desc_t);
     }
-    status = OCIAttrSet(phs->desc_h, phs->desc_t,
-		    &lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp);
+    OCIAttrSet_log_stat(phs->desc_h, phs->desc_t,
+		    &lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);
     if (status != OCI_SUCCESS)
 	return oci_error(sth, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_LOBEMPTY");
     phs->progv = (void*)&phs->desc_h;
@@ -408,14 +441,14 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	"blob_read not currently supported for non-LOB types with OCI 8 "
 	"(but with OCI 8 you can set $dbh->{LongReadLen} to the length you need,"
 	"so you don't need to call blob_read at all)");
-	SvOK_off(dest_sv);	/* signal error */
+	(void)SvOK_off(dest_sv);	/* signal error */
 	return 0;
     }
 
-    status = OCILobGetLength(imp_sth->svchp, imp_sth->errhp, lobl, &loblen);
+    OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, lobl, &loblen, status);
     if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength");
-	SvOK_off(dest_sv);	/* signal error */
+	(void)SvOK_off(dest_sv);	/* signal error */
 	return 0;
     }
 
@@ -433,16 +466,16 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
         ub1 * bufp = (ub1 *)(SvPVX(dest_sv));
 	bufp += destoffset;
 
-	status = OCILobRead(imp_sth->svchp, imp_sth->errhp, lobl,
+	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 	    &amtp, 1 + offset, bufp, buflen,
-			    0, 0, 0, SQLCS_IMPLICIT);
+			    0, 0, 0, SQLCS_IMPLICIT, status);
 	if (dbis->debug >= 3)
 	    fprintf(DBILOGFP,
 		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
 		fbh->field_num+1, oci_status_name(status), loblen, imp_sth->long_readlen, buflen, amtp);
 	if (status != OCI_SUCCESS) {
 	    oci_error(sth, imp_sth->errhp, status, "OCILobRead");
-	    SvOK_off(dest_sv);	/* signal error */
+	    (void)SvOK_off(dest_sv);	/* signal error */
 	    return 0;
 	}
     }
@@ -478,7 +511,7 @@ fetch_func_autolob(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
 
     /* this function is not called for NULL lobs */
 
-    status = OCILobGetLength(imp_sth->svchp, imp_sth->errhp, lobloc, &loblen);
+    OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc, &loblen, status);
     if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength");
 	return 0;
@@ -512,8 +545,8 @@ fetch_func_autolob(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
     SvGROW(dest_sv, buflen+1);
 
     if (loblen > 0) {
-	status = OCILobRead(imp_sth->svchp, imp_sth->errhp, lobloc,
-	    &amtp, 1, SvPVX(dest_sv), buflen, 0, 0, 0, SQLCS_IMPLICIT);
+	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
+	    &amtp, 1, SvPVX(dest_sv), buflen, 0, 0, 0, SQLCS_IMPLICIT, status);
 	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP,
 		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
@@ -593,15 +626,16 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     /* We know it's a select and we've not got the description yet, so if the	*/
     /* sth is not 'active' (executing) then we need an explicit describe.	*/
     if ( !DBIc_ACTIVE(imp_sth) ) {
-	status = OCIStmtExecute(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
-		0, 0, 0, 0, OCI_DESCRIBE_ONLY);
+	OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
+		0, 0, 0, 0, OCI_DESCRIBE_ONLY, status);
 	if (status != OCI_SUCCESS) {
-	    oci_error(h, imp_sth->errhp, status, "OCIStmtExecute/Describe");
+	    oci_error(h, imp_sth->errhp, status,
+		ora_sql_error(imp_sth, "OCIStmtExecute/Describe"));
 	    return 0;
 	}
     }
 
-    status = OCIAttrGet_stmhp(imp_sth, &num_fields, 0, OCI_ATTR_PARAM_COUNT);
+    OCIAttrGet_stmhp_stat(imp_sth, &num_fields, 0, OCI_ATTR_PARAM_COUNT, status);
     if (status != OCI_SUCCESS) {
 	oci_error(h, imp_sth->errhp, status, "OCIAttrGet OCI_ATTR_PARAM_COUNT");
 	return 0;
@@ -619,20 +653,20 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	fbh->imp_sth   = imp_sth;
 	fbh->field_num = i;
 
-	status = OCIParamGet(imp_sth->stmhp, OCI_HTYPE_STMT, imp_sth->errhp,
-			(dvoid*)&fbh->parmdp, (ub4)i);
+	OCIParamGet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, imp_sth->errhp,
+			(dvoid*)&fbh->parmdp, (ub4)i, status);
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status, "OCIParamGet");
 	    return 0;
 	}
 
-	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->dbtype, 0, OCI_ATTR_DATA_TYPE);
-	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->dbsize, 0, OCI_ATTR_DATA_SIZE);
-	/* OCI_ATTR_PRECISION returns 0 for most types and even some numbers!	*/
-	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->prec,   0, OCI_ATTR_PRECISION);
-	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->scale,  0, OCI_ATTR_SCALE);
-	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->nullok, 0, OCI_ATTR_IS_NULL);
-	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->name,   &atrlen, OCI_ATTR_NAME);
+	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->dbtype, 0, OCI_ATTR_DATA_TYPE, status);
+	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->dbsize, 0, OCI_ATTR_DATA_SIZE, status);
+	/* OCI_ATTR_PRECISION returns 0 for most types including some numbers		*/
+	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->prec,   0, OCI_ATTR_PRECISION, status);
+	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->scale,  0, OCI_ATTR_SCALE,     status);
+	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->nullok, 0, OCI_ATTR_IS_NULL,   status);
+	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->name,   &atrlen, OCI_ATTR_NAME,status);
 	fbh->name_sv = newSVpv(fbh->name,atrlen);
 	fbh->name    = SvPVX(fbh->name_sv);
 
@@ -729,8 +763,9 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	ub4 cache_rows = calc_cache_rows(num_fields,
 				est_width, imp_sth->cache_rows, has_longs);
 	imp_sth->cache_rows = cache_rows;	/* record updated value */
-	status = OCIAttrSet(imp_sth->stmhp, OCI_HTYPE_STMT,
-		&cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS, imp_sth->errhp);
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+		&cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
+		imp_sth->errhp, status);
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
 	    return 0;
@@ -739,10 +774,14 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     else {				/* set cache size by memory	*/
 	ub4 cache_mem  = -imp_sth->cache_rows;
 	ub4 cache_rows = 100000;	/* set high so memory is the limit */
-	status = OCIAttrSet(imp_sth->stmhp, OCI_HTYPE_STMT,
-		    &cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,   imp_sth->errhp)
-	      || OCIAttrSet(imp_sth->stmhp, OCI_HTYPE_STMT,
-		    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY, imp_sth->errhp);
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+		    &cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
+		    imp_sth->errhp, status);
+        if (! status) {
+	      OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+		    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
+		    imp_sth->errhp, status);
+	}
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status,
 		"OCIAttrSet OCI_ATTR_PREFETCH_ROWS/OCI_ATTR_PREFETCH_MEMORY");
@@ -765,13 +804,13 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	fbh->fb_ary = fb_ary_alloc(define_len, 1);
 	fb_ary = fbh->fb_ary;
 
-	status = OCIDefineByPos(imp_sth->stmhp, &fbh->defnp, imp_sth->errhp, (ub4) i,
+	OCIDefineByPos_log_stat(imp_sth->stmhp, &fbh->defnp, imp_sth->errhp, (ub4) i,
 	    (fbh->desc_h) ? (dvoid*)&fbh->desc_h : (dvoid*)fb_ary->abuf,
 	    (fbh->desc_h) ?                   -1 :         define_len,
 	    fbh->ftype,
 	    fb_ary->aindp,
 	    (ftype==94||ftype==95) ? NULL : fb_ary->arlen,
-	    fb_ary->arcode, OCI_DEFAULT);
+	    fb_ary->arcode, OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status, "OCIDefineByPos");
 	    return 0;
@@ -814,7 +853,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
     else {
 	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP, "    dbd_st_fetch %d fields...\n", DBIc_NUM_FIELDS(imp_sth));
-	status = OCIStmtFetch(imp_sth->stmhp, imp_sth->errhp, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
+	OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 1, OCI_FETCH_NEXT,
+	 OCI_DEFAULT, status);
     }
 
     if (status != OCI_SUCCESS) {
@@ -925,6 +965,7 @@ ora_parse_uid(imp_dbh, uidp, pwdp)
     char **uidp;
     char **pwdp;
 {
+    sword status;
     /* OCI 8 does not seem to allow uid to be "name/pass" :-( */
     /* so we have to split it up ourselves */
     if (strlen(*pwdp)==0 && strchr(*uidp,'/')) {
@@ -937,12 +978,12 @@ ora_parse_uid(imp_dbh, uidp, pwdp)
     if (**uidp == '\0' && **pwdp == '\0') {
 	return OCI_CRED_EXT;
     }
-    OCIAttrSet(imp_dbh->authp, OCI_HTYPE_SESSION,
+    OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
 	       *uidp, strlen(*uidp),
-	       (ub4) OCI_ATTR_USERNAME, imp_dbh->errhp);
-    OCIAttrSet(imp_dbh->authp, OCI_HTYPE_SESSION,
+	       (ub4) OCI_ATTR_USERNAME, imp_dbh->errhp, status);
+    OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
 	       (strlen(*pwdp)) ? *pwdp : NULL, strlen(*pwdp),
-	       (ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp);
+	       (ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
     return OCI_CRED_RDBMS;
 }
 
@@ -957,10 +998,10 @@ ora_db_reauthenticate(dbh, imp_dbh, uid, pwd)
     sword status;
     /* XXX should possibly create new session before ending the old so	*/
     /* that if the new one can't be created, the old will still work.	*/
-    OCISessionEnd (imp_dbh->svchp, imp_dbh->errhp,
-		   imp_dbh->authp, OCI_DEFAULT);
-    status = OCISessionBegin( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,
-		       ora_parse_uid(imp_dbh, &uid, &pwd), (ub4) OCI_DEFAULT);
+    OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp,
+		   imp_dbh->authp, OCI_DEFAULT, status); /* XXX check status here?*/
+    OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,
+		     ora_parse_uid(imp_dbh, &uid, &pwd), (ub4) OCI_DEFAULT, status);
     if (status != OCI_SUCCESS) {
 	oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
 	return 0;
@@ -1097,22 +1138,26 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	return oci_error(sth, errhp, OCI_ERROR,
 		"Unable to parse table name for LOB refetch");
 
-    OCIHandleAlloc_ok(imp_sth->envhp, &dschp, OCI_HTYPE_DESCRIBE);
-    status = OCIDescribeAny(imp_sth->svchp, errhp, tablename, strlen(tablename),
-		OCI_OTYPE_NAME, 1, OCI_PTYPE_TABLE, dschp);
+    OCIHandleAlloc_ok(imp_sth->envhp, &dschp, OCI_HTYPE_DESCRIBE, status);
+    OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
+		OCI_OTYPE_NAME, 1, OCI_PTYPE_TABLE, dschp, status);
     if (status != OCI_SUCCESS) {
-	OCIHandleFree(dschp, OCI_HTYPE_DESCRIBE);
+	OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, status);
 	return oci_error(sth, errhp, status, "OCIDescribeAny/LOB refetch");
     }
 
-    status =   OCIAttrGet(dschp,  OCI_HTYPE_DESCRIBE,
-				&parmhp, 0, OCI_ATTR_PARAM, errhp)
-	    || OCIAttrGet(parmhp, OCI_DTYPE_PARAM,
-				&numcols, 0, OCI_ATTR_NUM_COLS, errhp)
-	    || OCIAttrGet(parmhp, OCI_DTYPE_PARAM,
-				&collisthd, 0, OCI_ATTR_LIST_COLUMNS, errhp);
+    OCIAttrGet_log_stat(dschp,  OCI_HTYPE_DESCRIBE,
+				&parmhp, 0, OCI_ATTR_PARAM, errhp, status);
+    if ( ! status ) {
+	    OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
+				&numcols, 0, OCI_ATTR_NUM_COLS, errhp, status);
+    }
+    if ( ! status ) {
+	    OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
+				&collisthd, 0, OCI_ATTR_LIST_COLUMNS, errhp, status);
+    }
     if (status != OCI_SUCCESS) {
-	OCIHandleFree(dschp, OCI_HTYPE_DESCRIBE);
+	OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, status);
 	return oci_error(sth, errhp, status, "OCIDescribeAny/OCIAttrGet/LOB refetch");
     }
     if (DBIS->debug >= 3)
@@ -1124,13 +1169,17 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	ub2 col_dbtype;
 	char *col_name;
 	ub4  col_name_len;
-        if ((status=OCIParamGet(collisthd, OCI_DTYPE_PARAM, errhp, (dvoid**)&colhd, i)))
+        OCIParamGet_log_stat(collisthd, OCI_DTYPE_PARAM, errhp, (dvoid**)&colhd,
+                             i, status);
+        if (status)
 	    break;
-        if ((status=OCIAttrGet(colhd, OCI_DTYPE_PARAM, &col_dbtype, 0,
-              OCI_ATTR_DATA_TYPE, errhp)))
+        OCIAttrGet_log_stat(colhd, OCI_DTYPE_PARAM, &col_dbtype, 0,
+                            OCI_ATTR_DATA_TYPE, errhp, status);
+        if (status)
                 break;
-        if ((status=OCIAttrGet(colhd, OCI_DTYPE_PARAM, &col_name, &col_name_len,
-              OCI_ATTR_NAME, errhp)))
+        OCIAttrGet_log_stat(colhd, OCI_DTYPE_PARAM, &col_name, &col_name_len,
+              OCI_ATTR_NAME, errhp, status);
+        if (status)
                 break;
 	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP, "       lob refetch table col %d: '%.*s' otype %d\n",
@@ -1145,7 +1194,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	hv_store(lob_cols_hv, col_name,col_name_len, sv,0);
     }
     if (status != OCI_SUCCESS) {
-	OCIHandleFree(dschp, OCI_HTYPE_DESCRIBE);
+	OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, status);
 	return oci_error(sth, errhp, status,
 		    "OCIDescribeAny/OCIParamGet/OCIAttrGet/LOB refetch");
     }
@@ -1250,16 +1299,17 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     lr->parmdp_lob = NULL;
 
 
-    OCIHandleAlloc_ok(imp_sth->envhp, &lr->stmthp, OCI_HTYPE_STMT);
-    status = OCIStmtPrepare(lr->stmthp, errhp,
-		(text*)SvPVX(sql_select), SvCUR(sql_select), OCI_NTV_SYNTAX, OCI_DEFAULT);
+    OCIHandleAlloc_ok(imp_sth->envhp, &lr->stmthp, OCI_HTYPE_STMT, status);
+    OCIStmtPrepare_log_stat(lr->stmthp, errhp,
+		(text*)SvPVX(sql_select), SvCUR(sql_select), OCI_NTV_SYNTAX,
+		OCI_DEFAULT, status);
     if (status != OCI_SUCCESS)
 	return oci_error(sth, errhp, status, "OCIStmtPrepare/LOB refetch");
 
     /* bind the rowid input */
     OCIDescriptorAlloc_ok(imp_sth->envhp, &lr->rowid, OCI_DTYPE_ROWID);
-    status = OCIBindByName(lr->stmthp, &lr->bindhp, errhp, (text*)":rid", 4,
-           &lr->rowid, sizeof(OCIRowid*), SQLT_RDD, 0,0,0,0,0, OCI_DEFAULT);
+    OCIBindByName_log_stat(lr->stmthp, &lr->bindhp, errhp, (text*)":rid", 4,
+           &lr->rowid, sizeof(OCIRowid*), SQLT_RDD, 0,0,0,0,0, OCI_DEFAULT, status);
     if (status != OCI_SUCCESS)
 	return oci_error(sth, errhp, status, "OCIBindByPos/LOB refetch");
 
@@ -1278,8 +1328,8 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	    fprintf(DBILOGFP,
 		"       lob refetch %d for '%s' param: ftype %d setup\n",
 		(int)i+1,fbh->name, fbh->dbtype);
-	status = OCIDefineByPos(lr->stmthp, &defnp, errhp, i+1,
-			 &fbh->desc_h, -1, fbh->ftype, 0,0,0, OCI_DEFAULT);
+	OCIDefineByPos_log_stat(lr->stmthp, &defnp, errhp, i+1,
+			 &fbh->desc_h, -1, fbh->ftype, 0,0,0, OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS)
 	    return oci_error(sth, errhp, status, "OCIDefineByPos/LOB refetch");
     }
@@ -1311,26 +1361,28 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	    return 0;	/* init_lob_refetch already called oci_error */
     lr = imp_sth->lob_refetch;
 
-    status = OCIAttrGet_stmhp(imp_sth, (dvoid**)lr->rowid, &rowid_iter, OCI_ATTR_ROWID);
+    OCIAttrGet_stmhp_stat(imp_sth, (dvoid**)lr->rowid, &rowid_iter, OCI_ATTR_ROWID,
+			  status);
     if (status != OCI_SUCCESS)
 	return oci_error(sth, errhp, status, "OCIAttrGet OCI_ATTR_ROWID /LOB refetch");
 
-    status = OCIStmtExecute(imp_sth->svchp, lr->stmthp, errhp,
-		1, 0, NULL, NULL, OCI_DEFAULT);	/* execute and fetch */
+    OCIStmtExecute_log_stat(imp_sth->svchp, lr->stmthp, errhp,
+		1, 0, NULL, NULL, OCI_DEFAULT, status);	/* execute and fetch */
     if (status != OCI_SUCCESS)
-	return oci_error(sth, errhp, status, "OCIStmtExecute/LOB refetch");
+	return oci_error(sth, errhp, status,
+		ora_sql_error(imp_sth,"OCIStmtExecute/LOB refetch"));
 
     for(i=0; i < lr->num_fields; ++i) {
 	imp_fbh_t *fbh = &lr->fbh_ary[i];
 	phs_t *phs = (phs_t*)fbh->special;
 	ub4 amtp = SvCUR(phs->sv);
 	if (amtp > 0) {	/* since amtp==0 & OCI_ONE_PIECE fail (OCI 8.0.4) */
-	    status = OCILobWrite(imp_sth->svchp, errhp,
+	    OCILobWrite_log_stat(imp_sth->svchp, errhp,
 		    fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
-		    0,0, 0,SQLCS_IMPLICIT);
+		    0,0, 0,SQLCS_IMPLICIT, status);
 	}
 	else {
-	    status = OCILobTrim(imp_sth->svchp, errhp, fbh->desc_h, 0);
+	    OCILobTrim_log_stat(imp_sth->svchp, errhp, fbh->desc_h, 0, status);
 	}
 	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP,
@@ -1350,7 +1402,8 @@ ora_free_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 {
     lob_refetch_t *lr = imp_sth->lob_refetch;
     int i;
-    sword status = OCIHandleFree(lr->stmthp, OCI_HTYPE_STMT);
+    sword status;
+    OCIHandleFree_log_stat(lr->stmthp, OCI_HTYPE_STMT, status);
     if (status != OCI_SUCCESS)
 	oci_error(sth, imp_sth->errhp, status, "ora_free_lob_refetch/OCIHandleFree");
     for(i=0; i < lr->num_fields; ++i) {

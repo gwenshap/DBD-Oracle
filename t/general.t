@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -w
+#!perl -w
 
 sub ok ($$;$) {
     my($n, $ok, $warn) = @_;
