@@ -59,9 +59,32 @@ static sql_fbh_t ora2sql_type _((imp_fbh_t* fbh));
 void ora_free_phs_contents _((phs_t *phs));
 static void dump_env_to_trace();
 
-#if 0
+#ifndef OCI_ATTR_ENV_CHARSET_ID
 #ifdef WIN32
-int GetRegKey(char *key, char *val, char *data, int *size)
+static char *
+GetEnvOrRegKey(char *name)
+{
+    int len;
+    char *val = getenv(name);
+    if (val)
+	return val;
+#define REG_BUFSIZE 80
+    char  key[REG_BUFSIZE+1];
+    char  val[REG_BUFSIZE+1];
+    len = REG_BUFSIZE;
+
+    if (!GetRegKey("SOFTWARE\\ORACLE\\ALL_HOMES", "LAST_HOME", val, &len))
+	return Nullch;
+    val[2] = 0;
+    len = REG_BUFSIZE;
+    sprintf(key, "SOFTWARE\\ORACLE\\HOME%s", val);
+    if (!GetRegKey(key, "NLS_LANG", val, &len))
+	return Nullch;
+    val[len] = 0;
+    return val;
+}
+static int
+GetRegKey(char *key, char *val, char *data, int *size)
 {
     HKEY hKey;
     long len = *size - 1;
@@ -91,40 +114,6 @@ dbd_init(dbistate)
 	ora_login_nomsg = atoi(p);
     if ((p=getenv("DBD_ORACLE_SIGCHLD")))
 	ora_sigchld_restart = atoi(p);
-
-#if 0 /* lab now convinced this is wrong */
-#ifndef NEW_OCI_INIT
-/* lab: I think this is wrong, but I do not want to try 
- *      for for backwords compatibility with old oracles...
- */
-    {
-	char *nls = getenv("NLS_LANG");
-	STRLEN nlslen;
-	if (nls && (nlslen = strlen(nls)) >= 4) {
-	    cs_is_utf8 = !strcasecmp(nls + nlslen - 4, "utf8");
-#ifdef	WIN32
-	} else {
-#define REG_BUFSIZE 80
-	    char  key[REG_BUFSIZE];
-	    char  val[REG_BUFSIZE];
-	    nlslen = REG_BUFSIZE;
-
-	    if (GetRegKey("SOFTWARE\\ORACLE\\ALL_HOMES", "LAST_HOME", val, &nlslen)) {
-	        val[2] = 0;
-		nlslen = REG_BUFSIZE;
-	    	sprintf(key, "SOFTWARE\\ORACLE\\HOME%s", val);
-		if (GetRegKey(key, "NLS_LANG", val, &nlslen)) {
-		    if (nlslen >= 5) {
-		    	cs_is_utf8 = !strcasecmp(val + nlslen - 5, "utf8");
-		    }
-		}
-	    }
-#endif
-	}
-    }
-#endif
-#endif /* if 0 */
-
 }
 
 
@@ -208,9 +197,7 @@ oratype_bind_ok(dbtype)	/* It's a type we support for placeholders */
 /* --- allocate and free oracle oci 'array' buffers --- */
 
 fb_ary_t *
-fb_ary_alloc(bufl, size)
-    int bufl;
-    int size;
+fb_ary_alloc(int bufl, int size)
 {
     fb_ary_t *fb_ary;
     /* these should be reworked to only to one Newz()	*/
@@ -225,8 +212,7 @@ fb_ary_alloc(bufl, size)
 }
 
 void
-fb_ary_free(fb_ary)
-    fb_ary_t *fb_ary;
+fb_ary_free(fb_ary_t *fb_ary)
 {
     Safefree(fb_ary->abuf);
     Safefree(fb_ary->aindp);
@@ -431,14 +417,6 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                     "OCINlsEnvironmentVariableGet. (database Ncharset) Check ORACLE_HOME and NLS settings etc.");
                 return 0;
             }
-#if 0
-            /* HACK for when NLS_LANG is NOT set... use the utf8 ncharsetid  */
-            if ( 1 && (ncharsetid==1) ) {
-                ncharsetid = al32utf8_csid; /* NLS_LANG was not set... default it */
-                if ( DBIS->debug >= 1 )
-                   PerlIO_printf(DBILOGFP,"NLS_LANG was not set or invalid, using ncharsetid=%d\n" ,ncharsetid ); 
-            }
-#endif
 
 	    /*{
 	    After using OCIEnvNlsCreate() to create the environment handle,
@@ -541,8 +519,16 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	return 0;
     }
 #else				/* Oracle 8.x */
-    /* do we need to do something here for Oracle 8 */
-    /* or perhaps use charsetid & ncharsetid being 0 to disable code elsewhere */
+    {	/* this is a rought hack as I can't test it myself */
+	STRLEN nlslen;
+	char *nls = GetEnvOrRegKey("NLS_LANG");
+	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8")
+	    charsetid = utf8_csid;
+	*nls = GetEnvOrRegKey("NLS_NCHAR");
+	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8")
+	    ncharsetid = utf8_csid;
+    }
+
 #endif 
 #endif
 
@@ -621,7 +607,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	    }
 	    if (status == OCI_SUCCESS_WITH_INFO) {
 		/* eg ORA-28011: the account will expire soon; change your password now */
-		/* XXX trigger HandleEvent here in future */
+		oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
 		status = OCI_SUCCESS;
 	    }
 	    if (status != OCI_SUCCESS) {

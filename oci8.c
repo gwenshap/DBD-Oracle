@@ -172,7 +172,9 @@ oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
     /* errors, like OCI_INVALID_HANDLE, don't set errcode.	*/
     if (force_err)
 	errcode = force_err;
-    if (errcode == 0)
+    if (status == OCI_SUCCESS_WITH_INFO)
+	errcode = 0;	/* record as a "warning" for DBI>=1.43 */
+    else if (errcode == 0)
 	errcode = (status != 0) ? status : -10000;
     DBIh_SET_ERR_CHAR(h, imp_xxh, Nullch, errcode, SvPV_nolen(errstr), Nullch, Nullch);
     return 0;	/* always returns 0 */
@@ -1056,7 +1058,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status,
 		ora_sql_error(imp_sth, "OCIStmtExecute/Describe"));
-	    return 0;
+	    if (status != OCI_SUCCESS_WITH_INFO)
+		return 0;
 	}
     }
 

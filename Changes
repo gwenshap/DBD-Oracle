@@ -5,6 +5,7 @@ Add to "Unable to find required Oracle OCI files" message some
 extra text for Windows users pointing them to PPM and Jeff's PPM repository.
 OCI_SUCCESS_WITH_INFO -> Warning?
 Add column_info test
+NEEDS TESTING - especially for Oracle 8.x, 9.0.x and Windows
 
   NOTE:
   This release has major changes to Unicode support. See below.
@@ -28,6 +29,10 @@ Add column_info test
   Changed ORA_OCI constant from being just 7 or 8 to being a dualvar:
     in numeric context returns the major version number (8, 9, 10 etc)
     in string context returns "major.minor" version string.
+  Changed some SUCCESS_WITH_INFO situtions to be treated as a "warning"
+    by setting $DBI::err to "0" (and so trigger PrintWarn in DBI >= 1.43)
+    eg "ORA-28011: the account will expire soon; change your password now"
+    and package compilation errors.
 
   Added automatic support for UTF-8 for both NLS_LANG and NLS_NCHAR
     Many thanks to Lincoln Baxter who did most of the hard work and testing

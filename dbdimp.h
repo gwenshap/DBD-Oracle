@@ -306,6 +306,7 @@ int dbd_rebind_ph_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 void * oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags);
 void * oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags);
+void fb_ary_free(fb_ary_t *fb_ary);
 
 #include "ocitrace.h"
 
