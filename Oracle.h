@@ -19,6 +19,8 @@
 
 #include "dbdimp.h"
 
+#include "dbivport.h"
+
 #include <dbd_xsh.h>		/* installed by the DBI module	*/
 
 /* These prototypes are for dbdimp.c funcs used in the XS file          */ 

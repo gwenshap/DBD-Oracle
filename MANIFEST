@@ -35,6 +35,7 @@ README.wingcc			Notes about building with mingw32 and cygwin32
 Todo
 dbdimp.c
 dbdimp.h
+dbivport.h
 hints/dgux.pl
 hints/macos_bundle.syms
 hints/macos_lib.syms

@@ -137,9 +137,7 @@ dbd_discon_all(drh, imp_drh)
 
     /* The disconnect_all concept is flawed and needs more work */
     if (!dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
-	sv_setiv(DBIc_ERR(imp_drh), (IV)1);
-	sv_setpv(DBIc_ERRSTR(imp_drh),
-		(char*)"disconnect_all not implemented");
+	DBIh_SET_ERR_CHAR(drh, imp_drh, Nullch, 1, "disconnect_all not implemented", Nullch, Nullch);
 	return FALSE;
     }
     return FALSE;

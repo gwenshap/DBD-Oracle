@@ -284,7 +284,8 @@ int pp_rebind_ph_rset_in _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 #define OTYPE_IS_LONG(t)  ((t)==8 || (t)==24 || (t)==94 || (t)==95)
 
-int oci_error _((SV *h, OCIError *errhp, sword status, char *what));
+int oci_error_err _((SV *h, OCIError *errhp, sword status, char *what, sb4 force_err));
+#define oci_error(h, errhp, status, what) oci_error_err(h, errhp, status, what, 0)
 char *oci_stmt_type_name _((int stmt_type));
 char *oci_status_name _((sword status));
 char * oci_hdtype_name _((ub4 hdtype));

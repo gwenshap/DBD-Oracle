@@ -111,7 +111,7 @@ oci_hdtype_name(ub4 hdtype)
 }
 
 
-sb4
+static sb4
 oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 {
     text errbuf[1024];
@@ -120,6 +120,8 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
     sb4 eg_errcode = 0;
     sword eg_status;
 
+    if (!SvOK(errstr))
+	sv_setpv(errstr,"");
     if (!errhp) {
 	sv_catpv(errstr, oci_status_name(status));
 	if (what) {
@@ -159,20 +161,20 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 
 
 int
-oci_error(SV *h, OCIError *errhp, sword status, char *what)
+oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 {
     D_imp_xxh(h);
-    sb4 errcode = 0;
-    SV *errstr = DBIc_ERRSTR(imp_xxh);
-
-    sv_setpv(errstr, "");
+    sb4 errcode;
+    SV *errstr = sv_newmortal();
     errcode = oci_error_get(errhp, status, what, errstr, DBIS->debug);
 
     /* DBIc_ERR *must* be SvTRUE (for RaiseError etc), some	*/
     /* errors, like OCI_INVALID_HANDLE, don't set errcode.	*/
+    if (force_err)
+	errcode = force_err;
     if (errcode == 0)
 	errcode = (status != 0) ? status : -10000;
-    sv_setiv(DBIc_ERR(imp_xxh), (IV)errcode);
+    DBIh_SET_ERR_CHAR(h, imp_xxh, Nullch, errcode, SvPV_nolen(errstr), Nullch, Nullch);
     return 0;	/* always returns 0 */
 }
 
@@ -282,7 +284,6 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 	DBD_ATTRIB_GET_IV(  attribs, "ora_placeholders", 16, svp, ora_placeholders);
 	DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob",   12, svp, tmp);
 	imp_sth->auto_lob = (tmp) ? 1 : 0;
-warn("auto_lob %d %d", imp_sth->auto_lob, tmp);
 	/* ora_check_sql only works for selects owing to Oracle behaviour */
 	DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql",  13, svp, ora_check_sql);
     }
@@ -536,8 +537,7 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 		    sprintf(buf,"fetching field %d of %d. LONG value truncated from %lu to %lu. %s",
 			    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), ul_t(datalen), ul_t(bytelen),
 			    "DBI attribute LongReadLen too small and/or LongTruncOk not set");
-		    oci_error(sth, NULL, OCI_ERROR, buf);
-		    sv_setiv(DBIc_ERR(imp_sth), (IV)24345); /* appropriate ORA error number */
+		    oci_error_err(sth, NULL, OCI_ERROR, buf, 24345); /* appropriate ORA error number */
 		    sv_set_undef(dest_sv);
 		    return 0;
 		}
@@ -867,16 +867,14 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	    /* user says truncation is ok */
 	    /* Oraperl recorded the truncation in ora_errno so we	*/
 	    /* so also but only for Oraperl mode handles.		*/
-	    if (oraperl)
-		sv_setiv(DBIc_ERR(imp_sth), 1406);
+	    if (oraperl) sv_setiv(DBIc_ERR(imp_sth), 1406);
 	}
 	else {
 	    char buf[300];
 	    sprintf(buf,"fetching field %d of %d. LOB value truncated from %ld to %ld. %s",
 		    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), ul_t(loblen), ul_t(amtp),
 		    "DBI attribute LongReadLen too small and/or LongTruncOk not set");
-	    oci_error(sth, NULL, OCI_ERROR, buf);
-	    sv_setiv(DBIc_ERR(imp_sth), (IV)24345); /* appropriate ORA error number */
+	    oci_error_err(sth, NULL, OCI_ERROR, buf, 24345); /* appropriate ORA error number */
 	    sv_set_undef(dest_sv);
 	    return 0;
         }
@@ -1399,8 +1397,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 		/* user says truncation is ok */
 		/* Oraperl recorded the truncation in ora_errno so we	*/
 		/* so also but only for Oraperl mode handles.		*/
-		if (oraperl)
-		    sv_setiv(DBIc_ERR(imp_sth), (IV)rc);
+		if (oraperl) sv_setiv(DBIc_ERR(imp_sth), (IV)rc);
 		rc = 0;		/* but don't provoke an error here	*/
 	    }
 	    /* else fall through and let rc trigger failure below	*/

@@ -3,7 +3,7 @@
 TODO:
 Add to "Unable to find required Oracle OCI files" message some
 extra text for Windows users pointing them to PPM and Jeff's PPM repository.
-Add DBI dbivport.h etc
+OCI_SUCCESS_WITH_INFO -> Warning?
 Add column_info test
 
   NOTES:
