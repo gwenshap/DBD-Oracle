@@ -1304,7 +1304,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     set before converting to or from the national character set. This
     occurs only if the database character set is not Unicode.
 */
-        if ( 0 && (fbh->dbtype == 1) ) {
+/* Well all I can say is this is required with Oracle 9.2 
+   So it would seem we have to make this version specific?
+*/
+#ifdef NEW_OCI_INIT
+        if ( 1 && (fbh->dbtype == 1) ) {
 #define USE_NLS_NCHAR
 #ifdef USE_NLS_NCHAR
             ub2 csid = ( fbh->csform == 2 ) ? ncharsetid : charsetid; 
@@ -1316,7 +1320,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
             ub2 csform = fbh->csform;
 #endif
             if (DBIS->debug >= 3)
-               PerlIO_printf(DBILOGFP, "    calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
+               PerlIO_printf(DBILOGFP, "lab    calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
 
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csid, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
@@ -1332,6 +1336,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    }
         }
 #endif
+#endif /* NEW_OCI_INIT */
 
 	if (fbh->ftype == 108) {
 	    oci_error(h, NULL, OCI_ERROR, "OCIDefineObject call needed but not implemented yet");

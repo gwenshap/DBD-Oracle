@@ -218,6 +218,7 @@ sub select_rows # 1 + numcols + rows * cols * 2
     my $table = table();
     my $trows = $tdata->{rows};
     my $tcols = $tdata->{cols};
+# $dbh->trace( 5 );
     my $sth = select_handle($dbh,$tdata);
     my @data = ();
     my $colnum = 0;
@@ -245,6 +246,7 @@ sub select_rows # 1 + numcols + rows * cols * 2
         }
         $cnt++;
     }
+# $dbh->trace( 0 );
     my $trow_cnt = @$trows;
     cmp_ok( $cnt, '==', $trow_cnt, "number of rows fetched" );
 }
