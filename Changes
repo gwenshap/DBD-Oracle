@@ -1,3 +1,10 @@
+Changes in DBD::Oracle 1.11   31th August 2001
+
+  Improved LD_RUN_PATH code in Makefile.PL thanks to John Groenveld.
+  Improved HPUX code in Makefile.PL thanks to H.Merijn Brand.
+  Fixed handle/descriptor name code to be less Oracle version sensitive.
+  Updated $dbh->primary_key_info() to new DBI spec thanks to Steffen Goeldner.
+
 Changes in DBD::Oracle 1.10   30th August 2001
 
   Explicitly require DBI version 1.20 (or later).
