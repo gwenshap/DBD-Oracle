@@ -80,8 +80,8 @@ GetRegKey(char *key, char *val, char *data, unsigned long *size)
 #endif
 }
 
-static char *
-GetEnvOrRegKey(char *name, char *buf, unsigned long size)
+char *
+ora_env_var(char *name, char *buf, unsigned long size)
 {
 #define WIN32_REG_BUFSIZE 80
     char last_home_id[WIN32_REG_BUFSIZE+1];
@@ -519,10 +519,10 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	*  the hardcoded utf8_csid if found
 	*/  
 	char buf[81];
-	char *nls = GetEnvOrRegKey("NLS_LANG", buf, sizeof(buf)-1);
+	char *nls = ora_env_var("NLS_LANG", buf, sizeof(buf)-1);
 	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8"))
 	    charsetid = utf8_csid;
-	nls = GetEnvOrRegKey("NLS_NCHAR", buf, sizeof(buf)-1);
+	nls = ora_env_var("NLS_NCHAR", buf, sizeof(buf)-1);
 	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8"))
 	     ncharsetid = utf8_csid;
     }

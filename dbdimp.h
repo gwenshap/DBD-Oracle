@@ -296,6 +296,8 @@ void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
 int post_execute_lobs _((SV *sth, imp_sth_t *imp_sth, ub4 row_count));
 ub4 ora_parse_uid _((imp_dbh_t *imp_dbh, char **uidp, char **pwdp));
 char *ora_sql_error _((imp_sth_t *imp_sth, char *msg));
+char *ora_env_var(char *name, char *buf, unsigned long size);
+
 
 sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
               dvoid **bufpp, ub4 *alenp, ub1 *piecep, dvoid **indpp));

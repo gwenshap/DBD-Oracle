@@ -45,6 +45,17 @@ ORA_OCI()
     SvNOK_on(sv); /* dualvar hack */
     ST(0) = sv;
 
+void
+ora_env_var(name)
+    char *name
+    CODE:
+    char buf[1024];
+    char *p = ora_env_var(name, buf, sizeof(buf)-1);
+    SV *sv = sv_newmortal();
+    if (p)
+        sv_setpv(sv, p);
+    ST(0) = sv;
+
 
 INCLUDE: Oracle.xsi
 

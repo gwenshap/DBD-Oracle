@@ -26,7 +26,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	) ],
         ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
     );
-    @EXPORT_OK = qw(ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR);
+    @EXPORT_OK = qw(ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var);
     Exporter::export_ok_tags(qw(ora_types ora_session_modes));
 
     my $Revision = substr(q$Revision: 1.103 $, 10);
@@ -78,7 +78,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# Used to silence 'Bad free() ...' warnings caused by bugs in Oracle's code
 	# being detected by Perl's malloc.
 	$ENV{PERL_BADFREE} = 0;
-	undef $Win32::TieRegistry::Registry if $Win32::TieRegistry::Registry;
+	#undef $Win32::TieRegistry::Registry if $Win32::TieRegistry::Registry;
     }
 
     sub AUTOLOAD {
@@ -99,7 +99,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub load_dbnames {
 	my ($drh) = @_;
 	my $debug = $drh->debug;
-	my $oracle_home = $ENV{$ORACLE_ENV};
+	my $oracle_home = DBD::Oracle::ora_env_var($ORACLE_ENV);
 	local *FH;
 	my $d;
 
@@ -107,38 +107,13 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	  # XXX experimental, will probably change
 	  $drh->trace_msg("Trying to fetch ORACLE_HOME and ORACLE_SID from the registry.\n")
 		if $debug;
-	  my($hkey, $sid, $home);
-	  eval q{
-	    require Win32::TieRegistry;
-	    $Win32::TieRegistry::Registry->Delimiter("/");
-	    $hkey= $Win32::TieRegistry::Registry->{"LMachine/Software/Oracle/"};
-	  };
-	  eval q{
-	    require Tie::Registry;
-	    $Tie::Registry::Registry->Delimiter("/");
-	    $hkey= $Tie::Registry::Registry->{"LMachine/Software/Oracle/"};
-	  } unless $hkey;
-	  if ($hkey) {
-	    $sid = $hkey->{ORACLE_SID};
-	    $home= $hkey->{ORACLE_HOME};
-	  } else {
-	    eval q{
-	      my $reg_key;
-	      require Win32::Registry;
-	      $main::HKEY_LOCAL_MACHINE->Open('SOFTWARE\ORACLE', $reg_key);
-	      $reg_key->GetValues( $hkey );
-	      $sid = $hkey->{ORACLE_SID}[2];
-	      $home= $hkey->{ORACLE_HOME}[2];
-	    };
-	  };
-	  $home= $ENV{$ORACLE_ENV} unless $home;
-	  $dbnames{$sid} = $home if $sid and $home;
-	  $drh->trace_msg("Found $sid \@ $home.\n") if $debug;
-	  $oracle_home =$home unless $oracle_home;
+	  my $sid = DBD::Oracle::ora_env_var("ORACLE_SID");
+	  $dbnames{$sid} = $oracle_home if $sid and $oracle_home;
+	  $drh->trace_msg("Found $sid \@ $oracle_home.\n") if $debug && $sid;
 	}
 
 	# get list of 'local' database SIDs from oratab
-	foreach $d (qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
+	foreach $d (qw(/etc /var/opt/oracle), DBD::Oracle::ora_env_var("TNS_ADMIN")) {
 	    next unless defined $d;
 	    next unless open(FH, "<$d/oratab");
 	    $drh->trace_msg("Loading $d/oratab\n") if $debug;
@@ -159,7 +134,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	  "$oracle_home/net80/admin",	# OCI 8.0
 	) if $oracle_home;
 	push @tns_admin, "/var/opt/oracle";
-	foreach $d ( $ENV{TNS_ADMIN}, ".", @tns_admin  ) {
+	foreach $d ( DBD::Oracle::ora_env_var("TNS_ADMIN"), ".", @tns_admin  ) {
 	    next unless $d && open(FH, "<$d/tnsnames.ora");
 	    $drh->trace_msg("Loading $d/tnsnames.ora\n") if $debug;
 	    local *_;
@@ -224,7 +199,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	$dbname = $1 if !$dbname && $user && $user =~ s/\@(.*)//s;
 
-	$drh->trace_msg("$ORACLE_ENV environment variable not set!\n")
+	$drh->trace_msg("$ORACLE_ENV environment variable not set\n")
 		if !$ENV{$ORACLE_ENV} and $^O ne "MSWin32";
 
 	# create a 'blank' dbh

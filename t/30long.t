@@ -53,12 +53,9 @@ foreach (@test_sets) {
 sub use_utf8_data
 {
     my ( $dbh, $type_name ) = @_;
-    my $nls_lang  = $ENV{NLS_LANG}  || '';
-    $nls_lang =~ s/.*\.//; # trim locale incase it contains "utf"
-    my $nls_nchar = $ENV{NLS_NCHAR} || $nls_lang;
     return 0 unless $] >= 5.006;
-    return 1 if $type_name =~ m/^CLOB/i  and db_ochar_is_utf($dbh) && $nls_lang  =~ /utf8/i;
-    return 1 if $type_name =~ m/^NCLOB/i and db_nchar_is_utf($dbh) && $nls_nchar =~ /utf8/i;
+    return 1 if $type_name =~ m/^CLOB/i  and db_ochar_is_utf($dbh) && client_ochar_is_utf8();
+    return 1 if $type_name =~ m/^NCLOB/i and db_nchar_is_utf($dbh) && client_nchar_is_utf8();
     return 0;
 }
 

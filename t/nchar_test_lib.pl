@@ -3,7 +3,7 @@ use warnings;
 use Carp;
 use Data::Dumper;
 use DBI;
-use DBD::Oracle qw(ORA_OCI);
+use DBD::Oracle qw(ORA_OCI ora_env_var);
 
 require utf8;
 
@@ -368,20 +368,20 @@ sub show_db_charsets
 	$paramsH->{NLS_NCHAR_CHARACTERSET},
 	db_nchar_is_utf($dbh) ? "Unicode" : "Non-Unicode";
     printf "Client NLS_LANG is '%s', NLS_NCHAR is '%s'\n",
-	$ENV{NLS_LANG} || "<unset>", $ENV{NLS_NCHAR} || "<unset>";
+	ora_env_var("NLS_LANG") || "<unset>", ora_env_var("NLS_NCHAR") || "<unset>";
 }
 sub db_ochar_is_utf { return shift->ora_can_unicode & 2 }
 sub db_nchar_is_utf { return shift->ora_can_unicode & 1 }
 
 sub client_ochar_is_utf8 {
-   my $NLS_LANG = $ENV{NLS_LANG} || '';
+   my $NLS_LANG = ora_env_var("NLS_LANG") || '';
    $NLS_LANG =~ s/.*\.//;
    return $NLS_LANG =~ m/utf8/i;
 }
 sub client_nchar_is_utf8 {
-   my $NLS_LANG = $ENV{NLS_LANG} || '';
+   my $NLS_LANG = ora_env_var("NLS_LANG") || '';
    $NLS_LANG =~ s/.*\.//;
-   my $NLS_NCHAR = $ENV{NLS_NCHAR} || $NLS_LANG;
+   my $NLS_NCHAR = ora_env_var("NLS_NCHAR") || $NLS_LANG;
    return $NLS_NCHAR =~ m/utf8/i;
 }
 
@@ -396,11 +396,11 @@ sub set_nls_nchar
     if ( defined $cset ) {
         $ENV{NLS_NCHAR} = "$cset"
     } else {
-        undef $ENV{NLS_NCHAR};
+        undef $ENV{NLS_NCHAR}; # XXX windows? (perhaps $ENV{NLS_NCHAR}=""?)
     }
-    print defined $ENV{NLS_NCHAR} ?
+    print defined ora_env_var("NLS_NCHAR") ?	# defined?
         "set \$ENV{NLS_NCHAR}=$cset\n" :
-        "set \$ENV{NLS_LANG}=undef\n"
+        "set \$ENV{NLS_LANG}=undef\n"		# XXX ?
             if defined $verbose;
 }
 
@@ -411,7 +411,7 @@ sub set_nls_lang_charset
         $ENV{NLS_LANG} = "AMERICAN_AMERICA.$lang";
         print "set \$ENV{NLS_LANG}=AMERICAN_AMERICA.$lang\n" if ( $verbose );
     } else {
-        $ENV{NLS_LANG} = "";
+        $ENV{NLS_LANG} = "";	# not the same as set_nls_nchar() above which uses undef
         print "set \$ENV{NLS_LANG}=''\n" if ( $verbose );
     }
 }
@@ -463,11 +463,10 @@ select $cols from $table;
     close F;
     
     my $nls='unset';
-    $nls = $ENV{NLS_LANG} if $ENV{NLS_LANG};
-    $ENV{NLS_LANG} = '' if not $use_nls_lang;
+    $nls = ora_env_var("NLS_LANG") if ora_env_var("NLS_LANG");
+    local $ENV{NLS_LANG} = '' if not $use_nls_lang;
     print "From sqlplus...$str\n  ...with NLS_LANG = $nls\n" ;
     system( "sqlplus -s \@$sqlfile" );
-    $ENV{NLS_LANG} = $nls if $nls ne 'unset';
     unlink $sqlfile;
 }
 
