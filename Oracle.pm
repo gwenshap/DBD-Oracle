@@ -1224,6 +1224,22 @@ This attribute requires DBD::Oracle to be built with the -ProC
 option to Makefile.PL.  It is not available with OCI_V7. Not tested
 with Perl ithreads or with the ora_dbh_share connect attribute.
 
+=item ora_envhp
+
+The first time a connection is made a new OCI 'environment' is
+created by DBD::Oracle and stored in the driver handle.
+Subsequent connects reuse (share) that same OCI environment
+by default.
+
+The ora_envhp attribute can be used to disable the reuse of the OCI
+environment from a previous connect. If the value is C<0> then
+a new OCI environment is allocated and used for this connection.
+
+The OCI environment is what holds information about the client side
+context, such as the local NLS environment. So by altering %ENV and
+setting ora_envhp to 0 you can create connections with different
+NLS settings. This is most useful for testing.
+
 =back
 
 =head2 Database Handle Attributes
