@@ -15,9 +15,10 @@ my $dbh;
 $| = 1;
 SKIP: {
 
-    plan skip_all => "Unable to run unicode test, perl version is less than 5.6" unless ( $] >= 5.006 );
+    plan skip_all => "Unable to run unicode test, perl version is less than 5.6"
+	unless ( $] >= 5.006 );
 
-    set_nls_lang_charset( 'AL32UTF8' ,1 );
+    set_nls_lang_charset( (ORA_OCI >= 9.2) ? 'AL32UTF8' : 'UTF8', 1 );
     $dbh = db_handle();
 
     plan skip_all => "Not connected to oracle" if not $dbh;

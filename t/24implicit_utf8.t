@@ -28,10 +28,11 @@ SKIP: {
                   + select_test_count( $tdata ) * 1;
                   ;
 
-    plan tests => $testcount * 2 ;
+    my @nchar_cset = (ORA_OCI >= 9.2) ? qw(UTF8 AL32UTF8) : qw(UTF8);
+    plan tests => $testcount * @nchar_cset;
     show_test_data( $tdata ,0 );
 
-    foreach my $nchar_cset ( qw( UTF8 AL32UTF8 ))  {
+    foreach my $nchar_cset (@nchar_cset)  {
         $dbh->disconnect() if $dbh;
 	undef $dbh;
         print " --- testing with NLS_NCHAR=$nchar_cset\n" ;

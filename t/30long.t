@@ -23,9 +23,14 @@ my $tests = @test_sets * $tests_per_set;
 plan tests => $tests;
 
 $| = 1;
+my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $table = table();
 my $use_utf8_data;	# set per test_set below
-my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
+my %warnings;
+
+my @skip_unicode;
+push @skip_unicode, "Perl < 5.6 "          if $] < 5.006;
+push @skip_unicode, "Oracle client < 9.0 " if ORA_OCI() < 9.0; # Too many Oracle bugs :(
 
 # Set size of test data (in 10KB units)
 #	Minimum value 3 (else tests fail because of assumptions)
@@ -64,9 +69,11 @@ END {
 sub use_utf8_data
 {
     my ( $dbh, $type_name ) = @_;
-    return 0 unless $] >= 5.006;
-    return 1 if $type_name =~ m/^CLOB/i  and db_ochar_is_utf($dbh) && client_ochar_is_utf8();
-    return 1 if $type_name =~ m/^NCLOB/i and db_nchar_is_utf($dbh) && client_nchar_is_utf8();
+    if (   ($type_name =~ m/^CLOB/i  and db_ochar_is_utf($dbh) && client_ochar_is_utf8())
+        or ($type_name =~ m/^NCLOB/i and db_nchar_is_utf($dbh) && client_nchar_is_utf8()) ) {
+	return 1 unless @skip_unicode;
+	warn "Skipping Unicode data tests: @skip_unicode\n" if !$warnings{use_utf8_data}++;
+    }
     return 0;
 }
 
