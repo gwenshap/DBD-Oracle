@@ -13,7 +13,6 @@ my $failed = 0;
 my %ocibug;
 my $table = "dbd_ora__drop_me";
 
-my $utf8_test = ($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i);
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
@@ -26,6 +25,20 @@ unless($dbh) {
     print "1..0\n";
     exit 0;
 }
+
+#lab: protect test from unicode if everything is not in order... it if is
+#     it appears the test is broken...
+#use Data::Dumper;
+my $utf8_test = "";
+$utf8_test = ($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i);
+if ( $utf8_test )
+{
+   my $can_unicode = $dbh->ora_can_unicode();
+   print "ora_can_unicode=$can_unicode\n" ;
+   #print Dumper( $dbh->ora_nls_parameters() );
+   $utf8_test = $can_unicode & 2;
+}
+#print "utf8_test=$utf8_test\n";
 
 unless(create_table("str CHAR(10)")) {
     warn "Unable to create test table ($DBI::errstr)\nTests skiped.\n";
@@ -63,7 +76,7 @@ sub run_select_tests {
   
   my $data0;
   if ($utf8_test) {
-    $data0 = eval q{ "0\x{263A}xyX" };
+    $data0 = eval q{ "0\x{263A}xyX" }; #this includes the smiley from perlunicode (lab) BTW: it's busted
   } else {
     $data0 = "0\177x\0X";
   }

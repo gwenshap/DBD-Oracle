@@ -2,7 +2,7 @@
 #written by Lincoln A Baxter (lab@lincolnbaxter.com)
 
 use strict;
-use warnings;
+#use warnings;
 my $testcount = 12;
 use Test::More;
 
@@ -19,6 +19,7 @@ use File::Basename;
 my $dirname = dirname( $0 );
 #print "dirname=$dirname\n";
 
+use Encode;
 
 
 #binmode(STDOUT,":utf8");
@@ -28,9 +29,16 @@ my @widechars = ();
 push @widechars ,"\x{A1}" ;    #up side down bang (  )
 push @widechars ,"\x{A2}" ;    #cent char (  )
 push @widechars ,"\x{A3}" ;    #Brittish Pound char (  )
-#push @widechars ,"\x{263A}";  #smiley face for perl unicode man page
+push @widechars ,"\x{263A}" if $ENV{DBD_NCHAR_SMILEY}; #smiley face from perl unicode man page
 my $charcnt = @widechars;
-plan tests => $testcount + $charcnt * 6;
+plan tests => $testcount + $charcnt * 7;
+
+print "testing utf8 chars:\n" ;
+my $cnt = 1;
+foreach my $c ( @widechars ) { 
+   print "\trow $cnt nch_col will be nice_string=" . nice_string( $c ) ." bytes=".byte_string($c) ."\n" ;
+   $cnt++;
+}
 
 my $table = "dbd_ora_nchar__drop_me";
 my $dbh;
@@ -45,6 +53,7 @@ SKIP: {
     skip "could not require or import utf8" ,$testcount if $@ ;
     skip "ORC_OCI < 8" ,$testcount, if (! ORA_OCI >= 8);
 
+    warn show_nls_info();
     my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
     $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
         AutoCommit => 1,
@@ -52,8 +61,7 @@ SKIP: {
     });
     #ok( $dbh ,"connect to oracle" ); $testcount--;
     skip "not connected to oracle" ,$testcount if not $dbh;
-    check_ncharset();
-    warn show_nls_info();
+    skip "database NCHAR character set is not UTF8" ,$testcount if not check_ncharset() ;
 
     #TODO need a oracle 9i version test.... I guess I could clone one from Makefile.PL...
 
@@ -65,7 +73,7 @@ SKIP: {
         $dbh->do(qq{ drop table $table });
     }
 
-    ok( create_table( "ch_col VARCHAR2(20), nch_col NVARCHAR2(20)" ), "create table" );
+    ok( create_table( "ch_col VARCHAR2(20), nch_col NVARCHAR2(20)" ), "create table $table..." );
     my $cols = 'idx,ch_col,nch_col,dt' ;
     my $sstmt = "SELECT $cols FROM $table ORDER BY idx" ;
 
@@ -93,6 +101,7 @@ SKIP: {
         $nch_col = $widechar ;
         ok($upd_sth->bind_param( $colnum++ ,$idx ), 'bind_param idx' );
         ok($upd_sth->bind_param( $colnum++ ,$ch_col ), "bind_param ch_col" );
+        #ok($upd_sth->bind_param( $colnum++ ,$nch_col ), "bind_param nch_col IMPLICIT" );
         ok($upd_sth->bind_param( $colnum++ ,$nch_col ,{ ora_csform => $csform } ), "bind_param nch_col { ora_csform => $csform }" );
         ok($upd_sth->execute,"execute: $ustmt" );
     }
@@ -102,10 +111,11 @@ SKIP: {
     $idx = 0; $ch_col = ""; $nch_col = ""; $dt = "";
     {
        my $colnum = 1;
-       ok($sel_sth->bind_col( $colnum++ ,\$idx  ), 'bind_col ch_col' ); 
-       ok($sel_sth->bind_col( $colnum++ ,\$ch_col  ), 'bind_col ch_col' ); 
-       ok($sel_sth->bind_col( $colnum++ ,\$nch_col ), 'bind_col nch_col' ); 
-                           #,{ ora_csform => 2 } ), 'bind ncl_col ora_csform => (2) SQLCS_NCHAR' );
+       ok($sel_sth->bind_col( $colnum++, \$idx  ), 'bind_col ch_col' ); 
+       ok($sel_sth->bind_col( $colnum++, \$ch_col  ), 'bind_col ch_col' ); 
+       ok($sel_sth->bind_col( $colnum++, 
+                              \$nch_col ), 'bind_col nch_col (implicit)' ); 
+                              #\$nch_col ,{ ora_csform => 2 } ), 'bind ncl_col ora_csform => (2) SQLCS_NCHAR' );
        ok($sel_sth->bind_col( $colnum++ ,\$dt ),   'bind_col dt' );
     }
     my $cnt = 0;
@@ -115,11 +125,15 @@ SKIP: {
         #diag( "\nchecking nch_col for row #$cnt selected out\n\n" );
         cmp_ok( nice_string($ch_col) ,'eq',
                 nice_string(_achar($cnt)),
-                "test of ch_col for row $cnt" 
+                "test of ch_col for row $cnt (using nice_string -- utf8 expected)" 
+              );
+        cmp_ok( byte_string($nch_col) ,'eq',
+                byte_string($widechars[$cnt-1]), 
+                "test of nch_col for row $cnt (using byte_string -- byte comparison only)" 
               );
         cmp_ok( nice_string($nch_col) ,'eq',
                 nice_string($widechars[$cnt-1]), 
-                "test of nch_col for row $cnt" 
+                "test of nch_col for row $cnt (using nice_string -- utf8 expected)" 
               );
     }
     cmp_ok($cnt, '==', $charcnt, "number of rows fetched" );
@@ -170,7 +184,7 @@ sub create_table {
         $dbh->do($sql);
     }
     return 0 if $dbh->err;
-    print "$sql\n";
+    #print "$sql\n";
     return 1;
 }
 
@@ -182,8 +196,12 @@ sub create_table {
 #    my $ret = chr($_[0]);
 #    print "nice_string=$ret\n";
 #    return $ret;
+sub byte_string {
+    my $ret = join( "+" ,unpack( "C*" ,$_[0] ) );
+    #print "byte_string: $ret\n" ;
+    return $ret;
+}
 sub nice_string {
-#    print "nice_string: arg=" .$_[0]."\n";
     join("",
     map { $_ > 255 ?                  # if wide character...
           sprintf("\\x{%04X}", $_) :  # \x{...}
@@ -193,46 +211,36 @@ sub nice_string {
     } unpack("U*", $_[0]));           # unpack Unicode characters
 }
 
+use Data::Dumper;
 sub check_ncharset
 {
-    #verify the NLS database character sets have 'UTF' in them
-    my $sth = $dbh->prepare( "select PARAMETER,VALUE from NLS_DATABASE_PARAMETERS where PARAMETER like ?" );
-    $sth->execute( '%CHARACTERSET' );
-    my ( $value, $param );
-    $sth->bind_col( 1 ,\$param );
-    $sth->bind_col( 2 ,\$value );
-    my $cnt = 0;
-    warn "\n";
-    while ( $sth->fetch() ) {
-        $cnt++;
-        warn "   database: $param=$value\n" ;
-        if ( $param =~ m/NCHAR/i and $value !~ m/UTF/ ) {
-            warn "Database NLS parameter $param=$value does not contain string 'UTF'\n"
-            .    "Some of these tests will likely fail\n";
-        }
+    #verify the NLS NCHAR character set is 'UTF8'
+    my $paramsH = $dbh->ora_nls_parameters();
+    #warn Dumper( $paramsH );
+    warn "Database character set is " .$paramsH->{NLS_CHARACTERSET} ."\n";
+    warn "Database NCHAR character set is " .$paramsH->{NLS_NCHAR_CHARACTERSET} ."\n";
+    if ( $paramsH->{NLS_NCHAR_CHARACTERSET} ne 'UTF8' ) {
+        warn "Database NCHAR character set is not 'UTF8'\n" #  ."Some of these tests will likely fail\n"
+        ;
+        return 0;
     }
-    unless ( $cnt == 2 )
-    {
-        warn "did not fetch 2 rows from NLS_DATABASE_PARAMETERS where PARAMETER like \%CHARACTERSET\n"
-           . "These tests may fail\n" ;
-    }
-    #warn "\n";
+    return 1;
 }
 
 sub show_nls_info
 {
    if ( not $ENV{NLS_LANG} ) { 
+       $ENV{NLS_LANG} = 'AMERICAN_AMERICA.UTF8';
        return qq(
-   NLS_LANG is not set. If some of these tests fail
-   consider setting NLS_LANG as in one of the following:
-       export NLS_LANG=AMERICAN_AMERICA.UTF8 (fails currently)
-       export NLS_LANG=AMERICAN_AMERICA.WE8ISO8859P1
-       export NLS_LANG=AMERICAN_AMERICA.WE8MSWIN1252
-       NLS_LANG=AMERICAN_AMERICA.UTF8 perl -Mblib t/21nchar.t
-   or use some other valid NLS_LANG setting. ) ."\n\n";
+   NLS_LANG is not set. 
+   Setting it to AMERICAN_AMERICA.UTF8
+   consider setting NLS_LANG for your local
+   other possible character sets that will work (for single byte chars) include:
+       .WE8ISO8859P1
+       .WE8MSWIN1252 ) ."\n\n";
 
    } else {
-       return "\nNLS_LANG=" .$ENV{NLS_LANG}. "\n\n" ;
+       return "\nNLS_LANG=" .$ENV{NLS_LANG}. "\n" ;
    }
 }
 

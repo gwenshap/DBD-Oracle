@@ -37,7 +37,8 @@ int ora_fetchtest;	/* intrnal test only, not thread safe */
 int is_extproc = 0;
 
 #ifdef UTF8_SUPPORT
-int cs_is_utf8;
+int cs_is_utf8 = 0;
+int utf8_csid = 871;
 #endif
 
 static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
@@ -390,8 +391,29 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                     return 0;
                 }
             }
+#define LAB_DEBUG 1
+#if LAB_DEBUG
+#ifdef SKIP_THIS
+        PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"UTF8\") returns %d\n", 
+                      OCINlsCharSetNameToId(imp_drh->envhp, "UTF8") );
+        PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"AL32UTF8\") returns %d\n", 
+                      OCINlsCharSetNameToId(imp_drh->envhp, "AL32UTF8") );
+#endif
+        utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "UTF8");
+        if ( 1 )
+        {
+            int charsetid = 0;
+            int rsize = 0;
+            int stat = 0;
+            stat = OCINlsEnvironmentVariableGet(&charsetid,2,OCI_NLS_CHARSET_ID,0,&rsize);
+            /*  PerlIO_printf(DBILOGFP,"(lab) OCINlsEnvironmentVariableGet() returns %d: charsetid=%d rsize=%d\n", 
+                      stat, charsetid, rsize 
+                      ); */
+            if ( ! stat ) cs_is_utf8 = ( charsetid == utf8_csid );
+        }
+#endif
 
-#else /* NEW_OCI_INIT */
+#else /* (the old way) NEW_OCI_INIT */
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, NULL, status,
@@ -1424,22 +1446,6 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	                  name, neatsvpv(newvalue,0), (long)sql_type, phs->csform );
 
 	}
-#define LAB_DEBUG 0
-#if LAB_DEBUG
-        PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"UTF8\") returns %d\n", 
-                      OCINlsCharSetNameToId(imp_sth->envhp, "UTF8") );
-        PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"AL32UTF8\") returns %d\n", 
-                      OCINlsCharSetNameToId(imp_sth->envhp, "AL32UTF8") );
-        {
-            int charsetid = 0;
-            int rsize = 0;
-            int stat = 0;
-            stat = OCINlsEnvironmentVariableGet(&charsetid,2,OCI_NLS_CHARSET_ID,0,&rsize);
-            PerlIO_printf(DBILOGFP,"(lab) OCINlsEnvironmentVariableGet() returns %d: charsetid=%d rsize=%d\n", 
-                      stat, charsetid, rsize 
-                      );
-        }
-#endif
     }
 
 #endif /* LAB_UNICODE_SUPPORT */

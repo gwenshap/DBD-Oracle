@@ -1039,8 +1039,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->len_char_size, 0, OCI_ATTR_CHAR_SIZE, status);
 #endif
 #ifdef OCI_ATTR_CHARSET_ID
+        fbh->csid = 0; fbh->csform = 0; /* just to be sure */
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->csid,   0, OCI_ATTR_CHARSET_ID,   status);
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->csform, 0, OCI_ATTR_CHARSET_FORM, status);
+	/* PerlIO_printf(DBILOGFP, "*** (lab) got charset id = %d csform = %d for column %d\n", fbh->csid, fbh->csform, i ); */
 #endif
 	/* OCI_ATTR_PRECISION returns 0 for most types including some numbers		*/
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->prec,   0, OCI_ATTR_PRECISION, status);
@@ -1237,7 +1239,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	}
 
 #ifdef OCI_ATTR_CHARSET_ID
-        if ( fbh->dbtype == 1 ) {
+        /* lab sure we always just do this? 
+         * I think so...
+         */
+        if ( 1 || (fbh->dbtype == 1) ) {
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csid, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform,
@@ -1357,14 +1362,15 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 			--datalen;
 		}
 		sv_setpvn(sv, p, (STRLEN)datalen);
-#ifdef OCI_ATTR_CHARSET_ID /* */
-              if ( 0 && (fbh->dbtype==1) && (fbh->csid == 871) ) 
+#ifdef LAB_THIS_IS_UNNECESSARY /* OCI_ATTR_CHARSET_ID /* */
+              if ( (fbh->dbtype==1) && (fbh->csform) && (fbh->csid==871) )
               { 
-                  set_utf8(sv);
+                  PerlIO_printf(DBILOGFP, "*** (lab) trying to convert sv for for field # %d to utf8\n" ,i+1 );
+                  /* encode_utf8(sv); */
               } 
 #endif
 
-#ifdef UTF8_SUPPORT
+#ifdef LAB_THIS_IS_WRONG /* UTF8_SUPPORT*/
 		DBD_SET_UTF8(sv);
 #endif
 	    }
@@ -1382,7 +1388,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 		    /* but it'll only be accessible via prior bind_column()	*/
 		    sv_setpvn(sv, (char*)&fb_ary->abuf[0],
 			  fb_ary->arlen[0]);
-#ifdef UTF8_SUPPORT
+#ifdef UTF8_SUPPORT /* lab: this is probably wrong too */
 		    DBD_SET_UTF8(sv);
 #endif
 		}
