@@ -231,28 +231,8 @@ ftp://ftp.bf.rmit.edu.au/pub/Oracle/OS/MS/NT/ntoraperl.zip
 
 http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
 
-===============================================================================
-Some platforms on which the DBI and DBD::Oracle modules run:
-
-	AIX
-	DEC Alpha
-	DEC UNIX
-	DG/UX
-	HP-UX
-	Linux (on platforms supported by Oracle 8)
-	Motorola M88100 (SVR3.2)
-	OSF/1
-	Pyramid SMP DC/OSx
-	SCO
-	SGI IRIX
-	Sequent DYNIX/ptx
-	Solaris 1 and 2
-	Unisys U6000/300
-	VMS
-	Windows NT
-	and others
-
-(please let me know if your system is not listed).
+DBI and DBD::Oracle are very portable. If Perl and Oracle run on a platform
+then the chances are that DBD::Oracle will as well.
 
 ===============================================================================
 

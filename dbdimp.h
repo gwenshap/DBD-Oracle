@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.38 2001/06/05 22:46:50 timbo Exp $
+   $Id: dbdimp.h,v 1.40 2001/08/07 00:25:37 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -177,12 +177,13 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     OCIDefine *defnp;
     void *desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4   desc_t;	/* OCI type of descriptorh		*/
-    int  (*fetch_func) _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv));
+    int  (*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
     ub2  dbsize;
     ub2  dbtype;	/* actual type of field (see ftype)	*/
     ub2  prec;		/* XXX docs say ub1 but ub2 is needed	*/
     sb1  scale;
     ub1  nullok;
+    char *bless;	/* for Oracle::OCI style handle data	*/
     void *special;	/* hook for special purposes (LOBs etc)	*/
 #else
     sb4  dbsize;
@@ -247,6 +248,9 @@ int ora_dbtype_is_long _((int dbtype));
 int calc_cache_rows _((int num_fields, int est_width, int cache_rows, int has_longs));
 fb_ary_t *fb_ary_alloc _((int bufl, int size));
 int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
+
+void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
+void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));
 
 #define OTYPE_IS_LONG(t)  ((t)==8 || (t)==24 || (t)==94 || (t)==95)
 

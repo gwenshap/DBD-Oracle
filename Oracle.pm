@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.82 2001/06/06 00:46:39 timbo Exp $
+#   $Id: Oracle.pm,v 1.84 2001/08/07 00:25:37 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.07';
+$DBD::Oracle::VERSION = '1.08';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -32,7 +32,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.82 $, 10);
+    my $Revision = substr(q$Revision: 1.84 $, 10);
 
     require_version DBI 1.02;
 
@@ -1225,12 +1225,13 @@ procedure OUT parameters or from direct C<OPEN> statements, as show below:
   $sth1 = $dbh->prepare(q{
       BEGIN OPEN :cursor FOR
           SELECT table_name, tablespace_name
-          FROM user_tables WHERE tablespace_name = :space
+          FROM user_tables WHERE tablespace_name = :space;
       END;
   });
   $sth1->bind_param(":space", "USERS");
   my $sth2;
   $sth1->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
+  $sth1->execute;
   # $sth2 is now a valid DBI statement handle for the cursor
   while ( @row = $sth2->fetchrow_array ) { ... }
 
@@ -1240,6 +1241,15 @@ If you don't do that you'll get an error from the C<execute()> like:
 "ORA-06550: line X, column Y: PLS-00306: wrong number or types of
 arguments in call to ...".
 
+To close the cursor you (currently) need to do this:
+
+  $sth3 = $dbh->prepare("BEGIN CLOSE :cursor END");
+  $sth3->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
+  $sth3->execute;
+
+See the C<curref.pl> script in the Oracle.ex directory in the DBD::Oracle
+source distribution for a complete working example.
+
 =head1 Oracle Related Links
 
 =head2 Oracle on Linux
@@ -1248,6 +1258,7 @@ arguments in call to ...".
   http://www.eGroups.com/list/oracle-on-linux
   http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
   ftp://oracle-ftp.oracle.com/server/patch_sets/LINUX
+  http://www.ixora.com.au/
 
 =head2 Free Oracle Tools and Links
 

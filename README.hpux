@@ -1,18 +1,19 @@
 =head1 INTRODUCTION
 
-Building a dynamically linked working version of the Oracle DBD driver
+Building a working dynamically linked version of the Oracle DBD driver
 on HPUX (11.00) has been a challenge for many.  For months after taking a
 new job, where HPUX was the standard server environment, I had only been
-able to build a static  version of perl and DBD-Oracle on HPUX 11.00.
+able to build a staticly linked version of perl and the DBD-Oracle 
+module on HPUX 11.00.
 
 Then Roger Foskett posted instructions for what turned out to be dynamic
 build.  Rogers's post got me farther than I had previously gotten.  In fact, 
-after resolving some undefined symbol error, I succeeded where for I had 
-previously despaired of finding the time to find the hack out the right 
+after resolving some undefined symbol errors, I succeeded where for I had 
+previously despaired of finding the time to hack out the right 
 incantation.  
 
-This F<README.hpux> describes the combined knowledge of an number of
-folks who invested many hours in hacking out a working set of options.
+This F<README.hpux> describes the combined knowledge of a number of
+folks who invested many hours discovering a working set of build options.
 The instructions in this file, which include building perl from
 sources, will produce a working dynamically linked DBD-Oracle that can
 be used with mod_perl and Apache.
@@ -22,27 +23,32 @@ normally installed in:
 
 	/opt/softbench/bin/cc.
 
-F<Makefile.PL> has been modified to check for some the the
-conditions which, when met, we know will produce a working
+F<Makefile.PL> has been modified to check for some of the
+conditions which, when met, we know will produce a working build.
 However, there are many variations of Oracle installations and
 features.  Not all of these can be tested by any one of us,
-if you discover a way to may a variation which did not work before
-work, please submit patches to Makefile.PL.
+if you discover a way to make a variation which did not previous
+work, please submit patches to Makefile.PL to Tim Bunce, and 
+patches to this README to Tim Bunce or me.
 
 The instructions herein, have compiled, linked cleanly, and tested 
 cleanly using the HP softbench compiler, and Oracle 8.0.5 (32bit), and
-Oracle 8.1.6 (64 bit).  Oracle 8.1.5 and 8.1.7 will probably work as
-well.
+Oracle 8.1.6 (64 bit).  Oracle 8.1.5 will probably work as well.
+
+This author now has Oracle 8.1.7 (64 bit) workting with DBI-1.18 and
+DBD-Oracle-1.07 and perl 5.6.1.  See appendices for my exact build
+configuration.
+
 
 =head1  Build perl
 
 =head2 HP's default perl (probably no good)
 
 By default, HPUX 11.00 delivers perl 5.00503.  This version of perl will
-probably not work.  If you are reading this fill, you have probably
+probably not work.  If you are reading this, you have probably
 discovered that something did not work.  To get good version of the
-DBD-Oracle drive, we have to start with a perl that as bin built with
-the correct compiler flags and share libraries.
+DBD-Oracle driver, we have to start with a perl that as been built with
+the correct compiler flags and shared libraries.
 
 =head2 Building the right perl
 
@@ -52,15 +58,15 @@ sources.
 
 These instructions have been used to building a dynamically linked
 working DBD-Oracle driver that works with mod_perl and Apache.  These
-instructions are based on perl 5.6.0.  To this author's knowledge,
-they have not be tested on early versions of perl.
+instructions are based on perl 5.6.0 and 5.6.1.  To this author's knowledge,
+they have not be tested on earlier versions of perl.  
 
 It is important to build a B<non> threaded perl, but linked with 
 -lcl and -lpthread.   Since Oracle on HP uses libpthread, everything that
 dynamically loads it (such as DBD-Oracle) must have been built/linked
 with '-lpthread -lcl'.  (When used with Apache, it and any associated
 modules these must also be built this way - otherwise all it does is core
-dump when loading DBD::Oracle).
+dump when loading DBD::Oracle). 
 
 A good link that explains thread local storage problems is
 http://my1.itrc.hp.com/cm/QuestionAnswer/1,1150,0x0d0a6d96588ad4118fef0090279cd0f9!0,00.html
@@ -68,7 +74,8 @@ http://my1.itrc.hp.com/cm/QuestionAnswer/1,1150,0x0d0a6d96588ad4118fef0090279cd0
 
 =item Configure
 
-Once you have downloaded an unpacked the perl sources (versions 5.6.0 assumed here)
+Once you have downloaded and unpacked the perl sources 
+(version 5.6.0 assumed here)
 
     cd Perl-5.6.0/
     ./Configure -Ubincompat5005 #important that there is no malloc polution
@@ -76,15 +83,26 @@ Once you have downloaded an unpacked the perl sources (versions 5.6.0 assumed he
 You should configure perl to understand largefiles... basically you can accept the
 defaults for all options except:
 
-    Additional libraries: add -lcl -lpthread
+    Additional libraries: add -lcl -lpthread #FIRST in the list
     ccflags: add '+z' 
     Do you want to install perl as /usr/bin/perl? [y] n
     Perl 5.005 binary compatable? [y] n #causes mod_perl to complain 
                                         #about malloc polution
 
-You can check in the generated 'config.sh' that the options you selected are correct.  
-If not, modify config.sh and then re-run ./Configure with the '-d' option to process 
-the config.sh file.
+BTW: When you add -lcl -lpthread to the library list, make sure to place
+them B<first>, in the library list, and then that you add all the of
+the libraries that were originally prosented as the default list. If you add
+-lcl and -lpthread to the end of the list it will not work. I wasted a day 
+and a half trying to figure our why I had lost the recipe, before I 
+realized that this was the problem. The symptom will be that
+
+   make test 
+   
+of perl itself will fail to load dynamic libraries.
+
+You can check in the generated 'config.sh' that the options you selected
+are correct.  If not, modify config.sh and then re-run ./Configure with
+the '-d' option to process the config.sh file.
 
 =item Build & Install 
     
@@ -94,14 +112,14 @@ the config.sh file.
     make install
 
 If you are going to build mod_perl and Apache it as beed suggested that you modify
-Config.pm to the change the HPUX ldflags & ccdlflags in 
+Config.pm to the change the HPUX ldflags & ccdlflags in
 F</your/install/prefix/lib/5.6.0/PA-RISC2.0/Config.pm> as follows:
 
     ccdlflags=''
     cccdlflags='+z'
     ldflags=' -L/usr/local/lib'
 
-This is probably B<not> necessary if you are not using mod_perl and Apache.
+This is not necessary if you are not using mod_perl and Apache.
 
 =head1 Build and Install DBI
 
@@ -112,16 +130,30 @@ This is probably B<not> necessary if you are not using mod_perl and Apache.
     make test
     make install
 
-=head1 DBD-Oracle
+=head1 DBD-Oraclea-1.07 and later
 
+The standard mantra now works out of the box on HPUX:
     
-    cd DBD-1.06/ #or more recent version
+    cd DBD-1.07/ #or more recent version
 
     export ORACLE_HOME=<path to oracle>
     export ORACLE_SID=<a valid instance>
     export ORACLE_USERID=<validuser/validpasswd>
 
     perl Makefile.PL
+    make 
+    make test
+    make install # if all went smoothly
+
+If you have trouble, go though the instructions below, for hints
+of what might be wrong... and sent me a note, describing your
+configuration, and what you did to fix it.
+
+=head1  DBD-Oracle-1.06
+
+You are stronly urged to upgrade. However here is what you may
+need to know to get it or work, if you insist on using an earlier
+version.
 
 Check the output that above command produces, to verify that 
 
@@ -270,11 +302,12 @@ caused problems on HP (the user 'www' may need to be created)
 
 =head1 CONTRIBUTORS
 
-The following folks contributed to the README:
+The following folks contributed to this README:
 
    Lincoln A. Baxter <lbaxter@fleetcc.com or lbaxter@netreach.net>
    Roger Foskett <Roger.Foskett@icl.com>
    Weiguo Sun <wesun@cisco.com>
+   Tony Foiani <anthony_foiani@non.hp.com>
 
 And probably others unknown to me.
 
@@ -285,13 +318,78 @@ And probably others unknown to me.
    lbaxter@fleetcc.com or lbaxter@netreach.net
    Office:  215.444.7973
 
-=head1 Appendix A (Perl Configuration Dumps)
+=head1 Appendix A (Miscellaneous links which might be usefull)
 
-The following to sections provide full dumps of perl -V for two
+Thanks to Tony Foiani for these references:
+
+=head2  http://marc.theaimsgroup.com/?l=perl-dbi&m=96040350416305&w=2 
+
+This link discusses older version of the DBI/DBD interface, so most of
+the code examples are probably no longer relevant.  This was written 
+by Jeff Okamoto at HP (the author of the README.hpux in the perl
+sources).  And has some useful insights.
+
+=head2 http://www.sas.com/service/techsup/unotes/SN/001/001875.html 
+
+This is a not from from the SAS support people documenting the LhtStrInsert()
+and LhtStrCreate() undefined symbols errors, and how to fix them in the
+Oracle makefiles.
+
+=head2 http://www.mail-archive.com/dbi-users%40isc.org/msg13967.html 
+
+My employers web sniffer does not allow me browser this link (www.mail) in the
+URL.  So I have no idea how helpful this might be.  It might even be a link
+to my own posts.
+
+=head1 Appendix B (Perl Configuration Dumps)
+
+The following to sections provide full dumps of perl -V for three
 versions of perl that were successfully built and linked on
 HPUX 11.00.
 
-=head2 Lincoln Baxter's Configuration (works with Apache and mod_perl)
+=head2 Lincoln Baxter's DBD-Oracle-1.07 Configuration
+
+     Platform:
+       osname=hpux, osvers=11.00, archname=PA-RISC2.0
+       uname='hp-ux dhdb108 b.11.00 u 9000800 612309363 unlimited-user license '
+       config_args=''
+       hint=previous, useposix=true, d_sigaction=define
+       usethreads=undef use5005threads=undef useithreads=undef usemultiplicity=undef
+       useperlio=undef d_sfio=undef uselargefiles=define usesocks=undef
+       use64bitint=undef use64bitall=undef uselongdouble=undef
+     Compiler:
+       cc='cc', ccflags ='-D_HPUX_SOURCE -Aa -I/usr/local/include -DDEBUGGING -z',
+       optimize='-O',
+       cppflags='-D_HPUX_SOURCE -Aa -I/usr/local/include -DDEBUGGING -z'
+       ccversion='', gccversion='', gccosandvers=''
+       intsize=4, longsize=4, ptrsize=4, doublesize=8, byteorder=4321
+       d_longlong=undef, longlongsize=, d_longdbl=define, longdblsize=16
+       ivtype='long', ivsize=4, nvtype='double', nvsize=8, Off_t='off_t', lseeksize=4
+       alignbytes=8, usemymalloc=y, prototype=define
+     Linker and Libraries:
+       ld='ld', ldflags =' -Wl,+vnocompatwarnings -L/usr/local/lib'
+       libpth=/usr/local/lib /lib /usr/lib /usr/ccs/lib
+       libs=-lcl -lpthread -lnsl -lnm -lndbm -ldld -lm -lc -lndir -lcrypt -lsec
+       perllibs=-lcl -lpthread -lnsl -lnm -ldld -lm -lc -lndir -lcrypt -lsec
+       libc=, so=sl, useshrplib=false, libperl=libperl.a
+     Dynamic Linking:
+       dlsrc=dl_hpux.xs, dlext=sl, d_dlsymun=undef, ccdlflags='-Wl,-E -Wl,-B,deferred '
+       cccdlflags='+z', lddlflags='-b +vnocompatwarnings -L/usr/local/lib'
+
+   Characteristics of this binary (from libperl): 
+     Compile-time options: DEBUGGING USE_LARGE_FILES
+     Built under hpux
+     Compiled at Jul 15 2001 16:01:33
+     @INC:
+       /home/baxtlinc/perl/lib
+       /opt/perl/5.6.1-fccs-01/lib/5.6.1/PA-RISC2.0
+       /opt/perl/5.6.1-fccs-01/lib/5.6.1
+       /opt/perl/5.6.1-fccs-01/lib/site_perl/5.6.1/PA-RISC2.0
+       /opt/perl/5.6.1-fccs-01/lib/site_perl/5.6.1
+       /opt/perl/5.6.1-fccs-01/lib/site_perl
+
+
+=head2 Lincoln Baxter's DBD-Oracle-1.06 Configuration 
 
      Platform:
        osname=hpux, osvers=11.00, archname=PA-RISC2.0
@@ -381,9 +479,9 @@ DBD-Oracle and HPUX11 trials...
 L<http://www.geocrawler.com/search/?config=183&words=Roger+Foskett>
 
 
-=head1 Appendix B (Why Dynamic Linking)
+=head1 Appendix C (Why Dynamic Linking)
 
-Someone posted on the list the following question:
+Some one posted to the DBI email list the following question:
 
    What are the advantages of building a dynamically linked version?
    Being able to use threads? Or something besides that?
