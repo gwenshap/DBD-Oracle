@@ -822,6 +822,8 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	D_imp_dbh_from_sth ;  
 	D_imp_drh_from_dbh ;
 
+	/* move setting amtp up to ensure error message OK */
+	amtp = imp_sth->long_readlen;
 	if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(imp_drh -> ora_trunc))) {
 	    /* user says truncation is ok */
 	    /* Oraperl recorded the truncation in ora_errno so we	*/
@@ -839,7 +841,6 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	    sv_set_undef(dest_sv);
 	    return 0;
         }
-	amtp = imp_sth->long_readlen;
     }
     else
 	amtp = loblen;
