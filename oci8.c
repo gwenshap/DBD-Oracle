@@ -1236,6 +1236,15 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    return 0;
 	}
 
+#ifdef OCI_ATTR_CHARSET_ID
+        if ( fbh->dbtype == 1 ) {
+            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csid, 
+                                 (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
+            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform,
+                                 (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
+        }
+#endif
+
 	if (fbh->ftype == 108) {
 	    oci_error(h, NULL, OCI_ERROR, "OCIDefineObject call needed but not implemented yet");
 	    return 0;
@@ -1348,6 +1357,13 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 			--datalen;
 		}
 		sv_setpvn(sv, p, (STRLEN)datalen);
+#ifdef OCI_ATTR_CHARSET_ID /* */
+              if ( 0 && (fbh->dbtype==1) && (fbh->csid == 871) ) 
+              { 
+                  set_utf8(sv);
+              } 
+#endif
+
 #ifdef UTF8_SUPPORT
 		DBD_SET_UTF8(sv);
 #endif

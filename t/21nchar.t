@@ -3,7 +3,7 @@
 
 use strict;
 use warnings;
-my $testcount = 9;
+my $testcount = 12;
 use Test::More;
 
 BEGIN {
@@ -20,7 +20,6 @@ my $dirname = dirname( $0 );
 #print "dirname=$dirname\n";
 
 
-show_nls_info();
 
 #binmode(STDOUT,":utf8");
 #binmode(STDERR,":utf8");
@@ -31,7 +30,7 @@ push @widechars ,"\x{A2}" ;    #cent char (  )
 push @widechars ,"\x{A3}" ;    #Brittish Pound char (  )
 #push @widechars ,"\x{263A}";  #smiley face for perl unicode man page
 my $charcnt = @widechars;
-plan tests => $testcount + $charcnt * 5;
+plan tests => $testcount + $charcnt * 6;
 
 my $table = "dbd_ora_nchar__drop_me";
 my $dbh;
@@ -51,8 +50,10 @@ SKIP: {
         AutoCommit => 1,
         PrintError => 1,
     });
-    ok( $dbh ,"connect to oracle" ); $testcount--;
+    #ok( $dbh ,"connect to oracle" ); $testcount--;
     skip "not connected to oracle" ,$testcount if not $dbh;
+    check_ncharset();
+    warn show_nls_info();
 
     #TODO need a oracle 9i version test.... I guess I could clone one from Makefile.PL...
 
@@ -64,7 +65,6 @@ SKIP: {
         $dbh->do(qq{ drop table $table });
     }
 
-    check_ncharset();
     ok( create_table( "ch_col VARCHAR2(20), nch_col NVARCHAR2(20)" ), "create table" );
     my $cols = 'idx,ch_col,nch_col,dt' ;
     my $sstmt = "SELECT $cols FROM $table ORDER BY idx" ;
@@ -88,22 +88,35 @@ SKIP: {
         my $ord = ord( $widechar );
         #diag( "\ninserting wide char = '" .nice_string($widechar)."' ".sprintf("hex=%x dec=%d",$ord,$ord)."\n\n"  );
         my $colnum = 1;
-        $idx++; $ch_col = "A"; $nch_col = $widechar ;
+        $idx++; 
+        $ch_col = _achar($idx);
+        $nch_col = $widechar ;
         ok($upd_sth->bind_param( $colnum++ ,$idx ), 'bind_param idx' );
         ok($upd_sth->bind_param( $colnum++ ,$ch_col ), "bind_param ch_col" );
         ok($upd_sth->bind_param( $colnum++ ,$nch_col ,{ ora_csform => $csform } ), "bind_param nch_col { ora_csform => $csform }" );
         ok($upd_sth->execute,"execute: $ustmt" );
     }
+
+    #now we try to get the data out...
     ok($sel_sth->execute(),'select after inserting wide chars' );
     $idx = 0; $ch_col = ""; $nch_col = ""; $dt = "";
-    #ok($sel_sth->bind_col( $colnum++ ,\$ch_col                       ), 'bind_col ch_col' ); 
-    #ok($sel_sth->bind_col( $colnum++ ,\$nch_col ,{ ora_csform => 2 } ), 'bind ncl_col ora_csform => (2) SQLCS_NCHAR' );
-    #ok($sel_sth->bind_col( $colnum++ ,\$dt ),   'bind_col dt' );
+    {
+       my $colnum = 1;
+       ok($sel_sth->bind_col( $colnum++ ,\$idx  ), 'bind_col ch_col' ); 
+       ok($sel_sth->bind_col( $colnum++ ,\$ch_col  ), 'bind_col ch_col' ); 
+       ok($sel_sth->bind_col( $colnum++ ,\$nch_col ), 'bind_col nch_col' ); 
+                           #,{ ora_csform => 2 } ), 'bind ncl_col ora_csform => (2) SQLCS_NCHAR' );
+       ok($sel_sth->bind_col( $colnum++ ,\$dt ),   'bind_col dt' );
+    }
     my $cnt = 0;
     while ( $sel_sth->fetch() )
     {
         $cnt++;
         #diag( "\nchecking nch_col for row #$cnt selected out\n\n" );
+        cmp_ok( nice_string($ch_col) ,'eq',
+                nice_string(_achar($cnt)),
+                "test of ch_col for row $cnt" 
+              );
         cmp_ok( nice_string($nch_col) ,'eq',
                 nice_string($widechars[$cnt-1]), 
                 "test of nch_col for row $cnt" 
@@ -119,6 +132,7 @@ END {
     $dbh->do(qq{ drop table $table }) if $dbh and not $ENV{'DBD_SKIP_TABLE_DROP'};
 }
 
+sub _achar { chr(ord("@")+$_[0]); }
 sub view_with_sqlplus
 {
     my ( $use_nls_lang ) = @_ ;
@@ -161,7 +175,15 @@ sub create_table {
 }
 
 #from the perluniintro page:
+#    $_[0] += 0;
+#    print "nice_string: arg > 255\n" if $_[0] > 255;
+#    print "nice_string: arg <= 255\n" if $_[0] <= 255;
+#    return $_[0];
+#    my $ret = chr($_[0]);
+#    print "nice_string=$ret\n";
+#    return $ret;
 sub nice_string {
+#    print "nice_string: arg=" .$_[0]."\n";
     join("",
     map { $_ > 255 ?                  # if wide character...
           sprintf("\\x{%04X}", $_) :  # \x{...}
@@ -180,9 +202,10 @@ sub check_ncharset
     $sth->bind_col( 1 ,\$param );
     $sth->bind_col( 2 ,\$value );
     my $cnt = 0;
+    warn "\n";
     while ( $sth->fetch() ) {
         $cnt++;
-        warn "   $param=$value\n" ;
+        warn "   database: $param=$value\n" ;
         if ( $param =~ m/NCHAR/i and $value !~ m/UTF/ ) {
             warn "Database NLS parameter $param=$value does not contain string 'UTF'\n"
             .    "Some of these tests will likely fail\n";
@@ -193,24 +216,23 @@ sub check_ncharset
         warn "did not fetch 2 rows from NLS_DATABASE_PARAMETERS where PARAMETER like \%CHARACTERSET\n"
            . "These tests may fail\n" ;
     }
-    warn "\n";
+    #warn "\n";
 }
 
 sub show_nls_info
 {
    if ( not $ENV{NLS_LANG} ) { 
        return qq(
-
    NLS_LANG is not set. If some of these tests fail
    consider setting NLS_LANG as in one of the following:
-       export NLS_LANG=AMERICAN_AMERICA.UTF8
+       export NLS_LANG=AMERICAN_AMERICA.UTF8 (fails currently)
        export NLS_LANG=AMERICAN_AMERICA.WE8ISO8859P1
        export NLS_LANG=AMERICAN_AMERICA.WE8MSWIN1252
        NLS_LANG=AMERICAN_AMERICA.UTF8 perl -Mblib t/21nchar.t
-   or use some other valid NLS_LANG setting. ) ."\n";
+   or use some other valid NLS_LANG setting. ) ."\n\n";
 
    } else {
-       print "NLS_LANG=" .$ENV{NLS_LANG}. "\n" ;
+       return "\nNLS_LANG=" .$ENV{NLS_LANG}. "\n\n" ;
    }
 }
 
