@@ -10,6 +10,8 @@
     $dbh->{ora_ph_csform} = SQLCS_NCHAR;
     $sth->bind_param(..., { ora_csform=>SQLCS_NCHAR });
     this is still a work-in-progress, help welcome.
+  Added alternative implementation for ora_lob_append for Oracle < 9.0
+    using OCILobGetLength() and OCILobWrite() thanks to Jeff Urlwin.
   Added $dbh->{ora_parse_error_offset} docs thanks to Andy Hassall.
   Added $dbh->reauthenticate($user,$pass) docs thanks to Andy Hassall.
   Corrected typo in ora_lob_read() example thanks to Johannes Wierny.

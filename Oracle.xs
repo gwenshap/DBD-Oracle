@@ -157,26 +157,57 @@ ora_lob_append(dbh, locator, data)
     STRLEN data_len; /* bytes not chars */
     dvoid *bufp;
     sword status;
+    ub4 startp;
     CODE:
     bufp = SvPV(data, data_len);
     amtp = data_len;
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (0 && SvUTF8(data) && !IN_BYTES) { amtp = sv_len_utf8(data); }  */
 #ifdef OCI_V8_SYNTAX
+#ifdef OCI_HTYPE_DIRPATH_FN_CTX /* Oracle is >= 9.0 */
     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
-	    &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
-	    NULL, NULL,
-	    0 /* indicate UTF8? */, SQLCS_IMPLICIT, status);
-#else
-    status = OCI_ERROR;
-#endif
+			       &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
+			       NULL, NULL,
+			       0 /* indicate UTF8? */, SQLCS_IMPLICIT, status);
     if (status != OCI_SUCCESS) {
-        oci_error(dbh, imp_dbh->errhp, status, "OCILobWriteAppend");
-	ST(0) = &sv_undef;
+       oci_error(dbh, imp_dbh->errhp, status, "OCILobWriteAppend");
+       ST(0) = &sv_undef;
     }
     else {
-	ST(0) = &sv_yes;
+       ST(0) = &sv_yes;
     }
+#else
+    OCILobGetLength_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &startp, status);
+    if (status != OCI_SUCCESS) {
+       oci_error(dbh, imp_dbh->errhp, status, "OCILobGetLength");
+       ST(0) = &sv_undef;
+    } else {
+       /* start one after the end -- the first position in the LOB is 1 */
+       startp++;
+       OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
+			    &amtp, startp,
+			    bufp, (ub4)data_len, OCI_ONE_PIECE,
+			    NULL, NULL,
+			    0 /* indicate UTF8? */, SQLCS_IMPLICIT, status);
+       if (status != OCI_SUCCESS) {
+	  oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
+	  ST(0) = &sv_undef;
+       }
+       else {
+	  ST(0) = &sv_yes;
+       }
+    }
+#endif
+#else
+    status = OCI_ERROR;
+    /*
+     * make the error indicator a bit more generic, since this point
+     * just knows we don't have OIC_V8_SYNTAX.  May help during debug
+     */
+    oci_error(dbh, imp_dbh->errhp, status, "ora_lob_append");
+    ST(0) = &sv_undef;
+#endif
+
 
 void
 ora_lob_read(dbh, locator, offset, length)
