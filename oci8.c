@@ -1238,9 +1238,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    return 0;
 	}
 
-#ifdef OCI_ATTR_CHARSET_ID /* lab: without this, it BREAKS! */
+#ifdef OCI_ATTR_CHARSET_ID /* lab: without this, it BREAKS! 
+                              but we will use the charsetid we got at 
+                              startup... */
         if ( 1 || (fbh->dbtype == 1) ) {
-            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csid, 
+            ub2 csid = ( fbh->csform == 2 ) ? ncharsetid : charsetid;
+            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csid, /* &fbh->csid, */
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform,
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );

@@ -395,7 +395,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
             if ( 1 && (ncharsetid==1) ) {
                 ncharsetid = utf8_csid; /* NLS_LANG was not set... default it */
                 /* TIM: how do I turn this into a DBD warning... */
-                if ( 1 || (DBIS->debug >= 1) )
+                if ( 0 || (DBIS->debug >= 1) )
                    PerlIO_printf(DBILOGFP,"NLS_LANG was not set or invalid, using ncharsetid=%d\n" ,utf8_csid ); 
             }
 
@@ -420,7 +420,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                        || ( charsetid == al16utf16_csid )
                        ;
 #endif
-            /* Nota Bene: while NLS_LANG and NLS_NCHAR are supposed distinct if they are both
+            /* Nota Bene: while NLS_LANG and NLS_NCHAR are supposed to be distinct if they are both
              * used, I can find no way to distinquish them.  So for now we will use the 
              * ncharsetid as the id most likely to be a UTF8 charset.  If it becomes possible to
              * distinquish later, we can get smarter.
