@@ -18,7 +18,7 @@ push @test_sets, [ "NCLOB",	ORA_CLOB,	0 ] ;
 push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
 push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] ;
 
-my $tests_per_set = 85;
+my $tests_per_set = 92;
 my $tests = @test_sets * $tests_per_set;
 plan tests => $tests;
 
@@ -69,38 +69,43 @@ sub run_long_tests
 
         # relationships between these lengths are important # e.g.
         my %long_data;
-        my $long_data2 = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
-        my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
-        my $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
+        my @long_data;
+        $long_data[2] = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
+        $long_data[1] = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
+        $long_data[0] = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
 
         if ( $use_utf8_data ) { # make $long_data0 be UTF8
             my $utf_x = "0\x{263A}xyX"; #lab: the ubiquitous smiley face
-            $long_data0 = ($utf_x x 2048) x (1    );        # 10KB  < 64KB
-            if (length($long_data0) > 10240) {
+            $long_data[0] = ($utf_x x 2048) x (1    );        # 10KB  < 64KB
+            if (length($long_data[0]) > 10240) {
                 diag "known bug in perl5.6.0 utf8 support, applying workaround\n";
                 my $utf_z = "0\x{263A}xyZ" ;
-                $long_data0 = $utf_z;
-                $long_data0 .= $utf_z foreach (1..2047);
+                $long_data[0] = $utf_z;
+                $long_data[0] .= $utf_z foreach (1..2047);
             }
-            if ($type_name =~ /BLOB/) {
+            if ($type_name eq 'BLOB') {
                 # convert string from utf-8 to byte encoding XXX
-                $long_data0 = pack "C*", (unpack "C*", $long_data0);
+                $long_data[0] = pack "C*", (unpack "C*", $long_data[0]);
             }
         }
+	my $be_utf8 = ($type_name eq  'BLOB') ? 0
+		    : ($type_name eq  'CLOB') ? client_ochar_is_utf8()
+		    : ($type_name eq 'NCLOB') ? client_nchar_is_utf8()
+		    : 0; # XXX umm, what about LONGs?
 
-        # special hack for long_data0 since RAW types need pairs of HEX
-        $long_data0 = "00FF" x (length($long_data0) / 2) if $type_name =~ /RAW/i;
+        # special hack for long_data[0] since RAW types need pairs of HEX
+        $long_data[0] = "00FF" x (length($long_data[0]) / 2) if $type_name =~ /RAW/i;
 
-        my $len_data0 = length($long_data0);
-        my $len_data1 = length($long_data1);
-        my $len_data2 = length($long_data2);
+        my $len_data0 = length($long_data[0]);
+        my $len_data1 = length($long_data[1]);
+        my $len_data2 = length($long_data[2]);
 
         # warn if some of the key aspects of the data sizing are tampered with
-        warn "long_data0 is > 64KB: $len_data0\n"
+        warn "long_data[0] is > 64KB: $len_data0\n"
                 if $len_data0 > 65535;
-        warn "long_data1 is < 64KB: $len_data1\n"
+        warn "long_data[1] is < 64KB: $len_data1\n"
                 if $len_data1 < 65535;
-        warn "long_data2 is not smaller than $long_data1 ($len_data2 > $len_data1)\n"
+        warn "long_data[2] is not smaller than $long_data[1] ($len_data2 > $len_data1)\n"
                 if $len_data2 >= $len_data1;
 
         my $tdata = {
@@ -113,9 +118,9 @@ sub run_long_tests
             if (!create_table($dbh, $tdata, 1));
             # typically OCI 8 client talking to Oracle 7 database
 
-        print "long_data0 length $len_data0\n";
-        print "long_data1 length $len_data1\n";
-        print "long_data2 length $len_data2\n";
+        print "long_data[0] length $len_data0\n";
+        print "long_data[1] length $len_data1\n";
+        print "long_data[2] length $len_data2\n";
 
         print " --- insert some $type_name data (ora_type $type_num)\n";
         my $sqlstr = "insert into $table values (?, ?, SYSDATE)" ;
@@ -127,9 +132,9 @@ sub run_long_tests
         $sth->bind_param(2, undef, $bind_attr )
 		or die "$type_name: $DBI::errstr" if $type_num;
 
-        ok($sth->execute(40, $long_data{40} = $long_data0 ), "insert long data 40" );
-        ok($sth->execute(41, $long_data{41} = $long_data1 ), "insert long data 41" );
-        ok($sth->execute(42, $long_data{42} = $long_data2 ), "insert long data 42" );
+        ok($sth->execute(40, $long_data{40} = $long_data[0] ), "insert long data 40" );
+        ok($sth->execute(41, $long_data{41} = $long_data[1] ), "insert long data 41" );
+        ok($sth->execute(42, $long_data{42} = $long_data[2] ), "insert long data 42" );
         ok($sth->execute(43, $long_data{43} = undef), "insert long data undef 43" ); # NULL
 
         array_test($dbh);
@@ -157,18 +162,27 @@ sub run_long_tests
             }
             cmp_ok(@$tmp ,'==' ,4 ,'four rows' );
             #print "tmp->[0][1] = " .$tmp->[0][1] ."\n" ;
-            ok($tmp->[0][1] eq substr($long_data0,0,$out_len),
-                    cdif($tmp->[0][1], substr($long_data0,0,$out_len), "Len ".length($tmp->[0][1])) );
-            ok($tmp->[1][1] eq substr($long_data1,0,$out_len),
-                    cdif($tmp->[1][1], substr($long_data1,0,$out_len), "Len ".length($tmp->[1][1])) );
-            ok($tmp->[2][1] eq substr($long_data2,0,$out_len),
-                    cdif($tmp->[2][1], substr($long_data2,0,$out_len), "Len ".length($tmp->[2][1])) );
+	    for my $i (0..2) {
+		my $v = $tmp->[$i][1];
+		ok(length($v) == $out_len, "$type_name length $out_len (actually ".length($v).")");
+		ok($v eq substr($long_data[$i],0,$out_len),
+                    cdif($v, substr($long_data[$i],0,$out_len), "Len ".length($v)) );
+		if ($type_name eq 'BLOB') {
+		    ok( !utf8::is_utf8($v), "BLOB non-UTF8");
+		}
+		else {
+		    # allow result to have UTF8 flag even if source data didn't
+		    # (not ideal but would need better test data)
+		    ok( utf8::is_utf8($v) >= utf8::is_utf8($long_data[$i]),
+			"$type_name UTF8 setting");
+		}
+	    }
             # use Data::Dumper; print Dumper($tmp->[3]);
             ok(!defined $tmp->[3][1], "last row undefined"); # NULL # known bug in DBD::Oracle <= 1.13
         }
 
         print " --- fetch $type_name data back again -- truncated - LongTruncOk == 0\n";
-        $dbh->{LongReadLen} = $len_data1 - 10; # so $long_data0 fits but long_data1 doesn't
+        $dbh->{LongReadLen} = $len_data1 - 10; # so $long_data[0] fits but long_data[1] doesn't
         $dbh->{LongReadLen} = $dbh->{LongReadLen} / 2 if $type_name =~ /RAW/i;
         my $LongReadLen = $dbh->{LongReadLen};
         $dbh->{LongTruncOk} = 0;
@@ -178,7 +192,7 @@ sub run_long_tests
         ok($sth = $dbh->prepare($sqlstr), "prepare $sqlstr" );
         ok($sth->execute, "execute $sqlstr" );
         ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
-        ok($tmp->[1] eq $long_data0, "length tmp->[1] ".length($tmp->[1]) );
+        ok($tmp->[1] eq $long_data[0], "length tmp->[1] ".length($tmp->[1]) );
 
         { 
             local $sth->{PrintError} = 0;
@@ -197,29 +211,18 @@ sub run_long_tests
 
         $sqlstr = "select * from $table order by idx";
         ok($sth = $dbh->prepare($sqlstr), "prepare: $sqlstr" );
-        #$sth->trace(4);
         ok($sth->execute, "execute $sqlstr" );
 
-        ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
-        ok($tmp->[1] eq $long_data0, "length of tmp->[1] == " .length($tmp->[1]) );
-
-        ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
-        ok($tmp->[1] eq $long_data1,"length of tmp->[1] == " . length($tmp->[1]) );
-
-        ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
-        if ($tmp->[1] eq $long_data2) {
-            ok(1 ,"tmp->[1] eq long_data2" );
-        }
-        else {
-          ok($tmp->[1] eq $long_data2,
-                cdif($tmp->[1],$long_data2, "Len ".length($tmp->[1])) );
-        }
-        $sth->trace(0);
+	for my $i (0..2) {
+	    ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
+	    ok($tmp->[1] eq $long_data[$i],
+                cdif($tmp->[1],$long_data[$i], "Len ".length($tmp->[1])) );
+	}
 	$sth->finish;
 
 
         SKIP: {
-            skip( "blob_read tests for LONGs - not currently supported", 12 )
+            skip( "blob_read tests for LONGs - not currently supported", 13 )
                 if ($type_name =~ /LONG/i) ;
 
             #$dbh->trace(4);
@@ -233,23 +236,27 @@ sub run_long_tests
 
 	    print "fetch via fetchrow_arrayref\n";
             ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 1: $sqlstr"  );
-            ok($tmp->[1] eq $long_data0, cdif($tmp->[1], $long_data0) );
+            ok($tmp->[1] eq $long_data[0], cdif($tmp->[1], $long_data[0]) );
 
 	    print "read via blob_read_all\n";
-            cmp_ok(blob_read_all($sth, 1, \$p1, 4096) ,'==', length($long_data0), "blob_read_all = length(\$long_data0)" );
-            ok($p1 eq $long_data0, cdif($p1, $long_data0) );
+            cmp_ok(blob_read_all($sth, 1, \$p1, 4096) ,'==', length($long_data[0]), "blob_read_all = length(\$long_data[0])" );
+            ok($p1 eq $long_data[0], cdif($p1, $long_data[0]) );
 	    $sth->trace(0);
 
             ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 2: $sqlstr" );
-            cmp_ok(blob_read_all($sth, 1, \$p1, 12345) ,'==', length($long_data1), "blob_read_all = length(long_data1)" );
-            ok($p1 eq $long_data1, cdif($p1, $long_data1) );
+            cmp_ok(blob_read_all($sth, 1, \$p1, 12345) ,'==', length($long_data[1]), "blob_read_all = length(long_data[1])" );
+            ok($p1 eq $long_data[1], cdif($p1, $long_data[1]) );
 
             ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 3: $sqlstr"  );
             my $len = blob_read_all($sth, 1, \$p1, 34567);
 
-	    cmp_ok($len,'==', length($long_data2), "length of long_data2 = $len" );
-	    ok($p1 eq $long_data2, cdif($p1, $long_data2) ); # Oracle may return the right length but corrupt the string.
-        } #skip 12
+	    cmp_ok($len,'==', length($long_data[2]), "length of long_data[2] = $len" );
+	    ok($p1 eq $long_data[2], cdif($p1, $long_data[2]) ); # Oracle may return the right length but corrupt the string.
+
+	    print "result is ".(utf8::is_utf8($p1) ? "UTF8" : "non-UTF8")."\n";
+	    ok( !utf8::is_utf8($p1) == !$be_utf8,
+		"$type_name should be ".($be_utf8 ? "UTF8" : "non-UTF8") );
+        } #skip 13
 
 
         SKIP: {

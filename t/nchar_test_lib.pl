@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use Carp;
 use Data::Dumper;
 use DBI;
 
@@ -10,8 +11,12 @@ unless (defined &{"utf8::is_utf8"}) {
     die "Can't run tests using Perl $] without DBI >= 1.38"
 	unless $DBI::VERSION >= 1.38;
     *utf8::is_utf8 = sub {
-	my $v = DBI::neat(shift);
+	my $raw = shift;
+	return 0 if !defined $raw;
+	my $v = DBI::neat($raw);
 	return 1 if $v =~ /^"/; # XXX ugly hack, sufficient here
+	return 0 if $v =~ /^'/; # XXX ugly hack, sufficient here
+	carp "Emulated utf8::is_utf8 is unreliable for $v ($raw)";
 	return 0;
     }
 }
@@ -336,17 +341,32 @@ sub show_db_charsets
 {
     my ( $dbh ) = @_;
     my $paramsH = $dbh->ora_nls_parameters();
-    print "Database character set is " .$paramsH->{NLS_CHARACTERSET} ."\n";
-    print "Database NCHAR character set is " .$paramsH->{NLS_NCHAR_CHARACTERSET} ."\n";
+    printf "Database CHAR set is %s (%s), NCHAR set is %s (%s)\n",
+	$paramsH->{NLS_CHARACTERSET}, 
+	db_ochar_is_utf($dbh) ? "Unicode" : "Non-Unicode",
+	$paramsH->{NLS_NCHAR_CHARACTERSET},
+	db_nchar_is_utf($dbh) ? "Unicode" : "Non-Unicode";
+    printf "Client NLS_LANG is '%s', NLS_NCHAR is '%s'\n",
+	$ENV{NLS_LANG} || "<unset>", $ENV{NLS_NCHAR} || "<unset>";
 }
 sub db_ochar_is_utf { return shift->ora_can_unicode & 2 }
 sub db_nchar_is_utf { return shift->ora_can_unicode & 1 }
 
+sub client_ochar_is_utf8 {
+   my $NLS_LANG = $ENV{NLS_LANG} || '';
+   $NLS_LANG =~ s/.*\.//;
+   return $NLS_LANG =~ m/utf8/i;
+}
+sub client_nchar_is_utf8 {
+   my $NLS_LANG = $ENV{NLS_LANG} || '';
+   $NLS_LANG =~ s/.*\.//;
+   my $NLS_NCHAR = $ENV{NLS_NCHAR} || $NLS_LANG;
+   return $NLS_NCHAR =~ m/utf8/i;
+}
+
 sub nls_local_has_utf8
 {
-   (my $NLS_LANG = $ENV{NLS_LANG}||'') =~ s/.*\.//;
-   my $nls = join " ", $NLS_LANG, $ENV{NLS_NCHAR}||'';
-   return $nls =~ m/utf8/i;
+   return client_ochar_is_utf8() || client_nchar_is_utf8();
 }
 
 sub set_nls_nchar
