@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.28 1996/10/29 18:17:23 timbo Exp $
+   $Id: dbdimp.c,v 1.29 1997/01/14 21:48:19 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -340,7 +340,8 @@ dbd_st_prepare(sth, statement, attribs)
     /* statements will be executed at once. This is a major pain!	*/
     imp_sth->cda->peo = 0;
     if (oparse(imp_sth->cda, (text*)imp_sth->statement, (sb4)-1,
-                (sword)oparse_defer, (ub4)oparse_lng)) {
+                (sword)oparse_defer, (ub4)oparse_lng)
+    ) {
 	SV  *msgsv, *sqlsv;
 	char msg[99];
 	sqlsv = sv_2mortal(newSVpv(imp_sth->statement,0));
@@ -353,6 +354,11 @@ dbd_st_prepare(sth, statement, attribs)
 	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, SvPV(msgsv,na));
 	oclose(imp_sth->cda);	/* close the cursor	*/
 	return 0;
+    }
+
+    /* detect warning for pl/sql create errors */
+    if (imp_sth->cda->wrn & 32) {
+	; /* XXX perl_call_method to get error text ? */
     }
 
     /* long_buflen:	length for long/longraw (if >0)  */
@@ -370,10 +376,7 @@ dbd_st_prepare(sth, statement, attribs)
 	fprintf(DBILOGFP, "    dbd_st_prepare'd sql f%d (lb %ld, lt %d)\n",
 	    imp_sth->cda->ft, (long)imp_sth->long_buflen, imp_sth->long_trunc_ok);
 
-    /* Describe and allocate storage for results. This could	*/
-    /* and possibly should be deferred until execution or some	*/
-    /* output related information is fetched.			*/
-/* was defered prior to 0.43 */
+    /* Describe and allocate storage for results.		*/
     if (!dbd_describe(sth, imp_sth)) {
 	return 0;
     }
@@ -470,7 +473,12 @@ dbd_describe(h, imp_sth)
     int t_cbufl=0;
     I32 num_fields;
     int has_longs = 0;
+    int est_width = 0;		/* estimated avg row width (for cache)	*/
     int i = 0;
+
+    I32	long_buflen = imp_sth->long_buflen;
+    if (long_buflen < 0)
+	long_buflen = 80;		/* typical oracle app default	*/
 
     if (imp_sth->done_desc)
 	return 1;	/* success, already done it */
@@ -493,6 +501,11 @@ dbd_describe(h, imp_sth)
 	New(1, f_cbufl, f_cbufl_max, sb4);
     }
 
+    /* number of rows to cache	*/
+    if      (SvOK(ora_cache_o)) imp_sth->cache_size = SvIV(ora_cache_o);
+    else if (SvOK(ora_cache))   imp_sth->cache_size = SvIV(ora_cache);
+    else                        imp_sth->cache_size = 0;   /* auto size	*/
+
     /* Get number of fields and space needed for field names	*/
     while(++i) {	/* break out within loop		*/
 	sb1 cbuf[257];	/* generous max column name length	*/
@@ -508,10 +521,30 @@ dbd_describe(h, imp_sth)
         if (imp_sth->cda->rc || dbtype == 0)
 	    break;
 	t_cbufl  += f_cbufl[i];
-	if (dbsize)
-	    imp_sth->t_dbsize += dbsize;
-	else if (dbtype_is_long(dbtype))
-	    ++has_longs;	/* hint to auto cache sizing code	*/
+
+	/* now we calculate the approx average on-the-wire width of	*/
+	/* each field (and thus row) to determine a 'good' cache size.	*/
+	if (imp_sth->cache_size > 0)
+	    continue;		/* no need, user specified a size	*/
+	if (dbsize==0) {	/* is a LONG type or 'select NULL'	*/
+	    if (dbtype_is_long(dbtype)) {
+		est_width += long_buflen;
+		++has_longs;	/* hint to auto cache sizing code	*/
+	    }
+	}
+	else		/* deal with dbtypes with overblown dbsizes	*/
+	switch(dbtype) {
+	case 1:     /* VARCHAR2 - result of to_char() has dbsize==75	*/
+		    /* for all but small strings we take off 25%	*/
+		    est_width += (dbsize < 32) ? dbsize : dbsize-(dbsize>>2);
+		    break;
+	case 2:     /* NUMBER - e.g., from a sum() or max(), dbsize==22	*/
+		    /* Most numbers are _much_ smaller than 22 bytes	*/
+		    est_width += 4;	/* > approx +/- 1_000_000 ?	*/
+		    break;
+	default:    est_width += dbsize;
+		    break;
+	}
     }
     if (imp_sth->cda->rc && imp_sth->cda->rc != 1007) {
 	D_imp_dbh_from_sth;
@@ -523,26 +556,28 @@ dbd_describe(h, imp_sth)
     DBIc_NUM_FIELDS(imp_sth) = num_fields;
 
     /* --- Setup the row cache for this query --- */
-    if      (SvOK(ora_cache_o)) imp_sth->cache_size = SvIV(ora_cache_o);
-    else if (SvOK(ora_cache))   imp_sth->cache_size = SvIV(ora_cache);
-    else                        imp_sth->cache_size = 0;   /* auto size	*/
-    /* deal with default (auto-size) and out of range cases		*/
-    if (imp_sth->cache_size < 1) {	/* 0 == try to pick 'optimal'	*/
-	/* Guess a maximum on-the-wire row width (but note t_dbsize	*/
-	/* doesn't include longs yet so this could be suboptimal) 	*/
-	int width = 8 + imp_sth->t_dbsize + num_fields*5;
+
+    if (has_longs)			/* override/disable caching	*/
+	imp_sth->cache_size = 1;	/* else read_blob can't work	*/
+
+    else if (imp_sth->cache_size < 1) {	/* automaticaly size the cache	*/
+	/*  0 == try to pick 'optimal' cache for this query.		*/
+	/* <0 == base cache on transfer size of -n bytes (default 2048)	*/
+	/* Use guessed average on-the-wire row width calculated above	*/
+	/* + overhead of 5 bytes per field plus 8 bytes per row.	*/
+	int width = est_width + num_fields*5 + 8;
 	/* How many rows fit in 2Kb? (2Kb is a reasonable compromise)	*/
-	imp_sth->cache_size = 2048 / width;
-	if (imp_sth->cache_size < 5)	       /* cache at least 5	*/
+	int hunk  = 2048;		/* default cache size		*/
+	if (imp_sth->cache_size < 0)	/* user is specifying txfr size	*/
+	    hunk = -imp_sth->cache_size;/* is also approx cache size	*/
+	imp_sth->cache_size = hunk / width;
+	if (imp_sth->cache_size < 5)	/* always cache at least 5	*/
 	    imp_sth->cache_size = 5;
-	else	/* if query includes longs, limit auto-size to 10 rows	*/
-	if (has_longs && imp_sth->cache_size > 10)
-	    imp_sth->cache_size = 10;
     }
     if (imp_sth->cache_size > 32767)	/* keep within Oracle's limits  */
 	imp_sth->cache_size = 32767;
     /* Initialise cache counters */
-    imp_sth->in_cache    = 0;
+    imp_sth->in_cache  = 0;
     imp_sth->eod_errno = 0;
 
 
@@ -572,19 +607,19 @@ dbd_describe(h, imp_sth)
 	/* Is it a LONG, LONG RAW, LONG VARCHAR or LONG VARRAW?		*/
 	/* If so we need to implement oraperl truncation hacks.		*/
 	/* This may change in a future release.				*/
+	/* Note that dbtype_is_long() returns alternale dbtype to use	*/
 	if ( (dbtype = dbtype_is_long(fbh->dbtype)) ) {
-	    sb4 buflen = imp_sth->long_buflen;
-	    if (buflen < 0)
-		buflen = 80;		/* typical oracle app default	*/
-	    fbh->dbsize = buflen;
-	    fbh->dsize  = buflen;
+	    fbh->dbsize = long_buflen;
+	    fbh->dsize  = long_buflen;
 	    fbh->ftype  = dbtype;	/* get long in non-var form	*/
-	    imp_sth->t_dbsize += buflen;
+	    imp_sth->t_dbsize += long_buflen;
+
 	} else {
 	    /* for the time being we fetch everything (except longs)	*/
 	    /* as strings, that'll change (IV, NV and binary data etc)	*/
 	    fbh->ftype = 5;		/* oraperl used 5 'STRING'	*/
 	    /* dbsize can be zero for 'select NULL ...'			*/
+	    imp_sth->t_dbsize += fbh->dbsize;
 	}
 
 	fbh->fb_ary = fb_ary = fb_ary_alloc(
@@ -605,8 +640,8 @@ dbd_describe(h, imp_sth)
 
     if (dbis->debug >= 2)
 	fprintf(DBILOGFP,
-	    "    dbd_describe'd %d columns (~%d data bytes, %d cache rows)\n",
-	    (int)num_fields, imp_sth->t_dbsize, imp_sth->cache_size);
+	    "    dbd_describe'd %d columns (~%d data bytes, %d cache rows @%db)\n",
+	    (int)num_fields, imp_sth->t_dbsize, imp_sth->cache_size, est_width);
 
     if (imp_sth->cda->rc && imp_sth->cda->rc != 1007) {
 	D_imp_dbh_from_sth;
@@ -620,26 +655,26 @@ dbd_describe(h, imp_sth)
 
 
 static int 
-_dbd_rebind_ph(sth, imp_sth, phs, maxlen) 
+_dbd_rebind_ph(sth, imp_sth, phs) 
     SV *sth;
     imp_sth_t *imp_sth;
     phs_t *phs;
-    int maxlen;
 {
-    maxlen = (maxlen < phs->alen) ? phs->alen : maxlen;
-
     if (dbis->debug >= 2)
-	fprintf(DBILOGFP, "bind %s <== '%.200s' (size %d/%d, ora_type %d)\n",
-	    phs->name, (char*)phs->progv, phs->alen,maxlen, phs->ftype);
+	fprintf(DBILOGFP, "bind %s <== '%.300s' (size %d/%d, ora_type %d)\n",
+	    phs->name, (char*)phs->progv, phs->alen,phs->maxlen, phs->ftype);
 
     if (phs->alen_incnull)
 	++phs->alen;
 
     /* Since we don't support LONG VAR types we must check	*/
     /* for lengths too big to pass to obndrv as an sword.	*/
-    if (maxlen > SWORDMAXVAL)	/* generally 64K	*/
+    if (phs->maxlen > SWORDMAXVAL)	/* generally 64K	*/
 	croak("Can't bind %s, value is too long (%d bytes, max %d)",
-		    phs->name, maxlen, SWORDMAXVAL);
+		    phs->name, phs->maxlen, SWORDMAXVAL);
+
+    if (phs->alen > phs->maxlen)
+	croak("panic: _dbd_rebind_ph alen %d > maxlen %d", phs->alen,phs->maxlen);
 
     if (0) {	/* old code */
 	if (obndrv(imp_sth->cda, (text*)phs->name, -1,
@@ -653,7 +688,7 @@ _dbd_rebind_ph(sth, imp_sth, phs, maxlen)
     }
     else {
 	if (obndra(imp_sth->cda, (text *)phs->name, -1,
-		(ub1*)phs->progv, maxlen, (sword)phs->ftype, -1,
+		(ub1*)phs->progv, phs->maxlen, (sword)phs->ftype, -1,
 		&phs->indp, &phs->alen, &phs->arcode, 0, (ub4 *)0,
 		(text *)0, -1, -1)) {
 	    D_imp_dbh_from_sth;
@@ -689,6 +724,9 @@ dbd_bind_ph(sth, ph_namesv, newvalue, attribs, is_inout, maxlen)
 	name = SvPV(ph_namesv, name_len);
     }
 
+    if (SvTYPE(newvalue) > SVt_PVMG)	/* hook for later array logic	*/
+	croak("Can't bind non-scalar value (currently)");
+
     if (dbis->debug >= 2)
 	fprintf(DBILOGFP, "bind %s <== '%.200s' (attribs: %s)\n",
 		name, SvPV(newvalue,na), attribs ? SvPV(attribs,na) : "" );
@@ -706,8 +744,6 @@ dbd_bind_ph(sth, ph_namesv, newvalue, attribs, is_inout, maxlen)
 	    ++imp_sth->has_inout_params;
 	    phs->is_inout = 1;
 	    phs->sv = SvREFCNT_inc(newvalue);
-	    if (SvOOK(phs->sv))
-		sv_backoff(phs->sv);
 	    /* pre-upgrade to cut down risks of SvPVX realloc/move	*/
 	    (void)SvUPGRADE(phs->sv, SVt_PVNV);
 	    /* ensure we have a string to point oracle at		*/
@@ -741,8 +777,13 @@ dbd_bind_ph(sth, ph_namesv, newvalue, attribs, is_inout, maxlen)
 	phs->alen_incnull = (phs->ftype==SQLT_STR || phs->ftype==SQLT_AVC);
 
     }
+	/* check later rebinds for any changes */
     else if (is_inout != phs->is_inout) {
-	croak("Can't change param %s in/out mode", phs->name);
+	croak("Can't change param %s in/out mode after first bind", phs->name);
+    }
+    else if (maxlen && maxlen != phs->maxlen) {
+	croak("Can't change param %s maxlen (%d->%d) after first bind",
+			phs->name, phs->maxlen, (int)maxlen);
     }
 
 
@@ -751,25 +792,29 @@ dbd_bind_ph(sth, ph_namesv, newvalue, attribs, is_inout, maxlen)
     /* just copy the value & length over and not rebind.	*/
 
     if (!SvOK(newvalue)) {	/* undef == NULL		*/
-	phs->indp  = -1;
-	phs->progv = "";
-	phs->alen  = 0;
+	phs->indp   = -1;
+	phs->progv  = "";
+	phs->alen   = 0;
+	phs->maxlen = 0;
     }
     else {
 	STRLEN value_len;
 	phs->indp = 0;
 	/* XXX need to consider oraperl null vs space issues?	*/
 	if (is_inout) {	/* XXX */
+	    /* point Oracle at the real live variable memory	*/
 	    phs->progv = SvPV(phs->sv, value_len);
 	}
 	else {
+	    /* point Oracle at the real live variable memory	*/
 	    sv_setsv(phs->sv, newvalue);
 	    phs->progv = SvPV(phs->sv, value_len);
 	}
 	phs->alen = value_len + phs->alen_incnull;
+	phs->maxlen = SvLEN(phs->sv);	/* avail buffer space	*/
     }
 
-    return _dbd_rebind_ph(sth, imp_sth, phs, maxlen);
+    return _dbd_rebind_ph(sth, imp_sth, phs);
 }
 
 
@@ -806,14 +851,13 @@ dbd_st_execute(sth)	/* <0 is error, >=0 is ok (row count) */
 		phs->alen = phs_len + phs->alen_incnull;
 	    }
 	    else {
-		if (SvOOK(phs->sv))
-		    sv_backoff(phs->sv);
 		phs->alen = SvCUR(phs->sv) + phs->alen_incnull;
 	    }
 	    /* Some checks for mutated storage since we pointed oracle at it.	*/
 	    /* XXX Instead of croaking we could rebind (probably will later).	*/
 	    if (SvTYPE(phs->sv) != SVt_PVNV)
-		croak("Placeholder %s value mutated type after bind.\n", phs->name);
+		croak("Placeholder %s value mutated type after bind (now %ld).\n",
+			phs->name, SvTYPE(phs->sv));
 	    if (SvPVX(phs->sv) != phs->progv)
 		croak("Placeholder %s value mutated location after bind.\n", phs->name);
 	    if (debug >= 2)
@@ -1181,6 +1225,12 @@ dbd_st_FETCH(sth, keysv)
 	retsv = newRV(sv_2mortal((SV*)av));
 	while(--i >= 0)
 	    av_store(av, i, newSViv(imp_sth->fbh[i].dbtype));
+
+    } else if (kl==9 && strEQ(key, "ora_rowid")) {
+	/* return current _binary_ ROWID (oratype 11) uncached	*/
+	/* Use { ora_type => 11 } when binding to a placeholder	*/
+	retsv = newSVpv((char*)&imp_sth->cda->rid, sizeof(imp_sth->cda->rid));
+	cacheit = FALSE;
 
     } else if (kl==4 && strEQ(key, "NAME")) {
 	AV *av = newAV();

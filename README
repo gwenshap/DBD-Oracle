@@ -59,7 +59,6 @@ ORACLE_USER environment variable so you should set that to the correct
 value before starting the test. Please read README.login.
 
 	make test
-	make test TEST_VERBOSE=1   (if any of the t/* tests fail)
 
 	make install (if the tests look okay)
 
@@ -80,6 +79,14 @@ If you can't get it to build on a minimally configured client system
 then read README.client, it might help but basically I can't help much.
 Others on the dbi-users mailing list probably can.
 
+If you have linking problems (errors related to libraries or functions)
+then you could try foring a 'static' build using:
+
+	make clean
+	perl Makefile.PL LINKTYPE=static
+	make
+	make perl (you'll need to use and install _this_ new perl binary)
+
 Please don't post problems to comp.lang.perl.misc or perl5-porters.
 This software is supported via the dbi-users mailing list.  For more
 information and to keep informed about progress you can join the a
@@ -97,7 +104,7 @@ dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk. But note...
 	perl Makefile.PL           (do a make realclean first)
 	make
 	make test
-	make test TEST_VERBOSE=1   (if any tests fail)
+	make test TEST_VERBOSE=1   (only if any of the t/* tests fail)
 
 2. Full details of which version of Oracle and Perl you're using.
 
@@ -108,13 +115,9 @@ dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk. But note...
    "perl Makefile.PL -s XXX" where XXX is the name of one of the
    symbols.  Please don't send the entire output of this command,
    just any obviously 'interesting' parts (if there are any).
+   See also the LINKTYPE=static notes above.
 
-5. If you get a core dump when using Oraperl try adding this *before*
-   your 'use Oraperl' line: BEGIN { $Oraperl::safe = 1 }
-   unless your version of Oraperl.pm already has $safe=1 in it
-   (it does by default now so you can probably ignore this step).
-
-6. If you still get a core dump rebuild DBD::Oracle with debugging
+5. If you get a core dump, rebuild DBD::Oracle with debugging
    enabled by executing: perl Makefile.PL -g  (note the -g option)
    then rerun the code to get a new core dump file, finally use a 
    debugger (gdb, sdb, dbx, adb etc) to get a stack trace from it.
@@ -123,7 +126,7 @@ dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk. But note...
    you don't have a good debugger on your system. If desparate try:
      make perl; ./perl script; echo '$c' | adb ./perl core
 
-7. If the stack trace mentions XS_DynaLoader_dl_load_file then rerun
+6. If the stack trace mentions XS_DynaLoader_dl_load_file then rerun
    make test after setting the environment variable PERL_DL_DEBUG to 2.
 
 It is important to check that you are using the latest version before
@@ -309,7 +312,7 @@ the core file and then send it to me along with the other information
 requested in the 'If you have problems' section.
 
 -------------------------------------------------------------------------------
-8-bit text is returned as '?' characters.
+8-bit text is returned as '?' characters or can't be inserted.
 
 Make sure the following environment vaiables are set:
 	NLS_LANG, ORA_NLS, ORA_NLS32 
@@ -325,6 +328,11 @@ backups to make sure that you have NLS_LANG set when export is run.
 Otherwise you might get unusable backups with ? replacing all your
 beloved characters. We were lucky once when we noticed that our exports
 were damaged before disaster struck.
+
+Remember that the database has to be created with an 8-bit character set.
+
+Also note that the NLS files $ORACLE_HOME/ocommon/nls/admin/data
+changed extension (from .d to .nlb) between 7.2.3 and 7.3.2.
 
 -------------------------------------------------------------------------------
 AIX - warnings like these when building perl are not usually a problem:

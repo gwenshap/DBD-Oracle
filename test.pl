@@ -1,6 +1,8 @@
 #!/usr/local/bin/perl -w
 
-# $Id: test.pl,v 1.28 1996/10/29 18:17:23 timbo Exp $
+die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
+
+# $Id: test.pl,v 1.29 1997/01/14 21:48:19 timbo Exp $
 #
 # Copyright (c) 1995, Tim Bunce
 #
@@ -10,7 +12,7 @@
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.28 $}."\n";
+print q{Oraperl test application $Revision: 1.29 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^Bad free/) ? warn "See README about Bad free() warnings!\n": warn @_;
@@ -283,7 +285,7 @@ sub test_plsql {
     die "ora_open: $ora_errstr"
 	    unless $ora_errstr =~ m/plus my msg/;	# our exception text
 
-    print "Testing bind_param_inout. Expect '200', '3800', '75800':\n";
+    print "Testing numeric bind_param_inout. Expect '200', '3800', '75800':\n";
     #$l->debug(2);
     #DBI->internal->{DebugDispatch} = 2;
     $c = &ora_open($l, q{
@@ -297,6 +299,20 @@ sub test_plsql {
 	print "param='$param'\n";
 	$param -= 10;
     } while ($param < 70000);
+
+    print "Testing string bind_param_inout. Expect '**foo**':\n";
+    #$l->debug(2);
+    #DBI->internal->{DebugDispatch} = 2;
+    $c = &ora_open($l, q{
+	declare bar varchar2(200);
+	begin bar := :1; bar := '**'||bar||'**'; :1 := bar; end;
+    }) || die "ora_open: $ora_errstr";
+    $param = "foo";
+    $c->bind_param_inout(1, \$param, 100) || die "bind_param_inout $ora_errstr";
+	# can be used for force realloc and thus a 'mutated location' error:
+    # $param = "ffffffffffffffffffffffffffffffffffffffffffffffffoo" x 3;
+    $c->execute	|| die "execute $ora_errstr";
+    print "param='$param'\n";
 
     # To do
     #	test NULLs at first bind

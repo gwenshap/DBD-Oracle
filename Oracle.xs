@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.xs,v 1.42 1996/10/15 02:19:14 timbo Exp $
+   $Id: Oracle.xs,v 1.43 1997/01/14 21:48:19 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -43,9 +43,12 @@ errstr(h)
 
 MODULE = DBD::Oracle	PACKAGE = DBD::Oracle::dr
 
+# disconnect_all renamed and ALIAS'd to avoid length clash on VMS :-(
 void
-disconnect_all(drh)
+discon_all_(drh)
     SV *	drh
+	ALIAS:
+	disconnect_all = 1
     CODE:
     if (!dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
 	D_imp_drh(drh);
@@ -272,7 +275,7 @@ blob_read(sth, field, offset, len, destrv=Nullsv, destoffset=0)
     long	destoffset
     CODE:
     if (!destrv)
-	destrv = sv_2mortal(newRV(newSV(0)));
+	destrv = sv_2mortal(newRV(sv_2mortal(newSV(0))));
     if (dbd_st_blob_read(sth, field, offset, len, destrv, destoffset))
 	 ST(0) = SvRV(destrv);
     else ST(0) = &sv_undef;
@@ -290,10 +293,13 @@ STORE(sth, keysv, valuesv)
 	    ST(0) = &sv_no;
 
 
+# FETCH renamed and ALIAS'd to avoid case clash on VMS :-(
 void
-FETCH(sth, keysv)
+FETCH_attrib_(sth, keysv)
     SV *	sth
     SV *	keysv
+	ALIAS:
+	FETCH = 1
     CODE:
     SV *valuesv = dbd_st_FETCH(sth, keysv);
     if (!valuesv)

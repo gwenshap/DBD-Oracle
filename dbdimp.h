@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.16 1996/10/29 18:17:23 timbo Exp $
+   $Id: dbdimp.h,v 1.17 1997/01/14 21:48:19 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -104,7 +104,8 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     sb2 indp;		/* null indicator			*/
     char *progv;
     ub2 arcode;
-    ub2 alen;
+    ub2 alen;		/* effective length ( <= maxlen )	*/
+    ub2 maxlen;		/* max possible len (=allocated buffer)	*/
 
     bool is_inout;
     int alen_incnull;	/* 0 or 1 if alen should include null	*/
@@ -120,5 +121,8 @@ void	dbd_preparse _((imp_sth_t *imp_sth, char *statement));
 int 	dbd_describe _((SV *h, imp_sth_t *imp_sth));
 int 	dbd_st_blob_read _((SV *sth, int field, long offset, long len,
 			SV *destrv, long destoffset));
+SV		*dbd_st_FETCH _((SV *sth, SV *keysv));
+SV		*dbd_db_FETCH _((SV *dbh, SV *keysv));
+
 
 /* end */

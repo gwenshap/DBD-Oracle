@@ -8,15 +8,14 @@ Example for reading LONG fields via blob_read:
     ora_bind($csr, $id) or die $ora_errstr;
     # ora_fetch() needs to be called in an array context
     my (@data) = ora_fetch($csr);
-    my ($frag, $blob, $length, $ll, $offset);
-    $blob = '';
-    $length = 4096; # use benchmarks to get best value for you
-    $offset = 0;
+    my $blob = '';
+    my $lump = 4096; # use benchmarks to get best value for you
+    my $offset = 0;
     while (1)
     {
-        $frag = $csr->blob_read(0, $offset, $length);
+        my $frag = $csr->blob_read(0, $offset, $lump);
         last unless defined $frag;
-        $ll = length $frag;
+        my $ll = length $frag;
         last unless $ll;
         $blob .= $frag;
         $offset += $ll;

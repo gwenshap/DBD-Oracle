@@ -1,3 +1,17 @@
+Changes in DBD::Oracle 0.44 (Oraperl 1.30), 14th Jan 1997
+
+	Fixed leak in read_blob (thanks to Jurgen Botz for the patch).
+	Improved automatic cache sizing (so better default caching).
+	Negative cache size specifies desired cache/transfer size in bytes.
+	Added $rowid = $csr->{ora_rowid} attribute (untested, please test).
+	(Use via $csr->bind_param(1, $rowid, { ora_type => 11 });)
+	Queries returning LONG's are no longer cached (so there's no
+	need to set the cache to 1 explicitly to get read_blob to work).
+	Added a test using string type with bind_param_inout in test.pl.
+	Worked around the rather sad VMS linker case insensitivity.
+	Worked around VMS linker length warning on XS...disconnect_all.
+	Makefile.PL deletes non-existant files from $(COMPOBJS)
+	(thanks to aburlison@cix.compulink.co.uk for the original patch)
 
 Changes in DBD::Oracle 0.43 (Oraperl 1.30), 29nd Oct 1996
 
@@ -8,7 +22,7 @@ Changes in DBD::Oracle 0.43 (Oraperl 1.30), 29nd Oct 1996
 	NUM_OF_FIELDS always available. Describe does nothing for
 	non-select operations. NUM_OF_FIELDS > 0 is now used to
 	select between oexec() and oexfet() in execute().
-	Added a more internal debugging. Improved test.pl.
+	Added more internal debugging. Improved test.pl.
 
 Changes in DBD::Oracle 0.42 (Oraperl 1.30), 28nd Oct 1996
 

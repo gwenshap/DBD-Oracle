@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.51 1996/10/15 02:19:14 timbo Exp $
+# $Id: Makefile.PL,v 1.52 1997/01/14 21:48:19 timbo Exp $
 
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
 
@@ -258,11 +258,24 @@ sub fetch_oci_macros {
     my %edit; @edit{@edit} = ('$_ = ""') x @edit;
 
     $edit{COMPOBJS} = q{
+	# Firstly a Solaris specific edit:
+	if ($Config{osname} eq 'solaris') { # and $Config{gccversion}?
 	    # Change the COMPOBJS line. (Some files use LIBHOME not COMPOBJ)
 	    # old: $(COMPOBJ)/crti.o $(COMPOBJ)/crt1.o $(COMPOBJ)/__fstd.o
 	    # new: $(COMPOBJ)/__fstd.o
 	    s:\$\S+?/crt[1in]\.o\b::g;
-	} if $Config{osname} eq 'solaris'; # and $Config{gccversion};
+	}
+	
+	# Delete any object files in COMPOBJS that don't actually exist
+	my $of;
+	foreach $of (split(/=|\s+/)) {
+	    next if !$of or $of eq "COMPOBJS";
+	    my $obj = expand_mkvars($of,0,0,0);
+	    next if -e $obj;
+	    print "Deleting $of from COMPOBJS because $obj doesn't exist.\n";
+	    s:\Q$of::;
+	} 
+    };
 
     my $mkver = 0;
     my $linkwith = '';
@@ -287,6 +300,7 @@ sub fetch_oci_macros {
 	}
 
 	# We always store values into %MK before checking %edit
+	# %edit can edit this in addition to $_ if needed.
 	$MK{$1} = $2 if m/^\s*(\w+)\s*=\s*([\s\S]*)/;
 
 	next if m/^\s*\.SUFFIXES/;
