@@ -16,6 +16,7 @@ $| = 1;
 SKIP: {
 
     plan skip_all => "Unable to run unicode test, perl version is less than 5.6" unless ( $] >= 5.006 );
+    plan skip_all => "Oracle charset tests unreliable for Oracle 8 client" if ORA_OCI() < 9.0;
 
     set_nls_nchar( (ORA_OCI >= 9.2) ? 'AL32UTF8' : 'UTF8', 1 );
     $dbh = db_handle();

@@ -360,14 +360,15 @@ sub create_table
 
 sub show_db_charsets
 {
-    my ( $dbh ) = @_;
+    my ( $dbh, $fh ) = @_;
+    $fh ||= \*STDOUT;
     my $paramsH = $dbh->ora_nls_parameters();
-    printf "Database CHAR set is %s (%s), NCHAR set is %s (%s)\n",
+    printf $fh "Database CHAR set is %s (%s), NCHAR set is %s (%s)\n",
 	$paramsH->{NLS_CHARACTERSET}, 
 	db_ochar_is_utf($dbh) ? "Unicode" : "Non-Unicode",
 	$paramsH->{NLS_NCHAR_CHARACTERSET},
 	db_nchar_is_utf($dbh) ? "Unicode" : "Non-Unicode";
-    printf "Client NLS_LANG is '%s', NLS_NCHAR is '%s'\n",
+    printf $fh "Client NLS_LANG is '%s', NLS_NCHAR is '%s'\n",
 	ora_env_var("NLS_LANG") || "<unset>", ora_env_var("NLS_NCHAR") || "<unset>";
 }
 sub db_ochar_is_utf { return shift->ora_can_unicode & 2 }

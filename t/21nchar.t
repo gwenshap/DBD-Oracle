@@ -15,13 +15,14 @@ my $dbh;
 $| = 1;
 SKIP: {
     plan skip_all => "Unable to run 8bit char test, perl version is less than 5.6" unless ( $] >= 5.006 );
+    plan skip_all => "Oracle charset tests unreliable for Oracle 8 client" if ORA_OCI() < 9.0;
+
+    $dbh = db_handle();
+    plan skip_all => "Not connected to oracle" if not $dbh;
+    show_db_charsets( $dbh, \*STDERR );
 
     # get the database NCHARSET before we begin... if it is not UTF, then
     # use it as the client side ncharset, otherwise, use WE8ISO8859P1
-    $dbh = db_handle();
-    plan skip_all => "Not connected to oracle" if not $dbh;
-    show_db_charsets( $dbh );
-
     my $ncharset = $dbh->ora_nls_parameters()->{'NLS_NCHAR_CHARACTERSET'};
     $dbh->disconnect(); # we want to start over with the ncharset we select
     undef $dbh;
