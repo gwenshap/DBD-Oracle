@@ -1,16 +1,13 @@
 
 #   Oracle.pm,v 1.1 2002/07/05 06:34:47 richter Exp
 #
-#   Copyright (c) 1994-2003 Tim Bunce
+#   Copyright (c) 1994-2004 Tim Bunce, Ireland
 #
-#   You may distribute under the terms of either the GNU General Public
-#   License or the Artistic License, as specified in the Perl README file,
-#   with the exception that it cannot be placed on a CD-ROM or similar media
-#   for commercial distribution without the prior approval of the author.
+#   See COPYRIGHT section in the documentation below
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.15';
+$DBD::Oracle::VERSION = '1.16';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -29,10 +26,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	) ],
         ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
     );
-    @EXPORT_OK = ('ORA_OCI');
+    @EXPORT_OK = qw(ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR);
     Exporter::export_ok_tags(qw(ora_types ora_session_modes));
 
-    my $Revision = substr(q$Revision: 1.101 $, 10);
+    my $Revision = substr(q$Revision: 1.103 $, 10);
 
     require_version DBI 1.28;
 
@@ -1216,6 +1213,12 @@ Force 'blank-padded comparison semantics'.
 
 =back
 
+=item ora_parse_error_offset
+
+If the previous error was from a failed C<prepare> due to a syntax error,
+this attribute gives the offset into the C<Statement> attribute where the
+error was found.
+
 =back
 
 =head2 Prepare Attributes
@@ -1825,6 +1828,11 @@ Any text in the buffer after a call to DBMS_OUTPUT.GET_LINE or
 DBMS_OUTPUT.GET is discarded by the next call to DBMS_OUTPUT.PUT_LINE,
 DBMS_OUTPUT.PUT, or DBMS_OUTPUT.NEW_LINE.
 
+=item reauthenticate ( $username, $password )
+
+Starts a new session against the current database using the credentials
+supplied.
+
 =back
 
 
@@ -2106,7 +2114,7 @@ than could be stored in memory at a given time.
 
    my $chunk_size = 1034;   # Arbitrary chunk size, for example
    my $offset = 1;   # Offsets start at 1, not 0
-   while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) {
+   while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) ) {
       print STDOUT $data;
    }
 
@@ -2385,8 +2393,9 @@ The DBD::Oracle module is Copyright (c) 1994-2004 Tim Bunce. Ireland.
 The DBD::Oracle module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself with the exception that it
 cannot be placed on a CD-ROM or similar media for commercial distribution
-without the prior approval of the author unless the CD-ROM is primarily a
-copy of the majority of the CPAN archive.
+without the prior approval of the author unless the CD-ROM contains only
+Open Source software (http://www.opensource.org/licenses/index.php)
+or is primarily a copy of the majority of the CPAN archive.
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -2396,5 +2405,6 @@ name, but I thank them all. Many are named in the Changes file.
 See also L<DBI/ACKNOWLEDGEMENTS>.
 
 =cut
+
 
 

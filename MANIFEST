@@ -50,6 +50,7 @@ t/base.t
 t/cursor.t
 t/general.t
 t/long.t
+t/nchar.t
 t/meta.t
 t/ph_type.t
 t/plsql.t

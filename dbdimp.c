@@ -1,5 +1,6 @@
 /*
-   $Id: dbdimp.c,v 1.81 2004/01/10 08:52:28 timbo Exp $
+   vim: sw=4:ts=8
+   $Id: dbdimp.c,v 1.83 2004/02/26 01:32:01 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -144,6 +145,7 @@ oratype_bind_ok(dbtype)	/* It's a type we support for placeholders */
     /* basically we support types that can be returned as strings */
     switch(dbtype) {
     case  1:	/* VARCHAR2	*/
+    case  2:	/* NVARCHAR2	*/
     case  5:	/* STRING	*/
     case  8:	/* LONG		*/
     case 23:	/* RAW		*/
@@ -369,6 +371,21 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	    imp_drh->proc_handles = 0;
 	    /* XXX recent oracle docs recommend using OCIEnvCreate() instead of	*/
 	    /* OCIInitialize + OCIEnvInit, we'd need ifdef's for old versions	*/
+/* #define NEW_OCI_INIT 1 */
+#ifdef NEW_OCI_INIT
+            OCINlsEnvironmentVariableGet_log_stat( ,status)
+	    if (status != OCI_SUCCESS) {
+		oci_error(dbh, NULL, status,
+		    "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
+		return 0;
+	    }
+            OCIEnvNlsCreate_log_stat( ,status)
+	    if (status != OCI_SUCCESS) {
+		oci_error(dbh, NULL, status,
+		    "OCIEnvNlsCreate. Check ORACLE_HOME and NLS settings etc.");
+		return 0;
+	    }
+#else /* NEW_OCI_INIT */
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, NULL, status,
@@ -380,6 +397,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 		oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCIEnvInit");
 		return 0;
 	    }
+#endif /* NEW_OCI_INIT */
 	}
     }
 
@@ -579,6 +597,7 @@ dbd_db_login6_out:
     DBIc_IMPSET_on(imp_dbh);	/* imp_dbh set up now			*/
     DBIc_ACTIVE_on(imp_dbh);	/* call disconnect before freeing	*/
     imp_dbh->ph_type = 1;	/* SQLT_CHR "(ORANET TYPE) character string" */
+    imp_dbh->ph_csform = SQLCS_IMPLICIT;
 
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
     if (shared_dbh_ssv && !shared_dbh) {
@@ -780,6 +799,11 @@ dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)
 	    croak("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
 	imp_dbh->ph_type = SvIV(valuesv);
     }
+    else if (kl==13 && strEQ(key, "ora_ph_csform")) {
+        if (SvIV(valuesv)!=SQLCS_IMPLICIT && SvIV(valuesv)!=SQLCS_NCHAR)
+	    croak("ora_ph_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR)");
+	imp_dbh->ph_csform = SvIV(valuesv);
+    }
     else {
 	return FALSE;
     }
@@ -811,6 +835,9 @@ dbd_db_FETCH_attrib(dbh, imp_dbh, keysv)
     }
     else if (kl==11 && strEQ(key, "ora_ph_type")) {
 	retsv = newSViv(imp_dbh->ph_type);
+    }
+    else if (kl==13 && strEQ(key, "ora_ph_csform")) {
+	retsv = newSViv(imp_dbh->ph_csform);
     }
     else if (kl==22 && strEQ(key, "ora_parse_error_offset")) {
        retsv = newSViv(imp_dbh->parse_error_offset);
@@ -857,7 +884,8 @@ dbd_preparse(imp_sth, statement)
     /* initialise phs ready to be cloned per placeholder	*/
     memset(&phs_tpl, 0, sizeof(phs_tpl));
     phs_tpl.imp_sth = imp_sth;
-    phs_tpl.ftype = imp_dbh->ph_type; /* ph_type in effect at prepare() */
+    phs_tpl.ftype  = imp_dbh->ph_type;
+    phs_tpl.csform = imp_dbh->ph_csform;
     phs_tpl.maxlen_bound = -1;	/* not yet bound */
     phs_tpl.sv = &sv_undef;
 
@@ -1452,6 +1480,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     STRLEN name_len;
     char *name = Nullch;
     char namebuf[30];
+    int rebind_ok;
     phs_t *phs;
 
     /* check if placeholder was passed as a number	*/
@@ -1520,6 +1549,11 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_field",9, 0)) != NULL) {
 		phs->ora_field = SvREFCNT_inc(*svp);
 	    }
+	    /* XXX this may be change to work automatically if bound value is utf8 */
+	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_csform",10, 0)) != NULL) {
+		if (1 <= SvIV(*svp) && SvIV(*svp) <= 2)
+		    phs->csform = SvIV(*svp);
+	    }
 	}
 	if (sql_type)
 	    phs->ftype = ora_sql_type(imp_sth, phs->name, (int)sql_type);
@@ -1566,7 +1600,56 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	phs->sv = SvREFCNT_inc(newvalue);	/* point to live var	*/
     }
 
-    return dbd_rebind_ph(sth, imp_sth, phs);
+    rebind_ok = dbd_rebind_ph(sth, imp_sth, phs);
+
+    /* XXXX if rebind_ok && phs->csform != SQLCS_IMPLICIT
+     * OCIAttrSet_log_stat OCI_ATTR_CHARSET_FORM
+     check status && call oci_error if !OCI_SUCCESS, set rebind_ok=0
+     if debug write message to log
+     API:
+	$sth->bind_param(1, $value, { ora_csform => 2 }); # 2 = SQLCS_NCHAR
+    also
+	$dbh->{ora_ph_csform} = 2;	# default all future ph to SQLCS_NCHAR
+    */
+#define LAB_UNICODE_SUPPORT 1
+#ifdef LAB_UNICODE_SUPPORT
+    
+    if ( rebind_ok && phs->csform != SQLCS_IMPLICIT ) {
+	sword status;
+
+	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
+	    &phs->csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
+	if ( status != OCI_SUCCESS ) {
+	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet")); 
+	    rebind_ok = 0;
+	}
+
+	if (DBIS->debug >= 2) {
+	    PerlIO_printf(DBILOGFP, "(lab)  bind %s <== %s (type %ld, csform %d)\n",
+	                  name, neatsvpv(newvalue,0), (long)sql_type, phs->csform );
+
+	}
+#define LAB_DEBUG 0
+#if LAB_DEBUG
+        PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"UTF8\") returns %d\n", 
+                      OCINlsCharSetNameToId(imp_sth->envhp, "UTF8") );
+        PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"AL32UTF8\") returns %d\n", 
+                      OCINlsCharSetNameToId(imp_sth->envhp, "AL32UTF8") );
+        {
+            int charsetid = 0;
+            int rsize = 0;
+            int stat = 0;
+            stat = OCINlsEnvironmentVariableGet(&charsetid,2,OCI_NLS_CHARSET_ID,0,&rsize);
+            PerlIO_printf(DBILOGFP,"(lab) OCINlsEnvironmentVariableGet() returns %d: charsetid=%d rsize=%d\n", 
+                      stat, charsetid, rsize 
+                      );
+        }
+#endif
+    }
+
+#endif /* LAB_UNICODE_SUPPORT */
+
+    return rebind_ok;
 }
 
 
@@ -2209,7 +2292,7 @@ dbd_st_FETCH_attrib(sth, imp_sth, keysv)
 	    av_store(av, i, newSViv(ora2sql_type(imp_sth->fbh+i).prec));
 
 #ifndef OCI_V8_SYNTAX
-#ifdef XXXXX
+#ifdef XXX
     } else if (kl==9 && strEQ(key, "ora_rowid")) {
 	/* return current _binary_ ROWID (oratype 11) uncached	*/
 	/* Use { ora_type => 11 } when binding to a placeholder	*/
@@ -2310,3 +2393,4 @@ dump_env_to_trace() {
 	PerlIO_printf(fp,"\t%s\n",p);
     } while ((char*)environ[i] != '\0');
 }
+

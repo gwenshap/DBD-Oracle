@@ -71,7 +71,7 @@ my %mk_target_rules;
 # Options (rarely needed)
 # to turn off an option prefix with 'no', ie 'perl Makefile.PL -nob'
 $::opt_b = 1;	# try to use Oracle's own 'build' rule
-$::opt_r = 'build'; # With -b above, use this names build rule (eg -r=build64)
+$::opt_r = '';	# With -b above, use this names build rule (eg -r=build64)
 $::opt_m = 0;	# path to proc.mk or oracle.mk file to read
 $::opt_p = '';	# alter preference for oracle.mk over proc
 $::opt_n = '';	# Oracle .mk macro name to use for library list to link with
@@ -139,31 +139,46 @@ my @inspdver;
 my %inspdver = ( RDBMS => 0, rdbms_ver => 0 );
 if ($os ne 'VMS' and $os ne 'MSWin32' ) {
 
-   if (open INST, "<$OH/install/unix.rgs") {
-	local $/ = undef;
-	<INST> =~ m/^rdbms\s+([\d.]+)/m;
-        $inspdver{RDBMS} = $1 if $1;
-        close INST;
-    }
-    elsif ( -x "$OH/orainst/inspdver" ) { # client only install does not have this
-        open INST, "$OH/orainst/inspdver |";
-        my @inspdver = <INST>;
-        close INST;
-	foreach (@inspdver) {
-	    chop;
-	    $inspdver{$2}    = $1 if m/^(\S+)\s+(.*)/;
-	    $inspdver{RDBMS} = $1 if m/^(\d+\.\d+\.\d+)\S*\s+.*RDBMS/;
-	    next unless $::opt_v
-		or 	m/RDBMS/i	or m/PL.SQL/i
-		or 	m/Precomp/i	or m/Pro\*C/i;
-	    print "$_\n";
+    if (-x "$OH/bin/sqlplus") {
+	# Try to use the _SQLPLUS_RELEASE predefined variable from sqlplus
+	# Documented in the SQL*Plus reference guide:
+	#  http://download-west.oracle.com/docs/cd/B12037_01/server.101/b12170/ch13.htm#i2675128
+	# Output is in the following format:
+	#   DEFINE _SQLPLUS_RELEASE = "902000400" (CHAR)       Representing 9.2.0.4.0
+	#   DEFINE _SQLPLUS_RELEASE = "1001000200" (CHAR)      Representing 10.1.0.2.0
+	my $sqlplus_release = `echo DEFINE _SQLPLUS_RELEASE | $OH/bin/sqlplus -S /nolog 2>&1`;
+	if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)" \(CHAR\)$/) {
+	    $inspdver{RDBMS} = sprintf("%d.%d.%d.%d", $1, $2, $3, $4);
 	}
     }
-    elsif ( $OH =~ m!.*(\d+\.\d+\.\d+)! ) { #decode it from $OH if possible
-        $inspdver{RDBMS} = $1;
-    }
-    elsif ( "$OH/" =~ m!\D(1?\d)(\d)(\d)\D!) { # scary but handy
-        $inspdver{RDBMS} = join ".", $1, $2, $3;
+
+    if (!$inspdver{RDBMS}) {
+       if (open INST, "<$OH/install/unix.rgs") {
+	    local $/ = undef;
+	    <INST> =~ m/^(rdbms|sql\*plus)\s+([\d.]+)/m;
+	    $inspdver{RDBMS} = $2 if $2;
+	    close INST;
+	}
+	elsif ( -x "$OH/orainst/inspdver" ) { # client only install does not have this
+	    open INST, "$OH/orainst/inspdver |";
+	    my @inspdver = <INST>;
+	    close INST;
+	    foreach (@inspdver) {
+		chop;
+		$inspdver{$2}    = $1 if m/^(\S+)\s+(.*)/;
+		$inspdver{RDBMS} = $1 if m/^(\d+\.\d+\.\d+)\S*\s+.*RDBMS/;
+		next unless $::opt_v
+		    or 	m/RDBMS/i	or m/PL.SQL/i
+		    or 	m/Precomp/i	or m/Pro\*C/i;
+		print "$_\n";
+	    }
+	}
+	elsif ( $OH =~ m!.*(\d+\.\d+\.\d+)! ) { #decode it from $OH if possible
+	    $inspdver{RDBMS} = $1;
+	}
+	elsif ( "$OH/" =~ m!\D(1?\d)(\d)(\d?)\D!) { # scary but handy
+	    $inspdver{RDBMS} = join ".", $1, $2, ($3||'0');
+	}
     }
 
     # hack up a simple floating point form of the version: 8.1.6 => 8.106
@@ -171,9 +186,9 @@ if ($os ne 'VMS' and $os ne 'MSWin32' ) {
 
     print "Oracle version $inspdver{RDBMS} ($inspdver{rdbms_ver})\n" if $inspdver{RDBMS};
 
-    if (!DBI::looks_like_number($inspdver{rdbms_ver}) || $inspdver{rdbms_ver} < 7 || $inspdver{rdbms_ver} > 10) {
+    if (!DBI::looks_like_number($inspdver{rdbms_ver}) || $inspdver{rdbms_ver} < 7 || $inspdver{rdbms_ver} >= 11) {
         print qq{
-WARNING: could not decode oracle version from
+WARNING: could not decode oracle version from sqlplus,
 $OH/orainst/inspdver, or $OH/install/unix.rgs
 or from $ORACLE_ENV path $OH.
 Oracle version based logic in Makefile.PL may produce erroneous results.
@@ -334,10 +349,10 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 
 
     my @build_rules = grep { $mk_target_rules{$_} } qw(build build64 build32);
+    my $build_target = "build";
     if (@build_rules && $::opt_b) {
 	print "\n";
 
-	my $build_target = "build";
 	$build_target = "build32" if $mk_target_rules{build32};
 	$build_target = "build64" if $mk_target_rules{build64} && perl_is_64bit();
 	$build_target = $::opt_r if $::opt_r;
@@ -512,14 +527,14 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
             print "Warning: perl was not built with +z or +Z in compiler flags.\n",
                   "         You may need to rebuild perl from sources.\n",
                   "         See instructions in README.hpux\n"
-        	unless $ccf !~ m/\+[zZ]/;
+        	unless $ccf =~ m/\+[zZ]/;
         }
     }
 
 
     if ($::opt_b) {	# The simple approach
 	$opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g $linkwith" };
-	$linkwith_msg = "OTHERLDFLAGS = $linkwith [from 'build' rule]";
+	$linkwith_msg = "OTHERLDFLAGS = $linkwith [from '$build_target' rule]";
     }
     else {		# the not-so-simple approach!
 	# get a cut down $linkwith to pass to MakeMaker liblist
@@ -1494,5 +1509,3 @@ sub check_security {
 }
 
 __END__
-
-

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.47 2004/01/10 08:52:28 timbo Exp $
+   $Id: dbdimp.h,v 1.48 2004/02/02 08:10:17 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -116,6 +116,7 @@ struct imp_dbh_st {
 
     int RowCacheSize;
     int ph_type;		/* default oratype for placeholders */
+    ub1 ph_csform;		/* default charset for placeholders */
     int parse_error_offset;	/* position in statement of last error */
 };
 
@@ -225,6 +226,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
     SV	*sv;		/* the scalar holding the value		*/
     int sv_type;	/* original sv type at time of bind	*/
+    ub1 csform;		/* charset form for this placeholder    */
     bool is_inout;
 
     IV  maxlen;		/* max possible len (=allocated buffer)	*/

@@ -32,6 +32,8 @@ constant(name=Nullch)
     ORA_OCI      = DBD_ORA_OCI
     ORA_SYSDBA	 = 0x0002
     ORA_SYSOPER	 = 0x0004
+    SQLCS_IMPLICIT = SQLCS_IMPLICIT
+    SQLCS_NCHAR    = SQLCS_NCHAR
     CODE:
     if (!ix) {
 	if (!name) name = GvNAME(CvGV(cv));

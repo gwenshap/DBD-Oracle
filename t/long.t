@@ -18,6 +18,7 @@ my $table = "dbd_ora__drop_me";
 
 my $utf8_test = ($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i);
 
+
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
 	AutoCommit => 1,
@@ -29,6 +30,25 @@ unless($dbh) {
     print "1..0\n";
     exit 0;
 }
+
+#print out database character sets from NSL_DATABASE_PARAMETERS:
+sub print_nls_info
+{
+    warn "NLS_LANG=".$ENV{NLS_LANG}."\n";
+    my $sth = $dbh->prepare( "select PARAMETER,VALUE from NLS_DATABASE_PARAMETERS where PARAMETER like ?" );
+    $sth->execute( '%CHARACTERSET' );
+    my ( $value, $param );
+    $sth->bind_col( 1 ,\$param );
+    $sth->bind_col( 2 ,\$value );
+    my $cnt = 0;
+    while ( $sth->fetch() ) {
+        $cnt++;
+        warn "$param=$value\n" ;
+    }
+    warn "\n";
+}
+
+
 
 unless(create_table("lng LONG")) {
     warn "Unable to create test table ($DBI::errstr)\nTests skiped.\n";
@@ -152,6 +172,14 @@ $out_len *= 2 if ($type_name =~ /RAW/i);
 ok(0, $sth = $dbh->prepare("select * from $table order by idx"), 1);
 ok(0, $sth->execute, 1);
 ok(0, $tmp = $sth->fetchall_arrayref, 1);
+if ($DBI::err && $DBI::errstr =~ /ORA-01801:/) {
+    # ORA-01801: date format is too long for internal buffer
+    warn " If you're using Oracle <= 8.1.7 then this error is probably\n";
+    warn " due to an Oracle bug and not a DBD::Oracle problem.\n";
+    sleep 1;
+    ok(0,1) for (1..5);
+}
+else {
 ok(0, @$tmp == 4);
 ok(0, $tmp->[0][1] eq substr($long_data0,0,$out_len),
 	cdif($tmp->[0][1], substr($long_data0,0,$out_len), "Len ".length($tmp->[0][1])) );
@@ -161,6 +189,7 @@ ok(0, $tmp->[2][1] eq substr($long_data2,0,$out_len),
 	cdif($tmp->[2][1], substr($long_data2,0,$out_len), "Len ".length($tmp->[2][1])) );
 #use Data::Dumper; print Dumper($tmp->[3]);
 ok(0, !defined $tmp->[3][1], 1); # NULL # known bug in DBD::Oracle <= 1.13
+}
 
 
 print " --- fetch $type_name data back again -- truncated - LongTruncOk == 0\n";
@@ -375,6 +404,8 @@ if ($failed > 0) {
     warn "Especially by adding trace() calls around the failing tests.\n";
     warn "Run the tests manually using the command \"perl -Mblib t/long.t\")\n";
     warn "Meanwhile, if the other tests have passed you can use DBD::Oracle.\n\n";
+    print_nls_info();
+    warn "\n";
 }
 
 sleep 6 if $failed || %ocibug;

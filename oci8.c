@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.c,v 1.42 2004/01/10 08:52:28 timbo Exp $
+   $Id: oci8.c,v 1.44 2004/02/26 01:32:01 timbo Exp $
 
    Copyright (c) 1998,1999,2000,2001  Tim Bunce
 
@@ -802,6 +802,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
     ub4 loblen = 0;
     ub4 buflen;
     ub4 amtp = 0;
+    int loblen_is_chars;
     imp_sth_t *imp_sth = fbh->imp_sth;
     OCILobLocator *lobloc = (OCILobLocator*)fbh->desc_h;
     sword status;
@@ -815,8 +816,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength");
 	return 0;
     }
-
-    amtp = (loblen > imp_sth->long_readlen) ? imp_sth->long_readlen : loblen;
+    loblen_is_chars = (fbh->ftype == 112);
 
     if (loblen > imp_sth->long_readlen) {	/* LOB will be truncated */
 	int oraperl = DBIc_COMPAT(imp_sth);
@@ -840,53 +840,37 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	    sv_set_undef(dest_sv);
 	    return 0;
         }
+	amtp = imp_sth->long_readlen;
     }
+    else
+	amtp = loblen;
+
+    (void)SvUPGRADE(dest_sv, SVt_PV);
+
+    /* XXXX I've hacked on this and left it probably broken
+	because I didn't have time to research which args to OCI funcs need
+	to be in char or byte units. That still needs to be done.
+	better variable names may help.
+	(The old version (1.15) duplicated too much code here because
+	I applied a contributed patch that wasn't ideal, I had too little time
+	to sort it out.)
+	Whatever is done here, similar changes are probably needed for the
+	ora_lob_*() methods when handling CLOBs.
+    */
 
     /* set char vs bytes and get right semantics for OCILobRead */
-    if (fbh->dbtype==112) {
+    if (loblen_is_chars) {
 	buflen = amtp * 4;  /* XXX bit of a hack, efective but wasteful */
     }
     else buflen = amtp;
 
-    (void)SvUPGRADE(dest_sv, SVt_PV);
-
     SvGROW(dest_sv, buflen+1);
 
     if (loblen > 0) {
-#ifdef UTF8_SUPPORT
-	if (cs_is_utf8 && fbh->ftype == 112) {
-	    ub4 alloclen = buflen << 2;
-	    char *buffer;
-	    New(42, buffer, alloclen, char);
-	    OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
-				&amtp, (ub4)1, buffer, alloclen, 
-				0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
-	    
-	    if (DBIS->debug >= 3) {
-		PerlIO_printf(DBILOGFP, "       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
-			      fbh->field_num+1, oci_status_name(status), ul_t(loblen),
-			      imp_sth->long_readlen, ul_t(alloclen), ul_t(amtp));
-	    }
-	    if (status != OCI_SUCCESS) {
-		oci_error(sth, imp_sth->errhp, status, "OCILobRead");
-		sv_set_undef(dest_sv);
-		return 0;
-	    }
-	           
-	    SvGROW(dest_sv, amtp+1);
-	    memcpy(SvPVX(dest_sv), buffer, amtp);
-	    Safefree(buffer);
-	    
-	    /* tell perl what we've put in its dest_sv */
-	    SvCUR(dest_sv) = amtp;
-	    *SvEND(dest_sv) = '\0';
-	    DBD_SET_UTF8(dest_sv);
-	} 
-	else
-#endif /* ifdef UTF8_SUPPORT */
-	{
-	    SvGROW(dest_sv, buflen+1);
-	    if (fbh->dbtype == 114) {
+	ub1  csform = 0;
+	OCILobCharSetForm(imp_sth->envhp, imp_sth->errhp, lobloc, &csform);
+
+	if (fbh->dbtype == 114) {
 	    OCILobFileOpen_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
 				    (ub1)OCI_FILE_READONLY, status);
 	    if (status != OCI_SUCCESS) {
@@ -898,12 +882,13 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
 	    &amtp, (ub4)1, SvPVX(dest_sv), buflen,
-	    0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
+	    0, 0, (ub2)0, csform, status);
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
-		"       OCILobRead field %d %s: LOBlen %luc, LongReadLen %luc, BufLen %lub, Got %luc\n",
-		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
+		"       OCILobRead field %d %s: csform %d, LOBlen %luc, LongReadLen %luc, BufLen %lub, Got %luc\n",
+		fbh->field_num+1, oci_status_name(status), csform, ul_t(loblen),
 		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
+
 	if (fbh->dbtype == 114) {
 	    OCILobFileClose_log_stat(imp_sth->svchp, imp_sth->errhp,
 		lobloc, status);
@@ -917,13 +902,13 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	/* tell perl what we've put in its dest_sv */
 	SvCUR(dest_sv) = amtp;
 	*SvEND(dest_sv) = '\0';
-	}
+	if (fbh->ftype == 112 && (cs_is_utf8 || csform == SQLCS_NCHAR))
+	    DBD_SET_UTF8(dest_sv);
 	
     }
-    else {
+    else {			/* LOB length is 0 */
 	assert(amtp == 0);
 	/* tell perl what we've put in its dest_sv */
-	SvGROW(dest_sv, buflen+1);
 	SvCUR(dest_sv) = amtp;
 	*SvEND(dest_sv) = '\0';
 	if (DBIS->debug >= 3)
@@ -1151,6 +1136,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		    warn(p, i, fbh->dbtype, "");
 		break;
 	}
+	if (DBIS->debug>=3)
+           PerlIO_printf(DBILOGFP,
+	        "    dbd_describe'd %d columns (row bytes: %d max, %d est avg, cache: %d)\n",
+	        (int)num_fields, imp_sth->t_dbsize, imp_sth->est_width, imp_sth->cache_rows);
+
 	if (fbh->ftype == 5)	/* XXX need to handle wide chars somehow */
 	    fbh->disize += 1;	/* allow for null terminator */
 
