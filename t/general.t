@@ -26,7 +26,12 @@ unless($dbh) {
 
 print "1..$tests\n";
 
-my($csr, $p1, $p2);
+my($sth, $p1, $p2);
+
+$sth = $dbh->prepare("select * from user_tables");
+ok(0, $sth->{NUM_OF_FIELDS});
+eval { $p1=$sth->{NUM_OFFIELDS_typo} };
+ok(0, $@ =~ /attribute/);
 
     # To do
     #   test NULLs at first bind
@@ -39,7 +44,7 @@ $dbh->disconnect;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 2 }
+BEGIN { $tests = 4 }
 # end.
 
 __END__

@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.68 1998/08/14 18:07:46 timbo Exp $
+# $Id: Makefile.PL,v 1.69 1998/11/29 00:14:07 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -68,8 +68,9 @@ $::opt_s = '';	# Find a symbol in oracle libs, Don't build a Makefile
 $::opt_S = '';	# Find a symbol in oracle & system libs, Don't build a Makefile
 $::opt_v = 0;	# be more verbose
 $::opt_d = 0;	# much more verbose for debugging
+$::opt_8 = 0;	# disable use of OCI 8 (where available)
 
-GetOptions(qw(v! d! g! p! l! c! m=s n=s s=s S=s))
+GetOptions(qw(v! d! g! p! l! c! 8! m=s n=s s=s S=s))
 	or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
@@ -89,7 +90,7 @@ print "\n Configuring DBD::Oracle ...\n
 
 my $ORACLE_ENV  = ($os eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
-my $OH = $ENV{$ORACLE_ENV};
+my $OH = $ENV{$ORACLE_ENV} || '';
 $OH =~ s:\\:/:g               if $os eq 'MSWin32';
 ($OH = unixify $OH) =~ s:/$:: if $os eq 'VMS';
 die "$ORACLE_ENV environment variable must be set.\n" unless $OH;
@@ -109,6 +110,7 @@ if ($os ne 'VMS' and $os ne 'MSWin32' and -x "$OH/orainst/inspdver") {
 	$inspdver{RDBMS} = $1 if m/^(\d+\.\d+\.\d+)\S*\s+.*RDBMS/;
 	next unless $::opt_v
 	    or 	m/RDBMS/i	or m/PL.SQL/i
+
 	    or 	m/Precomp/i	or m/Pro\*C/i;
 	print "$_\n";
     }
@@ -129,6 +131,7 @@ symbol_search() if $::opt_s or $::opt_S;
 my @mkfiles;
 my $linkwith;
 my $linkwith_msg;
+my $need_ldlp_env;
 
 if ($os eq 'VMS') {
     my $OCIINCLUDE = vmsify("$OH/rdbms/") ." ". vmsify("$OH/rdbms/demo/oci_demo/");
@@ -162,7 +165,7 @@ elsif ($os eq 'MSWin32') {
 
     my $OCIINCLUDE = "-I$OH/$OCIDIR/include -I$OH/rdbms/demo";
     $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir OCIW32" ];
-    $opts{SKIP} = ['processPL'];    # XXX added because it caused problems with Nmake...
+    #$opts{SKIP} = ['processPL'];    # XXX added because it caused problems with Nmake...
     $opts{INC}  = "$OCIINCLUDE -I$dbi_arch_dir";
 }
 
@@ -266,18 +269,20 @@ if ($os eq 'hpux') {
 if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
     print "Warning: You may need to rebuild perl using the xlc_r compiler.\a\n";
     print "         You may also need do: ORACCENV='cc=xlc_r'; export ORACCENV\n";
+	sleep 4;
 }
 
-$opts{DEFINE} .= '-Wall -Wno-comment' if $Config{cc} eq 'gcc';
+$opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{cc} eq 'gcc';
 
-$opts{DEFINE} .= '-Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
+$opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
+
+$opts{DEFINE} .= ' -DNO_OCI8' if $::opt_8;
 
 print "WARNING: Your GNU C compiler is very old. Please upgrade.\n"
     if ($Config{gccversion} and $Config{gccversion} =~ m/^(1|2\.[1-5])/);
 
 # Set some private WriteMakefile options if this is 'me' :-)
-if ($ENV{LOGNAME} eq 'timbo' and $ENV{S_ARCH_SW}){  # a reasonable guess
-    $Verbose = 1;
+if ($ENV{S_ARCH_SW} && $ENV{LOGNAME} eq 'timbo'){  # a reasonable guess
     $opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith -pedantic -Wtraditional'
 	. ' -Wbad-function-cast -Wcast-qual' if $Config{cc} eq 'gcc';
 	$::opt_g = '-g';
@@ -302,13 +307,13 @@ print "Oracle makefiles would have used these values but we override them:\n"
 	if $MK{CFLAGS} || $MK{LDFLAGS} || $MK{LDSTRING};
 print "  CC:       $MK{CC}\n"	if $MK{CC};
 print "  CFLAGS:   $MK{CFLAGS}\n"                  if $MK{CFLAGS};
-print "           [".mkvar('CFLAGS',1,0,0).  "]\n" if $MK{CFLAGS};
+print "           [".mkvar('CFLAGS',0,1,0).  "]\n" if $MK{CFLAGS};
 print "  CLIBS:    $MK{CLIBS}\n"                   if $MK{CLIBS};
-print "           [".mkvar('CLIBS',1,0,0).   "]\n" if $MK{CLIBS};
+print "           [".mkvar('CLIBS',0,1,0).   "]\n" if $MK{CLIBS};
 print "  LDFLAGS:  $MK{LDFLAGS}\n"                 if $MK{LDFLAGS};
-print "           [".mkvar('LDFLAGS',1,0,0). "]\n" if $MK{LDFLAGS};
+print "           [".mkvar('LDFLAGS',0,1,0). "]\n" if $MK{LDFLAGS};
 print "  LDSTRING: $MK{LDSTRING}\n"                if $MK{LDSTRING};
-print "           [".mkvar('LDSTRING',1,0,0)."]\n" if $MK{LDSTRING};
+print "           [".mkvar('LDSTRING',0,1,0)."]\n" if $MK{LDSTRING};
 print "\nLinking with $linkwith_msg\n" if $linkwith_msg;
 print "\n";
 
@@ -357,6 +362,10 @@ your 'privlib' and 'archlib' directories and their auto subdirectories.
 	}
     }
 
+    print "\nNote: \$ORACLE_HOME/lib must be added to your $need_ldlp_env environment variable\n",
+	  "before running \"make test\" and whenever DBD::Oracle is used.\n\n"
+	if $need_ldlp_env && ($ENV{$need_ldlp_env}||'') !~ m:\Q$OH/lib\b:;
+
     # Ensure Oraperl.pm and oraperl.ph are installed into top lib dir
     $self->{PM}->{'Oraperl.pm'} = '$(INST_LIB)/Oraperl.pm';
     $self->{PM}->{'oraperl.ph'} = '$(INST_LIB)/oraperl.ph';
@@ -400,7 +409,7 @@ sub find_mkfile {
 	'rdbms/demo/oracle.mk',
 	'rdbms/demo/demo_rdbms.mk',
     );
-    my @mkplaces = ($::opt_p) ? @mk_proc : @mk_oci;
+    my @mkplaces = ($::opt_p) ? (@mk_proc,@mk_oci) : (@mk_oci,@mk_proc);
     if ($::opt_m) {
 	$::opt_m = cwd()."/$::opt_m" unless $::opt_m =~ m:^/:;
 	die "-m $::opt_m: not found" unless -f $::opt_m;
@@ -408,20 +417,16 @@ sub find_mkfile {
     }
     my ($mkfile, $place);
     foreach $place (@mkplaces) {
-	$place = "$OH/$place" unless $place =~ m:^[/\.]:; # abs or relative path
+	$place = "$OH/$place"
+	    unless $place =~ m:^[/\.]:; # abs or relative path
 	next unless -f $place;
 	push @mkfiles, $place;
 	print "Found $place\n";
     }
     $mkfile = $mkfiles[0];	# use first one found
-    if (!$mkfile and "@mkplaces" !~ m/oracle\.mk/) {
-	print "Unable to locate a Pro*C *.mk. Falling back to oracle.mk.\n";
-	$mkfile = "$OH/oracle.mk";
-	push @mkplaces, $mkfile; # just for error message below
-    }
     die qq{
-	Unable to locate an oracle.mk or proc.mk file in your Oracle installation.
-	(Looked in @mkplaces)
+	Unable to locate an oracle.mk, proc.mk or other suitable file
+	in your Oracle installation.  (I looked in @mkplaces)
 
 	The oracle.mk file is part of the Oracle RDBMS product. The
 	proc.mk file is part of the Oracle Pro*C product.  You need to
@@ -449,10 +454,17 @@ sub fetch_oci_macros {
     # Don't include the following definitions in the generated
     # makefile (note that %MK stills gets these values).
     my @edit = qw(
-	SHELL CC CFLAGS CCFLAGS OPTIMIZE ASFLAGS RCC LD LDFLAGS
-	AR ECHO EXE OBJS PERL OBJ_EXT LIB_EXT
+	SHELL CC CPP CFLAGS CCFLAGS OPTIMIZE ASFLAGS RCC LD LDFLAGS
+	AR AS CHMOD ECHO EXE OBJS PERL OBJ_EXT LIB_EXT
     );
     my %edit; @edit{@edit} = ('$_ = ""') x @edit;
+
+    $edit{ORA_NLS} = $edit{ORA_NLS33} = q{
+	print "Deleting $_\n",
+	    "because it is not already set in the environment\n",
+	    "and it can cause ORA-01019 errors.\n";
+	$_ = '';
+    } unless $ENV{ORA_NLS} || $ENV{ORA_NLS33};
 
     $edit{COMPOBJS} = q{
 	# Firstly a Solaris specific edit:
@@ -540,6 +552,11 @@ sub fetch_oci_macros {
 	else {
 	    $linkvia .= '$(SSDBED) '	if $MK{SSDBED};
 	    $linkvia .= '$(DEF_OPT) '	if $MK{DEF_OPT};
+	    if ($inspdver{RDBMS} =~ /^8\.0\./ and $os eq 'dec_osf' and $osvers >= 4.0) {
+		$linkvia .= '$(SCOREPT) $(NAETAB) $(NAEDHS) $(LLIBRDBMS_CLT) $(LLIBMM) ';
+		$linkvia .= '$(NETLIBS) $(CORELIBS) $(LLIBCOMMON) $(LLIBEPC) ';
+		$need_ldlp_env = "LD_LIBRARY_PATH";
+	    }
 	    $linkvia .= '$(OCISHAREDLIBS)';
 	}
     }
@@ -746,7 +763,7 @@ ORACLE_HOME = '.$OH.'
 
 
     sub const_cccmd {
-	my($self) = shift;
+	my ($self) = shift;
 	print "Using DBD::Oracle $self->{VERSION}.\n";
 
 	local($_) = $self->SUPER::const_cccmd(@_);
@@ -757,8 +774,24 @@ ORACLE_HOME = '.$OH.'
 	}
 	# are we using the non-bundled hpux compiler?
 	if ($os eq "hpux" and $Config::Config{ccflags} =~ /-Aa\b/) {
-	    print "Changing -Aa to -Ae for HP-UX.\n";
-	    s/-Aa\b/-Ae/g;	# allow "long long" in oratypes.h
+	    print "Changing -Aa to -Ae for HP-UX in ccmd.\n"
+	     if s/-Aa\b/-Ae/g;	# allow "long long" in oratypes.h
+	}
+	$_;
+    }
+
+    sub cflags {
+	my ($self) = shift;
+	local($_) = $self->SUPER::cflags(@_);
+	# If perl Makefile.PL *-g* then switch on debugging
+	if ($::opt_g) {
+	    s/\s-O\d?\b//;	# delete optimise option
+	    s/\s-/ -g -/;	# add -g option
+	}
+	# are we using the non-bundled hpux compiler?
+	if ($os eq "hpux" and $Config::Config{ccflags} =~ /-Aa\b/) {
+	    print "Changing -Aa to -Ae for HP-UX in cflags.\n"
+	     if s/-Aa\b/-Ae/g;	# allow "long long" in oratypes.h
 	}
 	$_;
     }
@@ -777,12 +810,22 @@ ORACLE_HOME = '.$OH.'
 	my @m;
 	push @m, "OTHERLDFLAGS = $otherldflags\n";
 	push @m, "INST_DYNAMIC_DEP = $inst_dynamic_dep\n";
+    if ($] < 5.00450) {
 	push @m, '
 $(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt rtls.opt $(INST_ARCHAUTODIR).exists $(EXPORT_LIST) $(PERL_ARCHIVE) $(INST_DYNAMIC_DEP)
 	$(NOECHO) $(MKPATH) $(INST_ARCHAUTODIR)
 	$(NOECHO) If F$TrnLNm("PerlShr").eqs."" Then Define/NoLog/User PerlShr Sys$Share:PerlShr.',$Config::Config{'dlext'},'
 	Lnproc $(MMS$TARGET)$(OTHERLDFLAGS) $(BASEEXT).opt/Option,rtls.opt/Option,$(PERL_INC)perlshr_attr.opt/Option i
 ';
+  } else {
+	push @m, '
+$(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt $(INST_ARCHAUTODIR).exists $(EXPORT_LIST) $(PERL_ARCHIVE) $(INST_DYNAMIC_DEP)
+	$(NOECHO) $(MKPATH) $(INST_ARCHAUTODIR)
+	$(NOECHO) If F$TrnLNm("PerlShr").eqs."" Then Define/NoLog/User PerlShr Sys$Share:PerlShr.',$Config::Config{'dlext'},'
+	Lnproc $(MMS$TARGET)$(OTHERLDFLAGS) $(BASEEXT).opt/Option,$(PERL_INC)perlshr_attr.opt/Option i
+';
+    
+  }
 	push @m, $self->dir_target('$(INST_ARCHAUTODIR)');
 	join('',@m);
     }

@@ -1,7 +1,7 @@
 
-#   $Id: Oracle.pm,v 1.57 1998/08/14 18:23:00 timbo Exp $
+#   $Id: Oracle.pm,v 1.58 1998/11/29 00:14:07 timbo Exp $
 #
-#   Copyright (c) 1994,1995,1996,1997 Tim Bunce
+#   Copyright (c) 1994,1995,1996,1997,1998 Tim Bunce
 #
 #   You may distribute under the terms of either the GNU General Public
 #   License or the Artistic License, as specified in the Perl README file,
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.54';
+$DBD::Oracle::VERSION = '0.54_90';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -22,7 +22,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use Exporter ();
     @ISA = qw(DynaLoader Exporter);
 
-    my $Revision = substr(q$Revision: 1.57 $, 10);
+    my $Revision = substr(q$Revision: 1.58 $, 10);
 
     require_version DBI 0.92;
 
@@ -157,7 +157,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 		if (exists $dbnames{$dbname}) {	# known name
 		    my $dbhome = $dbnames{$dbname};	# local=>ENV, remote=>0
 		    if ($dbhome) {
-			warn "Changing $ORACLE_ENV for $dbname to $dbhome"
+			warn "Changing $ORACLE_ENV for $dbname to $dbhome (to match oratab entry)"
 			    if ($ENV{$ORACLE_ENV} and $dbhome ne $ENV{$ORACLE_ENV});
 			$ENV{ORACLE_SID}  = $dbname;
 			$ENV{$ORACLE_ENV} = $dbhome;
@@ -218,9 +218,11 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
     sub ping {
 	my($dbh) = @_;
-	# we know that DBD::Oracle prepare does a describe so this will
+	# we know that Oracle 7 prepare does a describe so this will
 	# actually talk to the server and is this a valid and cheap test.
-	return 1 if $dbh->prepare("select SYSDATE from DUAL");
+	my $sth =  $dbh->prepare("select SYSDATE from DUAL");
+	# But Oracle 8 doesn't talk to server unless we describe the query
+	return 1 if $sth && $sth->{NUM_OF_FIELDS};
 	return 0;
     }
 
@@ -756,6 +758,14 @@ You can find more examples in the t/plsql.t file in the DBD::Oracle
 source directory.
 
 
+=head1 Oracle on Linix
+
+To join the oracle-on-linux mailing list, see:
+
+  http://www.datamgmt.com/maillist.html
+  http://www.eGroups.com/list/oracle-on-linux
+  mailto:oracle-on-linux-subscribe@egroups.com     
+
 =head1 Commercial Oracle Tools
 
 Assorted tools and references for general information. No recommendation implied.
@@ -763,6 +773,8 @@ Assorted tools and references for general information. No recommendation implied
 PL/Vision from RevealNet and Steven Feuerstein.
 
 Platinum Technology: http://www.platinum.com/products/oracle.htm
+
+SoftTree Technologies: http://www.SoftTreeTech.com
 
 "Q" from Savant Corporation.
 

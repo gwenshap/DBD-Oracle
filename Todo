@@ -1,4 +1,16 @@
-Oracle 8
+Oracle 8 esp *LOBS
+
+SCALE, PRECISION
+
+prepare("insert .. into ... RETURNING foo INTO :bar")
+
+bind_param(... { TYPE => SQL_* }) esp SQL_LONGVARCHAR etc
+
+use DBD::Oracle qw(:ora_types);
+
+$sth = $dbh->prepare("select ... for update");
+$dbh->commit;
+$sth->execute; # fails ? auto-re-prepare?
 
 Fetch: If LongReadLen > 64k then automatocally call oflng for each long LONG.
 Bind: Automatically do piecewise insert of longs.
@@ -8,10 +20,6 @@ $drh->debug oddities (re data_source debugging)
 ora_bind() failed err = ORA-01026: multiple buffers of size > 4000 in
 the bind list (DBD: oexec error)
 
-bind_param(... { TYPE => SQL_* })
-
-Can't bind unknown placeholder '3' at ...
-
 DBI::st=HASH(0x5b5c2c) debug level set to 2 ... (add perl version
 number and other info here).
 
@@ -19,7 +27,7 @@ http://outside.organic.com/mail-archives/dbi-users/Nov1997/0116.html
 
 Test LongReadLen and especially the default behaviour of LongTruncOk
 
-Add explain to dist
+Add/update explain to dist
 
 Handle binding of values > 32K long.
 
@@ -31,4 +39,8 @@ Non-blocking
 
 Tests
 	RAW types at max length
+
+http://www.oracle-users.com/html/freeware.html
+
+http://freespace.virgin.net/j.hatcher/ociwrap.htm
 

@@ -16,6 +16,8 @@ Todo
 dbdimp.c
 dbdimp.h
 hints/svr4.pl
+oci7.h
+oci8.h
 ora_explain.PL
 oraperl.ex/Readme	Oraperl examples (copied mostly unchanged from oraperl-2.4)
 oraperl.ex/bind.pl
@@ -31,4 +33,3 @@ t/base.t
 t/general.t
 t/plsql.t
 test.pl
-.purify	Ignore most of the (many) problems in Oracle's libraries. Very sad.

@@ -17,6 +17,11 @@ WARNING:
    because the interface (api) is not finalised. The Alpha status does
    not reflect code quality or stability.
 
+   NEWS: The new enhanced Oracle 8 OCI is now supported by DBD::Oracle
+   versions above 0.54. If the new code causes you problems you can
+   build DBD::Oracle for Oracle 8 to use the Oracle 7 OCI by doing:
+       perl Makefile.PL -8
+
 |  NOTE:
 |  The only currently supported interface is via Oraperl.pm, the        |
 |  oraperl emulation layer. This is fairly complete and stable.         |
@@ -69,7 +74,7 @@ the database using an Oracle tool such as sqlplus. Once you can do
 that then you can test DBD::Oracle knowing that it should work.
 
 The supplied test will connect to the database using the value of the
-ORACLE_USER environment variable so you should set that to the correct
+ORACLE_USERID environment variable so you should set that to the correct
 value before starting the test. Please read README.login.
 
     make test
@@ -88,6 +93,11 @@ If you have build/link or core dump problems try:
 If it helps then please let me know (and please include a copy
 of the log from the failed default build, the log from the build that
 worked, plus the output of the "perl -V" command).
+
+The new enhanced Oracle 8 OCI is now supported by DBD::Oracle versions
+above 0.54. If the new code causes you problems you can build
+DBD::Oracle for Oracle 8 to use the Oracle 7 OCI API by doing:
+   perl Makefile.PL -8
 
 Do not hand edit the generated Makefile unless you are completely sure
 you understand the implications! Always try to make changes via the

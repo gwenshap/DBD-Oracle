@@ -4,17 +4,22 @@ use ExtUtils::testlib;
 
 die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 
-# $Id: test.pl,v 1.30 1997/06/14 17:42:12 timbo Exp $
+# $Id: test.pl,v 1.32 1998/11/29 00:14:07 timbo Exp $
 #
-# Copyright (c) 1995, Tim Bunce
+# Copyright (c) 1995-1998, Tim Bunce
 #
 # You may distribute under the terms of either the GNU General Public
 # License or the Artistic License, as specified in the Perl README file.
 
+# XXX
+# XXX  Please note that this code is a random hotch-potch of tests and
+# XXX  test frameworks and is in *no way* a to be used as a style guide!
+# XXX
+
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.30 $}."\n";
+print q{Oraperl test application $Revision: 1.32 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^(Bad|Duplicate) free/)
@@ -73,14 +78,15 @@ printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os 
         warn "Try leaving dbname value empty and set dbuser to name/passwd\@dbname.\n";
 	die "\nTest aborted.\n";
     }
-    # test_other($l);
-	if ($os ne 'MSWin32' and $os ne 'VMS') {
-		my $backtick = `sleep 1; echo Backticks OK`;
-		unless ($backtick) {	 # $! == Interrupted system call
-			print "Warning: Oracle's SIGCHLD signal handler breaks perl ",
-				  "`backticks` commands: $!\n(d_sigaction=$Config{d_sigaction})\n";
-		}
+    if ($os ne 'MSWin32' and $os ne 'VMS') {
+	my $backtick = `sleep 1; echo Backticks OK`;
+	unless ($backtick) {	 # $! == Interrupted system call
+	    print "Warning: Oracle's SIGCHLD signal handler breaks perl ",
+		  "`backticks` commands: $!\n(d_sigaction=$Config{d_sigaction})\n";
 	}
+    }
+    #test_bind_csr($l);
+    #test_auto_reprepare($l);
     &ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
 }
 $start = time;
@@ -135,29 +141,34 @@ sub test1 {
     # $lda->debug(2);
 
     {
+	#$lda->trace(2);
 	local($csr) = &ora_open($lda,
 	    "select 11*7.2	num_t,
 		    SYSDATE	date_t,
 		    USER	char_t,
+		    ROWID	rowid_t,
 		    NULL	null_t
 	    from dual") || die "ora_open: $ora_errno: $ora_errstr\n";
+	$csr->{RaiseError} = 1;
 
-	print "Fields:  ",scalar(&ora_fetch($csr)),"\n";
-	die "ora_fetch in scalar context error\n" unless &ora_fetch($csr)==4;
-	print "Names:   '",join("',\t'", &ora_titles($csr)),"'\n";
-	print "Lengths: '",join("',\t'", &ora_lengths($csr)),"'\n";
-	print "Types:   '",join("',\t'", &ora_types($csr)),"'\n";
+	print "Fields:    ",scalar(&ora_fetch($csr)),"\n";
+	die "ora_fetch in scalar context error\n" unless &ora_fetch($csr)==5;
+	print "Names:     ",DBI::neat_list([&ora_titles($csr)],	0,"\t"),"\n";
+	print "Lengths:   ",DBI::neat_list([&ora_lengths($csr)],0,"\t"),"\n";
+	print "OraTypes:  ",DBI::neat_list([&ora_types($csr)],	0,"\t"),"\n";
+	print "SQLTypes:  ",DBI::neat_list($csr->{TYPE},		0,"\t"),"\n";
+	print "Scale:     ",DBI::neat_list($csr->{SCALE},		0,"\t"),"\n";
+	print "Precision: ",DBI::neat_list($csr->{PRECISION},	0,"\t"),"\n";
 	print "Est row width:    $csr->{ora_est_row_width}\n";
-	print "Prefetch cache:   $csr->{ora_cache_rows}\n";
+	print "Prefetch cache:   $csr->{RowsInCache}\n" if $csr->{RowsInCache};
 
 	print "Data rows:\n";
 	#$csr->debug(2);
-	while(@fields = &ora_fetch($csr)) {
-	    warn "ora_fetch returned .".@fields." fields instead of 4!"
-		    if (@fields!=4);
+	while(@fields = $csr->fetchrow_array) {
+	    die "ora_fetch returned .".@fields." fields instead of 5!"
+		    if @fields != 5;
 	    die "Perl list/scalar context error" if @fields==1;
-	    $fields[3] = "NULL" unless defined $fields[3];
-	    print "    fetch: "; print "@fields\n";
+	    print "    fetch: ", DBI::neat_list(\@fields),"\n";
 	}
 
 	&ora_close($csr) || warn "ora_close($csr): $ora_errno: $ora_errstr\n";
@@ -231,10 +242,10 @@ sub test_cache {
 		    || die "ora_login: $ora_errno: $ora_errstr\n";
     local($csr, $rows, $max);
     local($start) = time;
-	#$l->debug(3);
+    #$l->trace(3);
     foreach $max (1, 0, $cache-1, $cache, $cache+1) {
 	$csr = &ora_open($l, q{
-		select object_name from all_objects where rownum <= :1
+		select object_name, rownum from all_objects where rownum <= :1
 	}, $cache);
 	&ora_bind($csr, $max) || die $ora_errstr;
 	$rows = count_fetch($csr);
@@ -264,28 +275,23 @@ sub test_fetch_perf {
     print "\nTesting internal row fetch overhead.\n";
     local($lda) = &ora_login($dbname, $dbuser, '')
 		    || die "ora_login: $ora_errno: $ora_errstr\n";
-    #$lda->trace(2);
     $lda->trace(0);
     local($csr) = &ora_open($lda,"select 0,1,2,3,4,5,6,7,8,9 from dual");
-    #local($csr) = &ora_open($lda,"select 9 from dual");
     local($max) = 50000;
     $csr->{ora_fetchtest} = $max;
     require Benchmark;
     $t0 = new Benchmark;
-    #local($rows) = count_fetch($csr); die "count_fetch $rows != $max" if $rows-1 != $max;
-    my $code = $csr->can('fetch');
-    #1 while &$code($csr);
     1 while $csr->fetchrow_arrayref;
-    #1 while @row = $csr->fetchrow_array;
-    #while(@row = $csr->fetchrow_array) { $hash{++$i} = [ @row ]; }
     $td = Benchmark::timediff((new Benchmark), $t0);
     $csr->{ora_fetchtest} = 0;
     printf("$max fetches: ".Benchmark::timestr($td)."\n");
-    printf("%d per clock second, %d per cpu second\n\n", $max/$td->real, $max/$td->cpu_a);
+    printf("%d per clock second, %d per cpu second\n\n",
+	    $max/($td->real  ? $td->real  : 1),
+	    $max/($td->cpu_a ? $td->cpu_a : 1));
 }
 
 
-sub test_other {
+sub test_bind_csr {
     local($lda) = @_;
 $lda->{RaiseError} =1;
 $lda->trace(2);
@@ -300,6 +306,27 @@ $csr->execute();
 # at this point $out_csr should be a handle on a new oracle cursor
 @row = $out_csr->fetchrow_array;
 
+    exit 1;
+}
+
+sub test_auto_reprepare {
+    local($dbh) = @_;
+    $dbh->do(q{drop table timbo});
+    $dbh->{RaiseError} =1;
+    #$dbh->trace(2);
+    $dbh->do(q{create table timbo ( foo integer)});
+    $dbh->do(q{insert into timbo values (91)});
+    $dbh->do(q{insert into timbo values (92)});
+    $dbh->do(q{insert into timbo values (93)});
+    $dbh->commit;
+	$Oraperl::ora_cache = $Oraperl::ora_cache = 1;
+    my $sth = $dbh->prepare(q{select * from timbo for update});
+    $sth->execute; $sth->dump_results;
+    $sth->execute;
+    print $sth->fetchrow_array,"\n";
+    $dbh->commit;
+    print $sth->fetchrow_array,"\n";
+    $dbh->do(q{drop table timbo});
     exit 1;
 }
 

@@ -5,7 +5,8 @@ sub ok ($$;$) {
     ++$t;
     die "sequence error, expected $n but actually $t"
     if $n and $n != $t;
-    ($ok) ? print "ok $t\n" : print "not ok $t\n";
+    ($ok) ? print "ok $t\n"
+	  : print "# failed test $t at line ".(caller)[2]."\nnot ok $t\n";
 	if (!$ok && $warn) {
 		$warn = $DBI::errstr || "(DBI::errstr undefined)" if $warn eq '1';
 		warn "$warn\n";
@@ -27,9 +28,9 @@ unless($dbh) {
 # ORA-00900: invalid SQL statement
 # ORA-06553: PLS-213: package STANDARD not accessible
 my $tst = $dbh->prepare(q{declare foo char(50); begin RAISE INVALID_NUMBER; end;});
-if ($dbh->err && ($dbh->err==900 || $dbh->err==6553)) {
+if ($dbh->err && ($dbh->err==900 || $dbh->err==6553 || $dbh->err==600)) {
 	warn "Your Oracle server doesn't support PL/SQL"	if $dbh->err== 900;
-	warn "Your Oracle PL/SQL is not properly installed"	if $dbh->err==6553;
+	warn "Your Oracle PL/SQL is not properly installed"	if $dbh->err==6553||$dbh->err==600;
 	warn "Tests skipped\n";
 	print "1..0\n";
 	exit 0;
@@ -65,6 +66,7 @@ ok(0, $DBI::err == 6510);
 
 # --- test raise_application_error with literal values
 ok(0, $csr = $dbh->prepare(q{
+    declare err_num number; err_msg char(510);
     begin RAISE_APPLICATION_ERROR(-20101,'app error'); end;
 }), 1);
 
@@ -76,7 +78,8 @@ ok(0, $DBI::errstr =~ m/app error/);
 
 # --- test raise_application_error with 'in' parameters
 ok(0, $csr = $dbh->prepare(q{
-    declare err_num number; err_msg char(510);
+    declare err_num varchar2(555); err_msg varchar2(510);
+    --declare err_num number; err_msg char(510);
     begin
 	err_num := :1;
 	err_msg := :2;
@@ -87,7 +90,6 @@ ok(0, $csr = $dbh->prepare(q{
 ok(0, ! $csr->execute(42, "hello world"), 1);
 ok(0, $DBI::err    == 20042, $DBI::err);
 ok(0, $DBI::errstr =~ m/msg is hello world/, 1);
-
 
 # --- test named numeric in/out parameters
 ok(0, $csr = $dbh->prepare(q{
