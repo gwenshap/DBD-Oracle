@@ -109,7 +109,7 @@ dbd_init(dbistate)
 
 	    if (GetRegKey("SOFTWARE\\ORACLE\\ALL_HOMES", "LAST_HOME", val, &nlslen)) {
 	        val[2] = 0;
-		nlslen = BUFSIZE;
+		nlslen = REG_BUFSIZE;
 	    	sprintf(key, "SOFTWARE\\ORACLE\\HOME%s", val);
 		if (GetRegKey(key, "NLS_LANG", val, &nlslen)) {
 		    if (nlslen >= 5) {
