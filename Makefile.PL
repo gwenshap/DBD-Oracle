@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.60 1998/06/01 18:34:16 timbo Exp $
+# $Id: Makefile.PL,v 1.61 1998/06/03 21:04:51 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -57,7 +57,7 @@ $::opt_v = 0;		# be more verbose
 $::opt_d = 0;		# much more verbose for debugging
 $::opt_old = 0;		# old style .mk file parsing
 
-GetOptions(qw(v! d! g! old! p! m=s s=s S=s)) or die "Invalid arguments";
+GetOptions(qw(v! d! g! c! old! p! m=s s=s S=s)) or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
 $::opt_v = 1 if $::opt_d;
@@ -77,45 +77,37 @@ print "\n Configuring DBD::Oracle ...\n
 my $ORACLE_ENV  = ($os eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 my $OH = $ENV{$ORACLE_ENV};
-$OH =~ s:\\:/:g; 	# for Win32
+$OH =~ s:\\:/:g               if $os eq 'MSWin32';
 ($OH = unixify $OH) =~ s:/$:: if $os eq 'VMS';
 die "$ORACLE_ENV environment variable must be set.\n" unless $OH;
 die "$ORACLE_ENV environment variable ($OH) not valid.\n" unless -d $OH;
 
 print "Using Oracle in $OH\n";
 
-if ($os ne 'VMS' and $os ne 'MSWin32' and -d "$OH/orainst") {
+my (@inspdver, %inspdver);
+if ($os ne 'VMS' and $os ne 'MSWin32' and -x "$OH/orainst/inspdver") {
     open INST, "$OH/orainst/inspdver |";
     my @inspdver = <INST>;
     close INST;
     foreach (@inspdver) {
+	chop;
+	$inspdver{$2}    = $1 if m/^(\S+)\s+(.*)/;
+	$inspdver{RDBMS} = $1 if m/^(\d+\.\d+\.\d+)\S*\s+.*RDBMS/;
 	next unless $::opt_v
-	    or	m/Common Libraries/i
 	    or 	m/RDBMS/i	or m/PL.SQL/i
 	    or 	m/Precomp/i	or m/Pro\*C/i;
-	print;
+	print "$_\n";
+    }
+    print "\n";
+    if ($inspdver{RDBMS} =~ /^7.3.[12]/ and $os eq 'hpux') {
+	print "DBD::Oracle for Oracle $inspdver{RDBMS} on HP-UX may not build ok.\n";
+	print "If your have problems read the README (in fact, read it anyway!)\n";
+	print "An upgrade to Oracle 7.3.3 is probably a good idea.\n";
+	sleep 5;
     }
 }
 
-if ($::opt_s or $::opt_S) {
-    $::opt_s ||= $::opt_S;
-    print "Searching for symbol '$::opt_s' in $OH ...\n";
-    my $dlext = $Config{dlext};
-    system(qq{	cd $OH; for i in lib/*.[ao] lib/*.$dlext */lib/*.[ao];
-	do echo "  searching oracle \$i ..."; nm \$i | grep $::opt_s; done
-    });
-	if ($::opt_S) {
-		my @libpth = split ' ', $Config{libpth};
-		print "Searching for symbol '$::opt_s' in @libpth ...\n";
-		@libpth = map { ("$_/lib*.$dlext", "$_/lib*.a") } @libpth;
-		system(qq{	cd $OH; for i in @libpth;
-		do echo "  searching \$i ..."; nm \$i | grep $::opt_s; done
-		});
-	}
-    print "Search done.\n";
-    print "(Please only include the 'interesting' parts when mailing.)\n";
-    exit;
-}
+symbol_search() if $::opt_s or $::opt_S;
 
 
 # --- How shall we link with Oracle? Let me count the ways...
@@ -163,18 +155,21 @@ elsif ($os eq 'MSWin32') {
 # --- UNIX Variants ---
 
 elsif (@_=grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } <$OH/lib/lib*>
-	and !defined $::opt_m) {			# use -m 0 to disable this direct-link approach
+	and !defined $::opt_m) {  # use -m 0 to disable this direct-link approach
     # --- the simple modern way ---
     foreach(@_) { s:\Q$OH/lib/::g }
     print "Found direct-link candidates: @_\n";
     my $lib = ("@_" =~ m:lib(cl(ie)?ntsh)\.:) ? $1 : "oracle";
     $linkwith_msg = "-l$lib.";
-    my $syslibs = read_file("$OH/rdbms/lib/sysliblist");
+    my $syslibs =   (-f "$OH/lib/sysliblist")
+	    ? read_file("$OH/lib/sysliblist")
+	    : read_file("$OH/rdbms/lib/sysliblist");
     $syslibs =~ s/-l:lib(\w+).sl\b/-l$1/g;	# for hp-ux
     print "Oracle sysliblist: $syslibs\n";
     $opts{LIBS} = [ "-L$OH/lib -l$lib $syslibs" ];
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
-    $opts{INC}  = "-I$OH/rdbms/demo -I$dbi_arch_dir";
+    my $inc = join " ", map { "-I$OH/$_" } find_headers();
+    $opts{INC}  = "$inc -I$dbi_arch_dir";
 }
 else {	# --- trawl the guts of Oracle's make files looking the how it wants to link
 
@@ -218,7 +213,8 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     $opts{LIBS} = [ "-L$libhome $linkwith_s" ];
     my $compobj = '$(COMPOBJS)';
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g @linkwith_o $compobj" };
-    $opts{INC}  = "$OCIINCLUDE -I$dbi_arch_dir";
+    my $inc = join " ", map { "-I$OH/$_" } find_headers();
+    $opts{INC}  = "$OCIINCLUDE $inc -I$dbi_arch_dir";
 }
 
 
@@ -599,7 +595,7 @@ sub mkvar {
 sub read_file {
     my $file = shift;
     unless (open(ROL, "<$file")) {
-	warn "Unable to open $file: $!";
+	warn "WARNING: Unable to open $file: $!\n";
 	return "";
     }
     my $text = join "", <ROL>;
@@ -617,6 +613,45 @@ sub find_bin{
     }
     return "<$bin not found>";
 }
+
+
+sub find_headers {
+    my (%h_dir, @h_dir);
+    find( sub {
+	return unless /^o(ci...|ratypes)\.h$/i;
+	my $dir = $File::Find::dir;
+	$dir =~ s:^\Q$OH/::;
+	$h_dir{$dir} = $_;
+	print "Found $dir/$_\n" if $::opt_v;
+    }, "$OH/rdbms" );
+    @h_dir = keys %h_dir;
+    print "Found header files in @h_dir.\n" if @h_dir;
+    return @h_dir;
+}
+
+
+sub symbol_search {
+    $::opt_s ||= $::opt_S;
+    print "Searching for symbol '$::opt_s' in $OH ...\n";
+    my $dlext = $Config{dlext};
+    system(qq{	cd $OH; for i in lib/*.[ao] lib/*.$dlext */lib/*.[ao];
+	do echo "  searching oracle \$i ..."; nm \$i | grep $::opt_s; done
+    });
+    if ($::opt_S) {
+	my @libpth = split ' ', $Config{libpth};
+	print "Searching for symbol '$::opt_s' in @libpth ...\n";
+	@libpth = map { ("$_/lib*.$dlext", "$_/lib*.a") } @libpth;
+	system(qq{	cd $OH; for i in @libpth;
+	    do echo "  searching \$i ..."; nm \$i | grep $::opt_s; done
+	});
+    }
+    print "Search done.\n";
+    print "(Please only include the 'interesting' parts when mailing.)\n";
+    exit;
+}
+
+
+# =====================================================================
 
 
 {

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.35 1998/06/01 18:34:16 timbo Exp $
+   $Id: dbdimp.c,v 1.36 1998/06/03 21:04:51 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -403,7 +403,7 @@ free_cursor(sth, imp_sth)
     SV *sth;
     imp_sth_t *imp_sth;
 {
-    if (DBIc_ACTIVE(imp_sth))	/* should never happen here	*/
+    if (DBIc_ACTIVE(imp_sth)) /* should never happen here	*/
 	ocan(imp_sth->cda);
 
     if (oclose(imp_sth->cda)) {	/* close the cursor		*/
@@ -935,7 +935,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	/* force SvPOK true before following tests		*/
 	if (dbis->debug >= 2)
 	    fprintf(DBILOGFP,
-		"         bind warning: forcing placeholder flags: type %d, flags 0x%lx\n",
+		"         bind warning: forcing placeholder flags: type %l, flags 0x%lx\n",
 		SvTYPE(ph_namesv), SvFLAGS(ph_namesv));
 	name = SvPV(ph_namesv, name_len);
     }
@@ -1381,8 +1381,8 @@ dbd_st_destroy(sth, imp_sth)
 
     /* Check if an explicit disconnect() or global destruction has	*/
     /* disconnected us from the database before attempting to close.	*/
-    if (DBIc_ACTIVE(imp_dbh) && DBIc_ACTIVE(imp_sth)) {
-	free_cursor(sth, imp_sth);	/* ignore errors here */
+    if (DBIc_ACTIVE(imp_dbh)) {
+	free_cursor(sth, imp_sth);		/* ignore errors here	*/
 	/* fall through anyway to free up our memory */
     } 
 

@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.50 1998/06/01 18:34:16 timbo Exp $
+#   $Id: Oracle.pm,v 1.51 1998/06/03 21:04:51 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.49';
+$DBD::Oracle::VERSION = '0.50';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -22,7 +22,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use Exporter ();
     @ISA = qw(DynaLoader Exporter);
 
-    my $Revision = substr(q$Revision: 1.50 $, 10);
+    my $Revision = substr(q$Revision: 1.51 $, 10);
 
     require_version DBI 0.92;
 
@@ -95,10 +95,14 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    warn "Loading $d/tnsnames.ora\n" if $debug;
 	    while (<FH>) {
 		next unless m/^\s*([-\w\.]+)\s*=/;
-		if ($debug) {
-		    warn "Found $1. ".($dbnames{$1} ? "(oratab entry overridded)" : "")."\n";
+		my $name = $1;
+		warn "Found $name. ".($dbnames{$name} ? "(oratab entry overridden)" : "")."\n"
+		    if $debug;
+		$dbnames{$name} = 0; # exists but false (to distinguish from oratab)
+		if ($name =~ /^([-\w]+)\.([-\w\.]+)/ && !exists $dbnames{$1}) {
+		    warn " also $1. \n" if $debug;
+		    $dbnames{$1} = 0; # exists but false (to distinguish from oratab)
 		}
-		$dbnames{$1} = 0; # exists but false (to distinguish from oratab)
 	    }
 	    close FH;
 	    last;
