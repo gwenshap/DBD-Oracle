@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.60 2000/07/13 22:42:02 timbo Exp $
+   $Id: dbdimp.c,v 1.61 2000/07/14 21:52:08 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -454,8 +454,8 @@ dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)
 	imp_dbh->RowCacheSize = SvIV(valuesv);
     }
     else if (kl==11 && strEQ(key, "ora_ph_type")) {
-        if (SvIV(valuesv)!=1 && SvIV(valuesv)!=5)
-	    croak("ora_ph_type must be either 1 (VARCHAR2) or 5 (STRING)");
+        if (SvIV(valuesv)!=1 && SvIV(valuesv)!=5 && SvIV(valuesv)!=96 && SvIV(valuesv)!=97)
+	    croak("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
 	imp_dbh->ph_type = SvIV(valuesv);
     }
     else {
@@ -820,6 +820,7 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 }
 
 
+#ifdef OCI_V8_SYNTAX
 #ifndef MM_CURSOR_FIX
 /*
  * Rebind an "in" cursor ref to its real statement handle
@@ -858,6 +859,7 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	fprintf(DBILOGFP, "    pp_rebind_ph_rset_in: END\n");
     return 2;
 }
+#endif
 #endif
 
 
