@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.44 1996/06/21 21:19:48 timbo Exp $
+# $Id: Makefile.PL,v 1.45 1996/06/22 02:09:29 timbo Exp $
 
 require 5.002;
 
@@ -90,7 +90,7 @@ if ($::opt_s) {
 	exit;
 }
 
-if ($Config{osname} eq 'solaris' and $Config{osver} == 2.5
+if ($Config{osname} eq 'solaris' and $Config{osvers} == 2.5
 		and $linkwith_s =~ /-lthread/) {
 	warn "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
 	warn "Deleting -lthread from link list as a possible workround.\n";
@@ -137,6 +137,7 @@ if ($ENV{LOGNAME} eq 'timbo' and $ENV{S_ARCH_SW}){  # a reasonable guess
 # log key platform information to help me help you quickly
 print "System: perl$] @Config{qw(myuname)}\n";
 print "Compiler: @Config{qw(cc optimize ccflags)}\n";
+print "Linker:   ". find_bin('ld') ."\n";
 print "Oracle proc.mk would have used these values but we override them:\n";
 print "  CC:       $MK{CC}\n"		if $MK{CC};
 print "  CFLAGS:   $MK{CFLAGS}\n"	if $MK{CFLAGS};
@@ -337,6 +338,13 @@ sub mkvar {
     $MK{$var} ? expand_mkvars($MK{$var}, $strip, $backtick) : $default;
 }
 
+sub find_bin{
+	my $bin = shift;
+	foreach(split(/:/, $ENV{PATH})){
+		return "$_/$bin" if -x "$_/$bin";
+	}
+	return "<$bin not found>";
+}
 
 {	# If perl Makefile.PL *-g* then switch on debugging
     package MY; # SUPER needs package context, $self is not sufficient

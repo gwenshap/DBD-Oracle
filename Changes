@@ -1,3 +1,8 @@
+Changes in DBD::Oracle 0.35 (Oraperl 1.28), 21st June 1996
+
+	Fixed broken Solaris 2.5 check in Makefile.PL.
+	Added ld path to the log.
+
 Changes in DBD::Oracle 0.34 (Oraperl 1.28), 21st June 1996
 
 	Workaround Solaris 2 bug #1224467 (_rmutex_unlock).
