@@ -87,6 +87,7 @@ sub db_handle
     my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
         AutoCommit => 1,
         PrintError => 1,
+        ora_envhp  => 0,
     });
     return $dbh;
 }
