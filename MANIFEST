@@ -1,37 +1,4 @@
 Changes
-MANIFEST
-Makefile.PL
-Oracle.ex/README
-Oracle.ex/bind.pl
-Oracle.ex/commit.pl
-Oracle.ex/curref.pl
-Oracle.ex/ex.pl
-Oracle.ex/japh
-Oracle.ex/mktable.pl
-Oracle.ex/oradump.pl
-Oracle.ex/proc.pl
-Oracle.ex/sql
-Oracle.ex/tabinfo.pl
-Oracle.h
-Oracle.pm
-Oracle.xs
-Oraperl.pm
-README
-README.aix
-README.clients
-README.explain
-README.help
-README.hpux
-README.java
-README.login
-README.linux
-README.longs
-README.macosx
-README.sec
-README.utf8
-README.win32
-README.wingcc	Notes about building with mingw32 and cygwin32
-Todo
 dbdimp.c
 dbdimp.h
 hints/dgux.pl
@@ -40,18 +7,55 @@ hints/macos_lib.syms
 hints/macos_syms.pl
 hints/svr4.pl
 lib/DBD/Oracle/GetInfo.pm
-oci.def		OCI.DLL export declarations
+Makefile.PL
+MANIFEST
+META.yml			Module meta-data (added by MakeMaker)
+oci.def				OCI.DLL export declarations
 oci8.c
 ocitrace.h
 ora_explain.PL
-oraperl.ph	Old oraperl file included for completeness of emulation
+Oracle.ex/bind.pl
+Oracle.ex/commit.pl
+Oracle.ex/curref.pl
+Oracle.ex/ex.pl
+Oracle.ex/japh
+Oracle.ex/mktable.pl
+Oracle.ex/oradump.pl
+Oracle.ex/proc.pl
+Oracle.ex/README
+Oracle.ex/sql
+Oracle.ex/tabinfo.pl
+Oracle.h
+Oracle.pm
+Oracle.xs
+oraperl.ph			Old oraperl file included for completeness of emulation
+Oraperl.pm
+README
+README.aix
+README.clients
+README.explain
+README.help
+README.hpux
+README.java
+README.linux
+README.login
+README.longs
+README.macosx
+README.sec
+README.utf8
+README.win32
+README.wingcc			Notes about building with mingw32 and cygwin32
+t.22nchar_utf16.t
 t/01base.t
 t/10general.t
 t/15nls.t
 t/20select.t
 t/21nchar.t
+t/22nchar_al32utf8.t
 t/22nchar_utf8.t
 t/23wide_db.t
+t/23wide_db_8bit.t
+t/23wide_db_al32utf8.t
 t/24implicit_utf8.t
 t/25plsql.t
 t/30long.t
@@ -59,5 +63,7 @@ t/40ph_type.t
 t/50cursor.t
 t/60reauth.t
 t/70meta.t
+t/nchar_test_lib.pl
+test.pl
+Todo
 typemap
-META.yml                                 Module meta-data (added by MakeMaker)
