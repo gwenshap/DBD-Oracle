@@ -294,8 +294,7 @@ ora_lob_read(dbh, locator, offset, length)
         SvCUR(dest_sv) = amtp; /* always bytes here */
         *SvEND(dest_sv) = '\0';
     }
-    if ( csid ) 
-       DBD_SET_UTF8(dest_sv);
+    DBD_SET_UTF8(dest_sv,csid);
     ST(0) = dest_sv;
 
 void

@@ -34,7 +34,7 @@ sub nchar_cols
 sub wide_data
 {
     [
-        [ "\x{03}",   "control-C"        ],
+        [ "\x{03}",   "control-C"        ], 
         [ "a",        "lowercase a"      ],
         [ "b",        "lowercase b"      ],
         [ "\x{08A1}", "upside down bang" ],
@@ -46,12 +46,12 @@ sub wide_data
 sub narrow_data
 {
     [
-        [ "\x{03}", "control-C"        ],
+        [ chr(3),   "control-C"        ],
         [ "a",      "lowercase a"      ],
         [ "b",      "lowercase b"      ],
-        [ "\x{A1}", "upside down bang" ],
-        [ "\x{A2}", "cent char"        ],
-        [ "\x{A3}", "brittish pound"   ],
+        [ chr(161), "upside down bang" ],
+        [ chr(162), "cent char"        ],
+        [ chr(163), "brittish pound"   ],
     ];
 }
 sub utf8_narrow_data
@@ -159,7 +159,9 @@ sub insert_rows #1 + rows*2 +rows*ncols tests
     my $trows = $tdata->{rows};
     my $tcols = $tdata->{cols};
     my $table = table();
+    $dbh->trace(0);
     my $sth = insert_handle($dbh, $tcols);
+
     my $cnt = 0;
     foreach my $rowR ( @$trows )
     {
@@ -168,42 +170,47 @@ sub insert_rows #1 + rows*2 +rows*ncols tests
         ok(  $sth->bind_param( $colnum++ ,$cnt ) ,"bind_param idx" );
         for( my $i = 0; $i < @$rowR; $i++ )
         {
-            my $note = '';
+            my $note = 'withOUT attribute ora_csform';
             my $val = $$rowR[$i];
             my $type = $$tcols[$i][1];
             #print "type=$type\n";
             my $attr = {};
-            if ( $type =~ m/^nchar|^nvar|^nclob/i )
+            if ( $type =~ m/^nchar|^nvar|^nclob/i ) 
             {
                 $attr = $attrR;
                 $note = $attr && $csform ? "with attribute { ora_csfrom => $csform }" : "";
-            }
+            } 
             ok( $sth->bind_param( $colnum++ ,$val ,$attr ) ,"bind_param " . $$tcols[$i][0] ." $note" );
         }
         ok( $sth->execute ,"insert row $cnt" );
         $cnt++;
     }
+    $dbh->trace(0);
 }
 sub dump_table
 {
-    my ( $dbh ,$col ) = @_;
+    my ( $dbh ,@cols ) = @_;
     my $table = table();
-    my $sql = "select dump($col) from $table order by idx" ;
+    my $colstr = '';
+    foreach my $col ( @cols ) {
+        $colstr .= ", " if $colstr;
+        $colstr .= "dump($col)"
+    }
+    my $sql = "select $colstr from $table order by idx" ;
     my $sth = $dbh->prepare( $sql );
-    print "prepared: $sql\n" ;
+    print "dumping $table\nprepared: $sql\n" ;
     my $colnum = 0;
     my @data = ();;
-#    foreach my $col ( @$tcols )
-    {
-        $sth->bind_col( $colnum+1 ,\$data[$colnum] );
-        $colnum++;
-    }
     $sth->execute();
     my $cnt = 0;
-    while ( $sth->fetch() )
-    {
+    while ( my $aref = $sth->fetchrow_arrayref() ) {
         $cnt++;
-        printf "row %3d: %s= %s\n", $cnt ,$col ,$data[0] ;
+        my $colnum = 0;
+        foreach my $col ( @cols ) {
+            print "row $cnt: " ; 
+            print "$col=" .$$aref[$colnum] ."\n";
+            $colnum++;
+        }
     }
 }
 sub select_handle #1 test
@@ -216,8 +223,10 @@ sub select_handle #1 test
         $sql .= $$col[0] . ", ";
     }
     $sql .= "dt from $table order by idx" ;
+$dbh->trace(0) ;
     my $h = $dbh->prepare( $sql );
     ok( $h ,"prepared: $sql" );
+$dbh->trace(0) ;
     return $h;
 }
 sub select_test_count 
@@ -233,7 +242,6 @@ sub select_rows # 1 + numcols + rows * cols * 2
     my $table = table();
     my $trows = $tdata->{rows};
     my $tcols = $tdata->{cols};
-# $dbh->trace( 5 );
     my $sth = select_handle($dbh,$tdata);
     my @data = ();
     my $colnum = 0;
@@ -254,14 +262,21 @@ sub select_rows # 1 + numcols + rows * cols * 2
                     byte_string($$trows[$cnt][$i] ),
                     "byte_string test of row $cnt; column: " .$$tcols[$i][0] .$is_utf8
                     );
-            cmp_ok( nice_string($res), 'eq',
-                    nice_string($$trows[$cnt][$i] ),
-                    "nice_string test of row $cnt; column: " .$$tcols[$i][0] .$is_utf8
-                    );
+            if ( 1 or nls_lang_is_utf8() ) {
+                cmp_ok( nice_string($res), 'eq',
+                        nice_string($$trows[$cnt][$i] ),
+                        "nice_string test of row $cnt; column: " .$$tcols[$i][0] .$is_utf8
+                        );
+            } else {
+                cmp_ok( $res, 'eq',$$trows[$cnt][$i],
+                        "nice_string test of row $cnt; column: " .$$tcols[$i][0] .$is_utf8
+                        );
+            }
+            $sth->trace(0) if $cnt >= 3 ;
         }
         $cnt++;
     }
-# $dbh->trace( 0 );
+    $sth->trace(0);
     my $trow_cnt = @$trows;
     cmp_ok( $cnt, '==', $trow_cnt, "number of rows fetched" );
 }
@@ -284,6 +299,10 @@ sub create_table
         $dbh->do(qq{ drop table $table });
         warn "Unexpectedly had to drop old test table '$table'\n" unless $dbh->err;
         $dbh->do($sql);
+    } else {
+       #$sql =~ s/ \( */(\n\t/g;
+       #$sql =~ s/, */,\n\t/g;
+       print "$sql\n" ;
     }
     return 1;
 #    ok( not $dbh->err, "create table $table..." );
@@ -304,7 +323,26 @@ sub db_is_ascii    { my ($dbh) = @_; return  ( $dbh->ora_nls_parameters()->{'NLS
 sub db_is_utf8     { my ($dbh) = @_; return  ( $dbh->ora_nls_parameters()->{'NLS_CHARACTERSET'}       =~ m/UTF/i ); }
 sub nchar_is_utf8  { my ($dbh) = @_; return  ( $dbh->ora_nls_parameters()->{'NLS_NCHAR_CHARACTERSET'} =~ m/UTF/i ); }
 
-sub set_nls_charset
+sub nls_lang_is_utf8
+{
+   return 0 if not defined $ENV{NLS_LANG};
+   return ( $ENV{NLS_LANG} =~ m/utf8/i );
+}
+sub set_nls_nchar
+{
+    my ($cset,$verbose) = @_;
+    if ( defined $cset ) {
+        $ENV{NLS_NCHAR} = "$cset"
+    } else {
+        undef $ENV{NLS_NCHAR};
+    }
+    print defined $ENV{NLS_NCHAR} ?
+        "set \$ENV{NLS_NCHAR}=$cset\n" :
+        "set \$ENV{NLS_LANG}=undef\n"
+            if defined $verbose;
+}
+
+sub set_nls_lang_charset
 {
     my ($lang,$verbose) = @_;
     if ( $lang ) {
@@ -313,18 +351,6 @@ sub set_nls_charset
     } else {
         $ENV{NLS_LANG} = "";
         print "set \$ENV{NLS_LANG}=''\n" if ( $verbose );
-    }
-}
-sub default_nls_lang
-{
-    my ($lang,$verbose) = @_;
-    if ( not $ENV{NLS_LANG} ) { 
-        $ENV{NLS_LANG} = $lang;
-        warn "\nNLS_LANG was not defined"
-           . "\nsetting NLS_LANG=$lang\n" if $verbose
-
-    } else {
-        warn "\nNLS_LANG=" .$ENV{NLS_LANG}. "\n" if $verbose;
     }
 }
 

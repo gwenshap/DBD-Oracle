@@ -484,6 +484,8 @@ ora_utf8_to_bytes (ub1 *buffer, ub4 chars_wanted, ub4 max_bytes)
     return (i < max_bytes)? i : max_bytes;
 }
 
+
+#if 0 /* save this for later just in case... */
 /* Given the 5.6.0 implementation of utf8 handling in perl,
  * avoid setting the UTF8 flag as much as possible. Almost
  * every binary operator in Perl will do conversions when
@@ -491,25 +493,22 @@ ora_utf8_to_bytes (ub1 *buffer, ub4 chars_wanted, ub4 max_bytes)
  * Maybe setting the flag should be default in Japan or
  * Europe? Deduce that from NLS_LANG? Possibly...
  */
-/* #define DBD_SET_UTF8(sv)   (cs_is_utf8? set_utf8(sv): 0) */
 
-int 
+int
 set_utf8(SV *sv) {
     ub1 *c;
     for (c = (ub1*)SvPVX(sv); c < (ub1*)SvEND(sv); c++) {
-	if (*c & 0x80) {
-	    SvUTF8_on(sv);
-	    return 1;
-	}
+       if (*c & 0x80) {
+           SvUTF8_on(sv);
+           return 1;
+       }
     }
     return 0;
 }
-/* #else
-   #define DBD_SET_UTF8(sv)   0
-*/
-
+#endif
 #endif
 
+/* PerlIO_printf(DBILOGFP, "lab datalen=%d long_readlen=%d bytelen=%d\n" ,datalen ,imp_sth->long_readlen, bytelen ); */
 static int	/* LONG and LONG RAW */
 fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 {
@@ -522,7 +521,7 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
     p += 4;
 
 #ifdef UTF8_SUPPORT
-    if (cs_is_utf8 && fbh->ftype == 94) {
+    if (fbh->ftype == 94) {
 	if (datalen > imp_sth->long_readlen) {
 	    ub4 bytelen = ora_utf8_to_bytes((ub1*)p, (ub4)imp_sth->long_readlen, datalen);
 
@@ -545,7 +544,7 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 		    return 0;
 		}
 
-		if (DBIS->debug >= 3)
+		if (DBIS->debug >= 3) 
 		    PerlIO_printf(DBILOGFP, "       fetching field %d of %d. LONG value truncated from %lu to %lu.\n",
 			    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth),
 			    ul_t(datalen), ul_t(bytelen));
@@ -553,7 +552,7 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	    }
 	}
 	sv_setpvn(dest_sv, p, (STRLEN)datalen);
-	DBD_SET_UTF8(dest_sv);
+	DBD_SET_UTF8(dest_sv,fbh->csid);
     } else {
 #else
     {
@@ -736,7 +735,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
     SvCUR_set(dest_sv, byte_destoffset+amtp);
     *SvEND(dest_sv) = '\0'; /* consistent with perl sv_setpvn etc	*/
     SvPOK_on(dest_sv);
-    DBD_SET_UTF8(dest_sv);
+    DBD_SET_UTF8(dest_sv,csid);
 
     return 1;
 }
@@ -960,9 +959,8 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	/* tell perl what we've put in its dest_sv */
 	SvCUR(dest_sv) = amtp;
 	*SvEND(dest_sv) = '\0';
-	if (fbh->ftype == 112 && (cs_is_utf8 || csform == SQLCS_NCHAR))
-	    DBD_SET_UTF8(dest_sv);
-	
+        DBD_SET_UTF8(dest_sv,csid);
+        SvUTF8_on(dest_sv);	
         ora_free_templob(sth, imp_sth, lobloc);
     }
     else {			/* LOB length is 0 */
@@ -1124,10 +1122,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		/* FALLTHRU */
 	case  96:				/* CHAR		*/
 		fbh->disize = fbh->dbsize;
-#ifdef UTF8_SUPPORT
-		if (cs_is_utf8)
+		if (CS_IS_UTF8(fbh->csid)) 
 		    fbh->disize = fbh->dbsize * 4;
-#endif
 		fbh->prec   = fbh->disize;
 		break;
 	case  23:				/* RAW		*/
@@ -1148,12 +1144,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 
 	case   8:				/* LONG		*/
-#ifdef UTF8_SUPPORT
-	    if (cs_is_utf8)
-		fbh->disize = long_readlen * 4;
-	    else
-#endif
-		fbh->disize = long_readlen;
+                if (CS_IS_UTF8(fbh->csid)) 
+                    fbh->disize = long_readlen * 4;
+                else
+                    fbh->disize = long_readlen;
+
                 /* not governed by else: */
 		fbh->dbsize = (fbh->disize>65535) ? 65535 : fbh->disize;
 		fbh->ftype  = 94; /* VAR form */
@@ -1299,12 +1294,16 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	}
 
 #ifdef OCI_ATTR_CHARSET_ID
-        if ( 1 && (fbh->dbtype == 1) ) {
-            ub2 csid = ( fbh->csform == SQLCS_NCHAR ) ? ncharsetid : charsetid; 
+        if ( (fbh->dbtype == 1) ) { /*  && (fbh->csform == SQLCS_NCHAR) && CS_IS_UTF8(ncharsetid) ) { */
+            /* ok... after doing what tim asked: setting SvUTF8 strictly based on csid 8bit Nchar test was broken
+               and this currently effectively just sets Attrs to the values in fhb ignoring ncharsetid altogether 
+               probably wrong
+             */
+            ub2 csid = ( fbh->csform == SQLCS_NCHAR ) ? ncharsetid : charsetid; /* fbh->csid; */  
             ub1 csform = fbh->csform;
 	    /* docs say must set OCI_ATTR_CHARSET_FORM before OCI_ATTR_CHARSET_ID */
             if (DBIS->debug >= 3)
-               PerlIO_printf(DBILOGFP, "    calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
+               PerlIO_printf(DBILOGFP, "     calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csform, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
             if (status != OCI_SUCCESS) {
@@ -1432,7 +1431,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 			--datalen;
 		}
 		sv_setpvn(sv, p, (STRLEN)datalen);
-		DBD_SET_UTF8(sv);
+		DBD_SET_UTF8(sv,fbh->csid);
 	    }
 
 	} else if (rc == 1405) {	/* field is null - return undef	*/
@@ -1448,7 +1447,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 		    /* but it'll only be accessible via prior bind_column()	*/
 		    sv_setpvn(sv, (char*)&fb_ary->abuf[0],
 			  fb_ary->arlen[0]);
-		    DBD_SET_UTF8(sv);
+		    DBD_SET_UTF8(sv,fbh->csid);
 		}
 		if (ora_dbtype_is_long(fbh->dbtype))	/* double check */
 		    hint = ", LongReadLen too small and/or LongTruncOk not set";
@@ -1729,7 +1728,8 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	    lob_cols_hv = newHV();
 	sv = newSViv(col_dbtype);
 	(void)sv_setpvn(sv, col_name, col_name_len);
-	DBD_SET_UTF8(sv);
+	/* PerlIO_printf(DBILOGFP, "lab   fbh->csid=%d\n", fbh->csid ); */
+	DBD_SET_UTF8(sv,fbh->csid); 
 	(void)SvIOK_on(sv);   /* what a wonderful hack! */
 	hv_store(lob_cols_hv, col_name,col_name_len, sv,0);
     }

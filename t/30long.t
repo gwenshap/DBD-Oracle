@@ -146,16 +146,18 @@ sub run_long_tests
 
         $sqlstr = "select * from $table order by idx";
         ok($sth = $dbh->prepare($sqlstr), "prepare: $sqlstr" );
+        $sth->trace(0);
         ok($sth->execute, "execute: $sqlstr" );
-        ok($tmp = $sth->fetchall_arrayref, "fetch_arrayerf for $sqlstr" );
-
+        ok($tmp = $sth->fetchall_arrayref, "fetch_arrayref for $sqlstr" );
+        $sth->trace(0);
         SKIP: {
             if ($DBI::err && $DBI::errstr =~ /ORA-01801:/) {
                 # ORA-01801: date format is too long for internal buffer
                 skip " If you're using Oracle <= 8.1.7 then this error is probably\n"
                     ." due to an Oracle bug and not a DBD::Oracle problem.\n" , 5 ;
             }
-            cmp_ok(@$tmp ,'==' ,4 ,'four rows 5' );
+            cmp_ok(@$tmp ,'==' ,4 ,'four rows' );
+            #print "tmp->[0][1] = " .$tmp->[0][1] ."\n" ;
             ok($tmp->[0][1] eq substr($long_data0,0,$out_len),
                     cdif($tmp->[0][1], substr($long_data0,0,$out_len), "Len ".length($tmp->[0][1])) );
             ok($tmp->[1][1] eq substr($long_data1,0,$out_len),

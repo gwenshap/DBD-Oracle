@@ -23,7 +23,10 @@ SKIP: {
     plan skip_all => "Could not require or import utf8" if ($@);
     plan skip_all => "ORC_OCI < 8" if (! ORA_OCI >= 8);
 
-    set_nls_charset( 'UTF8' ,1 );
+    #force Ncharset to NON UTF8! we are testing a wide database where someone
+    #perversely sets nchar to non utf8, and nls_lang to utf8.... 
+    set_nls_lang_charset( 'UTF8' ,1 );
+    #set_nls_nchar( 'WE8ISO8859P1' ,1 ); #it breaks and it is stupid to do this... doc it XXX
     $dbh = db_handle();
 
     plan skip_all => "Not connected to oracle" if not $dbh;

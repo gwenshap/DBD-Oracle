@@ -1570,7 +1570,9 @@ in the previous section.
 
 When fetching data from Oracle, DBD::Oracle will set the perl UTF8
 flag on the returned data if Oracle indicates that the character
-set is UTF8 or AL32UTF8. XXX This should apply to all types
+set is UTF8 or AL32UTF8. 
+
+XXX This should apply to all types
 and be regardless of how/why the csid is a unicode one.
 
 [In other words cs_is_utf8 should be avoided. I think all uses of
@@ -1602,6 +1604,45 @@ TIM: I don't see any performance issue. We get csid anyway.
 Checking fbh->csid has to be faster than rummaging around in the data.
 Using the csid is the "correct" thing to do, anything else is a
 hack that'll cause bugs for someone somewhere.
+
+LAB: well I now agree, rummaging through the data does not seem to 
+be right. And it makes no difference now.  We still might have
+this problem, but if we do, I suspect the current routine that
+did it was no where near smart enough, I am hoping that it turns out
+that surrogates are used internally (and converted to transparently),
+and that also long as the csid is a UTF8 csid we will be ok.
+
+The problem with just setting SvUTF8_on when the
+COLUMN definition is uft8, is that it _IGNORES_ NLS_LANG or NLS_NCHAR
+(which does not work). cs_is_utf8 was atleast sort of correct
+because it was respecting the setting of NLS_LANG. (or the way it
+WAS implement ncharsetid).
+
+I have succeeded however is loosing both cs_is_utf8 AND the
+hacks in the init code which did getenv() or windoze registry calls
+to test if the NLS_LANG looked like utf8. (Yay).
+
+I have replaced the tests of cs_is_utf8 in various places in the code
+with explicit tests of either the csid retrieved from oracle (as fixed up), 
+or explicitly the ncharsetid.
+
+The DBD_SET_UTF8 macro now no longer rammages though the data, and I if
+ifdef'ed out the rummager. (but lets save this one... because I still
+do not have a very large wide character test).  DBD_SET_UTF8, currently
+ignores the csid argument, preferring to test ncharsetid. (This argument
+was added on the way to removing cs_is_utf8, and I did not want to rip
+it out everywhere until we are sure we will not want it).
+
+OK. So here is the broken case (based on all this work and testing):
+
+The perverse user sets NLS_NCHAR to something OTHER than
+an UTF8 charset, while at the same time seting NLS_LANG to a UTF8 charset,
+AND she is trying work with CHAR columns in a WIDE character database.
+In this case things will be broken.  Let's just tell her not to do that!  
+I tested this case (still in comments), in 23wide_db.t
+
+end XXX
+
 
 B<Sending Data using Placeholders>
 

@@ -17,7 +17,7 @@ SKIP: {
     plan skip_all => "Unable to run 8bit char test, perl version is less than 5.6" unless ( $] >= 5.006 );
     plan skip_all => "ORC_OCI < 8" if (! ORA_OCI >= 8);
 
-    set_nls_charset( 'WE8ISO8859P1' ,1 ); #   .WE8MSWIN1252 
+    set_nls_nchar( 'WE8ISO8859P1' ,1 ); #   .WE8MSWIN1252 
     $dbh = db_handle();
 
     if ( 0 ) {
@@ -30,8 +30,8 @@ SKIP: {
        exit(0);
     }
     plan skip_all => "Not connected to oracle" if not $dbh;
-    plan skip_all => "Oracle version < 9.2" if 0; # need a oracle 9i version test.... 
-    plan skip_all => "Database NCHAR character set is not a utf-N charset" if not nchar_is_utf8($dbh) ;
+    plan skip_all => "Oracle version < 9" if not ( ORA_OCI >= 9 ); 
+#    plan skip_all => "Database NCHAR character set is not a utf-N charset" if not nchar_is_utf8($dbh) ;
 
     print "testing control and 8 bit chars:\n" ;
     my $tdata = test_data( 'narrow_nchar' );

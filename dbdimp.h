@@ -239,10 +239,10 @@ int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
         csid = ncharsetid; \
     }
 
-#define DBD_SET_UTF8(sv)   (cs_is_utf8? set_utf8(sv): 0)
+#define DBD_SET_UTF8(sv,csid)   ( CS_IS_UTF8(ncharsetid) ? SvUTF8_on(sv) : 0 )
 
 #else /* UTF8_SUPPORT */
-#define DBD_SET_UTF8(sv)   0
+#define DBD_SET_UTF8(sv,csid)   0
 #define UTF8_FIXUP_CSID(csid,where)   0
 #endif /* UTF8_SUPPORT */
 

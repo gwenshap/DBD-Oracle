@@ -41,7 +41,7 @@ int is_extproc = 0;
 
 ub2 charsetid = 0;
 ub2 ncharsetid = 0;
-ub2 cs_is_utf8 = 0;
+/* ub2 cs_is_utf8 = 0; */
 ub2 utf8_csid = 871;
 ub2 al32utf8_csid = 873;
 ub2 al16utf16_csid = 2000; 
@@ -60,6 +60,7 @@ static sql_fbh_t ora2sql_type _((imp_fbh_t* fbh));
 void ora_free_phs_contents _((phs_t *phs));
 static void dump_env_to_trace();
 
+#if 0
 #ifdef WIN32
 int GetRegKey(char *key, char *val, char *data, int *size)
 {
@@ -77,6 +78,7 @@ int GetRegKey(char *key, char *val, char *data, int *size)
     return 1;
 }
 #endif
+#endif
 
 void
 dbd_init(dbistate)
@@ -91,6 +93,7 @@ dbd_init(dbistate)
     if ((p=getenv("DBD_ORACLE_SIGCHLD")))
 	ora_sigchld_restart = atoi(p);
 
+#if 0 /* lab now convinced this is wrong */
 #ifndef NEW_OCI_INIT
 /* lab: I think this is wrong, but I do not want to try 
  *      for for backwords compatibility with old oracles...
@@ -121,6 +124,7 @@ dbd_init(dbistate)
 	}
     }
 #endif
+#endif /* if 0 */
 
 }
 
@@ -544,18 +548,15 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 #endif 
 #endif
 
-    /* At this point we have charsetid & ncharsetid */
-
-    /* Nota Bene: while NLS_LANG and NLS_NCHAR are supposed to be distinct if they are both
-     * used, I can find no way to distinquish them.  So for now we will use the 
-     * ncharsetid as the id most likely to be a UTF8 charset.  If it becomes possible to
-     * distinquish later, we can get smarter.
-     */
-    cs_is_utf8 = CS_IS_UTF8( ncharsetid );
+    /* At this point we have charsetid & ncharsetid 
+    *  note that it is possible for charsetid and ncharestid to
+    *  be distinct if NLS_LANG and NLS_NCHAR are both used.
+    *  BTW: NLS_NCHAR is set as follows: NSL_LANG=AL32UTF8
+    */
     if (DBIS->debug >= 3) {
-	PerlIO_printf(DBILOGFP,"       cs_is_utf8=%d CHARSET_id=%d NCHARSET_id=%d "
+	PerlIO_printf(DBILOGFP,"       charsetid=%d ncharsetid=%d "
 	    "(csid: utf8=%d al32utf8=%d, al16utf16=%d)\n",
-	      cs_is_utf8,   charsetid,   ncharsetid, utf8_csid, al32utf8_csid, al16utf16_csid);
+	     charsetid,   ncharsetid, utf8_csid, al32utf8_csid, al16utf16_csid);
     }
 
 
@@ -1527,16 +1528,51 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     
     if ( rebind_ok )  /* here we set csform and csid if specified by user or utf8 input found */
     {
-        /* set csform implicitly if sv is UTF8 and it is not already set ... */
-        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && cs_is_utf8  /* && column supports utf8? */ ) {
-            if (DBIS->debug >= 2) {
-                PerlIO_printf(DBILOGFP, "      sv was UTF8, implicitly setting phs->csform=%d\n" ,SQLCS_NCHAR ); 
+        sword status;
+#if 0
+        /* lab: in order to get rid of cs_is_utf8 we need to know if the
+         *      charsetid (from the environment) _for_this_column_ is utf8
+         *      this means we need to know if the column is char or nchar
+         *      when we select data out...  And I tried this... it did not work
+         */
+        ub2 csid = 0;
+        ub1 csform = 0;
+        OCIAttrGet_log_stat( phs->bndhp ,(ub4)OCI_HTYPE_BIND, &csid ,NULL,
+				OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
+        if (status != OCI_SUCCESS) {
+            oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrGet (OCI_ATTR_CHARSET_ID)")); 
+            return 0;
+        }
+
+        OCIAttrGet_log_stat( phs->bndhp ,(ub4)OCI_HTYPE_BIND, &csform ,NULL,
+				OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
+        if (status != OCI_SUCCESS) {
+            oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrGet (OCI_ATTR_CHARSET_FORM)")); 
+            return 0;
+        }
+        if (DBIS->debug >= 2) { 
+                PerlIO_printf(DBILOGFP, "lab   got from bndhp: csid=%d csform=%d\n" ,csid ,csform ); 
+        }
+
+        /* set csform implicitly if sv is UTF8 and it is not already set and csid is uft8 */
+        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && cs_is_utf8 ) { 
+        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && CS_IS_UTF8(csid) ) { /* && column supports utf8? */ 
+        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && (CS_IS_UTF8(charsetid) || CS_IS_UTF8(ncharsetid)) ) {  
+
+#else
+        /* lab: OK, perhaps we should leave this the way it was... and just document that it will not work
+         * if the user perversely sets NLS_LANG to uft8 and NLS_NCHAR to something else...
+         * only to get rid of cs_is_utf8, we just explicitly test against ncharsetid:
+         */
+        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && (CS_IS_UTF8(ncharsetid)) ) {  
+#endif
+            if (DBIS->debug >= 2) { 
+                PerlIO_printf(DBILOGFP, "      sv and ncharsetid were UTF8: implicitly setting phs->csform=%d\n" ,SQLCS_NCHAR ); 
             }
             phs->csform = SQLCS_NCHAR;
         }
 
         if ( phs->csform != SQLCS_IMPLICIT ) {
-            sword status;
 	    /* docs say must set OCI_ATTR_CHARSET_FORM before OCI_ATTR_CHARSET_ID */
             OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
                 &phs->csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
@@ -1545,7 +1581,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
                 rebind_ok = 0;
             }
 
-            if (DBIS->debug >= 2) {
+            if (DBIS->debug >= 2) { 
                 PerlIO_printf(DBILOGFP, "       bind %s <== %s (type %ld, csform %d)\n",
                               name, neatsvpv(newvalue,0), (long)sql_type, phs->csform );
 
@@ -1796,7 +1832,11 @@ dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
     sv_setpvn(bufsv,"",0);	/* ensure it's writable string	*/
 
 #ifdef UTF8_SUPPORT
+#if 0
     if (ftype == 112 && cs_is_utf8) {
+#else
+    if (ftype == 112 && CS_IS_UTF8(ncharsetid) ) {
+#endif
       return ora_blob_read_mb_piece(sth, imp_sth, fbh, bufsv, 
 				    offset, len, destoffset);
     }
