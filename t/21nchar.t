@@ -31,7 +31,7 @@ push @widechars ,"\x{A2}" ;    #cent char (  )
 push @widechars ,"\x{A3}" ;    #Brittish Pound char (  )
 push @widechars ,"\x{263A}" if $ENV{DBD_NCHAR_SMILEY}; #smiley face from perl unicode man page
 my $charcnt = @widechars;
-plan tests => $testcount + $charcnt * 7;
+# plan tests => $testcount + $charcnt * 7;
 
 print "testing utf8 chars:\n" ;
 my $cnt = 1;
@@ -50,8 +50,8 @@ SKIP: {
        require utf8;
        import utf8;
     };
-    skip "could not require or import utf8" ,$testcount if $@ ;
-    skip "ORC_OCI < 8" ,$testcount, if (! ORA_OCI >= 8);
+    plan skip_all => "Could not require or import utf8" if ($@);
+    plan skip_all => "ORC_OCI < 8" if (! ORA_OCI >= 8);
 
     warn show_nls_info();
     my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
@@ -60,9 +60,10 @@ SKIP: {
         PrintError => 1,
     });
     #ok( $dbh ,"connect to oracle" ); $testcount--;
-    skip "not connected to oracle" ,$testcount if not $dbh;
-    skip "database NCHAR character set is not UTF8" ,$testcount if not check_ncharset() ;
+    plan skip_all => "Not connected to oracle" if not $dbh;
+    plan skip_all => "Database NCHAR character set is not UTF8" if not check_ncharset() ;
 
+    plan tests => $testcount + $charcnt * 7;
     #TODO need a oracle 9i version test.... I guess I could clone one from Makefile.PL...
 
 
@@ -143,7 +144,10 @@ SKIP: {
 }
 
 END {
-    $dbh->do(qq{ drop table $table }) if $dbh and not $ENV{'DBD_SKIP_TABLE_DROP'};
+    eval {
+        local $dbh->{PrintError} = 0;
+	$dbh->do(qq{ drop table $table }) if $dbh and not $ENV{'DBD_SKIP_TABLE_DROP'};
+    };
 }
 
 sub _achar { chr(ord("@")+$_[0]); }
