@@ -1,4 +1,45 @@
-Changes in DBD::Oracle 1.12   31th August 2001
+=head1 Changes in DBD-Oracle 1.13    xx March 2003  
+
+  Fixed null user issue when using OS Authentication thanks to Christopher R. Baker
+  Fixed precision for Raw types in oci7.c thanks to J.D. Laub.
+  Fixed LOB code for table names containing $ thanks to Wayne Volkmuth.
+  Fixed LOB synonym handling thanks to John Milton.
+  Fixed dbms_output_get to be immune to ora_ph_type changes thanks to Michael Fox.
+  Fixed to now not treat SUCCESS_WITH_INFO (eg ORA-28011) on connect as an error.
+
+  Updated table_info to decode SYS and SYSTEM to prepend 'SYSTEM ' thanks to Olga Voronina
+  Updated table_info and added get_info, foreign_key_info thanks to Steffen Goeldner.
+
+  Added that ShowErrorStatement is now enabled by default.
+  Added ParamValues attribute so ShowErrorStatement includes bind_param values.
+  Added experimental utf8 support thanks to Stefan Eissing.  See README.utf8
+  Added BFILE support thanks to David Hull.
+  Added :ora_session_modes export tag for ORA_SYSDBA ORA_SYSOPER constants,
+   added ORA_STRING and ORA_CHARZ to :ora_types export tag and added docs
+   for ora_ph_type attribute and other doc fixes, thanks to Michael A Chase.
+  Added t/cursor.t tests thanks to Jeffrey Horn.
+  Added ability to share connections between threads via ora_dbh_share
+    attribute, thanks to Gerald Richter.
+  Added ability to connect() via 'external process context', for embedding
+    Perl DBI into Oracle server, thanks to Jeff Horwitz.
+
+  Documentation changes:
+    Updated README.hpux thanks to Lincoln Baxter and Jay Strauss.
+    Documented ora_parse_lang, ora_auto_lob, and ora_check_sql prepare()
+      method attributes thanks to Michael A Chase.
+
+  Configuration and build related changes:
+    Added Win32 support on systems with multiple Oracle Homes thanks To Jeff Urlwin.
+    Fixed prototype for constant() thanks to Sreeji K Das.
+    Fixed warning in Oraperl.pm with recent perl versions thanks to Ilya V.Rachkov.
+    Fixed handling of shell backticks in make output during build rule discovery.
+    Fixed Win32 build using gcc thanks to Chris R. Donnelly and Michael A Chase.
+    Help HPUX configs by removing -l:libcl.a from liblist, thanks to Frans Postma.
+    Assorted improvements to Makefile.PL thanks to Michael A Chase and Stephen Clouse.
+    Updated tests and Oraperl.pm to not use old style connect (deprecated in DBI 1.33).
+
+
+=head1 Changes in DBD::Oracle 1.12   31th August 2001
 
   Improved LD_RUN_PATH code in Makefile.PL thanks to John Groenveld.
   Improved HPUX code in Makefile.PL thanks to H.Merijn Brand.
@@ -6,7 +47,7 @@ Changes in DBD::Oracle 1.12   31th August 2001
   Updated $dbh->primary_key_info() to new DBI spec thanks to Steffen Goeldner.
   Version 1.11 was skipped (uploaded to PAUSE with an error).
 
-Changes in DBD::Oracle 1.10   30th August 2001
+=head1 Changes in DBD::Oracle 1.10   30th August 2001
 
   Explicitly require DBI version 1.20 (or later).
   Support multiple oracle home's in Win32 registry thanks to Jeff Urlwin.
@@ -15,7 +56,7 @@ Changes in DBD::Oracle 1.10   30th August 2001
   Fixed t/ph_type.t to be better behaved thanks to Ville Skytta.
   Added OCI8 handle/descriptor name to trace output for some API calls.
 
-Changes in DBD::Oracle 1.09   27th August 2001
+=head1 Changes in DBD::Oracle 1.09   27th August 2001
 
   Changed behaviour when OCIStmtExecute() returns OCI_SUCCESS_WITH_INFO:
     used to be treated as OCI_SUCCESS, now also sets $DBI::err/$DBI::errstr
@@ -57,7 +98,7 @@ Changes in DBD::Oracle 1.09   27th August 2001
     Added more notes to README.java thanks to Peter Ludemann and Dave C.
     Added more notes to README.login thanks to Geoff Young.
 
-Changes in DBD::Oracle 1.08 7th August 2001
+=head1 Changes in DBD::Oracle 1.08 7th August 2001
 
   Fix Oracle 7 build broken in previous release.
   Fix for 64bit builds thanks to Alan Burlison.
@@ -67,7 +108,7 @@ Changes in DBD::Oracle 1.08 7th August 2001
     when using Oracle >= 8.1.x (untested at the moment)
   Updated Makefile.PL and README.hpux thanks to Lincoln Baxter.
 
-Changes in DBD::Oracle 1.07 5th June 2001
+=head1 Changes in DBD::Oracle 1.07 5th June 2001
 
   This release is mostly targeted at the needs of the new Oracle::OCI module.
     It's not a general release and not recommended for production use.
@@ -85,12 +126,12 @@ Changes in DBD::Oracle 1.07 5th June 2001
     in relation to the start of some basic array support.
   Updated email and web page details to dbi-users@perl.org and dbi.perl.org.
 
-Changes in DBD::Oracle 1.06 14th July 2000
+=head1 Changes in DBD::Oracle 1.06 14th July 2000
 
   Fixed ora_ph_type attribute to allow 96 or 97.
   Fixed compile failure with Oracle 7.
 
-Changes in DBD::Oracle 1.05 13th July 2000
+=head1 Changes in DBD::Oracle 1.05 13th July 2000
 
   Added $dbh->{ora_ph_type} attribute to define default bind type:
      1=> VARCHAR2,  does strip trailing spaces, embedded \0 bytes okay
@@ -109,7 +150,7 @@ Changes in DBD::Oracle 1.05 13th July 2000
   Re-enable row cache by default for OCI8 (can give big speed increase).
   Fixed bug in OCI8 row cache calculation thanks to Greg Stark.
 
-Changes in DBD::Oracle 1.04 11th July 2000
+=head1 Changes in DBD::Oracle 1.04 11th July 2000
 
   Added info on workarounds for Java thread related linker errors
     on Solaris with Oracle 8.1.6. Thanks to Andi Lamprecht.
@@ -125,7 +166,7 @@ Changes in DBD::Oracle 1.04 11th July 2000
   Improved reliability of ping method.
   Fixed broken SQL type warning in bind_param.
 
-Changes in DBD::Oracle 1.03 12th July 1999
+=head1 Changes in DBD::Oracle 1.03 12th July 1999
 
   Added "perl Makefile.PL -b" configure option. Links DBD::Oracle
     using same linker args as Oracle's own OCI demo applications.
@@ -139,7 +180,7 @@ Changes in DBD::Oracle 1.03 12th July 1999
   Enhanced $dbh->func('plsql_errstr') output.
   Replaced old Oraperl examples with DBI/DBD::Oracle ones.
 
-Changes in DBD::Oracle 1.02 14th June 1999
+=head1 Changes in DBD::Oracle 1.02 14th June 1999
 
   LongReadLen no longer limited to 64KB for OCI 7 & 8!
     But beware of OCI 7 bug when fetching >64KB.
@@ -147,7 +188,7 @@ Changes in DBD::Oracle 1.02 14th June 1999
   Fixed OCI7 ref cursor missing data row.
   Fixed OCI8 LOB statement handle leak & improved trace.
 
-Changes in DBD::Oracle 1.01 8th June 1999
+=head1 Changes in DBD::Oracle 1.01 8th June 1999
 
   Enhanced diagnostics in t/long.t test suite.
   Removed byte with high-bit set from t/long.t test data.
@@ -156,7 +197,7 @@ Changes in DBD::Oracle 1.01 8th June 1999
   Added Cygwin support thanks to Alexander Smishlajev.
   Fixed 'undeclared identifier' error building with old Oracle's.
 
-Changes in DBD::Oracle 1.00 4th June 1999
+=head1 Changes in DBD::Oracle 1.00 4th June 1999
 
   Increased default row cache size for improved performance.
   Added OCI8 binding of cursors! Sponsored by cp.net.
@@ -175,14 +216,14 @@ Changes in DBD::Oracle 1.00 4th June 1999
   Fixed ora_check_sql prepare attribute (for selects).
   Fetch errors (non-row level) now turn off the Active attribute.
 
-Changes in DBD::Oracle 0.61, 9th April 1999
+=head1 Changes in DBD::Oracle 0.61, 9th April 1999
 
   Fixed execute() always returning 0 rows! (with OCI 7).
   Fixed $sth->bind_param(..., SQL_CHAR);
   Assorted minor Makefile.PL improvements.
   Added ora_check_sql attribute to prepare() for OCI8.
 
-Changes in DBD::Oracle 0.60, 10th March 1999
+=head1 Changes in DBD::Oracle 0.60, 10th March 1999
 
   Fetching all records now resets Active flag as it should.
   Finally fixed "Can't bind unknown placeholder" (hopefully :-).
@@ -201,7 +242,7 @@ Changes in DBD::Oracle 0.60, 10th March 1999
   Modified hints/svr4.pl - SVR4 users please test.
   Updated Alan Burlison's ora_explain Tk tool to version 1.0.
 
-Changes in DBD::Oracle 0.59 (Oraperl 1.37), 27th December 1998
+=head1 Changes in DBD::Oracle 0.59 (Oraperl 1.37), 27th December 1998
 
   Fixed detection of ambiguous LOB-param-to-table-field assignment
   (previous fix had typo). Only affects multiple LOBs in same table.
@@ -210,17 +251,17 @@ Changes in DBD::Oracle 0.59 (Oraperl 1.37), 27th December 1998
   Cleaned up the code.
   Improved Oracle 8 library selection code for Win32 (untested).
 
-Changes in DBD::Oracle 0.58 (Oraperl 1.37), 22nd December 1998
+=head1 Changes in DBD::Oracle 0.58 (Oraperl 1.37), 22nd December 1998
 
   Fixed detection of ambiguous LOB-param-to-table-field assignment.
   Added bind_param ora_field attribute to disambiguate if needed.
 
-Changes in DBD::Oracle 0.57 (Oraperl 1.37), 21st December 1998
+=head1 Changes in DBD::Oracle 0.57 (Oraperl 1.37), 21st December 1998
 
   Fixed bug preventing fetching LONGs when using OCI 8, better.
   (Oracle bug #641812 not involved. Should work for all 8.0.x)
 
-Changes in DBD::Oracle 0.56 (Oraperl 1.37), 19th December 1998
+=head1 Changes in DBD::Oracle 0.56 (Oraperl 1.37), 19th December 1998
 
   Fixed bug preventing fetching LONGs when using OCI 8.
   (Oracle bug #641812 may still cause failure prior to v8.0.5.)
@@ -228,7 +269,7 @@ Changes in DBD::Oracle 0.56 (Oraperl 1.37), 19th December 1998
   Fixed bug in table name detection code for OCI8 LOB refetch.
   SCALE & PRECISION work for OCI 7 & 8.
 
-Changes in DBD::Oracle 0.55 (Oraperl 1.37), 16th December 1998
+=head1 Changes in DBD::Oracle 0.55 (Oraperl 1.37), 16th December 1998
 
   Major internal work to support Oracle 8 OCI.
   Oracle 8 LOBs are supported and treated as LONGs (DBD::Oracle works
@@ -241,7 +282,7 @@ Changes in DBD::Oracle 0.55 (Oraperl 1.37), 16th December 1998
   Builds with 5.004_04, 5.005_02 and 5.005_54 (not _53).
   Added "use DBD::Oracle qw(:ora_types);"
 
-Changes in DBD::Oracle 0.54 (Oraperl 1.37), 14th August 1998
+=head1 Changes in DBD::Oracle 0.54 (Oraperl 1.37), 14th August 1998
 
   Added $dbh->type_info_all.
   Fixed $dbh->tables (partly by renaming to new $dbh->table_info).
@@ -253,14 +294,14 @@ Changes in DBD::Oracle 0.54 (Oraperl 1.37), 14th August 1998
   now be disabled by setting the env var DBD_ORACLE_SIGCHLD=0.
   Fixed Makefile.PL -c to better avoid shared Oracle lib.
 
-Changes in DBD::Oracle 0.53 (Oraperl 1.37), 3rd August 1998
+=head1 Changes in DBD::Oracle 0.53 (Oraperl 1.37), 3rd August 1998
 
   Further build fixes (esp kpudc problem with Oracle 8).
   Now prefers oracle.mk over proc.mk again.
   Only $ENV{ORA_CLIENT_LIB} ||= 'shared' if shared lib exists.
   Builds okay with 5.005-thread (not tested).
 
-Changes in DBD::Oracle 0.52 (Oraperl 1.37), 28th July 1998
+=head1 Changes in DBD::Oracle 0.52 (Oraperl 1.37), 28th July 1998
 
   Assorted build fixes (esp. Win32, HP-UX and AIX).
   More hints on error messages, especially long truncation and
@@ -268,7 +309,7 @@ Changes in DBD::Oracle 0.52 (Oraperl 1.37), 28th July 1998
   Compiles okay now for systems without SQLT_CUR defined.
   Only sets SA_RESTART on SIGCLD if connect was successful.
 
-Changes in DBD::Oracle 0.51 (Oraperl 1.37), 5rd July 1998
+=head1 Changes in DBD::Oracle 0.51 (Oraperl 1.37), 5rd July 1998
 
   Makefile.PL no longer tries to link with just -lclntsh directly :-(
   Improvements to some HP-UX builds (hopefully).
@@ -276,7 +317,7 @@ Changes in DBD::Oracle 0.51 (Oraperl 1.37), 5rd July 1998
   connect failure now shows actual Oracle error message again.
   Initial (incomplete) support for binding cursor vars (see t/plsql.t).
 
-Changes in DBD::Oracle 0.50 (Oraperl 1.36), 3rd June 1998
+=head1 Changes in DBD::Oracle 0.50 (Oraperl 1.36), 3rd June 1998
 
   Makefile.PL changes: fixed -c option, now searches for .h files,
   tries alternate location for sysliblist, checks for executable
@@ -284,7 +325,7 @@ Changes in DBD::Oracle 0.50 (Oraperl 1.36), 3rd June 1998
   Fixed cursor leak.
   Added first word of tnsnames.ora name as aliases if no clash.
 
-Changes in DBD::Oracle 0.49 (Oraperl 1.36), 1st June 1998
+=head1 Changes in DBD::Oracle 0.49 (Oraperl 1.36), 1st June 1998
 
   Further improvements to build process over 0.48.
   Fixed broken truncation error in 0.48.
@@ -293,7 +334,7 @@ Changes in DBD::Oracle 0.49 (Oraperl 1.36), 1st June 1998
   Added $sth->{ora_cache_rows} and $sth->{ora_est_row_width}
   as read-only attributes to make cache size logic easier to test.
 
-Changes in DBD::Oracle 0.48 (Oraperl 1.36), 25th May 1998
+=head1 Changes in DBD::Oracle 0.48 (Oraperl 1.36), 25th May 1998
 
   THIS IS AN EXPERIMENTAL RELEASE - USE WITH CAUTION!
   Now links to -lclntsh directly (Thanks to Bruce Nelson and others)
@@ -309,7 +350,7 @@ Changes in DBD::Oracle 0.48 (Oraperl 1.36), 25th May 1998
   Improved quality and clarity of trace information.
   Requires DBI 0.92
 
-Changes in DBD::Oracle 0.47 (Oraperl 1.35), 8th Sept 1997
+=head1 Changes in DBD::Oracle 0.47 (Oraperl 1.35), 8th Sept 1997
 
   $h->{InactiveDestroy} = 1; now works reliably (with DBI 0.90).
   Makefile.PL changed for Oracle8. Thanks to Philippe Vanhaesendonck.
@@ -323,7 +364,7 @@ Changes in DBD::Oracle 0.47 (Oraperl 1.35), 8th Sept 1997
   LongReadLen now works (if $Oraperl::ora_trunc unset or <= 0)
   LongTruncOk now works (for non oraperl mode handle).
 
-Changes in DBD::Oracle 0.46 (Oraperl 1.34), 20th June 1997
+=head1 Changes in DBD::Oracle 0.46 (Oraperl 1.34), 20th June 1997
 
   Fixed Makefile.PL to work with 5.004_01.
   Some VMS support from Dan Sugalski <sugalsd@stargate.lbcc.cc.or.us>
@@ -331,7 +372,7 @@ Changes in DBD::Oracle 0.46 (Oraperl 1.34), 20th June 1997
   bind_param_inout now checks for read-only variables.
   Requires DBI 0.84.
 
-Changes in DBD::Oracle 0.45 (Oraperl 1.33), 16th June 1997
+=head1 Changes in DBD::Oracle 0.45 (Oraperl 1.33), 16th June 1997
 
   A $dbh DESTROY without an explicit disconnect does a rollback.
   Note that this may 'break' existing 'lazy' code but is completely
@@ -373,7 +414,7 @@ Changes in DBD::Oracle 0.45 (Oraperl 1.33), 16th June 1997
   with the exception that it cannot be placed on a CD-ROM or similar media
   for commercial distribution without the prior approval of the author.
 
-Changes in DBD::Oracle 0.44 (Oraperl 1.30), 14th Jan 1997
+=head1 Changes in DBD::Oracle 0.44 (Oraperl 1.30), 14th Jan 1997
 
   Fixed leak in read_blob (thanks to Jurgen Botz for the patch).
   Improved automatic cache sizing (so better default caching).
@@ -388,7 +429,7 @@ Changes in DBD::Oracle 0.44 (Oraperl 1.30), 14th Jan 1997
   Makefile.PL deletes non-existant files from $(COMPOBJS)
   (thanks to aburlison@cix.compulink.co.uk for the original patch)
 
-Changes in DBD::Oracle 0.43 (Oraperl 1.30), 29nd Oct 1996
+=head1 Changes in DBD::Oracle 0.43 (Oraperl 1.30), 29nd Oct 1996
 
   Fixed serious 'false ora_errno 1 after short select' bug.
   Worked around oracle bug that makes cda->ft unreliable.
@@ -399,7 +440,7 @@ Changes in DBD::Oracle 0.43 (Oraperl 1.30), 29nd Oct 1996
   select between oexec() and oexfet() in execute().
   Added more internal debugging. Improved test.pl.
 
-Changes in DBD::Oracle 0.42 (Oraperl 1.30), 28nd Oct 1996
+=head1 Changes in DBD::Oracle 0.42 (Oraperl 1.30), 28nd Oct 1996
 
   Fixed serious 'cache empty after re-bind' bug.
   Do not use DBD::Oracle 0.41.
@@ -408,7 +449,7 @@ Changes in DBD::Oracle 0.42 (Oraperl 1.30), 28nd Oct 1996
   Many selects now make only one trip to Oracle (after prepare)
   which combines the execute and fetching multiple rows.
 
-Changes in DBD::Oracle 0.41 (Oraperl 1.30), 22nd Oct 1996
+=head1 Changes in DBD::Oracle 0.41 (Oraperl 1.30), 22nd Oct 1996
 
   Added the long overdue row cache to DBD::Oracle.
   (Thanks to Reetnem@aol.com for providing a patch that prompted
@@ -419,7 +460,7 @@ Changes in DBD::Oracle 0.41 (Oraperl 1.30), 22nd Oct 1996
   Added a more internal debugging.
   Further updates to the README files.
 
-Changes in DBD::Oracle 0.40 (Oraperl 1.29), 14th Oct 1996
+=head1 Changes in DBD::Oracle 0.40 (Oraperl 1.29), 14th Oct 1996
 
   WARNING - This release contains significant changes to the
   placeholding binding code. You should test it carefully
@@ -435,7 +476,7 @@ Changes in DBD::Oracle 0.40 (Oraperl 1.29), 14th Oct 1996
   Fixed bind_param ora_type attribute. Thanks to Stephen Zander
   for the patch.  Updated README's. Added README.longs.
 
-Changes in DBD::Oracle 0.39 (Oraperl 1.29), 23rd Sep 1996
+=head1 Changes in DBD::Oracle 0.39 (Oraperl 1.29), 23rd Sep 1996
 
   Fix for DEC "target := MACRO = string" Makefile syntax.
   Added README notes from Dave Moellenhoff, Lou Henefeld and others.
@@ -445,7 +486,7 @@ Changes in DBD::Oracle 0.39 (Oraperl 1.29), 23rd Sep 1996
   Extra parameters to ora_do are now passed to DBI's do().
   (This is an extension to the original oraperl ora_do.)
 
-Changes in DBD::Oracle 0.38 (Oraperl 1.28), 22th Aug 1996
+=head1 Changes in DBD::Oracle 0.38 (Oraperl 1.28), 22th Aug 1996
 
   Overhaul of Makefile variable parsing. Should now cope with
   complex variables which expand to nested shell escapes.
@@ -453,14 +494,14 @@ Changes in DBD::Oracle 0.38 (Oraperl 1.28), 22th Aug 1996
   Updated README, Makefile.PL and test.pl messages for clarity.
   Fixed possible memory corruption in dbd_bind_ph().
 
-Changes in DBD::Oracle 0.37 (Oraperl 1.28), 25th July 1996
+=head1 Changes in DBD::Oracle 0.37 (Oraperl 1.28), 25th July 1996
 
   Fixed Makefile.PL for Oracle 7.3.2.
   Fixed $num_fields = ora_fetch($csr) before first fetch for
   	queries with bind vars.
   Fixed occasional core dump on global destruct.
 
-Changes in DBD::Oracle 0.36 (Oraperl 1.28), 10th July 1996
+=head1 Changes in DBD::Oracle 0.36 (Oraperl 1.28), 10th July 1996
 
   Fixed bind_param ora_type attribute.
   Fixed preparse to allocate enough memory for worst case.
@@ -468,12 +509,12 @@ Changes in DBD::Oracle 0.36 (Oraperl 1.28), 10th July 1996
   Other assorted Makefile.PL improvements.
   (Many thanks to those who sent in fixes.)
 
-Changes in DBD::Oracle 0.35 (Oraperl 1.28), 21st June 1996
+=head1 Changes in DBD::Oracle 0.35 (Oraperl 1.28), 21st June 1996
 
   Fixed broken Solaris 2.5 check in Makefile.PL.
   Added ld path to the log.
 
-Changes in DBD::Oracle 0.34 (Oraperl 1.28), 21st June 1996
+=head1 Changes in DBD::Oracle 0.34 (Oraperl 1.28), 21st June 1996
 
   Workaround Solaris 2 bug #1224467 (_rmutex_unlock).
   With many thanks to James Taylor.
@@ -485,7 +526,7 @@ Changes in DBD::Oracle 0.34 (Oraperl 1.28), 21st June 1996
 
   Further additions to the README about Bad free()'s.
 
-Changes in DBD::Oracle 0.33 (Oraperl 1.27), 19th June 1996
+=head1 Changes in DBD::Oracle 0.33 (Oraperl 1.27), 19th June 1996
 
   Added Makefile.PL -g option to enable debugging.
   Added Makefile.PL -s symbol_name option to search for symbols.
@@ -495,13 +536,13 @@ Changes in DBD::Oracle 0.33 (Oraperl 1.27), 19th June 1996
   Added README notes about -g option, core files and stack traces.
   Small change to $dbname/$user/$passwd logic in connect.
 
-Changes in DBD::Oracle 0.32 (Oraperl 1.25), 30th May 1996
+=head1 Changes in DBD::Oracle 0.32 (Oraperl 1.25), 30th May 1996
 
   Fixed memory leak when FETCH'ing attributes.
   Fixed Makefile.PL FileHandle problem (forgot 'use FileHandle;').
   Enhanced Makefile.PL support for Oracle 7.3.
 
-Changes in DBD::Oracle 0.31 (Oraperl 1.25), 20th May 1996
+=head1 Changes in DBD::Oracle 0.31 (Oraperl 1.25), 20th May 1996
 
   Makefile.PL for HP-UX now defaults to dynamic for hpux >= 10.
 
@@ -515,7 +556,7 @@ Changes in DBD::Oracle 0.31 (Oraperl 1.25), 20th May 1996
 
   Fixed small memory leak in ora_titles etc functions.
 
-Changes in DBD::Oracle 0.30, 7th May 1996
+=head1 Changes in DBD::Oracle 0.30, 7th May 1996
 
   THE ORAPERL EMULATION LAYER IS NOW FORMALLY RELEASED (NO LONGER ALPHA).
 
@@ -533,14 +574,14 @@ Changes in DBD::Oracle 0.30, 7th May 1996
   TO DO: Automatic configuration from Oracle 7.3 is not yet working 
   (Oracle have reorganised the makefiles yet again!).
 
-Changes in DBD::Oracle 0.29, 2 March 1996
+=head1 Changes in DBD::Oracle 0.29, 2 March 1996
 
   Fixed Makefile.PL to get DBIXS.h from right spot.
   Changes to suit perl5.002 and site_lib directories.
   Detects old versions ahead of new in @INC.
   Random tidy-ups.
 
-Changes in DBD::Oracle 0.28, 29 Jan 1996:
+=head1 Changes in DBD::Oracle 0.28, 29 Jan 1996:
 
   Minor release for Perl5.002 (beta2 or later).
   Requires Perl5.002 and DBI 0.66;
@@ -548,7 +589,7 @@ Changes in DBD::Oracle 0.28, 29 Jan 1996:
   Only functional change is to suppress (rare) 'handle not setup'
   warnings unless debugging.
 
-Changes in DBD::Oracle 0.27, 16 Nov 1995:
+=head1 Changes in DBD::Oracle 0.27, 16 Nov 1995:
 
   Improved oraperl compatibility in assorted ways.
   Added the original oraperl manual to Oraperl.pm as pod.
@@ -570,14 +611,14 @@ Changes in DBD::Oracle 0.27, 16 Nov 1995:
   (The DBD::Oracle module itself will remain alpha for awhile yet.)
 
 
-Changes in DBD::Oracle 0.26, 23 Oct 1995:
+=head1 Changes in DBD::Oracle 0.26, 23 Oct 1995:
 
   Removed error message (sql) size limits in parse and ora_error.
   Fixed FETCH NUM_OF_PARAMS so it doesn't trigger a describe.
   The ora_lengths and ora_types attributes work in non-oraperl mode.
 
 
-Changes in DBD::Oracle 0.25, 26 Aug 1995:
+=head1 Changes in DBD::Oracle 0.25, 26 Aug 1995:
 
   User visible changes:
 
@@ -597,7 +638,7 @@ Changes in DBD::Oracle 0.25, 26 Aug 1995:
   Updated NEED_DBIXS_VERSION in Oracle.h
 
 
-Changes in DBD::Oracle 0.24, 22 Aug 1995:
+=head1 Changes in DBD::Oracle 0.24, 22 Aug 1995:
 
   User visible changes:
 
@@ -619,7 +660,7 @@ Changes in DBD::Oracle 0.24, 22 Aug 1995:
     and new DBI macros used to access fields.
 
 
-Changes in DBD::Oracle 0.23, 18 Aug 1995:
+=head1 Changes in DBD::Oracle 0.23, 18 Aug 1995:
 
   Fixed Oraperl.pm debug which was left on by default by accident.
   Added small patches from Davide.Migliavacca@inferentia.it for
@@ -628,7 +669,7 @@ Changes in DBD::Oracle 0.23, 18 Aug 1995:
   Changed dbd_describe to return true for success (to be consistent).
 
 
-Changes in DBD::Oracle 0.22, 17 Aug 1995:
+=head1 Changes in DBD::Oracle 0.22, 17 Aug 1995:
 
   Much more maturity, in line with the required DBI-0.60 release.
   The .xs file is now very 'clean'. It's an excellent base for
@@ -641,7 +682,7 @@ Changes in DBD::Oracle 0.22, 17 Aug 1995:
   Please test heavily.
 
 
-Changes in DBD::Oracle 0.21, 15 Aug 1995:
+=head1 Changes in DBD::Oracle 0.21, 15 Aug 1995:
 
   NOTE: THIS IS AN UNSTABLE RELEASE!
   It requires the closely related DBI 0.59 release.
@@ -659,14 +700,14 @@ Changes in DBD::Oracle 0.21, 15 Aug 1995:
   In future oraperl mode handles will have those warnings disabled.
   ...other changes to numerous/minor to mention
 
-Changes in DBD::Oracle 0.20, 1 Aug 1995:
+=head1 Changes in DBD::Oracle 0.20, 1 Aug 1995:
 
   Fixed core dump when binding an undef (treated as a NULL)
   Binding a string longer that 2000 bytes will use LONG type.
   Workaround OSF makefile and oratype.h problems
   PL/SQL := construct will no longer confuse dbd_preparse()
 
-Changes in DBD::Oracle 0.19, 21 June 1995:
+=head1 Changes in DBD::Oracle 0.19, 21 June 1995:
 
   Added $VERSION
   disconnect_all now gives error 'not implemented'.
@@ -677,8 +718,7 @@ Changes in DBD::Oracle 0.19, 21 June 1995:
   Reworked logging to use DBILOGFP macro.
   Now test code added to loop through logon/prep/fin/logoff.
   
-
-Changes in DBD::Oracle 0.18:
+=head1 Changes in DBD::Oracle 0.18:
 
   Makefile.PL: HPUX now builds with LINKTYPE=static automatically.
   Fixed errors on logout/global destruction.
@@ -690,3 +730,4 @@ Changes in DBD::Oracle 0.18:
      'readblob' =>   {'U'=>[4,5,'$field, $offset, $len [, \\$buf]']},
   in order to access the new readblob method.)
 
+=cut

@@ -1,5 +1,5 @@
 /*
-   $Id: oci7.c,v 1.14 2001/08/29 19:38:31 timbo Exp $
+   $Id: oci7.c,v 1.16 2003/03/13 14:28:50 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -21,20 +21,27 @@
 
 DBISTATE_DECLARE;
 
-static SV *ora_long;
+/* JLU: Looks like these are being moved to imp_drh... */
+#if 0
+static SV *ora_long; 
 static SV *ora_trunc;
 static SV *ora_cache;
 static SV *ora_cache_o;		/* for ora_open() cache override */
+#endif
 
 void
-dbd_init_oci(dbistate)
-    dbistate_t *dbistate;
+   dbd_init_oci(dbistate_t *dbistate)
 {
     DBIS = dbistate;
-    ora_long     = perl_get_sv("Oraperl::ora_long",      GV_ADDMULTI);
-    ora_trunc    = perl_get_sv("Oraperl::ora_trunc",     GV_ADDMULTI);
-    ora_cache    = perl_get_sv("Oraperl::ora_cache",     GV_ADDMULTI);
-    ora_cache_o  = perl_get_sv("Oraperl::ora_cache_o",   GV_ADDMULTI);
+}
+
+void
+   dbd_init_oci_drh(imp_drh_t * imp_drh)
+{
+    imp_drh->ora_long    = perl_get_sv("Oraperl::ora_long",      GV_ADDMULTI);
+    imp_drh->ora_trunc   = perl_get_sv("Oraperl::ora_trunc",     GV_ADDMULTI);
+    imp_drh->ora_cache   = perl_get_sv("Oraperl::ora_cache",     GV_ADDMULTI);
+    imp_drh->ora_cache_o = perl_get_sv("Oraperl::ora_cache_o",   GV_ADDMULTI);
 }
 
 
@@ -78,6 +85,7 @@ dbd_describe(h, imp_sth)
     static U32  f_cbufl_max;
 
     D_imp_dbh_from_sth;
+    D_imp_drh_from_dbh;
     I32	long_buflen;
     sb1 *cbuf_ptr;
     int t_cbufl=0;
@@ -94,8 +102,8 @@ dbd_describe(h, imp_sth)
     /* ora_trunc is checked at fetch time */
     /* long_buflen:	length for long/longraw (if >0), else 80 (ora app dflt)	*/
     /* Ought to be for COMPAT mode only but was relaxed before LongReadLen existed */
-    long_buflen = (SvOK(ora_long) && SvIV(ora_long)>0)
-				? SvIV(ora_long) : DBIc_LongReadLen(imp_sth);
+    long_buflen = (SvOK(imp_drh->ora_long) && SvIV(imp_drh->ora_long)>0)
+				? SvIV(imp_drh->ora_long) : DBIc_LongReadLen(imp_sth);
     if (long_buflen < 0)		/* trap any sillyness */
 	long_buflen = 80;		/* typical oracle app default	*/
 
@@ -104,7 +112,7 @@ dbd_describe(h, imp_sth)
 #endif
     if (imp_sth->cda->ft != FT_SELECT) {
 	if (DBIS->debug >= 3)
-	    fprintf(DBILOGFP,
+	    PerlIO_printf(DBILOGFP,
 		"    dbd_describe skipped for non-select (sql f%d, lb %ld, csr 0x%lx)\n",
 		imp_sth->cda->ft, (long)long_buflen, (long)imp_sth->cda);
 	/* imp_sth memory was cleared when created so no setup required here	*/
@@ -112,7 +120,7 @@ dbd_describe(h, imp_sth)
     }
 
     if (DBIS->debug >= 3)
-	fprintf(DBILOGFP,
+	PerlIO_printf(DBILOGFP,
 	    "    dbd_describe (for sql f%d after oci f%d, lb %ld, csr 0x%lx)...\n",
 	    imp_sth->cda->ft, imp_sth->cda->fc, (long)long_buflen, (long)imp_sth->cda);
 
@@ -122,8 +130,8 @@ dbd_describe(h, imp_sth)
     }
 
     /* number of rows to cache	*/
-    if      (SvOK(ora_cache_o)) imp_sth->cache_rows = SvIV(ora_cache_o);
-    else if (SvOK(ora_cache))   imp_sth->cache_rows = SvIV(ora_cache);
+    if      (SvOK(imp_drh->ora_cache_o)) imp_sth->cache_rows = SvIV(imp_drh->ora_cache_o);
+    else if (SvOK(imp_drh->ora_cache))   imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
     else                        imp_sth->cache_rows = imp_dbh->RowCacheSize;
 
     /* Get number of fields and space needed for field names	*/
@@ -283,7 +291,7 @@ dbd_describe(h, imp_sth)
     imp_sth->est_width = est_width;
 
     if (DBIS->debug >= 3)
-	fprintf(DBILOGFP,
+	PerlIO_printf(DBILOGFP,
 	"    dbd_describe'd %d columns (Row bytes: %d max, %d est avg. Cache: %d rows)\n",
 	(int)num_fields, imp_sth->t_dbsize, est_width, imp_sth->cache_rows);
 
@@ -308,6 +316,8 @@ dbd_st_fetch(sth, imp_sth)
     int err = 0;
     int i;
     AV *av;
+    D_imp_dbh_from_sth;
+    D_imp_drh_from_dbh;
 
     if (!imp_sth->in_cache) {	/* refill cache if empty	*/
 	int previous_rpc;
@@ -330,7 +340,7 @@ dbd_st_fetch(sth, imp_sth)
 	    } else {				/* is simply no more data	*/
 		sv_setiv(DBIc_ERR(imp_sth), 0);	/* ensure errno set to 0 here	*/
 		if (debug >= 3)
-		    fprintf(DBILOGFP, "    dbd_st_fetch no-more-data, rc=%d, rpc=%ld\n",
+		    PerlIO_printf(DBILOGFP, "    dbd_st_fetch no-more-data, rc=%d, rpc=%ld\n",
 			imp_sth->cda->rc, (long)imp_sth->cda->rpc);
 	    }
 	    /* further fetches without an execute will arrive back here	*/
@@ -350,7 +360,7 @@ dbd_st_fetch(sth, imp_sth)
 	imp_sth->next_entry = 0;
 	imp_sth->in_cache   = imp_sth->cda->rpc - previous_rpc;
 	if (debug >= 4)
-	    fprintf(DBILOGFP,
+	    PerlIO_printf(DBILOGFP,
 		"    dbd_st_fetch load-cache: prev rpc %d, new rpc %ld, in_cache %d\n",
 		previous_rpc, (long)imp_sth->cda->rpc, imp_sth->in_cache);
 	assert(imp_sth->in_cache > 0);
@@ -360,7 +370,7 @@ dbd_st_fetch(sth, imp_sth)
     num_fields = AvFILL(av)+1;
 
     if (debug >= 3)
-	fprintf(DBILOGFP, "    dbd_st_fetch %d fields, rpc %ld (cache: %d/%d/%d)\n",
+	PerlIO_printf(DBILOGFP, "    dbd_st_fetch %d fields, rpc %ld (cache: %d/%d/%d)\n",
 		num_fields, (long)imp_sth->cda->rpc, imp_sth->next_entry,
 		imp_sth->in_cache, imp_sth->cache_rows);
 
@@ -377,7 +387,7 @@ dbd_st_fetch(sth, imp_sth)
 	if (rc == 1406 && OTYPE_IS_LONG(fbh->ftype)) {
 	    /* We have a LONG field which has been truncated.		*/
 	    int oraperl = DBIc_COMPAT(imp_sth);
-	    if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(ora_trunc))) {
+	    if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(imp_drh->ora_trunc))) {
 		/* user says truncation is ok */
 		/* Oraperl recorded the truncation in ora_errno so we	*/
 		/* so also but only for Oraperl mode handles.		*/
@@ -441,7 +451,7 @@ dbd_st_fetch(sth, imp_sth)
 	}
 
 	if (debug >= 5)
-	    fprintf(DBILOGFP, "        %d (rc=%d, otype %d, len %lu): %s\n",
+	    PerlIO_printf(DBILOGFP, "        %d (rc=%d, otype %d, len %lu): %s\n",
 		i, rc, fbh->dbtype, (unsigned long)datalen, neatsvpv(sv,0));
     }
 
@@ -526,7 +536,7 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 	return 0;
     }
     if (DBIS->debug >= 3)
-	fprintf(DBILOGFP, "    dbd_st_prepare'd sql f%d\n", imp_sth->cda->ft);
+	PerlIO_printf(DBILOGFP, "    dbd_st_prepare'd sql f%d\n", imp_sth->cda->ft);
 
     /* Describe and allocate storage for results.		*/
     if (!dbd_describe(sth, imp_sth)) {

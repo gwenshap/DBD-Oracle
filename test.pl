@@ -4,7 +4,7 @@ use ExtUtils::testlib;
 
 die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 
-# $Id: test.pl,v 1.4 2001/08/29 19:38:31 timbo Exp $
+# $Id: test.pl,v 1.5 2003/03/13 14:28:50 timbo Exp $
 #
 # Copyright (c) 1995-1998, Tim Bunce
 #
@@ -19,7 +19,7 @@ die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.4 $}."\n";
+print q{Oraperl test application $Revision: 1.5 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^(Bad|Duplicate) free/)
@@ -204,8 +204,8 @@ sub test1 {
 	print "Test ora_do with harmless non-select statement ",
 			"(set transaction read only)\n";
 	print "Expect an 'ORA-01453' error message:\n";
-	&ora_do($lda, "set transaction read only ")
-		    || warn "ora_do: $ora_errno: $ora_errstr\n";
+	&ora_do($lda, "set transaction read only ");
+	warn "ora_do(set transaction read only): $ora_errno: $ora_errstr\n" if $ora_errno;
 
 	print "csr out of scope...\n";
     }

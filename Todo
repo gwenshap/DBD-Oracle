@@ -1,5 +1,17 @@
 [ In no particular order ]
 
+Public Oracle docs:
+http://www.csis.gvsu.edu/GeneralInfo/Oracle/nav/docindex.htm
+LOBs
+http://www.csis.gvsu.edu/GeneralInfo/Oracle/appdev.920/a96595/dci06mlt.htm
+http://technet.oracle.com/tech/oci/htdocs/faq.html#1000425
+
+
+
+Resolve imp_sth->stmt_type != OCI_STMT_SELECT issue - add an attribute for it?
+
+connect with $user = "/ as sysdba" etc as per SQL*Plus
+
 Move urls from README into Oracle.pm
 
 Change all uses of perl global na (SvPV & sv_2pv) to local variables
@@ -10,8 +22,6 @@ of char/varchar types.
 
 add docs about OPS$ login
 
-bind type 1 or 5?!
-
 Add hint about SQL*Plus commands if execute gets an ORA-0900 invalid SQL
 statement? Maybe just if common SQL*Plus command word is first word.
 
@@ -21,18 +31,12 @@ warn (trace_msg?) if ORACLE_HOME changes after first connect
 relates to Apache::DBI scenario where changing ORACLE_HOME
 upsets existing connections.
 
-fetchall_arrayref in C (start with XS version in DBI for all drivers?)
-
 PRECISION for oci7 on VARCHAR etc
 
 Detect "Error while trying to retrieve text for error ORA-XXXX"
 and add "refer to oracle docs or use 'oerr ora XXXX'".
 
 blob_read for oci8 with LONGs
-
-connect(..., { ora_module_name => $0 });
-
-bind_param(... { TYPE => SQL_* }) esp SQL_LONGVARCHAR etc
 
 $sth = $dbh->prepare("select ... for update");
 $dbh->commit;
@@ -53,4 +57,3 @@ RAW types at max length
 http://www.oracle-users.com/html/freeware.html
 
 http://freespace.virgin.net/j.hatcher/ociwrap.htm
-

@@ -33,8 +33,8 @@ my ( @data, $i );
 $sth->bind_columns( {}, \( @data[0 .. $#name] ) );
 while ( $sth->fetch ) {
     $i = 0;
-  # print $lead . join( ", ", map { $dbh->quote( $_, $type[$i++] ) } @data ) .
-    print $lead . join( ", ", map { $dbh->quote( $_ ) } @data ) .
+    print $lead . join( ", ", map { $dbh->quote( $_, $type[$i++] ) } @data ) .
+  # print $lead . join( ", ", map { $dbh->quote( $_ ) } @data ) . # for old DBI
         " );\n";
 }
 

@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.h,v 1.17 1999/07/12 03:20:42 timbo Exp $
+   $Id: Oracle.h,v 1.18 2003/03/12 20:33:02 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -40,7 +40,9 @@ int	 dbd_st_prepare _((SV *sth, imp_sth_t *imp_sth,
 		char *statement, SV *attribs));
 int	 dbd_st_rows	_((SV *sth, imp_sth_t *imp_sth));
 int	 dbd_st_execute _((SV *sth, imp_sth_t *imp_sth));
+int	 dbd_st_cancel  _((SV *sth, imp_sth_t *imp_sth));
 AV	*dbd_st_fetch	_((SV *sth, imp_sth_t *imp_sth));
+
 int	 dbd_st_finish	_((SV *sth, imp_sth_t *imp_sth));
 void	 dbd_st_destroy _((SV *sth, imp_sth_t *imp_sth));
 int      dbd_st_blob_read _((SV *sth, imp_sth_t *imp_sth,
@@ -55,5 +57,6 @@ int	 dbd_db_login6 _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, cha
 int    dbd_describe _((SV *sth, imp_sth_t *imp_sth));
 ub4    ora_blob_read_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
                    long offset, long len, long destoffset));
+ub4    ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv, long offset, long len, long destoffset));
 
 /* end of Oracle.h */

@@ -5,8 +5,6 @@ use strict;
 my $script = <<'SCRIPT';
 ~startperl~ -w
 
-#!/usr/local/bin/perl -w
-
 ################################################################################
 # Copyright (c) 1999 Alan Burlison
 #

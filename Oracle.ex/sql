@@ -99,7 +99,7 @@ if ( $nfields ) {
         #    in columns of the appropriate width
         my $fmt  = join '|', map { "%-${_}.${_}s" } @size;
         $fmt     = sprintf $fmt, @name;
-        $format .= "format STDOUT_TOP =\n" . $fmt . "\n";
+        $format = "format STDOUT_TOP =\n" . $fmt . "\n";
 
         # Then underlines for the field names
         $fmt    =~ tr/|/-/c;
