@@ -16,12 +16,21 @@ $| = 1;
 SKIP: {
     plan skip_all => "Unable to run 8bit char test, perl version is less than 5.6" unless ( $] >= 5.006 );
 
-    set_nls_nchar( 'WE8ISO8859P1' ,1 ); #   .WE8MSWIN1252 
+    # get the database NCHARSET before we begin... if it is not UTF, then
+    # use it as the client side ncharset, otherwise, use WE8ISO8859P1
     $dbh = db_handle();
-
     plan skip_all => "Not connected to oracle" if not $dbh;
-
     show_db_charsets( $dbh );
+
+    my $ncharset = $dbh->ora_nls_parameters()->{'NLS_NCHAR_CHARACTERSET'};
+    $dbh->disconnect(); # we want to start over with the ncharset we select
+    undef $dbh;
+
+    if ( $ncharset =~ m/UTF/i ) {
+        $ncharset = 'WE8ISO8859P1' ; #WE8MSWIN1252
+    }
+    set_nls_nchar( $ncharset ,1 ); 
+    $dbh = db_handle();
 
     print "testing control and 8 bit chars:\n" ;
     my $tdata = test_data( 'narrow_nchar' );
