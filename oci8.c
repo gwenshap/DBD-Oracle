@@ -1298,7 +1298,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 /* does not seem to be needed, and the OCIAttrSet OCI_ATTR_CHARSET_FORM
 	was failing anyway in my tests using Oracle 9.0.1
 */
-        if ( (fbh->dbtype == 1) ) {
+        if ( 0 && (fbh->dbtype == 1) ) {
 #define USE_NLS_NCHAR
 #ifdef USE_NLS_NCHAR
             ub2 csid = ( fbh->csform == 2 ) ? ncharsetid : charsetid; 
