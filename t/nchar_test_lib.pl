@@ -2,6 +2,12 @@ use strict;
 use warnings;
 use Data::Dumper;
 
+require utf8;
+
+# perl 5.6 doesn't define utf8::is_utf8()
+*utf8::is_utf8 = sub {
+    return 0; # XXX fortunately not needed for any tests
+} unless defined &{"utf8::is_utf8"};
 
 sub long_test_cols
 {
