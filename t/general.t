@@ -32,10 +32,13 @@ my($sth, $p1, $p2, $tmp);
 
 $sth = $dbh->prepare(q{
 	/* also test preparse doesn't get confused by ? :1 */
-	select * from user_tables -- ? :1
+        /* also test placeholder binding is case insensitive */
+	select :a, :A from user_tables -- ? :1
 });
 ok(0, $sth->{ParamValues});
-ok(0, keys %{$sth->{ParamValues}} == 0);
+ok(0, keys %{$sth->{ParamValues}} == 1);
+ok(0, $sth->{NUM_OF_PARAMS} == 1);
+ok(0, $sth->bind_param(':a', 'a value'));
 ok(0, $sth->execute);
 ok(0, $sth->{NUM_OF_FIELDS});
 eval { $p1=$sth->{NUM_OFFIELDS_typo} };
@@ -89,7 +92,7 @@ $dbh->{PrintError} = 0;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 24 }
+BEGIN { $tests = 26 }
 # end.
 
 __END__

@@ -839,7 +839,7 @@ dbd_preparse(imp_sth, statement)
 
 	} else if (isALNUM(*src)) {	/* ':foo'	*/
 	    while(isALNUM(*src))	/* includes '_'	*/
-		*dest++ = *src++;
+		*dest++ = toLOWER(*src), src++;
 	    style = ":foo";
 	} else {			/* perhaps ':=' PL/SQL construct */
 	    /* if (src == ':') *dest++ = *src++; XXX? move past '::'? */
@@ -1255,7 +1255,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     SV **phs_svp;
     STRLEN name_len;
     char *name = Nullch;
-    char namebuf[30];
+    char namebuf[32];
     int rebind_ok;
     phs_t *phs;
 
@@ -1264,7 +1264,13 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     if (SvGMAGICAL(ph_namesv))	/* eg if from tainted expression */
 	mg_get(ph_namesv);
     if (!SvNIOKp(ph_namesv)) {
+	int i;
 	name = SvPV(ph_namesv, name_len);
+	if (name_len > sizeof(namebuf)-1)
+	    croak("Placeholder name %s too long", neatsvpv(ph_namesv,0));
+	for (i=0; i<name_len; i++) namebuf[i] = toLOWER(name[i]);
+	namebuf[i] = '\0';
+	name = namebuf;
     }
     if (SvNIOKp(ph_namesv) || (name && isDIGIT(name[0]))) {
 	sprintf(namebuf, ":p%d", (int)SvIV(ph_namesv));

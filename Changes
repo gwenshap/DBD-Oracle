@@ -1,15 +1,18 @@
+=head1 Changes in DBD-Oracle 1.16 (svn rev XXX)   XXXX 2004
+
   NOTE: This release no longer supports the old Oracle 7 OCI interface.
 
   Fixed build32/build64 Makefile.PL bug spotted by Sean Kelly.
   Fixed Oracle version detection on clients thanks to Marko Asplund.
   Fixed Oracle 10 version detection on clients thanks to Andy Hassall.
   Fixed suprious warning from Makefile.PL thanks to Marko Asplund.
+  Fixed placeholder names to be case insensitive thanks to Charles Jardine.
 
   Changed some utf8 internals for LOBs.
 
   Added some experimental NCHAR/UTF8 support thanks to Lincoln Baxter.
     $dbh->{ora_ph_csform} = SQLCS_NCHAR;
-    $sth->bind_param(..., { ora_csform=>SQLCS_NCHAR });
+    $sth->bind_param(..., { ora_csform => SQLCS_NCHAR });
     this is still a work-in-progress, help welcome.
   Added alternative implementation for ora_lob_append for Oracle < 9.0
     using OCILobGetLength() and OCILobWrite() thanks to Jeff Urlwin.
