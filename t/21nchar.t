@@ -1,4 +1,5 @@
 #!perl -w
+#written by Lincoln A Baxter (lab@lincolnbaxter.com)
 
 use strict;
 use warnings;
