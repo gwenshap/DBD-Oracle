@@ -182,8 +182,8 @@ if ($os ne 'VMS' and $os ne 'MSWin32' ) {
 	}
     }
 
-    # hack up a simple floating point form of the version: 8.1.6 => 8.106
-    ($inspdver{rdbms_ver} = $inspdver{RDBMS}) =~ s/^(\d+\.\d+)\.(\d+).*/${1}0$2/;
+    # hack up a simple floating point form of the version: 8.1.6.2 => 8.1
+    ($inspdver{rdbms_ver} = $inspdver{RDBMS}) =~ s/^(\d+\.\d+).*/$1/;
 
     print "Oracle version $inspdver{RDBMS} ($inspdver{rdbms_ver})\n" if $inspdver{RDBMS};
 
@@ -195,13 +195,8 @@ or from $ORACLE_ENV path $OH.
 Oracle version based logic in Makefile.PL may produce erroneous results.
 };
     }
+    die "DBD::Oracle no longer supports Oracle 7.\n" if $inspdver{RDBMS} =~ /^7\./;
     print "\n";
-    if ($inspdver{RDBMS} =~ /^7.3.[12]/ and $os eq 'hpux') {
-	print "*** DBD::Oracle for Oracle $inspdver{RDBMS} on HP-UX may not build ok.\n";
-	print "*** If your have problems read the README (in fact, read it anyway!)\n";
-	print "*** An upgrade to at least Oracle 7.3.3 is a good idea.\n";
-	sleep 5;
-    }
 }
 
 # Check for symbol table problem in libclntsh.dylib.9.0 on MacOS X
@@ -596,6 +591,7 @@ $opts{DEFINE} .= ' -DUTF8_SUPPORT' if ($] >= 5.006);
 
 # Use OCIEnvNlsCreate if available for best unicode behaviour
 $opts{DEFINE} .= ' -DNEW_OCI_INIT' if $inspdver{rdbms_ver} >= 9.2;
+$opts{DEFINE} .= " -DORA_OCI_VERSION=\\\"$inspdver{rdbms_ver}\\\"";
 
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($is_me){  # a reasonable guess

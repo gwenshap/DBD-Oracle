@@ -2,8 +2,6 @@
 
 DBISTATE_DECLARE;
 
-# define DBD_ORA_OCI 8
-
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle
 
 I32
@@ -25,7 +23,6 @@ constant(name=Nullch)
     ORA_CLOB	 = 112
     ORA_BLOB	 = 113
     ORA_RSET	 = 116
-    ORA_OCI      = DBD_ORA_OCI
     ORA_SYSDBA	 = 0x0002
     ORA_SYSOPER	 = 0x0004
     SQLCS_IMPLICIT = SQLCS_IMPLICIT
@@ -39,7 +36,14 @@ constant(name=Nullch)
     OUTPUT:
     RETVAL
 
-MODULE = DBD::Oracle    PACKAGE = DBD::Oracle
+void
+ORA_OCI()
+    CODE:
+    SV *sv = sv_newmortal();
+    sv_setnv(sv, (int)atof(ORA_OCI_VERSION));
+    sv_setpv(sv, ORA_OCI_VERSION);
+    SvNOK_on(sv); /* dualvar hack */
+    ST(0) = sv;
 
 
 INCLUDE: Oracle.xsi

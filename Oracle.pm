@@ -222,47 +222,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# If the application is asking for specific database
 	# then we may have to mung the dbname
 
-	if (DBD::Oracle::ORA_OCI() >= 8) {
-	    $dbname = $1 if !$dbname && $user && $user =~ s/\@(.*)//s;
-	}
-	elsif ($dbname) {	# OCI 7 handling below
-
-	    # We can use the 'user/passwd@machine' form of user.
-	    # $TWO_TASK and $ORACLE_SID will be ignored in that case.
-	    if ($dbname =~ /^@/){	# Implies an Sql*NET connection
-		$user = "$user/$auth$dbname";
-		$auth = "";
-	    }
-	    elsif ($dbname =~ /^\w?:/){	# Implies an Sql*NET connection
-		$user = "$user/$auth".'@'.$dbname;
-		$auth = "";
-	    }
-	    else {
-		# Is this a NON-Sql*NET connection (ORACLE_SID)?
-		# Or is it an alias for an Sql*NET connection (TWO_TASK)?
-		# Sadly the 'user/passwd@machine' form only works
-		# for Sql*NET connections.
-		load_dbnames($drh) unless %dbnames;
-		if (exists $dbnames{$dbname}) {		# known name
-		    my $dbhome = $dbnames{$dbname};	# local=>ORACLE_HOME, remote=>0
-		    if ($dbhome) {
-			$ENV{ORACLE_SID}  = $dbname;
-			delete $ENV{TWO_TASK};
-			if ($attr && $attr->{ora_oratab_orahome}) {
-			    $drh->trace_msg("Changing $ORACLE_ENV for $dbname to $dbhome (to match oratab entry)\n")
-				if ($ENV{$ORACLE_ENV} and $dbhome ne $ENV{$ORACLE_ENV});
-			    $ENV{$ORACLE_ENV} = $dbhome;
-			}
-		    }
-		    else {
-			$user .= '@'.$dbname;	# it's a known TNS alias
-		    }
-		}
-		else {
-		    $user .= '@'.$dbname;	# assume it's a TNS alias
-		}
-	    }
-	}
+	$dbname = $1 if !$dbname && $user && $user =~ s/\@(.*)//s;
 
 	$drh->trace_msg("$ORACLE_ENV environment variable not set!\n")
 		if !$ENV{$ORACLE_ENV} and $^O ne "MSWin32";
@@ -1142,6 +1102,42 @@ Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
 
 
+=head2 Constants
+
+=item :ora_session_modes
+
+  ORA_SYSDBA ORA_SYSOPER
+
+=item :ora_types
+
+  ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
+  ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
+  ORA_CLOB ORA_BLOB ORA_RSET
+
+=item SQLCS_IMPLICIT
+
+=item SQLCS_NCHAR
+
+SQLCS_IMPLICIT and SQLCS_NCHAR are I<character set form> values.
+See notes about Unicode elsewhere in this document.
+
+=item ORA_OCI
+
+Oracle doesn't provide a formal API for determining the exact version
+number of the OCI client library used, so DBD::Oracle has to go digging
+(and sometimes has to more or less guess).  The ORA_OCI constant
+holds the result of that process.
+
+In numeric context returns the major version integer (8, 9, 10 etc).
+In string context returns "I<major>.I<minor>". Note that "9.10" is
+a later (greater) version than "9.9" but would compare as a numerically
+lower value.
+
+The contents and format of ORA_OCI are subject to change (it may,
+for example, become a I<version object> in later releases).
+I recommend that you avoid checking for exact values.
+
+
 =head2 Connect Attributes
 
 =over 4
@@ -1570,12 +1566,6 @@ LAB: yes we do! it would solve some of the problems I saw in my testing
 today.  I was wondering if we could #define something, and store it maybe as
 a static float in dbdimp.c. We may also want a way to understand the server
 version number, so we can turn things off, it it is not high enough.
-
-BTW: My ace DBA at work promised me an 8.1.7 sandbox I can test
-with tomorrow, to see what happens when we use a 9.2 client talking to
-a 8.1.7 database. 
-
-end XXX
 
 B<Fetching Data>
 

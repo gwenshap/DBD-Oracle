@@ -1,21 +1,12 @@
 #!perl -w
 
-sub ok ($$;$) {
-    my($n, $ok, $warn) = @_;
-    ++$t;
-    die "sequence error, expected $n but actually $t"
-    if $n and $n != $t;
-    ($ok) ? print "ok $t\n"
-	  : print "# failed test $t at line ".(caller)[2]."\nnot ok $t\n";
-	if (!$ok && $warn) {
-		$warn = $DBI::errstr || "(DBI::errstr undefined)" if $warn eq '1';
-		warn "$warn\n";
-	}
-}
+use Test::More;
 
 use DBI;
 use Oraperl;
 $| = 1;
+
+plan tests => 30;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '');
@@ -26,8 +17,6 @@ unless($dbh) {
 	exit 0;
 }
 
-print "1..$tests\n";
-
 my($sth, $p1, $p2, $tmp);
 
 $sth = $dbh->prepare(q{
@@ -35,36 +24,36 @@ $sth = $dbh->prepare(q{
         /* also test placeholder binding is case insensitive */
 	select :a, :A from user_tables -- ? :1
 });
-ok(0, $sth->{ParamValues});
-ok(0, keys %{$sth->{ParamValues}} == 1);
-ok(0, $sth->{NUM_OF_PARAMS} == 1);
-ok(0, $sth->bind_param(':a', 'a value'));
-ok(0, $sth->execute);
-ok(0, $sth->{NUM_OF_FIELDS});
+ok($sth->{ParamValues});
+is(keys %{$sth->{ParamValues}}, 1);
+is($sth->{NUM_OF_PARAMS}, 1);
+ok($sth->bind_param(':a', 'a value'));
+ok($sth->execute);
+ok($sth->{NUM_OF_FIELDS});
 eval { $p1=$sth->{NUM_OFFIELDS_typo} };
-ok(0, $@ =~ /attribute/);
-ok(0, $sth->{Active});
-ok(0, $sth->finish);
-ok(0, !$sth->{Active});
+ok($@ =~ /attribute/);
+ok($sth->{Active});
+ok($sth->finish);
+ok(!$sth->{Active});
 
 $sth = $dbh->prepare("select * from user_tables");
-ok(0, $sth->execute);
-ok(0, $sth->{Active});
+ok($sth->execute);
+ok($sth->{Active});
 1 while ($sth->fetch);	# fetch through to end
-ok(0, !$sth->{Active});
+ok(!$sth->{Active});
 
 # so following test works with other NLS settings/locations
-ok(0, $dbh->do("ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '.,'"), 1);
+ok($dbh->do("ALTER SESSION SET NLS_NUMERIC_CHARACTERS = '.,'"));
 
-ok(0, $tmp = $dbh->selectall_arrayref(q{
+ok($tmp = $dbh->selectall_arrayref(q{
 	select 1 * power(10,-130) "smallest?",
 	       9.9999999999 * power(10,125) "biggest?"
 	from dual
 }));
 my @tmp = @{$tmp->[0]};
 #warn "@tmp"; $tmp[0]+=0; $tmp[1]+=0; warn "@tmp";
-ok(0, $tmp[0] <= 1.0000000000000000000000000000000001e-130, $tmp[0]);
-ok(0, $tmp[1] >= 9.99e+125, $tmp[1]);
+ok($tmp[0] <= 1.0000000000000000000000000000000001e-130, "tmp0=$tmp[0]");
+ok($tmp[1] >= 9.99e+125, "tmp1=$tmp[1]");
 
 
 my $warn='';
@@ -73,26 +62,31 @@ eval {
 	$dbh->{RaiseError} = 1;
 	$dbh->do("some invalid sql statement");
 };
-ok(0, $@    =~ /DBD::Oracle::db do failed:/, "eval error: ``$@'' expected 'do failed:'");
+ok($@    =~ /DBD::Oracle::db do failed:/, "eval error: ``$@'' expected 'do failed:'");
 #print "''$warn''";
-ok(0, $warn =~ /DBD::Oracle::db do failed:/, "warn error: ``$warn'' expected 'do failed:'");
-ok(0, $DBI::err);
-ok(0, $ora_errno);
-ok(0, $ora_errno == $DBI::err);
+ok($warn =~ /DBD::Oracle::db do failed:/, "warn error: ``$warn'' expected 'do failed:'");
+ok($DBI::err);
+ok($ora_errno);
+is($ora_errno, $DBI::err);
 $dbh->{RaiseError} = 0;
 
 # ---
 
-ok(0,  $dbh->ping);
-ok(0, !$ora_errno);	# ora_errno reset ok
-ok(0, !$DBI::err);	# DBI::err  reset ok
+ok( $dbh->ping);
+ok(!$ora_errno);	# ora_errno reset ok
+ok(!$DBI::err);	# DBI::err  reset ok
 
 $dbh->disconnect;
 $dbh->{PrintError} = 0;
-ok(0, !$dbh->ping);
+ok(!$dbh->ping);
+
+my $ora_oci = DBD::Oracle::ORA_OCI(); # dualvar
+printf "ORA_OCI = %d (%s)\n", $ora_oci, $ora_oci;
+ok($ora_oci);
+ok($ora_oci >= 8);
+is($ora_oci+0, int($ora_oci));
+my @ora_oci = split(/\./, $ora_oci,-1);
+is(@ora_oci, 2);
+is($ora_oci[0], $ora_oci+0);
 
 exit 0;
-BEGIN { $tests = 26 }
-# end.
-
-__END__
