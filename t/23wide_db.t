@@ -16,21 +16,14 @@ $| = 1;
 SKIP: {
 
     plan skip_all => "Unable to run unicode test, perl version is less than 5.6" unless ( $] >= 5.006 );
-    eval {
-       require utf8;
-       import utf8;
-    };
-    plan skip_all => "Could not require or import utf8" if ($@);
-    plan skip_all => "ORC_OCI < 8" if (! ORA_OCI >= 8);
 
-    #force Ncharset to NON UTF8! we are testing a wide database where someone
-    #perversely sets nchar to non utf8, and nls_lang to utf8.... 
+#!  #force Ncharset to NON UTF8! we are testing a wide database where someone
+#!  #perversely sets nchar to non utf8, and nls_lang to utf8.... 
     set_nls_lang_charset( 'AL32UTF8' ,1 );
-    #set_nls_nchar( 'WE8ISO8859P1' ,1 ); #it breaks and it is stupid to do this... doc it XXX
+#!  #set_nls_nchar( 'WE8ISO8859P1' ,1 ); #it breaks and it is stupid to do this... doc it XXX
     $dbh = db_handle();
 
     plan skip_all => "Not connected to oracle" if not $dbh;
-    plan skip_all => "Oracle version < 9.2" if 0; # need a oracle 9i version test.... 
     plan skip_all => "Database character set is not Unicode" if not db_ochar_is_utf($dbh) ;
     print "testing utf8 with char columns (wide mode database)\n" ;
 
