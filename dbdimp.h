@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.21 1998/06/01 18:34:16 timbo Exp $
+   $Id: dbdimp.h,v 1.22 1998/07/05 21:25:07 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -143,7 +143,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
     IV  maxlen;		/* max possible len (=allocated buffer)	*/
 
-    /* these will become an array */
+    /* these will become an array one day */
     sb2 indp;		/* null indicator			*/
     char *progv;
     ub2 arcode;

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.36 1998/06/03 21:04:51 timbo Exp $
+   $Id: dbdimp.c,v 1.37 1998/07/05 21:25:07 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -12,6 +12,10 @@
 
 #include "Oracle.h"
 
+/* XXX DBI should provide a better version of this */
+#define IS_DBI_HANDLE(h) \
+    (SvROK(h) && SvTYPE(SvRV(h)) == SVt_PVHV && \
+	SvRMAGICAL(SvRV(h)) && (SvMAGIC(SvRV(h)))->mg_type == 'P')
 
 DBISTATE_DECLARE;
 
@@ -20,7 +24,7 @@ static SV *ora_trunc;
 static SV *ora_pad_empty;
 static SV *ora_cache;
 static SV *ora_cache_o;		/* temp hack for ora_open() cache override */
-static int ora_login_err;	/* fetch & show real login errmsg if true  */
+static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
 static int ora_fetchtest = 0;
 
 static void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
@@ -41,7 +45,7 @@ dbd_init(dbistate)
 	sv_setiv(ora_pad_empty, atoi(getenv("ORAPERL_PAD_EMPTY")));
 
     if (getenv("DBD_ORACLE_LOGIN_ERR"))
-		ora_login_err = atoi(getenv("DBD_ORACLE_LOGIN_ERR"));
+	ora_login_nomsg = atoi(getenv("DBD_ORACLE_LOGIN_NOMSG"));
 }
 
 
@@ -140,9 +144,10 @@ dbtype_is_long(dbtype)
 }
 
 static int
-dbtype_can_be_string(dbtype)	/* 'can we use SvPV to pass buffer?'	*/
+oratype_bind_ok(dbtype)	/* It's a type we support for placeholders */
     int dbtype;
 {
+    /* basically we support types that can be returned as strings */
     switch(dbtype) {
     case  1:	/* VARCHAR2	*/
     case  5:	/* STRING	*/
@@ -152,6 +157,9 @@ dbtype_can_be_string(dbtype)	/* 'can we use SvPV to pass buffer?'	*/
     case 96:	/* CHAR		*/
     case 97:	/* CHARZ	*/
     case 106:	/* MLSLABEL	*/
+#ifdef SQLT_CUR
+    case SQLT_CUR:	/* cursor variable */
+#endif
 	return 1;
     }
     return 0;
@@ -230,34 +238,19 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
 
     if (ret) {
 	int rc = imp_dbh->lda->rc;
+	char *msg;
 	/* oerhms in ora_error may hang or corrupt memory (!) after a connect	*/
-	/* failure. So we fake the common error messages unless ora_login_err	*/
-	/* is true (set via env var above).	Thank Oracle for this sad hack.	*/
+	/* failure in some specific versions of Oracle 7.3.x. So we provide a	*/
+	/* way to skip the message lookup if ora_login_nomsg is true (set via	*/
+	/* env var above). */
 	char buf[100];
-	char *msg="ORA-%d: (Text for error %d not fetched. Use 'oerr ORA %d' command.)";
-	switch (rc) {
-	case 1019:  msg="ORA-%d: unable to allocate memory in the user side (probably a symptom of a deeper problem)";
-		    break;
-	case 1017:  msg="ORA-%d: invalid username/password; login denied";
-		    break;
-	case 1034:  msg="ORA-%d: ORACLE not available";
-		    break;
-	case 2700:  msg="ORA-%d: osnoraenv: error translating ORACLE_SID";
-		    break;
-	case 3106:  msg="ORA-%d: fatal two-task communication protocol error";
-		    break;
-	case 3121:  msg="no interface driver connected - function not performed";
-		    break;
-	case 12154: msg="TNS-%d: TNS:could not resolve service name";
-		    break;
-	case 12545: msg="TNS-%d: TNS:name lookup failure";
-		    break;
-	case 12203: msg="TNS-%d: TNS:unable to connect to destination";
-		    break;
-	}
-	sprintf(buf, msg, rc, rc, rc);
-	ora_error(dbh,	ora_login_err ? imp_dbh->lda  : NULL, rc,
-			ora_login_err ? "login failed" : buf);
+	sprintf(buf, 
+	    "ORA-%05d: (Text for error %d not fetched. Use 'oerr ORA %d' command.)",
+	    rc, rc, rc);
+	/* 1019 is a common but misleading error code (often NLS msg cat related) */
+	msg = (rc!=1019) ? "login failed"
+		: "login failed, probably a symptom of a deeper problem";
+	ora_error(dbh,	ora_login_nomsg ? NULL : imp_dbh->lda, rc, msg);
 	return 0;
     }
     DBIc_IMPSET_on(imp_dbh);	/* imp_dbh set up now			*/
@@ -390,11 +383,11 @@ get_cursor(imp_dbh, sth, imp_sth)
     SV *sth;
     imp_sth_t *imp_sth;
 {
-    imp_sth->cda = &imp_sth->cdabuf;
-    if (oopen(imp_sth->cda, imp_dbh->lda, (text*)0, -1, -1, (text*)0, -1)) {
-        ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oopen error");
+    if (oopen(&imp_sth->cdabuf, imp_dbh->lda, (text*)0, -1, -1, (text*)0, -1)) {
+        ora_error(sth, &imp_sth->cdabuf, imp_sth->cdabuf.rc, "oopen error");
         return 0;
     }
+    imp_sth->cda = &imp_sth->cdabuf;
     return 1;
 }
 
@@ -403,11 +396,14 @@ free_cursor(sth, imp_sth)
     SV *sth;
     imp_sth_t *imp_sth;
 {
+    if (!imp_sth->cda)
+	return 0;
+
     if (DBIc_ACTIVE(imp_sth)) /* should never happen here	*/
-	ocan(imp_sth->cda);
+	ocan(imp_sth->cda);   /* XXX probably not needed before oclose */
 
     if (oclose(imp_sth->cda)) {	/* close the cursor		*/
-	/* Check for ORA-01041: 'hostdef extension doesn't exist' ?	*/
+	/* Check for ORA-01041: 'hostdef extension doesn't exist' ? XXX	*/
 	/* which indicates that the lda had already been logged out	*/
 	/* in which case only complain if not in 'global destruction'?	*/
 	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oclose error");
@@ -593,15 +589,16 @@ dbd_describe(h, imp_sth)
 
     if (imp_sth->cda->ft != FT_SELECT) {
 	if (dbis->debug >= 2)
-	    fprintf(DBILOGFP, "    dbd_describe skipped for non-select (sql f%d, lb %ld)\n",
-		imp_sth->cda->ft, (long)long_buflen);
+	    fprintf(DBILOGFP,
+		"    dbd_describe skipped for non-select (sql f%d, lb %ld, csr 0x%lx)\n",
+		imp_sth->cda->ft, (long)long_buflen, (long)imp_sth->cda);
 	/* imp_sth memory was cleared when created so no setup required here	*/
 	return 1;
     }
 
     if (dbis->debug >= 2)
-	fprintf(DBILOGFP, "    dbd_describe (for sql f%d after oci f%d, lb %ld)...\n",
-			imp_sth->cda->ft, imp_sth->cda->fc, (long)long_buflen);
+	fprintf(DBILOGFP, "    dbd_describe (for sql f%d after oci f%d, lb %ld, csr 0x%lx)...\n",
+			imp_sth->cda->ft, imp_sth->cda->fc, (long)long_buflen, (long)imp_sth->cda);
 
     if (!f_cbufl) {
 	f_cbufl_max = 120;
@@ -808,22 +805,22 @@ ora_sql_type(imp_sth, name, sql_type)
 
 
 
-static int 
-_dbd_rebind_ph(sth, imp_sth, phs) 
+static void 
+_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr) 
     SV *sth;
     imp_sth_t *imp_sth;
     phs_t *phs;
+    ub2 **alen_ptr_ptr;
 {
     STRLEN value_len;
-    ub2 *alen_ptr;
 
-/*	for strings, must be a PV first for ptr to be valid? */
+/* for inserting longs: */
 /*    sv_insert +4	*/
 /*    sv_chop(phs->sv, SvPV(phs->sv,na)+4);	XXX */
 
     if (dbis->debug >= 2) {
-	char *text = neatsvpv(phs->sv,0);
- 	fprintf(DBILOGFP, "       bind %s <== %s (", phs->name, text);
+	char *val = neatsvpv(phs->sv,0);
+ 	fprintf(DBILOGFP, "       bind %s <== %s (", phs->name, val);
  	if (SvOK(phs->sv)) 
  	    fprintf(DBILOGFP, "size %ld/%ld/%ld, ",
  		(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
@@ -839,13 +836,13 @@ _dbd_rebind_ph(sth, imp_sth, phs)
     if (phs->is_inout) {	/* XXX */
 	if (SvREADONLY(phs->sv))
 	    croak(no_modify);
+	if (imp_sth->ora_pad_empty)
+	    croak("Can't use ora_pad_empty with bind_param_inout");
 	/* phs->sv _is_ the real live variable, it may 'mutate' later	*/
 	/* pre-upgrade high to reduce risk of SvPVX realloc/move	*/
 	(void)SvUPGRADE(phs->sv, SVt_PVNV);
 	/* ensure room for result, 28 is magic number (see sv_2pv)	*/
 	SvGROW(phs->sv, (phs->maxlen < 28) ? 28 : phs->maxlen+1);
-	if (imp_sth->ora_pad_empty)
-	    croak("Can't use ora_pad_empty with bind_param_inout");
     }
     else {
 	/* phs->sv is copy of real variable, upgrade to at least string	*/
@@ -873,30 +870,76 @@ _dbd_rebind_ph(sth, imp_sth, phs)
 
     if (value_len + phs->alen_incnull <= UB2MAXVAL) {
 	phs->alen = value_len + phs->alen_incnull;
-	alen_ptr = &phs->alen;
-	if (phs->alen > phs->maxlen && phs->indp != -1)
+	*alen_ptr_ptr = &phs->alen;
+	if (((IV)phs->alen) > phs->maxlen && phs->indp != -1)
 	    croak("panic: _dbd_rebind_ph alen %ld > maxlen %ld", phs->alen,phs->maxlen);
     }
     else {
 	phs->alen = 0;
-	alen_ptr = NULL; /* Can't use alen for long LONGs (>64k) */
+	*alen_ptr_ptr = NULL; /* Can't use alen for long LONGs (>64k) */
 	if (phs->is_inout)
 	    croak("Can't bind LONG values (>%ld) as in/out parameters", (long)UB2MAXVAL);
     }
-
-    /* ---------- */
-
-    /* Since we don't support LONG VAR types we must check	*/
-    /* for lengths too big to pass to obndrv as an sword.	*/
-    if (phs->maxlen > MINSWORDMAXVAL && sizeof(sword)<4)	/* generally 32K	*/
-	croak("Can't bind %s, value is too long (%ld bytes, max %d)",
-		    phs->name, phs->maxlen, MINSWORDMAXVAL);
 
     if (dbis->debug >= 3) {
 	fprintf(DBILOGFP, "bind %s <== '%.*s' (size %d/%ld, otype %d, indp %d)\n",
  	    phs->name, phs->alen, (phs->progv) ? phs->progv : "",
  	    phs->alen, (long)phs->maxlen, phs->ftype, phs->indp);
     }
+
+}
+
+
+#ifdef SQLT_CUR
+static void 
+_rebind_ph_cursor(sth, imp_sth, phs) 
+    SV *sth;
+    imp_sth_t *imp_sth;
+    phs_t *phs;
+{
+    SV *phs_sth = phs->sv;
+    D_impdata(phs_imp_sth, imp_sth_t, phs_sth);
+
+    /* as a short-term hack we use and sacrifice an existing	*/
+    /* statement handle. This will be changed later.		*/
+
+    /* close cursor if open (the pl/sql code can/will open it?)	*/
+/*
+    if (phs_imp_sth->cda)
+	free_cursor(phs_sth, phs_imp_sth);
+    phs_imp_sth->cda = &phs_imp_sth->cdabuf;
+*/
+
+    assert(phs->ftype == SQLT_CUR);
+    phs->progv = (void*)phs_imp_sth->cda;
+    phs->maxlen = -1;
+
+    warn("Cursor variables not yet supported");
+}
+#endif
+
+
+static int 
+_dbd_rebind_ph(sth, imp_sth, phs) 
+    SV *sth;
+    imp_sth_t *imp_sth;
+    phs_t *phs;
+{
+    ub2 *alen_ptr = NULL;
+
+#ifdef SQLT_CUR
+    if (phs->ftype != SQLT_CUR) {
+	_rebind_ph_char(sth, imp_sth, phs, &alen_ptr);
+    }
+    else
+#endif
+	_rebind_ph_cursor(sth, imp_sth, phs);
+
+    /* Since we don't support LONG VAR types we must check	*/
+    /* for lengths too big to pass to obndrv as an sword.	*/
+    if (phs->maxlen > MINSWORDMAXVAL && sizeof(sword)<4)	/* generally 32K	*/
+	croak("Can't bind %s, value is too long (%ld bytes, max %d)",
+		    phs->name, phs->maxlen, MINSWORDMAXVAL);
 
     if (obndra(imp_sth->cda, (text *)phs->name, -1,
 	    (ub1*)phs->progv, (sword)phs->maxlen, /* cast reduces max size */
@@ -935,7 +978,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	/* force SvPOK true before following tests		*/
 	if (dbis->debug >= 2)
 	    fprintf(DBILOGFP,
-		"         bind warning: forcing placeholder flags: type %l, flags 0x%lx\n",
+		"         bind warning: forcing placeholder flags: type %ld, flags 0x%lx\n",
 		SvTYPE(ph_namesv), SvFLAGS(ph_namesv));
 	name = SvPV(ph_namesv, name_len);
     }
@@ -950,9 +993,11 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	/* could check for leading colon here */
     }
 
-    /* hook for later array logic	*/
-    if (SvTYPE(newvalue)==SVt_RV || SvTYPE(newvalue) > SVt_PVLV)
-	croak("Can't bind reference or non-scalar value (currently)");
+    if (SvTYPE(newvalue) > SVt_PVLV) /* hook for later array logic	*/
+	croak("Can't bind a non-scalar value (%s)", neatsvpv(newvalue,0));
+    if (SvROK(newvalue) && !IS_DBI_HANDLE(newvalue))
+	/* dbi handle allowed for cursor variables */
+	croak("Can't bind a reference (%s)", neatsvpv(newvalue,0));
     if (SvTYPE(newvalue) == SVt_PVLV && is_inout)	/* may allow later */
 	croak("Can't bind ``lvalue'' mode scalar as inout parameter (currently)");
 
@@ -972,7 +1017,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     phs = (phs_t*)(void*)SvPVX(*phs_svp);	/* placeholder struct	*/
 
     if (phs->sv == &sv_undef) {	/* first bind for this placeholder	*/
-	phs->ftype    = 1;		/* our default type VARCHAR2	*/
+	phs->ftype    = 1;		/* our default type: VARCHAR2	*/
 	phs->maxlen   = maxlen;		/* 0 if not inout		*/
 	phs->is_inout = is_inout;
 	if (is_inout) {
@@ -990,8 +1035,8 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	    /* XXX If attribs is EMPTY then reset attribs to default?	*/
 	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_type",8, 0)) != NULL) {
 		int ora_type = SvIV(*svp);
-		if (!dbtype_can_be_string(ora_type))	/* mean but safe	*/
-		    croak("Can't bind %s, ora_type %d not a simple string type",
+		if (!oratype_bind_ok(ora_type))
+		    croak("Can't bind %s, ora_type %d not supported by DBD::Oracle",
 			    phs->name, ora_type);
 		if (sql_type)
 		    croak("Can't specify both TYPE (%d) and ora_type (%d) for %s",
@@ -1064,6 +1109,8 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	    /* Some checks for mutated storage since we pointed oracle at it.	*/
 	    if (SvTYPE(phs->sv) != phs->sv_type
 		    || (SvOK(phs->sv) && !SvPOK(phs->sv))
+		    /* SvROK==!SvPOK so cursor (SQLT_CUR) handle will call _dbd_rebind_ph */
+		    /* that suits us for now */
 		    || SvPVX(phs->sv) != phs->progv
 		    || SvCUR(phs->sv) > UB2MAXVAL
 	    ) {
@@ -1109,16 +1156,36 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
     }
 
     if (debug >= 2)
-	fprintf(DBILOGFP, "    dbd_st_execute complete (rc%d, w%02x, rpc%ld, eod%d, out%d)\n",
+	fprintf(DBILOGFP,
+	    "    dbd_st_execute complete (rc%d, w%02x, rpc%ld, eod%d, out%d)\n",
 		imp_sth->cda->rc,  imp_sth->cda->wrn,
 		imp_sth->cda->rpc, imp_sth->eod_errno,
 		imp_sth->has_inout_params);
 
-    if (outparams) {	/* check validity of bound SV's	*/
+    if (outparams) {	/* check validity of bound output SV's	*/
 	int i = outparams;
 	while(--i >= 0) {
 	    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
 	    SV *sv = phs->sv;
+	    if (SvROK(sv)) {	/* XXX assume it's a cursor variable sth */
+		D_impdata(phs_imp_sth, imp_sth_t, sv);
+		if (debug >= 2)
+		    fprintf(DBILOGFP,
+			"       out %s = %s (oracle cursor 0x%lx, indp %d, arcode %d)\n",
+			phs->name, neatsvpv(sv,0), (long)phs_imp_sth->cda,
+			phs->indp, phs->arcode);
+		/* XXX !!! */
+		free_cursor(sth, imp_sth); /* oracle's cdemo5.c does an oclose */
+		/* reset cache counters */
+		phs_imp_sth->in_cache   = 0;
+		phs_imp_sth->next_entry = 0;
+		phs_imp_sth->eod_errno  = 0;
+		phs_imp_sth->done_desc = 0;
+		/* describe and allocate storage for results (if any needed)	*/
+		if (!dbd_describe(sv, phs_imp_sth))
+		    return -2; /* dbd_describe already called ora_error()	*/
+	    }
+	    else
  	    /* phs->alen has been updated by Oracle to hold the length of the result	*/
 	    if (phs->indp == 0) {			/* is okay	*/
 		SvPOK_only(sv);
@@ -1126,8 +1193,8 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		*SvEND(sv) = '\0';
 		if (debug >= 2)
 		    fprintf(DBILOGFP,
-			"       out %s = '%s'\t(len %d)\n",
-				phs->name, SvPV(sv,na),phs->alen);
+			"       out %s = '%s'\t(len %d, arcode %d)\n",
+			phs->name, SvPV(sv,na),phs->alen, phs->arcode);
 	    }
 	    else
 	    if (phs->indp > 0 || phs->indp == -2) {	/* truncated	*/
@@ -1136,21 +1203,27 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		*SvEND(sv) = '\0';
 		if (debug >= 2)
 		    fprintf(DBILOGFP,
-			"       out %s = '%s'\t(TRUNCATED from %d to %d)\n", phs->name,
-				SvPV(sv,na), phs->indp, phs->alen);
+			"       out %s = '%s'\t(TRUNCATED from %d to %d, arcode %d)\n",
+			phs->name, SvPV(sv,na), phs->indp, phs->alen, phs->arcode);
 	    }
 	    else
 	    if (phs->indp == -1) {			/* is NULL	*/
 		(void)SvOK_off(phs->sv);
 		if (debug >= 2)
 		    fprintf(DBILOGFP,
-			"       out %s = undef (NULL)\n", phs->name);
+			"       out %s = undef (NULL, arcode %d)\n",
+			phs->name, phs->arcode);
 	    }
-	    else croak("panic: %s bad indp %d", phs->name, phs->indp);
+	    else croak("panic: %s bad indp %d, arcode %d",
+		phs->name, phs->indp, phs->arcode);
 	}
     }
 
-    DBIc_ACTIVE_on(imp_sth);	/* XXX should only set for select ?	*/
+    if (DBIc_NUM_FIELDS(imp_sth) > 0) {  	/* is a SELECT	*/
+	DBIc_ACTIVE_on(imp_sth);
+    }
+    if (!imp_sth->cda)	/* XXX closed cursor after exe for cursor vars */
+	return 0;
     return imp_sth->cda->rpc;	/* row count (0 will be returned as "0E0")	*/
 }
 

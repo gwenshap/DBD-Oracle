@@ -14,7 +14,7 @@ number and other info here).
 
 http://outside.organic.com/mail-archives/dbi-users/Nov1997/0116.html
 
-LongReadLen and LongTruncOk
+Test LongReadLen and especially the default behaviour of LongTruncOk
 
 Add explain to dist
 

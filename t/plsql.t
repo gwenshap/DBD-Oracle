@@ -119,7 +119,7 @@ ok(0, $csr->execute, 1);
 ok(0, $csr = $dbh->prepare(q{
     declare str varchar2(1000);
     begin
-	:arg := nvl(nls_upper(:arg), 'null');
+	:arg := nvl(upper(:arg), 'null');
 	:arg := :arg || '!';
     end;
 }), 1);
@@ -183,18 +183,39 @@ ok(0, @ary==1 && $ary[0] eq 'bar', 0);
 ok(0, join(':',@ary) eq 'baz:boo', 0);
 $dbh->{PrintError} = 0;
 
-    # To do
+# --- test cursor variables
+$csr = $dbh->prepare(q{
+    begin
+	:var := :var * 2;
+    end;
+});
+ok(0, $csr);
+my $out_csr = $dbh->prepare(q{select 42 from dual}); # sacrificial csr XXX
+ok(0, $out_csr);
+if (0) {
+    ok(0, $csr->bind_param_inout(':var', \$out_csr, 100, { ora_type => 102 }));
+    ok(0, $csr->execute());
+}
+else {
+    ok(0,1);
+    ok(0,1);
+}
+# at this point $out_csr should be a handle on a new oracle cursor
+
+
+# --- To do
     #   test NULLs at first bind
     #   NULLs later binds.
     #   returning NULLs
     #   multiple params, mixed types and in only vs inout
 
+# --- test ping
 ok(0,  $dbh->ping);
 $dbh->disconnect;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 37 }
+BEGIN { $tests = 41 }
 # end.
 
 __END__

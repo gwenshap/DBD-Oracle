@@ -1,3 +1,11 @@
+Changes in DBD::Oracle 0.51 (Oraperl 1.37), 5rd July 1998
+
+  Makefile.PL no longer tries to link with just -lclntsh directly :-(
+  Improvements to some HP-UX builds (hopefully).
+  DBI->data_sources ' dummy ' value removed (and list now sorted).
+  connect failure now shows actual Oracle error message again.
+  Initial (incomplete) support for binding cursor vars (see t/plsql.t).
+
 Changes in DBD::Oracle 0.50 (Oraperl 1.36), 3rd June 1998
 
   Makefile.PL changes: fixed -c option, now searches for .h files,

@@ -34,16 +34,15 @@ $opt_p = 1;		# do perf test
 $ENV{PERL_DBI_DEBUG} = 2 if $opt_d;
 $ENV{ORACLE_HOME} = '/usr/oracle' unless $ENV{ORACLE_HOME};
 
-$dbname = $ARGV[0] || '';	# $ENV{TWO_TASK} || $ENV{ORACLE_SID} || 'crgs';
+$dbname = $ARGV[0] || '';	# if '' it'll use TWO_TASK/ORACLE_SID
 $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 
-eval '$Oraperl::safe = 1'       if $] >= 5;
 eval 'use Oraperl; 1' || die $@ if $] >= 5;
 
 &ora_version;
 
 my @data_sources = DBI->data_sources('Oracle');
-print "Data sources: @data_sources\n\n";
+print "Data sources:\n\t", join("\n\t",@data_sources),"\n\n";
 
 print "\nConnecting\n",
       " to '$dbname' (from command line, else uses ORACLE_SID or TWO_TASK - recommended)\n";
@@ -53,31 +52,31 @@ printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os 
 
 
 {	# test connect works first
-	local($l) = &ora_login($dbname, $dbuser, '');
+    local($l) = &ora_login($dbname, $dbuser, '');
     unless($l) {
-		warn "ora_login: $ora_errno: $ora_errstr\n";
-		# Try to help dumb users who don't know how to connect to oracle...
-	    warn "\nHave you set the environment variable ORACLE_USERID ?\n"
-			if ($ora_errno == 1017);	# ORA-01017: invalid username/password
-	    warn "\nHave you included your password in ORACLE_USERID ? (e.g., 'user/passwd')\n"
-			if ($ora_errno == 1017 and $dbuser !~ m:/:);
-	    warn "\nHave you set the environment variable ORACLE_SID or TWO_TASK?\n"
-			if ($ora_errno == 2700);	# error translating ORACLE_SID
-	    warn "\nORACLE_SID or TWO_TASK possibly not right, or server not running.\n"
-			if ($ora_errno == 1034);	# ORA-01034: ORACLE not available
-	    warn "\nTWO_TASK possibly not set correctly right.\n"
-			if ($ora_errno == 12545);
-		warn "\n";
+	warn "ora_login: $ora_errno: $ora_errstr\n";
+	# Try to help dumb users who don't know how to connect to oracle...
+	warn "\nHave you set the environment variable ORACLE_USERID ?\n"
+		    if ($ora_errno == 1017);	# ORA-01017: invalid username/password
+	warn "\nHave you included your password in ORACLE_USERID ? (e.g., 'user/passwd')\n"
+		    if ($ora_errno == 1017 and $dbuser !~ m:/:);
+	warn "\nHave you set the environment variable ORACLE_SID or TWO_TASK?\n"
+		    if ($ora_errno == 2700);	# error translating ORACLE_SID
+	warn "\nORACLE_SID or TWO_TASK possibly not right, or server not running.\n"
+		    if ($ora_errno == 1034);	# ORA-01034: ORACLE not available
+	warn "\nTWO_TASK possibly not set correctly right.\n"
+		    if ($ora_errno == 12545);
+	warn "\n";
         warn "Generally set TWO_TASK or ORACLE_SID but not both at the same time.\n";
         warn "Try to connect to the database using an oracle tool like sqlplus\n";
         warn "only if that works should you suspect problems with DBD::Oracle.\n";
         warn "Try leaving dbname value empty and set dbuser to name/passwd\@dbname.\n";
-		die "\nTest aborted.\n";
+	die "\nTest aborted.\n";
     }
-	# test_other($l);
-	print `sleep 1; echo Backticks OK` || "Backticks failed: $!\n"
-		if ($os ne 'MSWin32' and $os ne 'VMS');
-	&ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
+    # test_other($l);
+    print `sleep 1; echo Backticks OK` || "Backticks failed: $!\n"
+	    if ($os ne 'MSWin32' and $os ne 'VMS');
+    &ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
 }
 $start = time;
 
@@ -257,48 +256,46 @@ sub count_fetch {
 
 
 sub test_fetch_perf {
-	print "\nTesting internal row fetch overhead.\n";
+    print "\nTesting internal row fetch overhead.\n";
     local($lda) = &ora_login($dbname, $dbuser, '')
-			|| die "ora_login: $ora_errno: $ora_errstr\n";
-	#$lda->trace(2);
-	$lda->trace(0);
-	local($csr) = &ora_open($lda,"select 0,1,2,3,4,5,6,7,8,9 from dual");
-	#local($csr) = &ora_open($lda,"select 9 from dual");
-	local($max) = 50000;
-	$csr->{ora_fetchtest} = $max;
-	require Benchmark;
-	$t0 = new Benchmark;
-	#local($rows) = count_fetch($csr); die "count_fetch $rows != $max" if $rows-1 != $max;
-	my $code = $csr->can('fetch');
-	#1 while &$code($csr);
-	1 while $csr->fetchrow_arrayref;
-	#1 while @row = $csr->fetchrow_array;
-	#while(@row = $csr->fetchrow_array) { $hash{++$i} = [ @row ]; }
-	$td = Benchmark::timediff((new Benchmark), $t0);
-	$csr->{ora_fetchtest} = 0;
-	printf("$max fetches: ".Benchmark::timestr($td)."\n");
-	printf("%d per clock second, %d per cpu second\n\n", $max/$td->real, $max/$td->cpu_a);
+		    || die "ora_login: $ora_errno: $ora_errstr\n";
+    #$lda->trace(2);
+    $lda->trace(0);
+    local($csr) = &ora_open($lda,"select 0,1,2,3,4,5,6,7,8,9 from dual");
+    #local($csr) = &ora_open($lda,"select 9 from dual");
+    local($max) = 50000;
+    $csr->{ora_fetchtest} = $max;
+    require Benchmark;
+    $t0 = new Benchmark;
+    #local($rows) = count_fetch($csr); die "count_fetch $rows != $max" if $rows-1 != $max;
+    my $code = $csr->can('fetch');
+    #1 while &$code($csr);
+    1 while $csr->fetchrow_arrayref;
+    #1 while @row = $csr->fetchrow_array;
+    #while(@row = $csr->fetchrow_array) { $hash{++$i} = [ @row ]; }
+    $td = Benchmark::timediff((new Benchmark), $t0);
+    $csr->{ora_fetchtest} = 0;
+    printf("$max fetches: ".Benchmark::timestr($td)."\n");
+    printf("%d per clock second, %d per cpu second\n\n", $max/$td->real, $max/$td->cpu_a);
 }
 
 
 sub test_other {
-	local($lda) = @_;
-	#$lda->debug(2);
-	$lda->{RaiseError} = 1;
-	local($c) = $lda->prepare(q{
-		begin
-			:a2 := :a1 + 10;
-		end;
-	});
-	local($p,$q) = (42,43);
-	$p += 1; $q += 1;
-	$c->bind_param_inout(':a1', \$p, 100);
-	$c->bind_param_inout(':a2', \$q, 100);
-	foreach (1..1000) {
-		$c->execute || die $c->errstr;
-		$p += 1;
-	}
-	exit 1;
+    local($lda) = @_;
+$lda->{RaiseError} =1;
+$lda->trace(2);
+my $out_csr = $lda->prepare(q{select 42 from dual}); # sacrificial csr XXX
+$csr = $lda->prepare(q{
+    begin
+    OPEN :csr_var FOR select * from all_tables;
+    end;
+});
+$csr->bind_param_inout(':csr_var', \$out_csr, 100, { ora_type => 102 });
+$csr->execute();
+# at this point $out_csr should be a handle on a new oracle cursor
+@row = $out_csr->fetchrow_array;
+
+    exit 1;
 }
 
 # end.

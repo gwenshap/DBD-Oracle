@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.61 1998/06/03 21:04:51 timbo Exp $
+# $Id: Makefile.PL,v 1.62 1998/07/05 21:25:07 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -37,6 +37,7 @@ my %opts = (
     NAME => 'DBD::Oracle',
     VERSION_FROM => 'Oracle.pm',
     OBJECT => '$(O_FILES)',
+    DEFINE => '',
     DIR  => [],
     clean => {	FILES=> 'Oracle.xsi' },
     dist  => {	DIST_DEFAULT	=> 'clean distcheck disttest ci tardist',
@@ -47,17 +48,16 @@ my %opts = (
 my(@MK, %MK, $MK, %MK_expanding);	# parsed macros from Oracle's makefiles
 
 # Options (rarely needed)
-$::opt_m = undef;	# path to proc.mk or oracle.mk file to read
+$::opt_m = 0;		# path to proc.mk or oracle.mk file to read
 $::opt_p = '';		# prefer oracle.mk over proc
+$::opt_l = 0;		# try direct-link to libclntsh
 $::opt_g = '';		# enable debugging (-g for compiler and linker)
-$::opt_c = '';		# disable linking to clntsh (LCLSH/LLIBCLNTSH in *.mk)
 $::opt_s = '';		# Find a symbol in oracle libs, Don't build a Makefile
 $::opt_S = '';		# Find a symbol in oracle & system libs, Don't build a Makefile
 $::opt_v = 0;		# be more verbose
 $::opt_d = 0;		# much more verbose for debugging
-$::opt_old = 0;		# old style .mk file parsing
 
-GetOptions(qw(v! d! g! c! old! p! m=s s=s S=s)) or die "Invalid arguments";
+GetOptions(qw(v! d! g! p! l! m=s s=s S=s)) or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
 $::opt_v = 1 if $::opt_d;
@@ -154,8 +154,9 @@ elsif ($os eq 'MSWin32') {
 
 # --- UNIX Variants ---
 
-elsif (@_=grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } <$OH/lib/lib*>
-	and !defined $::opt_m) {  # use -m 0 to disable this direct-link approach
+elsif ($::opt_l and # use -l to enable this direct-link approach
+	@_=grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } <$OH/lib/lib*>
+    ) {
     # --- the simple modern way ---
     foreach(@_) { s:\Q$OH/lib/::g }
     print "Found direct-link candidates: @_\n";
@@ -164,7 +165,7 @@ elsif (@_=grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } <$OH/lib/lib*>
     my $syslibs =   (-f "$OH/lib/sysliblist")
 	    ? read_file("$OH/lib/sysliblist")
 	    : read_file("$OH/rdbms/lib/sysliblist");
-    $syslibs =~ s/-l:lib(\w+).sl\b/-l$1/g;	# for hp-ux
+    $syslibs =~ s/-l:lib(\w+).(sl|a)\b/-l$1/g if $os eq 'hpux';
     print "Oracle sysliblist: $syslibs\n";
     $opts{LIBS} = [ "-L$OH/lib -l$lib $syslibs" ];
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
@@ -223,12 +224,15 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 # HP-UX 9 cannot link a non-PIC object file into a shared library.
 # Since the # .a libs that Oracle supplies contain non-PIC object
 # files, we sadly have to build static on HP-UX 9 :(
-if ($os eq 'hpux' and $osvers < 10) {
-    $opts{LINKTYPE} = 'static';
-    print "Warning: Forced to build static not dynamic on $os $osvers.\a\n";
-}
-if ($os eq 'hpux' and $osvers >= 10) {
-    print "Warning: You may need to build using static linking. See the README file.\n\a";
+if ($os eq 'hpux') {
+	if ($osvers < 10) {
+		print "Warning: Forced to build static not dynamic on $os $osvers.\a\n";
+		$opts{LINKTYPE} = 'static';
+	}
+	else {
+		print "Warning: You may need to build using static linking. See the README file.\n";
+	}
+	# see const_cccmd for -Aa to -Ae flag change
 }
 
 if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
@@ -236,7 +240,7 @@ if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
     print "         You may also need do: ORACCENV='cc=xlc_r'; export ORACCENV\n";
 }
 
-$opts{DEFINE} = '-Wall -Wno-comment' if $Config{cc} eq 'gcc';
+$opts{DEFINE} .= '-Wall -Wno-comment' if $Config{cc} eq 'gcc';
 
 $opts{DEFINE} .= '-Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
 
@@ -248,6 +252,9 @@ if ($ENV{LOGNAME} eq 'timbo' and $ENV{S_ARCH_SW}){  # a reasonable guess
     $Verbose = 1;
     $opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith -pedantic -Wtraditional'
 	. ' -Wbad-function-cast -Wcast-qual' if $Config{cc} eq 'gcc';
+	$::opt_g = '-g';
+    $opts{dynamic_lib}->{OTHERLDFLAGS} ||= '';
+    $opts{dynamic_lib}->{OTHERLDFLAGS} .= " $::opt_g";
 }
 
 if ($opts{LINKTYPE} && $opts{LINKTYPE} eq 'static') {
@@ -449,21 +456,12 @@ sub fetch_oci_macros {
 	    s/\.(\$\(LIB_EXT\))/$1/g;
 	}
 
-	if ($::opt_old) {
-	    last if m/^\w+\s*:[^=]/;	# gone too far, reached actual targets
-	}
-	else {
-	    next if m!^[-\w/+.\$()]+\s*:+[^=]*!; # skip targets
-	    next if m!^\t!;                      # skip target build rules
-	}
+	next if m!^[-\w/+.\$()]+\s*:+[^=]*!; # skip targets
+	next if m!^\t!;                      # skip target build rules
 	next if m/^\s*\.SUFFIXES/;
 
-	unless($MK{mkver}) {	# still need to get version number
-	    # This is tough since some versions of proc.mk split the
-	    # RCS header over three lines! Later versions don't even
-	    # have one. That's Oracle for you.
-	    my $line = $_;
-	    $line =~ s/[\\\r\n]/ /g;
+	unless($MK{mkver}) {	# still want to get version number
+	    my $line = $_; $line =~ s/[\\\r\n]/ /g;
 	    $MK{mkver} = $mkver = $1
 		if $line =~ m/\$Header:.*?\.mk.+(\d+\.\d+)/;
 	}
@@ -471,14 +469,8 @@ sub fetch_oci_macros {
 	# We always store values into %MK before checking %edit
 	# %edit can edit this in addition to $_ if needed.
 	my $name;
-	if ($::opt_old) {
-	    $MK{$1} = $2 if m/^\s*(\w+)\s*=\s*([\s\S]*)/;
-	    $name = $1;
-	}
-	else {
-	    $MK{$1}= $' if m/^\s*(\w+)\s*=\s*/;
-	    $name = $1;
-	}
+	$MK{$1}= $' if m/^\s*(\w+)\s*=\s*/;
+	$name = $1;
 
 	if ($name and exists $edit{$name}) {
 	    my $pre = $_;
@@ -493,14 +485,17 @@ sub fetch_oci_macros {
 	push(@MK, $_);
     }
 
-    if ($MK{LCLSH} and !$::opt_c) {
-	$linkvia = '$(LCLSH)';
-    }
-    elsif ($MK{LLIBCLNTSH} and !$::opt_c) {
-	$linkvia = '$(LLIBCLNTSH)';
-    }
-    elsif ($MK{OCILDLIBS}) {
+    # --- now decide what to link with ---
+    if ($MK{OCILDLIBS}) {
 	$linkvia = '$(OCILDLIBS)';
+    }
+    elsif ($MK{PROLDLIBS}) {	# Oracle 7.3.x
+	if ($MK{PROLDLIBS} =~ /thread/i && $MK{PROLLSshared}) {
+	    $linkvia = '$(PROLLSshared)';
+	}
+	else {
+	    $linkvia = '$(PROLDLIBS)';
+	}
     }
     elsif (int($mkver) == 1) {
 	if ($MK{LLIBOCIC}) {
@@ -509,9 +504,6 @@ sub fetch_oci_macros {
 	    print "Warning: Guessing what to link with.\n";
 	    $linkvia = '-locic $(TTLIBS)';	# XXX GUESS HACK
 	}
-    }
-    elsif ($MK{PROLDLIBS}) {	# Oracle 7.3.x
-	$linkvia = '$(PROLDLIBS)';
     }
     unless ($linkvia){
 	die "ERROR parsing $file: Unable to determine what to link with.\n"
@@ -687,6 +679,11 @@ ORACLE_HOME = '.$OH.'
 	if ($::opt_g) {
 	    s/\s-O\d?\b//;	# delete optimise option
 	    s/\s-/ -g -/;	# add -g option
+	}
+	# are we using the non-bundled hpux compiler?
+	if ($os eq "hpux" and $Config::Config{ccflags} =~ /-Aa\b/) {
+	    print "Changing -Aa to -Ae for HP-UX.\n";
+	    s/-Aa\b/-Ae/g;	# allow "long long" in oratypes.h
 	}
 	$_;
     }

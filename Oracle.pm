@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.51 1998/06/03 21:04:51 timbo Exp $
+#   $Id: Oracle.pm,v 1.53 1998/07/05 21:49:00 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.50';
+$DBD::Oracle::VERSION = '0.51';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -22,7 +22,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use Exporter ();
     @ISA = qw(DynaLoader Exporter);
 
-    my $Revision = substr(q$Revision: 1.51 $, 10);
+    my $Revision = substr(q$Revision: 1.53 $, 10);
 
     require_version DBI 0.92;
 
@@ -108,7 +108,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    last;
 	}
 
-	eval q{
+	eval q{	# XXX experimental, will probably change
 	    warn "Fetching ORACLE_SID from Registry.\n" if $debug;
 	    require Tie::Registry;
 	    import Tie::Registry;
@@ -120,13 +120,15 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    warn "Found $sid \@ $home.\n" if $debug;
 	} if ($^O eq "MSWin32");
 
-	$dbnames{' dummy '} = 1;	# mark as loaded (even if empty)
+	$dbnames{0} = 1;	# mark as loaded (even if empty)
     }
 
     sub data_sources {
 	my $drh = shift;
 	load_dbnames($drh) unless %dbnames;
-	return (keys %dbnames);
+	my @names = sort  keys %dbnames;
+	my @sources = map { $_ ? ("dbi:Oracle:$_") : () } @names;
+	return @sources;
     }
 
 
@@ -529,7 +531,7 @@ Also note that the NLS files $ORACLE_HOME/ocommon/nls/admin/data
 changed extension (from .d to .nlb) between 7.2.3 and 7.3.2.
 
 
-=head1 SEE ALSO
+=head1 PL/SQL Examples
 
 These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
 
@@ -704,6 +706,19 @@ You can find more examples in the t/plsql.t file in the DBD::Oracle
 source directory.
 
 
+=head1 Commercial Oracle Tools
+
+Assorted tools and references for general information. No recommendation implied.
+
+PL/Vision from RevealNet and Steven Feuerstein.
+
+Platinum Technology: http://www.platinum.com/products/oracle.htm
+
+"Q" from Savant Corporation.
+
+http://www.databasegroup.com
+
+
 =head1 SEE ALSO
 
 L<DBI>
@@ -714,7 +729,7 @@ Linux uses should read:
 
 =head1 AUTHOR
 
-DBD::Oracle by Tim Bunce.
+DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
 
 =head1 COPYRIGHT
 
