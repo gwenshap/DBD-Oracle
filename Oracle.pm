@@ -97,7 +97,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub load_dbnames {
 	my ($drh) = @_;
 	my $debug = $drh->debug;
-	my $oracle_home = $ENV{$ORACLE_ENV} || '';
+	my $oracle_home = $ENV{$ORACLE_ENV};
 	local *FH;
 	my $d;
 
@@ -133,7 +133,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	  $dbnames{$sid} = $home if $sid and $home;
 	  $drh->trace_msg("Found $sid \@ $home.\n") if $debug;
 	  $oracle_home =$home unless $oracle_home;
-	};
+	}
 
 	# get list of 'local' database SIDs from oratab
 	foreach $d (qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
@@ -151,12 +151,13 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	}
 
 	# get list of 'remote' database connection identifiers
-	foreach $d ( $ENV{TNS_ADMIN},
-	  ".",							# current directory
+	my @tns_admin;
+	push @tns_admin, (
 	  "$oracle_home/network/admin",	# OCI 7 and 8.1
 	  "$oracle_home/net80/admin",	# OCI 8.0
-	  "/var/opt/oracle"
-	) {
+	) if $oracle_home;
+	push @tns_admin, "/var/opt/oracle";
+	foreach $d ( $ENV{TNS_ADMIN}, ".", @tns_admin  ) {
 	    next unless $d && open(FH, "<$d/tnsnames.ora");
 	    $drh->trace_msg("Loading $d/tnsnames.ora\n") if $debug;
 	    local *_;
@@ -246,7 +247,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 			$ENV{ORACLE_SID}  = $dbname;
 			delete $ENV{TWO_TASK};
 			if ($attr && $attr->{ora_oratab_orahome}) {
-			    $drh->trace_msg("Changing $ORACLE_ENV for $dbname to $dbhome (to match oratab entry)")
+			    $drh->trace_msg("Changing $ORACLE_ENV for $dbname to $dbhome (to match oratab entry)\n")
 				if ($ENV{$ORACLE_ENV} and $dbhome ne $ENV{$ORACLE_ENV});
 			    $ENV{$ORACLE_ENV} = $dbhome;
 			}
@@ -261,7 +262,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    }
 	}
 
-	warn "$ORACLE_ENV environment variable not set!\n"
+	$drh->trace_msg("$ORACLE_ENV environment variable not set!\n")
 		if !$ENV{$ORACLE_ENV} and $^O ne "MSWin32";
 
 	# create a 'blank' dbh
