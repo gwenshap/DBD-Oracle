@@ -92,7 +92,9 @@ sub ora_login {
     my($system_id, $name, $password) = @_;
     local($Oraperl::prev_warn) = $SIG{'__WARN__'} || 0; # must be local
     local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
-    return DBI->connect("dbi:Oracle:$system_id", $name, $password, { PrintError => 0 });
+    return DBI->connect("dbi:Oracle:$system_id", $name, $password, {
+	PrintError => 0, AutoCommit => 0
+    });
 }
 sub ora_logoff {
     my($dbh) = @_;
