@@ -234,27 +234,19 @@ int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
 #define CS_IS_UTF16( cs ) ( cs == al16utf16_csid )
 
 #define UTF8_FIXUP_CSID( csid ,csform ,where ) \
-    if ( ( CS_IS_UTF8( csid ) || CS_IS_UTF16( csid ) ) \
-       && (csid != ncharsetid)  ) {  \
-        if ( csform == SQLCS_NCHAR ) { \
-           if (DBIS->debug >= 2) \
-               PerlIO_printf(DBILOGFP, \
-                  "    csid is UTF (%d) and csform=SQLCS_NCHAR setting csid to ncharsetid=%d for LobWrite (in %s)\n", \
-                       csid ,ncharsetid, where );  \
-           csid = ncharsetid; \
-        } \
-        else { \
-           if (DBIS->debug >= 2) \
-               PerlIO_printf(DBILOGFP, \
-                  "    csid is UTF (%d) and csform!=SQLCS_NCHAR setting csid to charsetid=%d for LobWrite (in %s)\n", \
-                       csid ,charsetid, where );  \
-           csid = charsetid; \
-        } \
+    if ( (CS_IS_UTF8(csid) || CS_IS_UTF16(csid)) && (csid != ncharsetid) ) { \
+        ub2 new_csid = ( csform == SQLCS_NCHAR ) ? ncharsetid : charsetid;   \
+	if (DBIS->debug >= 3)                                                \
+	   PerlIO_printf(DBILOGFP, "    csform %d so changing csid %d (UTF) to %d (in %s)\n", \
+		   csform, csid, new_csid, where );                          \
+	csid = new_csid; \
     }
 
+#define CSFORM_IMPLIED_CSID(csform) \
+    ((csform==SQLCS_NCHAR) ? ncharsetid : charsetid)
+
 #define CSFORM_IMPLIES_UTF8(csform) \
-    (  (csform!=SQLCS_NCHAR && CS_IS_UTF8( charsetid)) \
-    || (csform==SQLCS_NCHAR && CS_IS_UTF8(ncharsetid)) )
+    CS_IS_UTF8( CSFORM_IMPLIED_CSID( csform ) )
 
 #define DBD_SET_UTF8_FORM(sv,csform) \
     (CSFORM_IMPLIES_UTF8(csform) ? SvUTF8_on(sv) : 0)
