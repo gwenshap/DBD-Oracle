@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.16 (svn rev 394)   14th July 2004
+=head1 Changes in DBD-Oracle 1.16 (svn rev 395)   14th July 2004
 
   NEEDS TESTING - especially for Oracle 8.x, 9.0.x and Windows
 
@@ -16,7 +16,7 @@
   Fixed handling of temporary LOBs thanks to Chris Donnelly.
   Fixed STORE to cache attribute value in handle cache.
   Fixed seg fault returning LOB Locators reported by Raj Chandran.
-  Fixed binding to allow overloaded scalars.
+  Fixed binding to allow overloaded scalars (not for 'inout' params).
   Fixed setting of $DBI::err to 0 triggering PrintWarn in DBI >= 1.41.
   Fixed memory leaks in auto LOB refetch code thanks to Dongqiang Bai.
 

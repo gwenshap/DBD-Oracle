@@ -3,6 +3,7 @@
 use DBI;
 use DBD::Oracle qw(:ora_types ORA_OCI);
 use Data::Dumper;
+use Math::BigInt;
 use strict;
 
 unshift @INC ,'t';
@@ -76,7 +77,6 @@ sub run_select_tests {
   }
   my $data1 = "1234567890";
   my $data2 = "2bcdefabcd";
-  my $data3 = "2bcdefabcd12345";
   
   if (!create_test_table("lng $type_name", 1)) {
     # typically OCI 8 client talking to Oracle 7 database
@@ -88,10 +88,11 @@ sub run_select_tests {
   print " --- insert some $type_name data\n";
   ok(0, $sth = $dbh->prepare("insert into $table values (?, ?, SYSDATE)"), 1);
   ok(0, $sth->execute(40, $data0), 1);
-  ok(0, $sth->execute(41, $data1), 1);
+  ok(0, $sth->execute(Math::BigInt->new(41), $data1), 1); # bind an overloaded value
   ok(0, $sth->execute(42, $data2), 1);
-  ok(0, !$sth->execute(43, $data3), 1);
-  
+
+  print " --- try to insert a string that's too long\n";
+  ok(0, !$sth->execute(43, "12345678901234567890"), 1);
   
   print " --- fetch $type_name data back again\n";
   

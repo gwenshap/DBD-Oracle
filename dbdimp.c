@@ -1415,7 +1415,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 
     /* check if placeholder was passed as a number	*/
 
-    if (SvGMAGICAL(ph_namesv))	/* eg if from tainted expression */
+    if (SvGMAGICAL(ph_namesv))	/* eg tainted or overloaded */
 	mg_get(ph_namesv);
     if (!SvNIOKp(ph_namesv)) {
 	STRLEN i;
@@ -1522,6 +1522,8 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	if (phs->sv == &sv_undef)	/* (first time bind) */
 	    phs->sv = newSV(0);
 	sv_setsv(phs->sv, newvalue);
+	if (SvAMAGIC(phs->sv)) /* overloaded. XXX hack, logic ought to be pushed deeper */
+	    sv_pvn_force(phs->sv, &na);
     }
     else if (newvalue != phs->sv) {
 	if (phs->sv)
