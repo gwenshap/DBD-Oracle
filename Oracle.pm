@@ -1,4 +1,4 @@
-#   $Id: Oracle.pm,v 1.45 1997/06/20 21:18:11 timbo Exp $
+#   $Id: Oracle.pm,v 1.47 1997/09/08 23:12:57 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997 Tim Bunce
 #
@@ -9,7 +9,7 @@
 
 require 5.002;
 
-my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORACLE_ROOT' : 'ORACLE_HOME';
+my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 my $oracle_home = $ENV{$ORACLE_ENV};
 
 {
@@ -19,10 +19,10 @@ my $oracle_home = $ENV{$ORACLE_ENV};
     use DynaLoader ();
     @ISA = qw(DynaLoader);
 
-    $VERSION = '0.46';
-    my $Revision = substr(q$Revision: 1.45 $, 10);
+    $VERSION = '0.47';
+    my $Revision = substr(q$Revision: 1.47 $, 10);
 
-    require_version DBI 0.84;
+    require_version DBI 0.85;
 
     bootstrap DBD::Oracle $VERSION;
 
@@ -63,10 +63,6 @@ my $oracle_home = $ENV{$ORACLE_ENV};
 
 {   package DBD::Oracle::dr; # ====== DRIVER ======
     use strict;
-
-    sub errstr {
-	return $DBD::Oracle::errstr;
-    }
 
     sub load_oratab {		# get list of 'local' databases
 	my($drh) = @_;
@@ -135,17 +131,17 @@ my $oracle_home = $ENV{$ORACLE_ENV};
 
 	# create a 'blank' dbh
 
-	my $this = DBI::_new_dbh($drh, {
+	my $dbh = DBI::_new_dbh($drh, {
 	    'Name' => $dbname,
 	    'USER' => $user, 'CURRENT_USER' => $user,
 	    });
 
 	# Call Oracle OCI orlon func in Oracle.xs file
 	# and populate internal handle data.
-	DBD::Oracle::db::_login($this, $dbname, $user, $auth)
+	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth)
 	    or return undef;
 
-	$this;
+	$dbh;
     }
 
 }
@@ -154,14 +150,10 @@ my $oracle_home = $ENV{$ORACLE_ENV};
 {   package DBD::Oracle::db; # ====== DATABASE ======
     use strict;
 
-    sub errstr {
-	return $DBD::Oracle::errstr;
-    }
-
     sub prepare {
 	my($dbh, $statement, @attribs)= @_;
 
-	# create a 'blank' dbh
+	# create a 'blank' sth
 
 	my $sth = DBI::_new_sth($dbh, {
 	    'Statement' => $statement,
@@ -176,6 +168,16 @@ my $oracle_home = $ENV{$ORACLE_ENV};
 
 	$sth;
     }
+
+
+    sub ping {
+	my($dbh) = @_;
+	# we know that DBD::Oracle prepare does a describe so this will
+	# actually talk to the server and is this a valid and cheap test.
+	return 1 if $dbh->prepare("select SYSDATE from DUAL");
+	return 0;
+    }
+
 
     sub tables {
 	my($dbh) = @_;		# XXX add qualification
@@ -212,11 +214,8 @@ my $oracle_home = $ENV{$ORACLE_ENV};
 
 
 {   package DBD::Oracle::st; # ====== STATEMENT ======
-    use strict;
 
-    sub errstr {
-	return $DBD::Oracle::errstr;
-    }
+    # all done in XS
 }
 
 1;
@@ -446,7 +445,186 @@ changed extension (from .d to .nlb) between 7.2.3 and 7.3.2.
 
 =head1 SEE ALSO
 
+These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
+
+  # we assume this package already exists
+  my $plsql = q{
+
+    CREATE OR REPLACE PACKAGE plsql_example
+    IS
+      PROCEDURE proc_np;
+   
+      PROCEDURE proc_in (
+          err_code IN NUMBER
+      );
+   
+      PROCEDURE proc_in_inout (
+          test_num IN NUMBER,
+          is_odd IN OUT NUMBER
+      );
+   
+      FUNCTION func_np
+        RETURN VARCHAR2;
+   
+    END plsql_example;
+  
+    CREATE OR REPLACE PACKAGE BODY plsql_example
+    IS
+      PROCEDURE proc_np
+      IS
+        whoami VARCHAR2(20) := NULL;
+      BEGIN
+        SELECT USER INTO whoami FROM DUAL;
+      END;
+   
+      PROCEDURE proc_in (
+        err_code IN NUMBER
+      )
+      IS
+      BEGIN
+        RAISE_APPLICATION_ERROR(err_code, 'This is a test.');
+      END;
+   
+      PROCEDURE proc_in_inout (
+        test_num IN NUMBER,
+        is_odd IN OUT NUMBER
+      )
+      IS
+      BEGIN
+        is_odd := MOD(test_num, 2);
+      END;
+   
+      FUNCTION func_np
+        RETURN VARCHAR2
+      IS
+        ret_val VARCHAR2(20);
+      BEGIN
+        SELECT USER INTO ret_val FROM DUAL;
+        RETURN ret_val;
+      END;
+   
+    END plsql_example;
+  };
+  
+  use DBI;
+
+  my($db, $csr, $ret_val);
+  
+  $db = DBI->connect('dbi:Oracle:database','user','password')
+        or die "Unable to connect: $DBI::errstr";
+  
+  # So we don't have to check every DBI call we set RaiseError.
+  # See the DBI docs now if you're not familiar with RaiseError.
+  $db->{RaiseError} = 1;
+  
+  # Example 1
+  #
+  # Calling a PLSQL procedure that takes no parameters. This shows you the
+  # basic's of what you need to execute a PLSQL procedure. Just wrap your
+  # procedure call in a BEGIN END; block just like you'd do in SQL*Plus.
+  # 
+  # p.s. If you've used SQL*Plus's exec command all it does is wrap the
+  #      command in a BEGIN END; block for you.
+  
+  $csr = $db->prepare(q{
+    BEGIN
+      PLSQL_EXAMPLE.PROC_NP;
+    END;
+  });
+  $csr->execute;
+  
+  
+  # Example 2
+  #
+  # Now we call a procedure that has 1 IN parameter. Here we use bind_param
+  # to bind out parameter to the prepared statement just like you might
+  # do for an INSERT, UPDATE, DELETE, or SELECT statement.
+  #
+  # I could have used positional placeholders (e.g. :1, :2, etc.) or
+  # ODBC style placeholders (e.g. ?), but I prefer Oracle's named
+  # placeholders (but few DBI drivers support them so they're not portable).
+
+  my $err_code = -20001;
+  
+  $csr = $db->prepare(q{
+  	BEGIN
+  	    PLSQL_EXAMPLE.PROC_IN(:err_code);
+  	END;
+  });
+  
+  $csr->bind_param(":err_code", $err_code);
+
+  # PROC_IN will RAISE_APPLICATION_ERROR which will cause the execute to 'fail'.
+  # Because we set RaiseError, the DBI will croak (die) so we catch that with eval.
+  eval {
+    $csr->execute;
+  };
+  print 'After proc_in: $@=',"'$@', errstr=$DBI::errstr, ret_val=$ret_val\n";
+  
+  
+  # Example 3
+  #
+  # Building on the last example, I've added 1 IN OUT parameter. We still
+  # use a placeholders in the call to prepare, the difference is that
+  # we now call bind_param_inout to bind the value to the place holder.
+  #
+  # Note that the third parameter to bind_param_inout is the maximum size
+  # of the variable. You normally make this slightly larger than necessary.
+  # But note that the perl variable will have that much memory assigned to
+  # it even if the actual value returned is shorter.
+
+  my $test_num = 5;
+  my $is_odd;
+  
+  $csr = $db->prepare(q{
+  	BEGIN
+  	    PLSQL_EXAMPLE.PROC_IN_INOUT(:test_num, :is_odd);
+  	END;
+  });
+  
+  # The value of $test_num is _copied_ here
+  $csr->bind_param(":test_num", $test_num);
+
+  $csr->bind_param_inout(":is_odd", \$is_odd, 1);
+
+  # The execute will automagically update the value of $is_odd
+  $csr->execute;
+  
+  print "$test_num is ", ($is_odd) ? "odd - ok" : "even - error!", "\n";
+  
+
+  # Example 4
+  #
+  # What about the return value of a PLSQL function? Well treat it the same
+  # as you would a call to a function from SQL*Plus. We add a placeholder
+  # for the return value and bind it with a call to bind_param_inout so
+  # we can access it's value after execute.
+
+  my $whoami = "";
+  
+  $csr = $db->prepare(q{
+  	BEGIN
+  	    :whoami := PLSQL_EXAMPLE.FUNC_NP;
+  	END;
+  });
+  
+  $csr->bind_param_inout(":whoami", \$whoami, 20);
+  $csr->execute;
+  print "Your database user name is $whoami\n";
+  
+  $db->disconnect;
+
+You can find more examples in the t/plsql.t file in the DBD::Oracle
+source directory.
+
+
+=head1 SEE ALSO
+
 L<DBI>
+
+Linux uses should read:
+
+  http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
 
 =head1 AUTHOR
 

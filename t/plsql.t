@@ -90,6 +90,14 @@ ok(0, $p1 == 6);
 $p1 = 1; foreach (1..10) { $csr->execute || die $DBI::errstr; }
 ok(0, $p1 == 1024);
 
+# --- test undef parameters
+ok(0, $csr = $dbh->prepare(q{
+	declare foo char(500);
+	begin foo := :arg; end;
+}), 1);
+my $undef;
+ok(0, $csr->bind_param_inout(':arg', \$undef,10), 1);
+ok(0, $csr->execute, 1);
 
 # --- test named string in/out parameters
 ok(0, $csr = $dbh->prepare(q{
@@ -121,16 +129,6 @@ ok(0, $p1 eq 'null!');
 
 $csr->finish;
 
-# --- test plsql_errstr
-ok(0, ! $dbh->prepare(q{
-    begin
-	  procedure filltab( stuff out tab ); asdf
-    end;
-}), 1);
-ok(0, $dbh->err == 6550);	# PL/SQL error
-my $msg = $dbh->func('plsql_errstr');
-ok(0, $msg =~ /Encountered the symbol/, $msg);
-
 
     # To do
     #   test NULLs at first bind
@@ -144,3 +142,9 @@ exit 0;
 BEGIN { $tests = 29 }
 # end.
 
+__END__
+t/plsql.............ORA-06502: PL/SQL: numeric or value error
+ORA-06512: at line 4 (DBD: oexec error)
+Use of uninitialized value at t/plsql.t line 120.
+Error in PL/SQL block
+3.5: PLS-00103: The symbol "an optional basic declaration item" was ignored.

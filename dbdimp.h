@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.18 1997/06/14 17:42:12 timbo Exp $
+   $Id: dbdimp.h,v 1.19 1997/09/08 22:43:59 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -12,6 +12,26 @@
 
 /* #define MAX_COLS 1025 */
 
+/* try uncommenting this line if you get a syntax error on
+ *	typedef signed long  sbig_ora;
+ * in oratypes.h for Oracle 7.1.3. Don't you just love Oracle!
+ */
+/* #define signed */
+
+/* Hack to fix broken Oracle oratypes.h on OSF Alpha. Sigh.	*/
+#if defined(__osf__) && defined(__alpha)
+#ifndef A_OSF
+#define A_OSF
+#endif
+#endif
+
+#include <oratypes.h>
+#include <ocidfn.h>
+#ifdef CAN_PROTOTYPE
+# include <ociapr.h>
+#else
+# include <ocikpr.h>
+#endif
 #ifndef HDA_SIZE
 #define HDA_SIZE 512
 #endif
@@ -33,6 +53,8 @@ struct imp_dbh_st {
 
     Lda_Def lda;
     ub1     hda[HDA_SIZE];
+
+	int autocommit;		/* we assume autocommit is off initially   */
 };
 
 
@@ -54,8 +76,6 @@ struct imp_sth_st {
     imp_fbh_t *fbh;	    /* array of imp_fbh_t structs	*/
     char      *fbh_cbuf;    /* memory for all field names       */
     int       t_dbsize;     /* raw data width of a row		*/
-    sb4   long_buflen;      /* length for long/longraw (if >0)	*/
-    bool  long_trunc_ok;    /* is truncating a long an error	*/
 
     /* Select Row Cache Details */
     int       cache_size;
@@ -119,18 +139,27 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 };
 
 
-void	ora_error _((SV *h, Lda_Def *lda, int rc, char *what));
-void	fbh_dump _((imp_fbh_t *fbh, int i, int cacheidx));
+/* These defines avoid name clashes for multiple statically linked DBD's	*/
 
-void	dbd_init _((dbistate_t *dbistate));
-void	dbd_preparse _((imp_sth_t *imp_sth, char *statement));
-int 	dbd_describe _((SV *h, imp_sth_t *imp_sth));
-int 	dbd_st_blob_read _((SV *sth, int field, long offset, long len,
-			SV *destrv, long destoffset));
-int		 dbd_db_STORE_attrib _((SV *dbh, SV *keysv, SV *valuesv));
-SV    	*dbd_db_FETCH_attrib _((SV *dbh, SV *keysv));
-int		 dbd_st_STORE_attrib _((SV *dbh, SV *keysv, SV *valuesv));
-SV    	*dbd_st_FETCH_attrib _((SV *sth, SV *keysv));
-
+#define dbd_init		ora_init
+#define dbd_db_login		ora_db_login
+#define dbd_db_do		ora_db_do
+#define dbd_db_commit		ora_db_commit
+#define dbd_db_rollback		ora_db_rollback
+#define dbd_db_disconnect	ora_db_disconnect
+#define dbd_db_destroy		ora_db_destroy
+#define dbd_db_STORE_attrib	ora_db_STORE_attrib
+#define dbd_db_FETCH_attrib	ora_db_FETCH_attrib
+#define dbd_st_prepare		ora_st_prepare
+#define dbd_st_rows		ora_st_rows
+#define dbd_st_execute		ora_st_execute
+#define dbd_st_fetch		ora_st_fetch
+#define dbd_st_finish		ora_st_finish
+#define dbd_st_destroy		ora_st_destroy
+#define dbd_st_blob_read	ora_st_blob_read
+#define dbd_st_STORE_attrib	ora_st_STORE_attrib
+#define dbd_st_FETCH_attrib	ora_st_FETCH_attrib
+#define dbd_describe		ora_describe
+#define dbd_bind_ph		ora_bind_ph
 
 /* end */

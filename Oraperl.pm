@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.34 1997/06/20 21:03:56 timbo Exp $
+# $Id: Oraperl.pm,v 1.35 1997/09/08 22:43:59 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -25,7 +25,7 @@ require 5.002;
 use DBI 0.84;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.34 $, 10);
+$VERSION = substr(q$Revision: 1.35 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -73,15 +73,13 @@ sub _func_ref {
 }
 
 sub _warn {
-	my $prev_warn = shift;
-	if ($_[0] =~ /^(Bad|Duplicate) free/) {
-		if ($ENV{PERL_DBD_DUMP} eq 'dump') {
-			print STDERR "Aborting with a core dump for diagnostics (PERL_DBD_DUMP)\n";
-			dump;
-		}
-		return;
-	}
-	$prev_warn ? &$prev_warn(@_) : warn @_;
+    my $prev_warn = shift;
+    if ($_[0] =~ /^(Bad|Duplicate) free/) {
+	return unless $ENV{PERL_DBD_DUMP} eq 'dump';
+	print STDERR "Aborting with a core dump for diagnostics (PERL_DBD_DUMP)\n";
+	dump;
+    }
+    $prev_warn ? &$prev_warn(@_) : warn @_;
 }
 
 
@@ -128,7 +126,7 @@ sub ora_open {
 }
 
 *ora_bind  = _func_ref('st::execute');
-*ora_fetch = _func_ref('st::fetchrow');
+*ora_fetch = \&{"DBD::Oracle::st::ora_fetch"};
 *ora_close = _func_ref('st::finish');
 
 sub ora_do {
@@ -216,7 +214,10 @@ sub ora_version {
 
 $Oraperl::ora_verno = '3.000';	# to distinguish it from oraperl 2.4
 
-$Oraperl::ora_long  = 80;	# 80, oraperl default
+# ora_long is left unset so that the DBI $h->{LongReadLen} attrib will be used
+# by default. If ora_long is set then LongReadLen will be ignored (sadly) but
+# that behaviour may change later to only apply to oraperl mode handles.
+#$Oraperl::ora_long  = 80;	# 80, oraperl default
 $Oraperl::ora_trunc = 0; 	# long trunc is error, oraperl default
 
 
@@ -236,6 +237,8 @@ __END__
 Oraperl - Perl access to Oracle databases for old oraperl scripts
 
 =head1 SYNOPSIS
+
+  eval 'use Oraperl; 1' || die $@ if $] >= 5;  # ADD THIS LINE TO OLD SCRIPTS
 
   $lda = &ora_login($system_id, $name, $password)
   $csr = &ora_open($lda, $stmt [, $cache])
@@ -276,6 +279,15 @@ those who wish to extend the routines or to port them to new machines.
 The text in this document is largely unchanged from the original Perl4
 oraperl manual written by Kevin Stock <kstock@auspex.fr>. Any comments
 specific to the DBD::Oracle Oraperl emulation are prefixed by B<DBD:>.
+
+B<DBD:> In order to make the oraperl function definitions available in
+perl5 you need to arrange to 'use' the Oraperl.pm module in each file
+or package which uses them. You can do this by simply adding S<C<use
+Oraperl;>> in each file or package. If you need to make the scripts work
+with both the perl4 oraperl and perl5 you should add add the following
+text instead:
+
+  eval 'use Oraperl; 1' || die $@ if $] >= 5;
 
 =head2 Principal Functions
 

@@ -168,7 +168,6 @@ sub test1 {
 
 	print "Test ora_do with harmless non-select statement ",
 			"(set transaction read only)\n";
-    # example: push(@{$lda->{Handlers}}, sub { die "ora_errno=$ora_errno" } );
 	print "Expect error message:\n";
 	&ora_do($lda, "set transaction read only ")
 		    || warn "ora_do: $ora_errno: $ora_errstr\n";
@@ -215,6 +214,7 @@ sub test_cache {
 		    || die "ora_login: $ora_errno: $ora_errstr\n";
     local($csr, $rows, $max);
     local($start) = time;
+	#$l->debug(3);
     foreach $max (1, 0, $cache-1, $cache, $cache+1) {
 	$csr = &ora_open($l, q{
 		select object_name from all_objects where rownum <= :1
@@ -222,9 +222,9 @@ sub test_cache {
 	&ora_bind($csr, $max) || die $ora_errstr;
 	$rows = count_fetch($csr);
 	die "test_cache $rows/$max" if $rows != $max;
-	&ora_bind($csr, $max+1) || die $ora_errstr;
+	&ora_bind($csr, $max+2) || die $ora_errstr;
 	$rows = count_fetch($csr);
-	die "test_cache $rows/$max+1" if $rows != $max+1;
+	die "test_cache $rows/$max+2" if $rows != $max+2;
     }
     # this test will only show timing improvements when
     # run over a modem link. It's primarily designed to

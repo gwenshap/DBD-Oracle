@@ -1,5 +1,6 @@
-# $Id: Makefile.PL,v 1.55 1997/06/20 21:18:11 timbo Exp $
+# $Id: Makefile.PL,v 1.57 1997/09/08 23:12:57 timbo Exp $
 
+BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
 
 use ExtUtils::MakeMaker 5.16, qw(&WriteMakefile $Verbose);
@@ -21,7 +22,8 @@ BEGIN { if ($^O eq 'VMS') {
 # For those not using Dynamic loading this means building a
 # new static perl in the DBI directory by saying 'make perl'
 # and then using _that_ perl to make this one.
-use DBI 0.84;
+use DBI 0.86;
+use DBI::DBD;	# DBD creation tools
 
 my $os = $^O;
 my $osvers = $Config{osvers};
@@ -30,8 +32,11 @@ $osvers =~ s/^\s*(\d+\.\d+).*/$1/;	# drop sub-sub-version: 2.5.1 -> 2.5
 my %opts = (
     NAME => 'DBD::Oracle',
     VERSION_FROM => 'Oracle.pm',
+	DIR => [],
+	clean => { FILES=> 'Oracle.xsi' },
     dist  => { DIST_DEFAULT=> 'clean distcheck disttest ci tardist',
                 PREOP => '$(MAKE) -f Makefile.old distdir' },
+	COMPRESS => 'gzip -v9', SUFFIX => 'gz',
 );
 my(@MK, %MK, $MK);	# parsed macros from Oracle's makefiles
 
@@ -52,7 +57,7 @@ $Verbose = 1 if $::opt_v;
 
 # --- Introduction
 
-my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORACLE_ROOT' : 'ORACLE_HOME';
+my $ORACLE_ENV  = ($os eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 print "\n Configuring DBD::Oracle ...\n
 >>>\tRemember to actually *READ* the README file!
@@ -62,21 +67,23 @@ print "\n Configuring DBD::Oracle ...\n
 # --- Where is Oracle installed...
 
 my $OH = $ENV{$ORACLE_ENV};
+($OH = unixify $OH) =~ s:/$:: if $os eq 'VMS';
 die "$ORACLE_ENV environment variable must be set.\n" unless $OH;
 die "$ORACLE_ENV environment variable ($OH) not valid.\n" unless -d $OH;
 
 my $OCIDIR = "OCI73";	# For MSWin32. XXX what about 7.4 etc?
+						# need to start "looking" for this...
 
 print "Using Oracle in $OH\n";
 
 
 my @mkplaces = qw(
-    rdbms/lib/oracle.mk rdbms/demo/oracle.mk
-    proc/lib/proc.mk    precomp/demo/proc/proc.mk
+    rdbms/lib/oracle.mk rdbms/demo/oracle.mk		rdbms/demo/demo_rdbms.mk
+    proc/lib/proc.mk    precomp/demo/proc/proc.mk	precomp/demo/proc/demo_proc.mk
     proc16/lib/proc16.mk
 );
-# if -p then remove oracle.mk from search list, prefer Pro*C
-@mkplaces = grep { !m/oracle\.mk\b/ } @mkplaces if $::opt_p;
+# if -p then remove oracle.mk from search list and thus prefer Pro*C
+@mkplaces = grep { !m/(oracle|rdbms)\.mk\b/ } @mkplaces if $::opt_p;
 unshift @mkplaces, $::opt_m  if $::opt_m;
 my($mkfile, $place);
 foreach $place (@mkplaces) {
@@ -103,11 +110,11 @@ die qq{
 
     See README.clients for more information and some alternatives.
 
-} unless ($os eq 'MSWin32') || ($mkfile && -f $mkfile);
+} unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile);
 
 my(@mkfiles, $linkvia, $libhome, $linkwith, $linkwith_s, @linkwith_o, $OCIINCLUDE);
 
-if ($os ne 'MSWin32') {
+if ($os ne 'MSWin32' and $os ne 'VMS') {
     $linkvia  = fetch_oci_macros($mkfile);
     $libhome  = expand_mkvars($MK{LIBHOME}, 0, 1, 0) || "$OH/lib";
     $linkwith = expand_mkvars($linkvia,     0, 1, 0);
@@ -116,8 +123,13 @@ if ($os ne 'MSWin32') {
 
     # get a cut down $linkwith to pass to MakeMaker liblist
     $linkwith_s = expand_mkvars($linkwith, 1, 1, 0);
+
+    # delete problematic crt?.o on solaris
+    $linkwith_s = del_crtobj($linkwith_s) if $os eq 'solaris';
+
     # convert "/full/path/libFOO.a" into "-L/full/path -lFOO"
     $linkwith_s =~ s!([/\w.]+)/lib(\w+).a!-L$1 -l$2!g;
+
     # extract object files, keep for use later
     push @linkwith_o, $1 while $linkwith_s =~ s/(\S+\.[oa])\b//;
     # also extract AIX .exp files since they confuse MakeMaker
@@ -143,20 +155,41 @@ if ($os ne 'MSWin32') {
 
     $OCIINCLUDE = $MK{INCLUDE} || '';
     $OCIINCLUDE .= " -I$OH/rdbms/demo";
-    $opts{LIBS} = [ "-L$libhome $linkwith_s" ] unless $os eq 'VMS';
+    $opts{LIBS} = [ "-L$libhome $linkwith_s" ];
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g @linkwith_o \$(COMPOBJS)" };
     $opts{OBJECT} = '$(O_FILES)';
+    $opts{INC}  = "$OCIINCLUDE -I\$(INSTALLSITEARCH)/auto/DBI";
 }
-else {	# MSWin32
+elsif ($os eq 'MSWin32') {
     # this assumes MSVC...
+    # find OCI dir here...
+    die qq{
+    Unable to find required Oracle OCI files for the build.  Please check
+    that you have your OCI installed in your oracle home ($OH) 
+    directory and that it has the following files (and probably more):
+
+	    $OH\\$OCIDIR\\include\\oratypes.h
+	    $OH\\$OCIDIR\\lib\\msvc\\ociw32.lib
+
+    Please install OCI or send comments back to dbi-users\@fugue.com you 
+    have an OCI directory other than $OCIDIR.  
+
+    } unless (-e "$OH/$OCIDIR/include/oratypes.h"
+	   && -e "$OH/$OCIDIR/lib/msvc/ociw32.lib");
+
     $OCIINCLUDE = "-I$OH/$OCIDIR/include -I$OH/rdbms/demo";
     $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/MSVC/OCIW32.LIB"];
     $opts{dynamic_lib} = { OTHERLDFLAGS => " $OH/$OCIDIR/LIB/MSVC/OCIW32.LIB" };
-    $opts{OBJECT} = '$(O_FILES)';
     $opts{SKIP} = ['processPL'];    # XXX caused problems with Nmake...
+    $opts{OBJECT} = '$(O_FILES)';
+    $opts{INC}  = "$OCIINCLUDE -I\$(INSTALLSITEARCH)/auto/DBI";
+}
+elsif ($os eq 'VMS') {
+    $OCIINCLUDE = vmsify("$OH/rdbms/") ." ". vmsify("$OH/rdbms/demo/oci_demo/");
+    $opts{OBJECT} = 'oracle.obj dbdimp.obj';
+    $opts{INC}  = "$OCIINCLUDE \$(INSTALLSITEARCH)/auto/DBI";
 }
 
-$opts{INC}  = "$OCIINCLUDE -I\$(INSTALLSITEARCH)/auto/DBI";
 
 # --- Handle special cases ---
 
@@ -258,6 +291,10 @@ your 'privlib' and 'archlib' directories and their auto subdirectories.
     '';
 }
 
+sub MY::postamble {
+	return dbd_postamble();
+}
+
 
 sub MY::post_constants {
     my $self = shift;
@@ -281,10 +318,12 @@ ORACLE_HOME = '.$OH.'
 
 
 sub del_crtobj {
-    # E.g. for changing the COMPOBJS line
+    my $str = shift;
+    # E.g. for changing the COMPOBJS line (and sometimes LDSTRING)
     # old: $(COMPOBJ)/crti.o $(COMPOBJ)/crt1.o $(COMPOBJ)/__fstd.o
     # new: $(COMPOBJ)/__fstd.o
-    s:\$\S+?/crt[1in]\.o\b::g;
+    $str =~ s:\$\S+?/crt[1in]\.o\b::g;
+    return $str;
 }
 
 
@@ -298,13 +337,13 @@ sub fetch_oci_macros {
     # makefile (note that %MK stills gets these values).
     my @edit = qw(
 		SHELL CC CFLAGS CCFLAGS OPTIMIZE ASFLAGS RCC LD LDFLAGS
-		AR ECHO EXE OBJS PERL
+		AR ECHO EXE OBJS PERL OBJ_EXT LIB_EXT
 	);
     my %edit; @edit{@edit} = ('$_ = ""') x @edit;
 
     $edit{COMPOBJS} = q{
 	# Firstly a Solaris specific edit:
-	del_crtobj() if $os eq 'solaris';
+	$_ = del_crtobj($_) if $os eq 'solaris';
 	
 	# Delete any object files in COMPOBJS that don't actually exist
 	my $of;
@@ -327,6 +366,10 @@ sub fetch_oci_macros {
 	chomp;
 	push @MK, '' if $_ eq '' and $lastline ne ''; # squeeze multiple blank lines
 	next unless $_;
+
+	# deal with Oracle8's incompatible use of OBJ_EXT
+	s/\.(\$\(OBJ_EXT\))/$1/g;
+	s/\.(\$\(LIB_EXT\))/$1/g;
 
 	if ($::opt_old) {
 	    last if m/^\w+\s*:[^=]/;	# gone too far, reached actual targets
@@ -467,11 +510,14 @@ sub find_bin{
     return "<$bin not found>";
 }
 
-{	# If perl Makefile.PL *-g* then switch on debugging
+
+{
     package MY; # SUPER needs package context, $self is not sufficient
+
     sub const_cccmd {
 	my($self) = shift;
 	local($_) = $self->SUPER::const_cccmd(@_);
+	# If perl Makefile.PL *-g* then switch on debugging
 	if ($::opt_g) {
 	    s/\s-O\d?\b//;	# delete optimise option
 	    s/\s-/ -g -/;	# add -g option
@@ -506,3 +552,6 @@ $(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt rtls.opt $(INST_ARC
 }
 
 __END__
+
+test.xs: $(INSTALLSITEARCH)/auto/DBI/Driver.xst
+    perl -p -e 's/{DRIVER}/$(BASEEXT)/g' < $(INSTALLSITEARCH)/auto/DBI/Driver.xst > test.xs

@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.h,v 1.10 1997/06/14 17:42:12 timbo Exp $
+   $Id: Oracle.h,v 1.11 1997/09/08 22:43:59 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -11,62 +11,44 @@
 */
 
 
-#define NEED_DBIXS_VERSION 8
+#define NEED_DBIXS_VERSION 9
 
 #include <DBIXS.h>		/* installed by the DBI module	*/
 
-
-/* try uncommenting this line if you get a syntax error on
- *	typedef signed long  sbig_ora;
- * in oratypes.h for Oracle 7.1.3. Don't you just love Oracle!
- */
-/* #define signed */
-
-/* Hack to fix broken Oracle oratypes.h on OSF Alpha. Sigh.	*/
-#if defined(__osf__) && defined(__alpha)
-#ifndef A_OSF
-#define A_OSF
-#endif
-#endif
-
-#include <oratypes.h>
-
-#include <ocidfn.h>
-
-#ifdef CAN_PROTOTYPE
-# include <ociapr.h>
-#else
-# include <ocikpr.h>
-#endif
-
-
-/* read in our implementation details */
-
 #include "dbdimp.h"
 
-void dbd_init _((dbistate_t *dbistate));
+#include <dbd_xsh.h>	/* installed by the DBI module	*/
 
-int  dbd_db_login _((SV *dbh, char *dbname, char *uid, char *pwd));
-int  dbd_db_do _((SV *sv, char *statement));
-int  dbd_db_commit _((SV *dbh));
-int  dbd_db_rollback _((SV *dbh));
-int  dbd_db_disconnect _((SV *dbh));
-void dbd_db_destroy _((SV *dbh));
-int  dbd_db_STORE _((SV *dbh, SV *keysv, SV *valuesv));
-SV  *dbd_db_FETCH _((SV *dbh, SV *keysv));
+#ifdef yxyxyxyx
+/* These prototypes are for dbdimp.c funcs used in the XS file          */ 
+/* These names are #defined to driver specific names in dbdimp.h        */ 
 
+void	dbd_init _((dbistate_t *dbistate));
 
-int  dbd_st_prepare _((SV *sth, char *statement, SV *attribs));
-int  dbd_st_rows _((SV *sv));
-int  dbd_bind_ph _((SV *h, SV *param, SV *value, SV *attribs, int is_inout, IV maxlen));
-int  dbd_st_execute _((SV *sv));
-AV  *dbd_st_fetch _((SV *sv));
-int  dbd_st_finish _((SV *sth));
-void dbd_st_destroy _((SV *sth));
-int  dbd_st_readblob _((SV *sth, int field, long offset, long len,
-			SV *destrv, long destoffset));
-int  dbd_st_STORE _((SV *dbh, SV *keysv, SV *valuesv));
-SV  *dbd_st_FETCH _((SV *dbh, SV *keysv));
+int	 dbd_db_login _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd));
+int	 dbd_db_do _((SV *sv, char *statement));
+int	 dbd_db_commit     _((SV *dbh, imp_dbh_t *imp_dbh));
+int	 dbd_db_rollback   _((SV *dbh, imp_dbh_t *imp_dbh));
+int	 dbd_db_disconnect _((SV *dbh, imp_dbh_t *imp_dbh));
+void	 dbd_db_destroy    _((SV *dbh, imp_dbh_t *imp_dbh));
+int	 dbd_db_STORE_attrib _((SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv));
+SV	*dbd_db_FETCH_attrib _((SV *dbh, imp_dbh_t *imp_dbh, SV *keysv));
 
+int	 dbd_st_prepare _((SV *sth, imp_sth_t *imp_sth,
+		char *statement, SV *attribs));
+int	 dbd_st_rows	_((SV *sth, imp_sth_t *imp_sth));
+int	 dbd_st_execute _((SV *sth, imp_sth_t *imp_sth));
+AV	*dbd_st_fetch	_((SV *sth, imp_sth_t *imp_sth));
+int	 dbd_st_finish	_((SV *sth, imp_sth_t *imp_sth));
+void	 dbd_st_destroy _((SV *sth, imp_sth_t *imp_sth));
+int      dbd_st_blob_read _((SV *sth, imp_sth_t *imp_sth,
+		int field, long offset, long len, SV *destrv, long destoffset));
+int	 dbd_st_STORE_attrib _((SV *sth, imp_sth_t *imp_sth, SV *keysv, SV *valuesv));
+SV	*dbd_st_FETCH_attrib _((SV *sth, imp_sth_t *imp_sth, SV *keysv));
+
+int      dbd_describe _((SV *sth, imp_sth_t *imp_sth));
+int	 dbd_bind_ph  _((SV *sth, imp_sth_t *imp_sth,
+		SV *param, SV *value, SV *attribs, int is_inout, IV maxlen));
+#endif
 
 /* end of Oracle.h */

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.32 1997/06/20 21:18:11 timbo Exp $
+   $Id: dbdimp.c,v 1.33 1997/09/08 22:43:59 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -22,7 +22,7 @@ static SV *ora_cache;
 static SV *ora_cache_o;		/* temp hack for ora_open() cache override */
 static int ora_login_err;	/* fetch & show real login errmsg if true  */
 
-static int autocommit = 0;	/* we assume autocommit is off initially   */
+static void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
 
 
 void
@@ -44,6 +44,26 @@ dbd_init(dbistate)
 }
 
 
+int
+dbd_discon_all(drh, imp_drh)
+    SV *drh;
+    imp_drh_t *imp_drh;
+{
+    /* The disconnect_all concept is flawed and needs more work */
+    if (!dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
+	sv_setiv(DBIc_ERR(imp_drh), (IV)1);
+	sv_setpv(DBIc_ERRSTR(imp_drh),
+		(char*)"disconnect_all not implemented");
+	DBIh_EVENT2(drh, ERROR_event,
+		DBIc_ERR(imp_drh), DBIc_ERRSTR(imp_drh));
+	return FALSE;
+    }
+    if (perl_destruct_level)
+	perl_destruct_level = 0;
+    return FALSE;
+}
+
+
 /* Database specific error handling.
 	This will be split up into specific routines
 	for dbh and sth level.
@@ -51,7 +71,7 @@ dbd_init(dbistate)
 	Err, many changes needed, ramble ...
 */
 
-void
+static void
 ora_error(h, lda, rc, what)
     SV *h;
     Lda_Def *lda;
@@ -85,7 +105,7 @@ ora_error(h, lda, rc, what)
 }
 
 
-void
+static void
 fbh_dump(fbh, i, aidx)
     imp_fbh_t *fbh;
     int i;
@@ -172,13 +192,13 @@ fb_ary_t *fb_ary;
 /* ================================================================== */
 
 int
-dbd_db_login(dbh, dbname, uid, pwd)
+dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
     SV *dbh;
+    imp_dbh_t *imp_dbh;
     char *dbname;
     char *uid;
     char *pwd;
 {
-    D_imp_dbh(dbh);
     int ret;
 
     /* can give duplicate free errors (from Oracle) if connect fails	*/
@@ -190,16 +210,24 @@ dbd_db_login(dbh, dbname, uid, pwd)
 	/* is true (set via env var above).	Thank Oracle for this sad hack.	*/
 	char buf[100];
 	char *msg="ORA-%d: (Text for error %d not fetched. Use 'oerr ORA %d' command.)";
-        switch (rc) {
+	switch (rc) {
+	case 1019:	msg="ORA-%d: unable to allocate memory in the user side (probably a symptom of a deeper problem)";
+		    break;
 	case 1017:  msg="ORA-%d: invalid username/password; login denied";
 		    break;
 	case 1034:  msg="ORA-%d: ORACLE not available";
 		    break;
 	case 2700:  msg="ORA-%d: osnoraenv: error translating ORACLE_SID";
 		    break;
-	case 12154: msg="ORA-%d: TNS:could not resolve service name";
+	case 3106:  msg="ORA-%d: fatal two-task communication protocol error";
 		    break;
-        }
+	case 3121:  msg="no interface driver connected - function not performed";
+		    break;
+	case 12154: msg="TNS-%d: TNS:could not resolve service name";
+		    break;
+	case 12203: msg="TNS-%d: TNS:unable to connect to destination";
+		    break;
+	}
 	sprintf(buf, msg, rc, rc, rc);
 	ora_error(dbh,	ora_login_err ? &imp_dbh->lda  : NULL, rc,
 			ora_login_err ? "login failed" : buf);
@@ -212,10 +240,10 @@ dbd_db_login(dbh, dbname, uid, pwd)
 
 
 int
-dbd_db_commit(dbh)
+dbd_db_commit(dbh, imp_dbh)
     SV *dbh;
+    imp_dbh_t *imp_dbh;
 {
-    D_imp_dbh(dbh);
     if (ocom(&imp_dbh->lda)) {
 	ora_error(dbh, &imp_dbh->lda, imp_dbh->lda.rc, "commit failed");
 	return 0;
@@ -224,10 +252,10 @@ dbd_db_commit(dbh)
 }
 
 int
-dbd_db_rollback(dbh)
+dbd_db_rollback(dbh, imp_dbh)
     SV *dbh;
+    imp_dbh_t *imp_dbh;
 {
-    D_imp_dbh(dbh);
     if (orol(&imp_dbh->lda)) {
 	ora_error(dbh, &imp_dbh->lda, imp_dbh->lda.rc, "rollback failed");
 	return 0;
@@ -237,10 +265,10 @@ dbd_db_rollback(dbh)
 
 
 int
-dbd_db_disconnect(dbh)
+dbd_db_disconnect(dbh, imp_dbh)
     SV *dbh;
+    imp_dbh_t *imp_dbh;
 {
-    D_imp_dbh(dbh);
     /* We assume that disconnect will always work	*/
     /* since most errors imply already disconnected.	*/
     DBIc_ACTIVE_off(imp_dbh);
@@ -256,24 +284,24 @@ dbd_db_disconnect(dbh)
 
 
 void
-dbd_db_destroy(dbh)
+dbd_db_destroy(dbh, imp_dbh)
     SV *dbh;
+    imp_dbh_t *imp_dbh;
 {
-    D_imp_dbh(dbh);
     if (DBIc_ACTIVE(imp_dbh))
-	dbd_db_disconnect(dbh);
+	dbd_db_disconnect(dbh, imp_dbh);
     /* Nothing in imp_dbh to be freed	*/
     DBIc_IMPSET_off(imp_dbh);
 }
 
 
 int
-dbd_db_STORE_attrib(dbh, keysv, valuesv)
+dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)
     SV *dbh;
+    imp_dbh_t *imp_dbh;
     SV *keysv;
     SV *valuesv;
 {
-    D_imp_dbh(dbh);
     STRLEN kl;
     char *key = SvPV(keysv,kl);
     SV *cachesv = NULL;
@@ -282,13 +310,10 @@ dbd_db_STORE_attrib(dbh, keysv, valuesv)
     if (kl==10 && strEQ(key, "AutoCommit")) {
 	if ( (on) ? ocon(&imp_dbh->lda) : ocof(&imp_dbh->lda) ) {
 	    ora_error(dbh, &imp_dbh->lda, imp_dbh->lda.rc, "ocon/ocof failed");
-	    /* XXX um, we can't return FALSE and true isn't acurate */
-	    /* the best we can do is cache an undef	*/
-	    cachesv = &sv_undef;
-	} else {
-	    autocommit = on;
-	    cachesv = boolSV(on);	/* cache new state */
+	    /* XXX um, we can't return FALSE and true isn't acurate so we croak */
+	    croak(SvPV(DBIc_ERRSTR(imp_dbh),na));
 	}
+	DBIc_set(imp_dbh,DBIcf_AutoCommit, on);
     } else {
 	return FALSE;
     }
@@ -299,21 +324,23 @@ dbd_db_STORE_attrib(dbh, keysv, valuesv)
 
 
 SV *
-dbd_db_FETCH_attrib(dbh, keysv)
+dbd_db_FETCH_attrib(dbh, imp_dbh, keysv)
     SV *dbh;
+    imp_dbh_t *imp_dbh;
     SV *keysv;
 {
-    /* D_imp_dbh(dbh); */
     STRLEN kl;
     char *key = SvPV(keysv,kl);
-    SV *retsv = NULL;
+    SV *retsv = Nullsv;
     /* Default to caching results for DBI dispatch quick_FETCH	*/
-    int cacheit = TRUE;
+    int cacheit = FALSE;
+
+    /* AutoCommit FETCH via DBI */
 
     if (kl==10 && strEQ(key, "AutoCommit")) {
-	return boolSV(autocommit);
+        retsv = boolSV(DBIc_has(imp_dbh,DBIcf_AutoCommit));
     }
-    else
+    if (!retsv)
 	return Nullsv;
     if (cacheit) {	/* cache for next time (via DBI quick_FETCH)	*/
 	SV **svp = hv_fetch((HV*)SvRV(dbh), key, kl, 1);
@@ -328,20 +355,52 @@ dbd_db_FETCH_attrib(dbh, keysv)
 
 /* ================================================================== */
 
+static int
+get_cursor(imp_dbh, sth, imp_sth)
+    imp_dbh_t *imp_dbh;
+    SV *sth;
+    imp_sth_t *imp_sth;
+{
+    imp_sth->cda = &imp_sth->cdabuf;
+    if (oopen(imp_sth->cda, &imp_dbh->lda, (text*)0, -1, -1, (text*)0, -1)) {
+        ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oopen error");
+        return 0;
+    }
+    return 1;
+}
+
+static int
+free_cursor(sth, imp_sth)
+    SV *sth;
+    imp_sth_t *imp_sth;
+{
+    if (DBIc_ACTIVE(imp_sth))	/* should never happen here	*/
+	ocan(imp_sth->cda);
+
+    if (oclose(imp_sth->cda)) {	/* close the cursor		*/
+	/* Check for ORA-01041: 'hostdef extension doesn't exist' ?	*/
+	/* which indicates that the lda had already been logged out	*/
+	/* in which case only complain if not in 'global destruction'?	*/
+	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oclose error");
+	return 0;
+    }
+    imp_sth->cda = NULL;
+    return 1;
+}
+
 
 int
-dbd_st_prepare(sth, statement, attribs)
+dbd_st_prepare(sth, imp_sth, statement, attribs)
     SV *sth;
+    imp_sth_t *imp_sth;
     char *statement;
     SV *attribs;
 {
-    D_imp_sth(sth);
     D_imp_dbh_from_sth;
     sword oparse_defer = 0;  /* PARSE_NO_DEFER */
     ub4   oparse_lng   = 1;  /* auto v6 or v7 as suits db connected to	*/
 
     imp_sth->done_desc = 0;
-    imp_sth->cda = &imp_sth->cdabuf;
 
     if (DBIc_COMPAT(imp_sth)) {
 	imp_sth->ora_pad_empty = (SvOK(ora_pad_empty)) ? SvIV(ora_pad_empty) : 0;
@@ -353,8 +412,7 @@ dbd_st_prepare(sth, statement, attribs)
 	DBD_ATTRIB_GET_BOOL(attribs, "ora_parse_defer",15, svp, oparse_defer);
     }
 
-    if (oopen(imp_sth->cda, &imp_dbh->lda, (text*)0, -1, -1, (text*)0, -1)) {
-        ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oopen error");
+    if (!get_cursor(imp_dbh, sth, imp_sth)) {
         return 0;
     }
 
@@ -378,7 +436,7 @@ dbd_st_prepare(sth, statement, attribs)
 	sv_catsv(msgsv, sqlsv);
 	sv_catpv(msgsv, "'");
 	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, SvPV(msgsv,na));
-	oclose(imp_sth->cda);	/* close the cursor	*/
+	free_cursor(sth, imp_sth);
 	return 0;
     }
 
@@ -387,15 +445,8 @@ dbd_st_prepare(sth, statement, attribs)
 	; /* XXX perl_call_method to get error text ? */
     }
 
-    /* long_buflen:	length for long/longraw (if >0), else 80 (ora app dflt)	*/
-    /* long_trunc_ok:	is truncating a long an error    XXX not implemented	*/
-    imp_sth->long_buflen   = (SvOK(ora_long) && SvIV(ora_long)>0) ? SvIV(ora_long) : 80;
-    imp_sth->long_trunc_ok = 1;	/* can use blob_read()		*/
-    /* ora_trunc is checked at fetch time */
-
     if (dbis->debug >= 2)
-	fprintf(DBILOGFP, "    dbd_st_prepare'd sql f%d (lb %ld, lt %d)\n",
-	    imp_sth->cda->ft, (long)imp_sth->long_buflen, imp_sth->long_trunc_ok);
+	fprintf(DBILOGFP, "    dbd_st_prepare'd sql f%d\n", imp_sth->cda->ft);
 
     /* Describe and allocate storage for results.		*/
     if (!dbd_describe(sth, imp_sth)) {
@@ -406,7 +457,7 @@ dbd_st_prepare(sth, statement, attribs)
 }
 
 
-void
+static void
 dbd_preparse(imp_sth, statement)
     imp_sth_t *imp_sth;
     char *statement;
@@ -490,6 +541,7 @@ dbd_describe(h, imp_sth)
     static sb4 *f_cbufl;		/* XXX not thread safe	*/
     static U32  f_cbufl_max;
 
+    I32	long_buflen;
     sb1 *cbuf_ptr;
     int t_cbufl=0;
     I32 num_fields;
@@ -497,25 +549,30 @@ dbd_describe(h, imp_sth)
     int est_width = 0;		/* estimated avg row width (for cache)	*/
     int i = 0;
 
-    I32	long_buflen = imp_sth->long_buflen;
-    if (long_buflen < 0)
-	long_buflen = 80;		/* typical oracle app default	*/
 
     if (imp_sth->done_desc)
 	return 1;	/* success, already done it */
     imp_sth->done_desc = 1;
 
+    /* ora_trunc is checked at fetch time */
+    /* long_buflen:	length for long/longraw (if >0), else 80 (ora app dflt)	*/
+    /* Ought to be for COMPAT mode only but was relaxed before LongReadLen existed */
+    long_buflen = (SvOK(ora_long) && SvIV(ora_long)>0)
+				? SvIV(ora_long) : DBIc_LongReadLen(imp_sth);
+    if (long_buflen < 0)		/* trap any sillyness */
+	long_buflen = 80;		/* typical oracle app default	*/
+
     if (imp_sth->cda->ft != FT_SELECT) {
 	if (dbis->debug >= 2)
-	    fprintf(DBILOGFP, "    dbd_describe skipped for non-select (sql f%d)\n",
-		imp_sth->cda->ft);
+	    fprintf(DBILOGFP, "    dbd_describe skipped for non-select (sql f%d, lb %ld)\n",
+		imp_sth->cda->ft, (long)long_buflen);
 	/* imp_sth memory was cleared when created so no setup required here	*/
 	return 1;
     }
 
     if (dbis->debug >= 2)
-	fprintf(DBILOGFP, "    dbd_describe (for sql f%d after oci f%d)...\n",
-			imp_sth->cda->ft, imp_sth->cda->fc);
+	fprintf(DBILOGFP, "    dbd_describe (for sql f%d after oci f%d, lb %ld)...\n",
+			imp_sth->cda->ft, imp_sth->cda->fc, (long)long_buflen);
 
     if (!f_cbufl) {
 	f_cbufl_max = 120;
@@ -682,6 +739,7 @@ _dbd_rebind_ph(sth, imp_sth, phs)
     phs_t *phs;
 {
     STRLEN value_len;
+    ub2 *alen_ptr;
 
 /*	for strings, must be a PV first for ptr to be valid? */
 /*    sv_insert +4	*/
@@ -689,8 +747,8 @@ _dbd_rebind_ph(sth, imp_sth, phs)
 
     if (dbis->debug >= 2) {
 	char *text = neatsvpv(phs->sv,0);
-	fprintf(DBILOGFP, "bind %s <== %s (size %d/%d/%ld, ptype %ld, otype %d)\n",
-	    phs->name, text, SvCUR(phs->sv),SvLEN(phs->sv),phs->maxlen,
+	fprintf(DBILOGFP, "bind %s <== %s (size %ld/%ld/%ld, ptype %ld, otype %d)\n",
+	    phs->name, text, (long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen,
 	    SvTYPE(phs->sv), phs->ftype);
     }
 
@@ -731,19 +789,28 @@ _dbd_rebind_ph(sth, imp_sth, phs)
 	phs->progv = SvPV(phs->sv, value_len);
     }
     phs->sv_type = SvTYPE(phs->sv);	/* part of mutation check	*/
-    phs->alen    = value_len + phs->alen_incnull;
     phs->maxlen  = SvLEN(phs->sv)-1;	/* avail buffer space	*/
+
+    if (value_len + phs->alen_incnull <= UB2MAXVAL) {
+	phs->alen = value_len + phs->alen_incnull;
+	alen_ptr = &phs->alen;
+	if (phs->alen > phs->maxlen && phs->indp != -1)
+	    croak("panic: _dbd_rebind_ph alen %ld > maxlen %ld", phs->alen,phs->maxlen);
+    }
+    else {
+	phs->alen = 0;
+	alen_ptr = NULL; /* Can't use alen */
+	if (phs->is_inout)
+	    croak("Can't bind LONG values (>%ld) as in/out parameters", (long)UB2MAXVAL);
+    }
 
     /* ---------- */
 
     /* Since we don't support LONG VAR types we must check	*/
     /* for lengths too big to pass to obndrv as an sword.	*/
-    if (sizeof(sword) < 4 && phs->maxlen > MINSWORDMAXVAL)	/* generally 32K	*/
+    if (phs->maxlen > MINSWORDMAXVAL && sizeof(sword)<4)	/* generally 32K	*/
 	croak("Can't bind %s, value is too long (%ld bytes, max %d)",
 		    phs->name, phs->maxlen, MINSWORDMAXVAL);
-
-    if (phs->alen > phs->maxlen)
-	croak("panic: _dbd_rebind_ph alen %ld > maxlen %ld", phs->alen,phs->maxlen);
 
     if (dbis->debug >= 3) {
 	fprintf(DBILOGFP, "bind %s <== '%.100s' (size %d/%ld, indp %d)\n",
@@ -753,7 +820,7 @@ _dbd_rebind_ph(sth, imp_sth, phs)
     if (obndra(imp_sth->cda, (text *)phs->name, -1,
 	    (ub1*)phs->progv, (sword)phs->maxlen, /* cast reduces max size */
 	    (sword)phs->ftype, -1,
-	    &phs->indp, &phs->alen, &phs->arcode, 0, (ub4 *)0,
+	    &phs->indp, alen_ptr, &phs->arcode, 0, (ub4 *)0,
 	    (text *)0, -1, -1)) {
 	D_imp_dbh_from_sth;
 	ora_error(sth, &imp_dbh->lda, imp_sth->cda->rc, "obndra failed");
@@ -764,15 +831,16 @@ _dbd_rebind_ph(sth, imp_sth, phs)
 
 
 int
-dbd_bind_ph(sth, ph_namesv, newvalue, attribs, is_inout, maxlen)
+dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxlen)
     SV *sth;
+    imp_sth_t *imp_sth;
     SV *ph_namesv;
     SV *newvalue;
+    IV sql_type;
     SV *attribs;
     int is_inout;
     IV maxlen;
 {
-    D_imp_sth(sth);
     SV **phs_svp;
     STRLEN name_len;
     char *name;
@@ -852,10 +920,10 @@ dbd_bind_ph(sth, ph_namesv, newvalue, attribs, is_inout, maxlen)
 
 
 int
-dbd_st_execute(sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count) */
+dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count) */
     SV *sth;
+    imp_sth_t *imp_sth;
 {
-    D_imp_sth(sth);
     int debug = dbis->debug;
     int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
 
@@ -872,33 +940,25 @@ dbd_st_execute(sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count) */
 
     if (outparams) {	/* check validity of bound SV's	*/
 	int i = outparams;
-	STRLEN phs_len;
 	while(--i >= 0) {
 	    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
 	    /* Make sure we have the value in string format. Typically a number	*/
 	    /* will be converted back into a string using the same bound buffer	*/
 	    /* so the progv test below will not trip.			*/
-/* XXX needs reworking
-call rebind for all changes
-consider also case of undef and bind time and not undef at execute
-*/
-	    if (SvOK(phs->sv)) {
-		if (!SvPOK(phs->sv))	/* ooops, no string ($var = 42)	*/
-		    SvPV(phs->sv, phs_len);	/* get string ("42"), see progv	*/
-		phs_len = SvCUR(phs->sv) + phs->alen_incnull;
-		if (phs_len >= 65535)	/* alen is only 16 bit. XXX maxlen */
-		    croak("Placeholder %s value too long",phs->name);
-		phs->alen = phs_len;
-		phs->indp =  0;		/* mark as not null */
-	    }
-	    else {
-		phs->indp = -1;		/* mark as null */
-	    }
+
+	    /* is the value a null? */
+	    phs->indp = (SvOK(phs->sv)) ? 0 : -1;
+
 	    /* Some checks for mutated storage since we pointed oracle at it.	*/
-	    if (SvTYPE(phs->sv) != phs->sv_type || SvPVX(phs->sv) != phs->progv) {
+	    if (SvTYPE(phs->sv) != phs->sv_type
+		    || (SvOK(phs->sv) && !SvPOK(phs->sv))
+		    || SvPVX(phs->sv) != phs->progv
+		    || SvCUR(phs->sv) > UB2MAXVAL
+	    ) {
 		if (!_dbd_rebind_ph(sth, imp_sth, phs))
 		    croak("Can't rebind placeholder %s", phs->name);
 	    }
+	    phs->alen = SvCUR(phs->sv) + phs->alen_incnull;
 	    if (debug >= 2)
 		warn("      with %s = '%.100s' (len %d/%d, indp %d, ptype %ld, otype %d)\n",
 		    phs->name, SvPVX(phs->sv), phs->alen, phs->maxlen,
@@ -976,13 +1036,14 @@ consider also case of undef and bind time and not undef at execute
 
 
 AV *
-dbd_st_fetch(sth)
+dbd_st_fetch(sth, imp_sth)
     SV *	sth;
+    imp_sth_t *imp_sth;
 {
-    D_imp_sth(sth);
     int debug = dbis->debug;
     int num_fields;
     int ChopBlanks;
+    int err = 0;
     int i;
     AV *av;
 
@@ -995,7 +1056,7 @@ dbd_st_fetch(sth)
     }
 
     if (!imp_sth->in_cache) {	/* refill cache if empty	*/
-	int rows_returned;
+	int previous_rpc;
 
 	if (imp_sth->eod_errno) {
     end_of_data:
@@ -1011,18 +1072,18 @@ dbd_st_fetch(sth)
 	    return Nullav;
 	}
 
-	rows_returned = imp_sth->cda->rpc;	/* remember rpc before re-fetch	*/
+	previous_rpc = imp_sth->cda->rpc;	/* remember rpc before re-fetch	*/
 	if (ofen(imp_sth->cda, imp_sth->cache_size)) {
 	    /* Note that errors may happen after one or more rows have been	*/
 	    /* added to the cache. We record the error but don't handle it till	*/
 	    /* the cache is empty (which may be at once if no rows returned).	*/
 	    imp_sth->eod_errno = imp_sth->cda->rc;	/* store rc for later	*/
-	    if (imp_sth->cda->rpc == rows_returned)	/* no more rows fetched	*/
+	    if (imp_sth->cda->rpc == previous_rpc)	/* no more rows fetched	*/
 		goto end_of_data;
 	    /* else fall through and return the first of the fetched rows	*/
 	}
 	imp_sth->next_entry = 0;
-	imp_sth->in_cache   = imp_sth->cda->rpc - rows_returned;
+	imp_sth->in_cache   = imp_sth->cda->rpc - previous_rpc;
 	assert(imp_sth->in_cache > 0);
     }
 
@@ -1046,28 +1107,25 @@ dbd_st_fetch(sth)
 	if (rc == 1406 && dbtype_is_long(fbh->dbtype)) {
 	    /* We have a LONG field which has been truncated.		*/
 	    int oraperl = DBIc_COMPAT(imp_sth);
-	    if ((oraperl) ? SvIV(ora_trunc) : imp_sth->long_trunc_ok) {
+	    if ((oraperl) ? SvIV(ora_trunc) : DBIc_has(imp_sth,DBIcf_LongTruncOk)) {
 		/* Oraperl recorded the truncation in ora_errno.	*/
 		/* We do so but it's not part of the DBI spec.		*/
-		sv_setiv(DBIc_ERR(imp_sth), (IV)rc); /* record it	*/
+		if (oraperl)
+		    sv_setiv(DBIc_ERR(imp_sth), (IV)rc); /* record it	*/
 		rc = 0;			/* but don't provoke an error	*/
 	    }
+	    /* else provoke an error */
 	}
 
 	if (rc == 0) {			/* the normal case		*/
-	    sv_setpvn(sv, (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl],
-			  fb_ary->arlen[cache_entry]);
+	    int datalen = fb_ary->arlen[cache_entry];
+	    char *p = (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl];
 	    /* if ChopBlanks check for Oracle CHAR type (blank padded)	*/
 	    if (ChopBlanks && fbh->dbtype == 96) {
-		char *p = SvEND(sv);
-		int len = SvCUR(sv);
-		while(len && *--p == ' ')
-		    --len;
-		if (len != SvCUR(sv)) {
-		    SvCUR_set(sv, len);
-		    *SvEND(sv) = '\0';
-		}
+		while(datalen && p[datalen - 1]==' ')
+		    --datalen;
 	    }
+	    sv_setpvn(sv, p, datalen);
 
 	} else if (rc == 1405) {	/* field is null - return undef	*/
 	    (void)SvOK_off(sv);
@@ -1078,34 +1136,34 @@ dbd_st_fetch(sth)
 	    /* for now we just treat them all as errors		*/
 	    ora_error(sth, imp_sth->cda, rc, "ofetch rcode");
 	    (void)SvOK_off(sv);
+	    ++err;	/* 'fail' this fetch but continue getting fields */
 	}
 
 	if (debug >= 3)
-	    fprintf(DBILOGFP, "        %d: rc=%d '%s'\n",
-		i, rc, SvPV(sv,na));
-
+	    fprintf(DBILOGFP, "        %d (rc=%d): %s\n",
+		i, rc, neatsvpv(sv,0));
     }
 
     /* update cache counters */
     --imp_sth->in_cache;
     ++imp_sth->next_entry;
 
-    return av;
+    return (err) ? Nullav : av;
 }
 
 
 
 
 int
-dbd_st_blob_read(sth, field, offset, len, destrv, destoffset)
+dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
     SV *sth;
+    imp_sth_t *imp_sth;
     int field;
     long offset;
     long len;
     SV *destrv;
     long destoffset;
 {
-    D_imp_sth(sth);
     ub4 retl;
     SV *bufsv;
 
@@ -1113,6 +1171,7 @@ dbd_st_blob_read(sth, field, offset, len, destrv, destoffset)
     sv_setpvn(bufsv,"",0);	/* ensure it's writable string	*/
     SvGROW(bufsv, len+destoffset+1);	/* SvGROW doesn't do +1	*/
 
+	/* The +1 on field was a mistake tht's too late to fix :-(	*/
     if (oflng(imp_sth->cda, (sword)field+1,
 	    ((ub1*)SvPVX(bufsv)) + destoffset, len,
 	    imp_sth->fbh[field].ftype, /* original long type	*/
@@ -1135,19 +1194,19 @@ dbd_st_blob_read(sth, field, offset, len, destrv, destoffset)
 
 
 int
-dbd_st_rows(sth)
+dbd_st_rows(sth, imp_sth)
     SV *sth;
+    imp_sth_t *imp_sth;
 {
-    D_imp_sth(sth);
     return imp_sth->cda->rpc;
 }
 
 
 int
-dbd_st_finish(sth)
+dbd_st_finish(sth, imp_sth)
     SV *sth;
+    imp_sth_t *imp_sth;
 {
-    D_imp_sth(sth);
     /* Cancel further fetches from this cursor.                 */
     /* We don't close the cursor till DESTROY (dbd_st_destroy). */
     /* The application may re execute(...) it.                  */
@@ -1168,28 +1227,26 @@ dbd_st_finish(sth)
 
 
 void
-dbd_st_destroy(sth)
+dbd_st_destroy(sth, imp_sth)
     SV *sth;
+    imp_sth_t *imp_sth;
 {
-    D_imp_sth(sth);
     D_imp_dbh_from_sth;
     int fields;
     int i;
+
+    /* dbd_st_finish has already been called by .xs code if needed.	*/
+
     /* Check if an explicit disconnect() or global destruction has	*/
     /* disconnected us from the database before attempting to close.	*/
-    if (DBIc_ACTIVE(imp_dbh) && oclose(imp_sth->cda)) {
-	/* Check for ORA-01041: 'hostdef extension doesn't exist'	*/
-	/* which indicates that the lda had already been logged out	*/
-	/* in which case only complain if not in 'global destruction'.	*/
-	/* NOT NEEDED NOW? if ( ! (imp_sth->cda->rc == 1041 && dirty) ) */
-	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oclose error");
-	/* fall through */
+    if (DBIc_ACTIVE(imp_dbh) && !free_cursor(sth, imp_sth)) {
+	/* fall through anyway to free up our memory */
     } 
 
     /* Free off contents of imp_sth	*/
 
     fields = DBIc_NUM_FIELDS(imp_sth);
-    imp_sth->in_cache    = 0;
+    imp_sth->in_cache  = 0;
     imp_sth->eod_errno = 1403;
     for(i=0; i < fields; ++i) {
 	imp_fbh_t *fbh = &imp_sth->fbh[i];
@@ -1222,14 +1279,14 @@ dbd_st_destroy(sth)
 
 
 int
-dbd_st_STORE_attrib(sth, keysv, valuesv)
+dbd_st_STORE_attrib(sth, imp_sth, keysv, valuesv)
     SV *sth;
+    imp_sth_t *imp_sth;
     SV *keysv;
     SV *valuesv;
 {
     return FALSE;
 #ifdef not_used_yet
-    D_imp_sth(sth);
     STRLEN kl;
     char *key = SvPV(keysv,kl);
     int on = SvTRUE(valuesv);
@@ -1244,11 +1301,11 @@ dbd_st_STORE_attrib(sth, keysv, valuesv)
 
 
 SV *
-dbd_st_FETCH_attrib(sth, keysv)
+dbd_st_FETCH_attrib(sth, imp_sth, keysv)
     SV *sth;
+    imp_sth_t *imp_sth;
     SV *keysv;
 {
-    D_imp_sth(sth);
     STRLEN kl;
     char *key = SvPV(keysv,kl);
     int i;

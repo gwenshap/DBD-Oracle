@@ -82,8 +82,8 @@ Make sure you are using a recent perl 5.003 or preferably 5.004 and
 make sure it's on your path so you can say 'perl Makefile.PL' and
 not '/path/to/perl Makefile.PL'.
 
-If you have build/link problems try using "perl Makefile.PL -p".
-If that helps then *please* let me know.
+If you have build/link or core dump problems try using
+"perl Makefile.PL -p".  If that helps then *please* let me know.
 
 Do not hand edit the generated Makefile unless you are completely sure
 you understand the implications! Always try to make changes via the
@@ -214,6 +214,7 @@ ftp://ftp.bf.rmit.edu.au/pub/Oracle
 ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources
 ftp://ftp.bf.rmit.edu.au/pub/Oracle/OS/MS/NT/ntoraperl.zip
 
+http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
 
 ===============================================================================
 Some platforms on which the DBI and DBD::Oracle modules run:
