@@ -958,9 +958,9 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	/* tell perl what we've put in its dest_sv */
 	SvCUR(dest_sv) = amtp;
 	*SvEND(dest_sv) = '\0';
-        DBD_SET_UTF8(dest_sv,csid);
-        SvUTF8_on(dest_sv);	
-        ora_free_templob(sth, imp_sth, lobloc);
+	if (fbh->ftype != 113) /* Don't set UTF8 on BLOBs */
+	    DBD_SET_UTF8(dest_sv,csid);
+	ora_free_templob(sth, imp_sth, lobloc);
     }
     else {			/* LOB length is 0 */
 	assert(amtp == 0);
