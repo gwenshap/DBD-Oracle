@@ -94,18 +94,18 @@ ok(0, $DBI::errstr =~ m/msg is hello world/, 1);
 # --- test named numeric in/out parameters
 ok(0, $csr = $dbh->prepare(q{
     begin
-	:arg := :arg * 2;
+	:arg := :arg * :mult;
     end;
 }), 1);
 
 $p1 = 3;
-ok(0, $csr->bind_param_inout(':arg', \$p1, 100), 1);
+ok(0, $csr->bind_param_inout(':arg', \$p1, 4), 1);
+ok(0, $csr->bind_param(':mult', 2), 1);
 ok(0, $csr->execute, 1);
 ok(0, $p1 == 6);
 # execute 10 times from $p1=1, 2, 4, 8, ... 1024
 $p1 = 1; foreach (1..10) { $csr->execute || die $DBI::errstr; }
 ok(0, $p1 == 1024);
-
 
 # --- test undef parameters
 ok(0, $csr = $dbh->prepare(q{
@@ -122,13 +122,14 @@ ok(0, $csr = $dbh->prepare(q{
     declare str varchar2(1000);
     begin
 	:arg := nvl(upper(:arg), 'null');
-	:arg := :arg || '!';
+	:arg := :arg || :append;
     end;
 }), 1);
 
 undef $p1;
 $p1 = "hello world";
 ok(0, $csr->bind_param_inout(':arg', \$p1, 1000), 1);
+ok(0, $csr->bind_param(':append', "!"), 1);
 ok(0, $csr->execute, 1);
 ok(0, $p1 eq "HELLO WORLD!");
 # execute 10 times growing $p1 to force realloc
@@ -146,6 +147,25 @@ ok(0, $csr->execute, 1);
 ok(0, $p1 eq 'null!');
 
 $csr->finish;
+
+
+# --- test out buffer being too small
+ok(0, $csr = $dbh->prepare(q{
+    begin
+	select rpad('foo',200) into :arg from dual;
+    end;
+}), 1);
+#$csr->trace(3);
+undef $p1;	# force buffer to be freed
+ok(0, $csr->bind_param_inout(':arg', \$p1, 20), 1);
+# Fails with:
+#	ORA-06502: PL/SQL: numeric or value error
+#	ORA-06512: at line 3 (DBD ERROR: OCIStmtExecute)
+ok(0, !defined $csr->execute, 1);
+# rebind with more space - and it should work
+ok(0, $csr->bind_param_inout(':arg', \$p1, 200), 1);
+ok(0, $csr->execute, 1);
+ok(0, length($p1) == 200, 0);
 
 
 # --- test plsql_errstr function
@@ -172,18 +192,20 @@ $csr->finish;
 $dbh->{PrintError} = 1;
 ok(0, $dbh->func(30000, 'dbms_output_enable'), 1);
 
-my @ary = qw(foo bar baz boo);
+#$dbh->trace(3);
+my @ary = ("foo", ("bar" x 15), "baz", "boo");
 ok(0, $dbh->func(@ary, 'dbms_output_put'), 1);
 
 @ary = scalar $dbh->func('dbms_output_get');	# scalar context
-ok(0, @ary==1 && $ary[0] eq 'foo', 0);
+ok(0, @ary==1 && $ary[0] && $ary[0] eq 'foo', 0);
 
 @ary = scalar $dbh->func('dbms_output_get');	# scalar context
-ok(0, @ary==1 && $ary[0] eq 'bar', 0);
+ok(0, @ary==1 && $ary[0] && $ary[0] eq 'bar' x 15, 0);
 
 @ary = $dbh->func('dbms_output_get');			# list context
 ok(0, join(':',@ary) eq 'baz:boo', 0);
 $dbh->{PrintError} = 0;
+#$dbh->trace(0);
 
 # --- test cursor variables
 $csr = $dbh->prepare(q{
@@ -217,12 +239,7 @@ $dbh->disconnect;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 41 }
+BEGIN { $tests = 49 }
 # end.
 
 __END__
-t/plsql.............ORA-06502: PL/SQL: numeric or value error
-ORA-06512: at line 4 (DBD: oexec error)
-Use of uninitialized value at t/plsql.t line 120.
-Error in PL/SQL block
-3.5: PLS-00103: The symbol "an optional basic declaration item" was ignored.

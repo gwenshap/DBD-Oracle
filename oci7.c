@@ -1,5 +1,5 @@
 /*
-   $Id: oci7.h,v 1.3 1998/12/16 00:19:34 timbo Exp $
+   $Id: oci7.c,v 1.5 1998/12/28 00:04:37 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -10,13 +10,39 @@
 
 */
 
+#include "Oracle.h"
 
 
-static void
+#ifdef OCI_V8_SYNTAX
+
+	/* see oci8.c	*/
+
+#else
+
+DBISTATE_DECLARE;
+
+static SV *ora_long;
+static SV *ora_trunc;
+static SV *ora_cache;
+static SV *ora_cache_o;		/* for ora_open() cache override */
+
+void
+dbd_init_oci(dbistate)
+    dbistate_t *dbistate;
+{
+    DBIS = dbistate;
+    ora_long     = perl_get_sv("Oraperl::ora_long",      GV_ADDMULTI);
+    ora_trunc    = perl_get_sv("Oraperl::ora_trunc",     GV_ADDMULTI);
+    ora_cache    = perl_get_sv("Oraperl::ora_cache",     GV_ADDMULTI);
+    ora_cache_o  = perl_get_sv("Oraperl::ora_cache_o",   GV_ADDMULTI);
+}
+
+
+void
 ora_error(h, lda, rc, what)
     SV *h;
     Lda_Def *lda;
-    sb2	rc;
+    int	rc;
     char *what;
 {
     D_imp_xxh(h);
@@ -121,7 +147,7 @@ dbd_describe(h, imp_sth)
 	if (imp_sth->cache_rows > 0)
 	    continue;		/* no need, user specified a size	*/
 	if (dbsize==0) {	/* is a LONG type or 'select NULL'	*/
-	    if (dbtype_is_long(dbtype)) {
+	    if (ora_dbtype_is_long(dbtype)) {
 		est_width += long_buflen;
 		++has_longs;	/* hint to auto cache sizing code	*/
 	    }
@@ -215,12 +241,15 @@ dbd_describe(h, imp_sth)
 	    fbh->dbsize *= 2;
 	    fbh->disize *= 2;
 	}
+	else if (fbh->dbtype == 2 && fbh->prec == 0) {
+	    fbh->prec = 38;
+	}
 
 	/* Is it a LONG, LONG RAW, LONG VARCHAR or LONG VARRAW?		*/
 	/* If so we need to implement oraperl truncation hacks.		*/
 	/* This may change in a future release.				*/
-	/* Note that dbtype_is_long() returns alternate dbtype to use	*/
-	if ( (dbtype = dbtype_is_long(fbh->dbtype)) ) {
+	/* Note that ora_dbtype_is_long() returns alternate dbtype to use	*/
+	if ( (dbtype = ora_dbtype_is_long(fbh->dbtype)) ) {
 	    fbh->dbsize = long_buflen;
 	    fbh->disize = long_buflen;
 	    fbh->ftype  = dbtype;	/* get long in non-var form	*/
@@ -247,7 +276,7 @@ dbd_describe(h, imp_sth)
 	}
 
 	if (dbis->debug >= 2)
-	    fbh_dump(fbh, i, 0);
+	    dbd_fbh_dump(fbh, i, 0);
     }
     imp_sth->est_width = est_width;
 
@@ -335,7 +364,7 @@ dbd_st_fetch(sth, imp_sth)
 	int rc = fb_ary->arcode[cache_entry];
 	SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/
 
-	if (rc == 1406 && dbtype_is_long(fbh->dbtype)) {
+	if (rc == 1406 && ora_dbtype_is_long(fbh->dbtype)) {
 	    /* We have a LONG field which has been truncated.		*/
 	    int oraperl = DBIc_COMPAT(imp_sth);
 	    if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(ora_trunc))) {
@@ -371,7 +400,7 @@ dbd_st_fetch(sth, imp_sth)
 		/* but it'll only be accessible via prior bind_column()	*/
 		sv_setpvn(sv, (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl],
 			  fb_ary->arlen[cache_entry]);
-		if (dbtype_is_long(fbh->dbtype))	/* double check */
+		if (ora_dbtype_is_long(fbh->dbtype))	/* double check */
 		    hint = ", LongReadLen too small and/or LongTruncOk not set";
 	    }
 	    else {
@@ -385,7 +414,7 @@ dbd_st_fetch(sth, imp_sth)
 	    ora_error(sth, imp_sth->cda, rc, buf);
 	}
 
-	if (debug >= 3)
+	if (debug >= 5)
 	    fprintf(DBILOGFP, "        %d (rc=%d): %s\n",
 		i, rc, neatsvpv(sv,0));
     }
@@ -405,39 +434,76 @@ dbd_st_fetch(sth, imp_sth)
 /* ------------------------------------------------------------ */
 
 
-static int
-get_cursor(imp_dbh, sth, imp_sth)
-    imp_dbh_t *imp_dbh;
+
+int
+dbd_st_prepare(sth, imp_sth, statement, attribs)
     SV *sth;
     imp_sth_t *imp_sth;
+    char *statement;
+    SV *attribs;
 {
+    D_imp_dbh_from_sth;
+    ub4   oparse_lng   = 1;  /* auto v6 or v7 as suits db connected to	*/
+
+    imp_sth->done_desc = 0;
+
+    if (DBIc_COMPAT(imp_sth)) {
+	static SV *ora_pad_empty;
+	if (!ora_pad_empty) {
+	    ora_pad_empty= perl_get_sv("Oraperl::ora_pad_empty", GV_ADDMULTI);
+	    if (!SvOK(ora_pad_empty) && getenv("ORAPERL_PAD_EMPTY"))
+		sv_setiv(ora_pad_empty, atoi(getenv("ORAPERL_PAD_EMPTY")));
+	}
+	imp_sth->ora_pad_empty = (SvOK(ora_pad_empty)) ? SvIV(ora_pad_empty) : 0;
+    }
+
+    if (attribs) {
+	SV **svp;
+	DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
+    }
+
+    /* scan statement for '?', ':1' and/or ':foo' style placeholders	*/
+    dbd_preparse(imp_sth, statement);
+
     if (oopen(&imp_sth->cdabuf, imp_dbh->lda, (text*)0, -1, -1, (text*)0, -1)) {
         ora_error(sth, &imp_sth->cdabuf, imp_sth->cdabuf.rc, "oopen error");
         return 0;
     }
     imp_sth->cda = &imp_sth->cdabuf;
-    return 1;
-}
 
-static int
-free_cursor(sth, imp_sth)
-    SV *sth;
-    imp_sth_t *imp_sth;
-{
-    if (!imp_sth->cda)
-	return 0;
-
-    if (DBIc_ACTIVE(imp_sth)) /* should never happen here	*/
-	ocan(imp_sth->cda);   /* XXX probably not needed before oclose */
-
-    if (oclose(imp_sth->cda)) {	/* close the cursor		*/
-	/* Check for ORA-01041: 'hostdef extension doesn't exist' ? XXX	*/
-	/* which indicates that the lda had already been logged out	*/
-	/* in which case only complain if not in 'global destruction'?	*/
-	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oclose error");
+    /* parse the (possibly edited) SQL statement */
+    imp_sth->cda->peo = 0;
+    if (oparse(imp_sth->cda, (text*)imp_sth->statement, (sb4)-1,
+                (sword)0/*oparse_defer*/, (ub4)oparse_lng)
+    ) {
+	char buf[99];
+	char *hint = "";
+	if (1) {	/* XXX could make optional one day */
+	    SV  *msgsv, *sqlsv;
+	    sprintf(buf,"error possibly near <*> indicator at char %d in '",
+		    imp_sth->cda->peo+1);
+	    msgsv = sv_2mortal(newSVpv(buf,0));
+	    sqlsv = sv_2mortal(newSVpv(imp_sth->statement,0));
+	    sv_insert(sqlsv, imp_sth->cda->peo, 0, "<*>",3);
+	    sv_catsv(msgsv, sqlsv);
+	    sv_catpv(msgsv, "'");
+	    hint = SvPV(msgsv,na);
+	}
+	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, hint);
+	oclose(imp_sth->cda);	/* close the cursor		*/
+	imp_sth->cda = NULL;
 	return 0;
     }
-    imp_sth->cda = NULL;
+    if (dbis->debug >= 2)
+	fprintf(DBILOGFP, "    dbd_st_prepare'd sql f%d\n", imp_sth->cda->ft);
+
+    /* Describe and allocate storage for results.		*/
+    if (!dbd_describe(sth, imp_sth)) {
+	return 0;
+    }
+
+    DBIc_IMPSET_on(imp_sth);
     return 1;
 }
 
+#endif

@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.71 1998/12/16 00:23:12 timbo Exp $
+# $Id: Makefile.PL,v 1.72 1998/12/28 00:04:37 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -143,19 +143,31 @@ if ($os eq 'VMS') {
 }
 
 elsif ($os eq 'MSWin32') {
-    my $OCIDIR = "";
-    my $OCILIB = "OCI";
-    if ($::opt_8) {	# opt_8 means DISABLE use of OCI 8 API
-	$OCILIB = "OCIW32";
-    }
-    find( sub {
-	print "Found $_\n" if /^OCI\d+/i;
-	$OCIDIR = $_ if /^OCI\d\d$/i && $OCIDIR lt $_;
-	$File::Find::prune = 1 if -d $_ && $_ ne "." && $_ ne "..";
-    }, $OH );
-    print "Using $OCILIB in directory: $OCIDIR\n";
-
     my $oci_compiler_dir = ($Config{cc} eq 'bcc32' ? "BORLAND" : "MSVC");
+
+    my $OCIDIR = "";
+    find( sub {
+	print "Found $_ directory\n" if /^OCI\d+/i;
+	$OCIDIR = $_ if /^OCI\d\d+$/i && $OCIDIR lt $_;
+	$File::Find::prune = 1 if -d $_ && $_ !~ /^\./;
+    }, $OH );
+    print "Using OCI directory '$OCIDIR'\n";
+
+    my %OCILIB;
+    find( sub {
+	$File::Find::prune = 1 if -d $_ && $_ !~ /^\./;
+	return unless /^OCI.*\.LIB$/i;
+	print "Found $OCIDIR/lib/$oci_compiler_dir/$_ library\n";
+	$OCILIB{uc($_)} = $_;
+    }, "$OH/$OCIDIR/lib/$oci_compiler_dir" ) if $OCIDIR;
+    # sort the version numbered libs into assending order
+    my @OCILIB = sort grep { /OCI\d\d+\./i } keys %OCILIB;
+    # prefer the non-versioned library if present
+    push @OCILIB, "OCI.LIB"    if $OCILIB{'OCI.LIB'};
+    # opt_8 means DISABLE use of OCI 8 API
+    push @OCILIB, "OCIW32.LIB" if $OCILIB{'OCIW32.LIB'} && $::opt_8;
+    my $OCILIB = pop @OCILIB || '';
+    $OCILIB =~ s/\.LIB$//i;
 
     die qq{
     Unable to find required Oracle OCI files for the build.  Please check
@@ -165,15 +177,16 @@ elsif ($os eq 'MSWin32') {
 	$OH\\$OCIDIR\\include\\oratypes.h
 	$OH\\$OCIDIR\\lib\\$oci_compiler_dir\\$OCILIB.lib
 
-    Please install OCI or send comments back to dbi-users\@fugue.com you 
-    have an OCI directory other than $OCIDIR.  
+    Please install OCI or send comments back to dbi-users\@fugue.com
+    if you have an OCI directory other than $OCIDIR.  
 
     } unless  (-e "$OH/$OCIDIR/include/oratypes.h" 
 	    && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib");
 
+    print "Using $OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib\n";
+
     my $OCIINCLUDE = "-I$OH/$OCIDIR/include -I$OH/rdbms/demo";
     $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir $OCILIB" ];
-    #$opts{SKIP} = ['processPL'];    # XXX added because it caused problems with Nmake...
     $opts{INC}  = "$OCIINCLUDE -I$dbi_arch_dir";
 }
 

@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.61 1998/12/16 00:23:12 timbo Exp $
+#   $Id: Oracle.pm,v 1.65 1998/12/28 00:04:37 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.55';
+$DBD::Oracle::VERSION = '0.59';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -31,7 +31,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.61 $, 10);
+    my $Revision = substr(q$Revision: 1.65 $, 10);
 
     require_version DBI 1.02;
 
@@ -87,11 +87,11 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	foreach $d (qw(/etc /var/opt/oracle), $ENV{TNS_ADMIN}) {
 	    next unless defined $d;
 	    next unless open(FH, "<$d/oratab");
-	    warn "Loading $d/oratab\n" if $debug;
+	    $drh->log_msg("Loading $d/oratab\n") if $debug;
 	    while (<FH>) {
 		next unless m/^\s*(\w+)\s*:\s*(.*?)\s*:/;
 		$dbnames{$1} = $2;	# store ORACLE_HOME value
-		warn "Found $1 \@ $2.\n" if $debug;
+		$drh->log_msg("Found $1 \@ $2.\n") if $debug;
 	    }
 	    close FH;
 	    last;
@@ -101,11 +101,11 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	foreach $d ($ENV{TNS_ADMIN}, "$oracle_home/network/admin", '/var/opt/oracle') {
 	    next unless defined $d;
 	    next unless open(FH, "<$d/tnsnames.ora");
-	    warn "Loading $d/tnsnames.ora\n" if $debug;
+	    $drh->log_msg("Loading $d/tnsnames.ora\n") if $debug;
 	    while (<FH>) {
 		next unless m/^\s*([-\w\.]+)\s*=/;
 		my $name = $1;
-		warn "Found $name. ".($dbnames{$name} ? "(oratab entry overridden)" : "")."\n"
+		$drh->log_msg("Found $name. ".($dbnames{$name} ? "(oratab entry overridden)" : "")."\n")
 		    if $debug;
 		$dbnames{$name} = 0; # exists but false (to distinguish from oratab)
 	    }
@@ -114,14 +114,14 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	}
 
 	eval q{	# XXX experimental, will probably change
-	    warn "Fetching ORACLE_SID from Registry.\n" if $debug;
+	    $drh->log_msg("Fetching ORACLE_SID from Registry.\n") if $debug;
 	    require Tie::Registry;
 	    $Tie::Registry::Registry->Delimeter("/");
 	    my $hkey= $Tie::Registry::Registry->{"LMachine/Software/Oracle/"};
 	    my $sid = $hkey->{ORACLE_SID};
 	    my $home= $hkey->{ORACLE_HOME} || $ENV{ORACLE_HOME};
 	    $dbnames{$sid} = $home if $sid and $home;
-	    warn "Found $sid \@ $home.\n" if $debug;
+	    $drh->log_msg("Found $sid \@ $home.\n") if $debug;
 	} if ($^O eq "MSWin32");
 
 	$dbnames{0} = 1;	# mark as loaded (even if empty)
@@ -137,7 +137,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 
     sub connect {
-	my ($drh, $dbname, $user, $auth)= @_;
+	my ($drh, $dbname, $user, $auth, $attr)= @_;
 
 	# If the application is asking for specific database
 	# then we have to mung the
@@ -201,6 +201,13 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# and populate internal handle data.
 	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth)
 	    or return undef;
+
+	if ($attr && $attr->{ora_module_name}) {
+	    eval {
+		$dbh->do(q{BEGIN DBMS_APPLICATION_NAME.SET_MODULE(:1,NULL); END;},
+		       undef, $attr->{ora_module_name});
+	    };
+	}
 
 	$dbh;
     }
@@ -338,18 +345,18 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
     sub dbms_output_get {
 	my $dbh = shift;
-	my $sth = $dbh->prepare_cached("begin dbms_output.get_line(:1, :2); end;")
+	my $sth = $dbh->prepare_cached("begin dbms_output.get_line(:l, :s); end;")
 		or return;
 	my ($line, $status, @lines);
 	# line can be greater that 255 (e.g. 7 byte date is expanded on output)
-	$sth->bind_param_inout(1, \$line,  400);
-	$sth->bind_param_inout(2, \$status, 20);
+	$sth->bind_param_inout(':l', \$line,  400);
+	$sth->bind_param_inout(':s', \$status, 20);
 	if (!wantarray) {
 	    $sth->execute or return undef;
-	    return $line if $status == 0;
+	    return $line if $status eq '0';
 	    return undef;
 	}
-	push @lines, $line while($sth->execute && $status==0);
+	push @lines, $line while($sth->execute && $status eq '0');
 	return @lines;
     }
 
@@ -361,6 +368,33 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	foreach $line (@_) {
 	    $sth->execute($line) or return;
 	}
+	return 1;
+    }
+
+ 
+    sub dbms_msgpipe_get {
+	my $dbh = shift;
+	my $sth = $dbh->prepare_cached(q{
+	    begin dbms_msgpipe.get_request(:returnpipe, :proc, :param); end;
+	}) or return;
+	my $msg = ['','',''];
+	$sth->bind_param_inout(":returnpipe", \$msg->[0],   30);
+	$sth->bind_param_inout(":proc",       \$msg->[1],   30);
+	$sth->bind_param_inout(":param",      \$msg->[2], 4000);
+	$sth->execute or return undef;
+	return $msg;
+    }
+
+    sub dbms_msgpipe_ack {
+	my $dbh = shift;
+	my $msg = shift;
+	my $sth = $dbh->prepare_cached(q{
+	    begin dbms_msgpipe.acknowledge(:returnpipe, :errormsg, :param); end;
+	}) or return;
+	$sth->bind_param_inout(":returnpipe", \$msg->[0],   30);
+	$sth->bind_param_inout(":proc",       \$msg->[1],   30);
+	$sth->bind_param_inout(":param",      \$msg->[2], 4000);
+	$sth->execute or return undef;
 	return 1;
     }
 
@@ -451,7 +485,7 @@ SQL*Net 1.x and SQL*Net 2.x.  "Machine" is the computer the database is
 running on, "SID" is the SID of the database, "DB" is the SQL*Net 2.x
 connection descriptor for the database.
 
-B<Note:> Some of these formats don't work with Oracle 8.
+B<Note:> Some of these formats may not work with Oracle 8.
 
   BEGIN {
      $ENV{ORACLE_HOME} = '/home/oracle/product/7.x.x';
@@ -784,7 +818,7 @@ source directory.
 DBD::Oracle version 0.55 onwards can be built to use either the Oracle 7
 or Oracle 8 OCI (Oracle Call Interface) API functions. The new Oracle 8
 API is used by default and offers several advantages, including support
-for LOB type. Here's a quote from the Oracle OCI documentation:
+for LOB types. Here's a quote from the Oracle OCI documentation:
 
   The Oracle8 OCI has several enhancements to improve application
   performance and scalability. Application performance has been improved
@@ -799,14 +833,14 @@ minor problems.)
 The DBD::Oracle module will avoid an explicit 'describe' operation
 prior to the execution of the statement unless the application requests
 information about the results (such as $sth->{NAME}). This reduces
-Communication with the server and increases performance.
+communication with the server and increases performance.
 
 When fetching LOBs, they are treated just like LONGs and are subject to
 $sth->{LongReadLen} and $sth->{LongTruncOk}.
 
 When inserting or updating LOBs some *major* magic has to be performed
 behind the scenes to make it transparent.  Basically the driver has to
-refetch the newly inserted 'Lob Locators' before being able to write to
+refetch the newly inserted 'LOB Locators' before being able to write to
 them.  However, it works, and I've made it as fast as possible (just
 one extra server-round-trip per insert or update after the first).
 For the time being, only single-row LOB updates are supported.
@@ -814,11 +848,11 @@ For the time being, only single-row LOB updates are supported.
 To insert or update a large LOB, DBD::Oracle has to know in advance
 that it is a LOB type. So you need to say:
 
-	$sth->bind_param($idx, $value, { ora_type => ORA_CLOB });
+  $sth->bind_param($idx, $value, { ora_type => ORA_CLOB });
 
 The ORA_CLOB and ORA_BLOB constants can be imported using
 
-	use DBD::Oracle qw(:ora_types);
+  use DBD::Oracle qw(:ora_types);
 
 or just use the corresponding integer values (112 and 113).
 
@@ -826,10 +860,18 @@ To make scripts work with both Oracle7 and Oracle8, the Oracle7
 DBD::Oracle will treat the LOB ora_types as LONGs without error.
 So any code you may have now that looks like
 
-	$sth->bind_param($idx, $value, { ora_type => 8 });
+  $sth->bind_param($idx, $value, { ora_type => 8 });
 
 should change the 8 (LONG type) to ORA_CLOB or ORA_BLOB
 (or 112 or 113).
+
+One further wrinkle: for inserts and updates of LOBs DBD::Oracle has
+to be able to tell which parameters relate to which table field.  In
+all cases where it can possibly work it out for itself, it does,
+however, if there are multiple LOB fields of the same type in the table
+then you need to tell it which field each LOB param relates to:
+
+  $sth->bind_param($idx, $value, { ora_type=>ORA_CLOB, ora_field=>'foo' });
 
 
 =head1 Oracle on Linix

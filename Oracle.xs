@@ -8,19 +8,19 @@ I32
 constant()
     PROTOTYPE:
     ALIAS:
+    ORA_VARCHAR2 =   1
+    ORA_NUMBER	 =   2
+    ORA_LONG	 =   8
+    ORA_ROWID	 =  11
+    ORA_DATE	 =  12
+    ORA_RAW	 =  23
+    ORA_LONGRAW	 =  24
+    ORA_CHAR	 =  96
+    ORA_MLSLABEL = 105
+    ORA_NTY	 = 108
+    ORA_CLOB	 = 112
+    ORA_BLOB	 = 113
     ORA_OCI = 0
-    ORA_VARCHAR2= 1
-    ORA_NUMBER	= 2
-    ORA_LONG	= 8
-    ORA_ROWID	= 11
-    ORA_DATE	= 12
-    ORA_RAW	= 23
-    ORA_LONGRAW	= 24
-    ORA_CHAR	= 96
-    ORA_MLSLABEL= 105
-    ORA_NTY	= 108
-    ORA_CLOB	= 112
-    ORA_BLOB	= 113
     CODE:
     if (!ix) {
 	char *what = GvNAME(CvGV(cv));

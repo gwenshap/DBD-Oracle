@@ -1,3 +1,30 @@
+Changes in DBD::Oracle 0.59 (Oraperl 1.37), 27th December 1998
+
+  Fixed detection of ambiguous LOB-param-to-table-field assignment
+  (previous fix had typo). Only affects multiple LOBs in same table.
+  Added support for Oracle 8's "... RETURNING foo,bar INTO :foo,:bar"
+  for simple scalar types (not LOBs or arrays) via bind_param_inout.
+  Cleaned up the code.
+  Improved Oracle 8 library selection code for Win32 (untested).
+
+Changes in DBD::Oracle 0.58 (Oraperl 1.37), 22nd December 1998
+
+  Fixed detection of ambiguous LOB-param-to-table-field assignment.
+  Added bind_param ora_field attribute to disambiguate if needed.
+
+Changes in DBD::Oracle 0.57 (Oraperl 1.37), 21st December 1998
+
+  Fixed bug preventing fetching LONGs when using OCI 8, better.
+  (Oracle bug #641812 not involved. Should work for all 8.0.x)
+
+Changes in DBD::Oracle 0.56 (Oraperl 1.37), 19th December 1998
+
+  Fixed bug preventing fetching LONGs when using OCI 8.
+  (Oracle bug #641812 may still cause failure prior to v8.0.5.)
+  Fixed LongTruncOk to work when using OCI 8.
+  Fixed bug in table name detection code for OCI8 LOB refetch.
+  SCALE & PRECISION work for OCI 7 & 8.
+
 Changes in DBD::Oracle 0.55 (Oraperl 1.37), 16th December 1998
 
   Major internal work to support Oracle 8 OCI.

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.44 1998/12/16 00:41:53 timbo Exp $
+   $Id: dbdimp.c,v 1.47 1998/12/28 00:04:37 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -21,21 +21,14 @@
 
 DBISTATE_DECLARE;
 
-static SV *ora_long;
-static SV *ora_trunc;
-static SV *ora_pad_empty;
-static SV *ora_cache;
-static SV *ora_cache_o;		/* temp hack for ora_open() cache override */
+int ora_fetchtest;
+
 static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
-static int ora_fetchtest;
 static int ora_sigchld_restart = 1;
 static int set_sigint_handler  = 0;
 
-static void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
 static int ora2sql_type _((int oratype));
-static int calc_cache_rows _((int f, int ew, int cr, int hl));
 
-void ora_free_fbh_contents(imp_fbh_t *fbh);
 void ora_free_phs_contents(phs_t *phs);
 
 void
@@ -43,21 +36,9 @@ dbd_init(dbistate)
     dbistate_t *dbistate;
 {
     DBIS = dbistate;
-    ora_long     = perl_get_sv("Oraperl::ora_long",      GV_ADDMULTI);
-    ora_trunc    = perl_get_sv("Oraperl::ora_trunc",     GV_ADDMULTI);
-    ora_cache    = perl_get_sv("Oraperl::ora_cache",     GV_ADDMULTI);
-    ora_cache_o  = perl_get_sv("Oraperl::ora_cache_o",   GV_ADDMULTI);
-#ifdef USE_V8_SYNTAX
-    sv_setiv(perl_get_sv("DBD::Oracle::OCI", GV_ADDMULTI), 8);
-#else
-    sv_setiv(perl_get_sv("DBD::Oracle::OCI", GV_ADDMULTI), 7);
-#endif
+    dbd_init_oci(dbistate);
 
-    ora_pad_empty= perl_get_sv("Oraperl::ora_pad_empty", GV_ADDMULTI);
-    if (!SvOK(ora_pad_empty) && getenv("ORAPERL_PAD_EMPTY"))
-	sv_setiv(ora_pad_empty, atoi(getenv("ORAPERL_PAD_EMPTY")));
-
-    if (getenv("DBD_ORACLE_LOGIN_ERR"))
+    if (getenv("DBD_ORACLE_LOGIN_NOMSG"))
 	ora_login_nomsg = atoi(getenv("DBD_ORACLE_LOGIN_NOMSG"));
     if (getenv("DBD_ORACLE_SIGCHLD"))
 	ora_sigchld_restart = atoi(getenv("DBD_ORACLE_SIGCHLD"));
@@ -87,16 +68,16 @@ dbd_discon_all(drh, imp_drh)
 
 
 
-static void
-fbh_dump(fbh, i, aidx)
+void
+dbd_fbh_dump(fbh, i, aidx)
     imp_fbh_t *fbh;
     int i;
     int aidx;	/* array index */
 {
     FILE *fp = DBILOGFP;
     fprintf(fp, "    fbh %d: '%s'\t%s, ",
-		i, fbh->name, (fbh->nullok) ? "NULLable" : "");
-    fprintf(fp, "type %3d->%2d,  dbsize %ld/%ld, p%d s%d\n",
+		i, fbh->name, (fbh->nullok) ? "NULLable" : "NO null ");
+    fprintf(fp, "otype %3d->%3d, dbsize %ld/%ld, p%d.s%d\n",
 	    fbh->dbtype, fbh->ftype, (long)fbh->dbsize,(long)fbh->disize,
 	    fbh->prec, fbh->scale);
     if (fbh->fb_ary) {
@@ -107,8 +88,8 @@ fbh_dump(fbh, i, aidx)
 }
 
 
-static int
-dbtype_is_long(dbtype)
+int
+ora_dbtype_is_long(dbtype)
     int dbtype;
 {
     /* Is it a LONG, LONG RAW, LONG VARCHAR or LONG VARRAW type?	*/
@@ -151,8 +132,8 @@ oratype_bind_ok(dbtype)	/* It's a type we support for placeholders */
 
 fb_ary_t *
 fb_ary_alloc(bufl, size)
-int bufl;
-int size;
+    int bufl;
+    int size;
 {
     fb_ary_t *fb_ary;
     /* these should be reworked to only to one Newz()	*/
@@ -168,7 +149,7 @@ int size;
 
 void
 fb_ary_free(fb_ary)
-fb_ary_t *fb_ary;
+    fb_ary_t *fb_ary;
 {
     Safefree(fb_ary->abuf);
     Safefree(fb_ary->aindp);
@@ -180,15 +161,6 @@ fb_ary_t *fb_ary;
 
 /* ================================================================== */
 
-
-#ifdef OCI_V8_SYNTAX
-#include "oci8.h"
-#else
-#include "oci7.h"
-#endif
-
-
-/* ================================================================== */
 
 int
 dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
@@ -205,9 +177,8 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
     D_imp_drh_from_dbh;
 
     if (!imp_drh->envhp) {
-	/* OCI_OBJECT mode needed for OCIDescribeAny (even if not	*/
-	/* describing anything related to or using objects).		*/
-	/* If you don't you get a core dump (8.0.4). Thanks Oracle!	*/
+	/* OCI_OBJECT needed for OCIDescribeAny of table with LOBs	*/
+	/* else you get a core dump (8.0.4). Thanks Oracle!		*/
 	OCIInitialize((ub4) OCI_OBJECT, 0, 0,0,0);
 	ret = OCIEnvInit( &imp_drh->envhp, OCI_DEFAULT, 0, 0 );
     }
@@ -507,105 +478,8 @@ dbd_db_FETCH_attrib(dbh, imp_dbh, keysv)
 /* ================================================================== */
 
 
-int
-dbd_st_prepare(sth, imp_sth, statement, attribs)
-    SV *sth;
-    imp_sth_t *imp_sth;
-    char *statement;
-    SV *attribs;
-{
-    D_imp_dbh_from_sth;
-    ub4   oparse_lng   = 1;  /* auto v6 or v7 as suits db connected to	*/
-#ifdef OCI_V8_SYNTAX
-    sword status = 0;
-#endif
 
-    imp_sth->done_desc = 0;
-
-    if (DBIc_COMPAT(imp_sth)) {
-	imp_sth->ora_pad_empty = (SvOK(ora_pad_empty)) ? SvIV(ora_pad_empty) : 0;
-    }
-
-    if (attribs) {
-	SV **svp;
-	DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
-    }
-
-    /* scan statement for '?', ':1' and/or ':foo' style placeholders	*/
-    dbd_preparse(imp_sth, statement);
-
-#ifdef OCI_V8_SYNTAX
-
-    imp_sth->envhp = imp_dbh->envhp;
-    imp_sth->errhp = imp_dbh->errhp;
-    imp_sth->srvhp = imp_dbh->srvhp;
-    imp_sth->svchp = imp_dbh->svchp;
-
-    switch(oparse_lng) {
-    case 0:  /* old: calls for V6 syntax - give them V7	*/
-    case 2:  /* old: calls for V7 syntax		*/
-    case 7:  oparse_lng = OCI_V7_SYNTAX;	break;
-    case 8:  oparse_lng = OCI_V8_SYNTAX;	break;
-    default: oparse_lng = OCI_NTV_SYNTAX;	break;
-    }
-
-    OCIHandleAlloc_ok(imp_dbh->envhp, &imp_sth->stmhp, OCI_HTYPE_STMT);
-    status = OCIStmtPrepare(imp_sth->stmhp, imp_sth->errhp,
-	       (text*)imp_sth->statement, (ub4)strlen(imp_sth->statement),
-	       oparse_lng, OCI_DEFAULT);
-    if (status != OCI_SUCCESS) {
-	oci_error(sth, imp_sth->errhp, status, "OCIStmtPrepare");
-	OCIHandleFree(imp_sth->stmhp, OCI_HTYPE_STMT);
-	return 0;
-    }
-
-    OCIAttrGet_stmhp(imp_sth, &imp_sth->stmt_type, 0, OCI_ATTR_STMT_TYPE);
-    if (dbis->debug >= 2)
-	fprintf(DBILOGFP, "    dbd_st_prepare'd sql %s\n",
-		oci_stmt_type_name(imp_sth->stmt_type));
-
-#else
-
-    if (!get_cursor(imp_dbh, sth, imp_sth))
-        return 0;
-
-    /* parse the (possibly edited) SQL statement */
-    imp_sth->cda->peo = 0;
-    if (oparse(imp_sth->cda, (text*)imp_sth->statement, (sb4)-1,
-                (sword)0/*oparse_defer*/, (ub4)oparse_lng)
-    ) {
-	char buf[99];
-	char *hint = "";
-	if (1) {	/* XXX could make optional one day */
-	    SV  *msgsv, *sqlsv;
-	    sprintf(buf,"error possibly near <*> indicator at char %d in '",
-		    imp_sth->cda->peo+1);
-	    msgsv = sv_2mortal(newSVpv(buf,0));
-	    sqlsv = sv_2mortal(newSVpv(imp_sth->statement,0));
-	    sv_insert(sqlsv, imp_sth->cda->peo, 0, "<*>",3);
-	    sv_catsv(msgsv, sqlsv);
-	    sv_catpv(msgsv, "'");
-	    hint = SvPV(msgsv,na);
-	}
-	ora_error(sth, imp_sth->cda, imp_sth->cda->rc, hint);
-	free_cursor(sth, imp_sth);
-	return 0;
-    }
-    if (dbis->debug >= 2)
-	fprintf(DBILOGFP, "    dbd_st_prepare'd sql f%d\n", imp_sth->cda->ft);
-
-    /* Describe and allocate storage for results.		*/
-    if (!dbd_describe(sth, imp_sth)) {
-	return 0;
-    }
-#endif
-
-    DBIc_IMPSET_on(imp_sth);
-    return 1;
-}
-
-
-static void
+void
 dbd_preparse(imp_sth, statement)
     imp_sth_t *imp_sth;
     char *statement;
@@ -624,9 +498,8 @@ dbd_preparse(imp_sth, statement)
 
     /* initialise phs ready to be cloned per placeholder	*/
     memset(&phs_tpl, 0, sizeof(phs_tpl));
+    phs_tpl.imp_sth = imp_sth;
     phs_tpl.ftype = 1;	/* VARCHAR2 */
-    phs_tpl.aryelem_max = 0;
-    phs_tpl.aryelem_cur = 1;
 
     src  = statement;
     dest = imp_sth->statement;
@@ -682,7 +555,7 @@ dbd_preparse(imp_sth, statement)
 }
 
 
-static int
+int
 calc_cache_rows(num_fields, est_width, cache_rows, has_longs)
     int num_fields, est_width, cache_rows, has_longs;
 {
@@ -752,7 +625,7 @@ ora_sql_type(imp_sth, name, sql_type)
 
 
 static int 
-_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr) 
+dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr) 
     SV *sth;
     imp_sth_t *imp_sth;
     phs_t *phs;
@@ -793,7 +666,7 @@ _rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 	/* pre-upgrade high to reduce risk of SvPVX realloc/move	*/
 	(void)SvUPGRADE(phs->sv, SVt_PVNV);
 	/* ensure room for result, 28 is magic number (see sv_2pv)	*/
-	SvGROW(phs->sv, (phs->maxlen < 28) ? 28 : phs->maxlen+1);
+	SvGROW(phs->sv, (phs->maxlen < 28) ? 28 : phs->maxlen+1/*for null*/);
     }
     else {
 	/* phs->sv is copy of real variable, upgrade to at least string	*/
@@ -821,11 +694,14 @@ _rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
     if (phs->maxlen < 0)		/* can happen with nulls	*/
 	phs->maxlen = 0;
 
+#ifdef OCI_V8_SYNTAX
+    phs->alen = value_len + phs->alen_incnull;
+#else
     if (value_len + phs->alen_incnull <= UB2MAXVAL) {
 	phs->alen = value_len + phs->alen_incnull;
 	*alen_ptr_ptr = &phs->alen;
 	if (((IV)phs->alen) > phs->maxlen && phs->indp != -1)
-	    croak("panic: _dbd_rebind_ph alen %ld > maxlen %ld", phs->alen,phs->maxlen);
+	    croak("panic: dbd_rebind_ph alen %ld > maxlen %ld", phs->alen,phs->maxlen);
     }
     else {
 	phs->alen = 0;
@@ -833,11 +709,12 @@ _rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 	if (phs->is_inout)
 	    croak("Can't bind LONG values (>%ld) as in/out parameters", (long)UB2MAXVAL);
     }
+#endif
 
     if (dbis->debug >= 3) {
-	fprintf(DBILOGFP, "       bind %s <== '%.*s' (size %d/%ld, otype %d, indp %d)\n",
- 	    phs->name, phs->alen, (phs->progv) ? phs->progv : "",
- 	    phs->alen, (long)phs->maxlen, phs->ftype, phs->indp);
+	fprintf(DBILOGFP, "       bind %s <== '%.*s' (size %ld/%ld, otype %d, indp %d)\n",
+ 	    phs->name, (int)phs->alen, (phs->progv) ? phs->progv : "",
+ 	    (long)phs->alen, (long)phs->maxlen, phs->ftype, phs->indp);
     }
 
     return 1;
@@ -846,7 +723,7 @@ _rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 
 #ifdef SQLT_CUR
 static int 
-_rebind_ph_cursor(sth, imp_sth, phs) 
+dbd_rebind_ph_cursor(sth, imp_sth, phs) 
     SV *sth;
     imp_sth_t *imp_sth;
     phs_t *phs;
@@ -877,36 +754,10 @@ _rebind_ph_cursor(sth, imp_sth, phs)
 #endif
 
 
-#ifdef SQLT_CLOB
-static int 
-_rebind_ph_lob(sth, imp_sth, phs) 
-    SV *sth;
-    imp_sth_t *imp_sth;
-    phs_t *phs;
-{
-    sword status;
-    ub4 lobEmpty = 0;
-
-    if (!phs->desc_h) {
-	++imp_sth->has_lobs;
-	phs->desc_t = OCI_DTYPE_LOB;
-	OCIDescriptorAlloc_ok(imp_sth->envhp,
-			&phs->desc_h, phs->desc_t);
-    }
-    status = OCIAttrSet(phs->desc_h, phs->desc_t,
-		    &lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp);
-    if (status != OCI_SUCCESS)
-	return oci_error(sth, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_LOBEMPTY");
-    phs->progv = (void*)&phs->desc_h;
-    phs->maxlen = sizeof(OCILobLocator*);
-
-    return 1;
-}
-#endif
 
 
 static int 
-_dbd_rebind_ph(sth, imp_sth, phs) 
+dbd_rebind_ph(sth, imp_sth, phs) 
     SV *sth;
     imp_sth_t *imp_sth;
     phs_t *phs;
@@ -919,43 +770,50 @@ _dbd_rebind_ph(sth, imp_sth, phs)
     switch (phs->ftype) {
 #ifdef SQLT_CUR
     case SQLT_CUR:
-	    if (!_rebind_ph_cursor(sth, imp_sth, phs))
+	    if (!dbd_rebind_ph_cursor(sth, imp_sth, phs))
 		return 0;
 	    break;
 #endif
-#ifdef SQLT_CLOB
+#ifdef OCI_V8_SYNTAX
     case SQLT_CLOB:
     case SQLT_BLOB:
-	    if (!_rebind_ph_lob(sth, imp_sth, phs))
+	    if (!dbd_rebind_ph_lob(sth, imp_sth, phs))
 		return 0;
 	    break;
 #endif
     default:
-	    if (!_rebind_ph_char(sth, imp_sth, phs, &alen_ptr))
+	    if (!dbd_rebind_ph_char(sth, imp_sth, phs, &alen_ptr))
 		return 0;
     }
-
-    /* Since we don't support LONG VAR types we must check	*/
-    /* for lengths too big to pass to obndrv as an sword.	*/
-    if (phs->maxlen > MINSWORDMAXVAL && sizeof(sword)<4)	/* generally 32K	*/
-	croak("Can't bind %s, value is too long (%ld bytes, max %d)",
-		    phs->name, phs->maxlen, MINSWORDMAXVAL);
 
 #ifdef OCI_V8_SYNTAX
     status = OCIBindByName(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 	    (text*)phs->name, strlen(phs->name),
 	    phs->progv, phs->maxlen,
 	    phs->ftype, &phs->indp,
-	    alen_ptr, &phs->arcode,
-	    phs->aryelem_max,	/* max elements that can fit in allocated array	*/
-	    NULL,		/* (ptr to) current number of elements in array	*/
-	    OCI_DEFAULT);
+	    NULL,	/* ub2 *alen_ptr not needed with OCIBindDynamic */
+	    &phs->arcode,
+	    0,		/* max elements that can fit in allocated array	*/
+	    NULL,	/* (ptr to) current number of elements in array	*/
+	    OCI_DATA_AT_EXEC);
+    if (status != OCI_SUCCESS) {
+	oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
+	return 0;
+    }
+    status = OCIBindDynamic(phs->bndhp, imp_sth->errhp,
+		    (dvoid *)phs, dbd_phs_in, (dvoid *)phs, dbd_phs_out);
     if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
 	return 0;
     }
 
 #else
+    /* Since we don't support LONG VAR types we must check	*/
+    /* for lengths too big to pass to obndrv as an sword.	*/
+    if (phs->maxlen > MINSWORDMAXVAL && sizeof(sword)<4)	/* generally 32K	*/
+	croak("Can't bind %s, value is too long (%ld bytes, max %d)",
+		    phs->name, phs->maxlen, MINSWORDMAXVAL);
+
     if (obndra(imp_sth->cda, (text *)phs->name, -1,
 	    (ub1*)phs->progv, (sword)phs->maxlen, /* cast reduces max size */
 	    (sword)phs->ftype, -1,
@@ -1016,7 +874,8 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	fprintf(DBILOGFP, "       bind %s <== %s (type %ld",
 		name, neatsvpv(newvalue,0), (long)sql_type);
 	if (is_inout)
-	    fprintf(DBILOGFP, ", inout 0x%lx", (long)newvalue);
+	    fprintf(DBILOGFP, ", inout 0x%lx, maxlen %ld,",
+		(long)newvalue, (long)maxlen);
 	if (attribs)
 	    fprintf(DBILOGFP, ", attribs: %s", SvPV(attribs,na));
 	fprintf(DBILOGFP, ")\n");
@@ -1029,7 +888,6 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 
     if (phs->sv == &sv_undef) {	/* first bind for this placeholder	*/
 	phs->ftype    = 1;		/* our default type: VARCHAR2	*/
-	phs->maxlen   = maxlen;		/* 0 if not inout		*/
 	phs->is_inout = is_inout;
 	if (is_inout) {
 	    /* phs->sv assigned in the code below */
@@ -1058,6 +916,9 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 #endif
 		phs->ftype = ora_type;
 	    }
+	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_field",9, 0)) != NULL) {
+		phs->ora_field = SvREFCNT_inc(*svp);
+	    }
 	}
 	if (sql_type)
 	    phs->ftype = ora_sql_type(imp_sth, phs->name, sql_type);
@@ -1077,6 +938,8 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 		phs->name, sql_type);
     }
 
+    phs->maxlen = maxlen;		/* 0 if not inout		*/
+
     if (!is_inout) {	/* normal bind to take a (new) copy of current value	*/
 	if (phs->sv == &sv_undef)	/* (first time bind) */
 	    phs->sv = newSV(0);
@@ -1088,7 +951,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	phs->sv = SvREFCNT_inc(newvalue);	/* point to live var	*/
     }
 
-    return _dbd_rebind_ph(sth, imp_sth, phs);
+    return dbd_rebind_ph(sth, imp_sth, phs);
 }
 
 
@@ -1137,12 +1000,12 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	    /* Some checks for mutated storage since we pointed oracle at it.	*/
 	    if (SvTYPE(phs->sv) != phs->sv_type
 		    || (SvOK(phs->sv) && !SvPOK(phs->sv))
-		    /* SvROK==!SvPOK so cursor (SQLT_CUR) handle will call _dbd_rebind_ph */
+		    /* SvROK==!SvPOK so cursor (SQLT_CUR) handle will call dbd_rebind_ph */
 		    /* that suits us for now */
 		    || SvPVX(phs->sv) != phs->progv
 		    || SvCUR(phs->sv) > UB2MAXVAL
 	    ) {
-		if (!_dbd_rebind_ph(sth, imp_sth, phs))
+		if (!dbd_rebind_ph(sth, imp_sth, phs))
 		    croak("Can't rebind placeholder %s", phs->name);
 	    }
 	    else {
@@ -1151,9 +1014,11 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		phs->alen = SvCUR(phs->sv) + phs->alen_incnull;
 		if (debug >= 2)
  		    fprintf(DBILOGFP,
- 		        "      with %s = '%.*s' (len %d/%d, indp %d, otype %d, ptype %d)\n",
- 			phs->name, phs->alen, SvPVX(phs->sv), phs->alen, (int)phs->maxlen,
- 			phs->indp, phs->ftype, (int)SvTYPE(phs->sv));
+ 		        "      with %s = '%.*s' (len %ld/%ld, indp %d, otype %d, ptype %d)\n",
+ 			phs->name, (int)phs->alen,
+			(phs->indp == -1) ? "" : SvPVX(phs->sv),
+			(long)phs->alen, (long)phs->maxlen, phs->indp,
+			phs->ftype, (int)SvTYPE(phs->sv));
 	    }
 	}
     }
@@ -1241,7 +1106,7 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	while(--i >= 0) {
 	    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
 	    SV *sv = phs->sv;
-#ifndef OCI_V8_SYNTAX
+#ifdef cursor_vars_are_broken
 	    if (SvROK(sv)) {	/* XXX assume it's a cursor variable sth */
 		D_impdata(phs_imp_sth, imp_sth_t, sv);
 		if (debug >= 2)
@@ -1269,8 +1134,8 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		*SvEND(sv) = '\0';
 		if (debug >= 2)
 		    fprintf(DBILOGFP,
-			"       out %s = '%s'\t(len %d, arcode %d)\n",
-			phs->name, SvPV(sv,na),phs->alen, phs->arcode);
+			"       out %s = '%s'\t(len %ld, arcode %d)\n",
+			phs->name, SvPV(sv,na), (long)phs->alen, phs->arcode);
 	    }
 	    else
 	    if (phs->indp > 0 || phs->indp == -2) {	/* truncated	*/
@@ -1279,8 +1144,8 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		*SvEND(sv) = '\0';
 		if (debug >= 2)
 		    fprintf(DBILOGFP,
-			"       out %s = '%s'\t(TRUNCATED from %d to %d, arcode %d)\n",
-			phs->name, SvPV(sv,na), phs->indp, phs->alen, phs->arcode);
+			"       out %s = '%s'\t(TRUNCATED from %d to %ld, arcode %d)\n",
+			phs->name, SvPV(sv,na), phs->indp, (long)phs->alen, phs->arcode);
 	    }
 	    else
 	    if (phs->indp == -1) {			/* is NULL	*/
@@ -1435,6 +1300,7 @@ ora_free_phs_contents(phs_t *phs)
     if (phs->desc_h)
 	OCIDescriptorFree(phs->desc_h, phs->desc_t);
 #endif
+    sv_free(phs->ora_field);
     sv_free(phs->sv);
 }
 
@@ -1451,12 +1317,13 @@ dbd_st_destroy(sth, imp_sth)
     /* dbd_st_finish has already been called by .xs code if needed.	*/
 
     /* Check if an explicit disconnect() or global destruction has	*/
-    /* disconnected us from the database before attempting to close.	*/
+    /* disconnected us from the *database* before attempting to close.	*/
     if (DBIc_ACTIVE(imp_dbh)) {
 #ifdef OCI_V8_SYNTAX
 	/* nothing to do here ? */
 #else
-	free_cursor(sth, imp_sth);		/* ignore errors here	*/
+	oclose(imp_sth->cda);
+	imp_sth->cda = NULL;
 #endif
 	/* fall through anyway to free up our memory */
     } 

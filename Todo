@@ -1,4 +1,5 @@
-SCALE, PRECISION return 0!
+
+connect(..., { ora_module_name => $0 });
 
 prepare("insert .. into ... RETURNING foo INTO :bar")
 
@@ -8,19 +9,13 @@ $sth = $dbh->prepare("select ... for update");
 $dbh->commit;
 $sth->execute; # fails ? auto-re-prepare?
 
-Fetch: If LongReadLen > 64k then automatocally call oflng for each long LONG.
+Fetch: If LongReadLen > 64k then automatically call oflng for each long LONG.
 Bind: Automatically do piecewise insert of longs.
-
-$drh->debug oddities (re data_source debugging)
 
 ora_bind() failed err = ORA-01026: multiple buffers of size > 4000 in
 the bind list (DBD: oexec error)
 
 http://outside.organic.com/mail-archives/dbi-users/Nov1997/0116.html
-
-Test LongReadLen and especially the default behaviour of LongTruncOk
-
-Add/update explain to dist
 
 Handle binding of values > 32K long.
 

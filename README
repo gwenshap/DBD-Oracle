@@ -201,8 +201,7 @@ README.clients  -- building/using DBD::Oracle on minimally configured systems
 README.login    -- help for login problems
 README.longs    -- examples dealing with LONG types (blobs)
 
-DBI 'home page': http://www.arcana.co.uk/technologia/DBI (sadly often
-out of date)
+DBI 'home page': http://www.arcana.co.uk/technologia/DBI
 
 Master archive site for Perl DB information:
     ftp://ftp.demon.co.uk/pub/perl/db/

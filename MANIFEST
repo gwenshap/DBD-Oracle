@@ -16,8 +16,8 @@ Todo
 dbdimp.c
 dbdimp.h
 hints/svr4.pl
-oci7.h
-oci8.h
+oci7.c
+oci8.c
 ora_explain.PL
 oraperl.ex/Readme	Oraperl examples (copied mostly unchanged from oraperl-2.4)
 oraperl.ex/bind.pl

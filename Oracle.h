@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.h,v 1.13 1998/12/14 00:14:22 timbo Exp $
+   $Id: Oracle.h,v 1.14 1998/12/28 00:04:37 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -11,7 +11,7 @@
 */
 
 
-#define NEED_DBIXS_VERSION 9
+#define NEED_DBIXS_VERSION 93
 
 #define PERL_POLLUTE
 
@@ -19,7 +19,7 @@
 
 #include "dbdimp.h"
 
-#include <dbd_xsh.h>	/* installed by the DBI module	*/
+#include <dbd_xsh.h>		/* installed by the DBI module	*/
 
 #ifdef yxyxyxyx
 /* These prototypes are for dbdimp.c funcs used in the XS file          */ 

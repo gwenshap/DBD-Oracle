@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.26 1998/12/16 00:23:12 timbo Exp $
+   $Id: dbdimp.h,v 1.29 1998/12/28 00:04:37 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -11,22 +11,16 @@
 */
 
 
-/* Perl <= 5.004_0x defines dirty as either Perl_dirty or curinterp->Idirty */
-/* Perl  > 5.005_54 defines dirty as PL_dirty if PERL_POLLUTE is defined    */
-/*
-#xif !defined(dirty)
-#xdefine dirty PL_dirty
-#xendif
-*/
 #if defined(get_no_modify) && !defined(no_modify)
 #define no_modify PL_no_modify
 #endif
 
 
+/* ====== Include Oracle Header Files ====== */
+
 #ifndef CAN_PROTOTYPE
 #define signed	/* Oracle headers use signed */
 #endif
-
 
 /* The following define avoids a problem with Oracle >=7.3 where
  * ociapr.h has the line:
@@ -34,7 +28,6 @@
  * In some compilers that clashes with perls 'opcode' enum definition.
  */
 #define opcode opcode_redefined
-
 
 /* Hack to fix broken Oracle oratypes.h on OSF Alpha. Sigh.	*/
 #if defined(__osf__) && defined(__alpha)
@@ -48,7 +41,7 @@
 #include <oratypes.h>
 #include <ocidfn.h>
 
-#if defined(SQLT_NTY) && !defined(NO_OCI8)	/* use Oracle 8 */
+#if defined(SQLT_NTY) && !defined(NO_OCI8)	/* === use Oracle 8 === */
 
 /* ori.h uses 'dirty' as an arg name in prototypes so we use this */
 /* hack to prevent ori.h being read (since we don't need it)	  */
@@ -56,7 +49,7 @@
 
 #include <oci.h>
 
-#else										/* use Oracle 7 */
+#else						/* === use Oracle 7 === */
 
 #ifdef CAN_PROTOTYPE
 # include <ociapr.h>
@@ -68,14 +61,15 @@
 #define HDA_SIZE 512
 #endif
 
-#ifndef FT_SELECT	/* old Oracle version		*/
-#define FT_SELECT 4	/* from rdbms/demo/ocidem.h */
-#endif
+#endif						/* === ------------ === */
 
-#endif
+/* ------ end of Oracle include files ------ */
 
+
+/* ====== define data types ====== */
 
 typedef struct imp_fbh_st imp_fbh_t;
+
 
 struct imp_drh_st {
     dbih_drc_t com;		/* MUST be first element in structure	*/
@@ -83,6 +77,7 @@ struct imp_drh_st {
     OCIEnv *envhp;
 #endif
 };
+
 
 /* Define dbh implementor data structure */
 struct imp_dbh_st {
@@ -117,11 +112,11 @@ struct imp_sth_st {
     OCIServer	*srvhp;		/* copy of dbh pointer	*/
     OCISvcCtx	*svchp;		/* copy of dbh pointer	*/
     OCIStmt	*stmhp;
-    ub2 	stmt_type;		/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
+    ub2 	stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
     int  	has_lobs;
     lob_refetch_t *lob_refetch;
 #else
-    Cda_Def *cda;	/* currently just points to cdabuf below */
+    Cda_Def *cda;	/* normally just points to cdabuf below */
     Cda_Def cdabuf;
 #endif
 
@@ -173,7 +168,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     int  (*fetch_func) _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv));
     ub2  dbsize;
     ub2  dbtype;	/* actual type of field (see ftype)	*/
-    ub1  prec;
+    ub2  prec;		/* XXX docs say ub1 but ub2 is needed	*/
     sb1  scale;
     ub1  nullok;
     void *special;	/* hook for special purposes (LOBs etc)	*/
@@ -198,6 +193,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
 typedef struct phs_st phs_t;    /* scalar placeholder   */
 
 struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
+    imp_sth_t *imp_sth; /* 'parent' statement  			*/
     sword ftype;	/* external OCI field type		*/
 
     SV	*sv;		/* the scalar holding the value		*/
@@ -206,23 +202,73 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
     IV  maxlen;		/* max possible len (=allocated buffer)	*/
 
-    ub4 aryelem_max;	/* max elements in allocated array	*/
-    ub4 aryelem_cur;	/* current elements in allocated array	*/
 #ifdef OCI_V8_SYNTAX
     OCIBind *bndhp;
     void *desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4   desc_t;	/* OCI type of desc_h			*/
+    ub4   alen;
+#else
+    ub2   alen;		/* effective length ( <= maxlen )	*/
 #endif
+    ub2 arcode;
 
-    /* these will become an array one day */
     sb2 indp;		/* null indicator			*/
     char *progv;
-    ub2 arcode;
-    ub2 alen;		/* effective length ( <= maxlen )	*/
 
+    SV	*ora_field;	/* from attribute (for LOB binds)	*/
     int alen_incnull;	/* 0 or 1 if alen should include null	*/
     char name[1];	/* struct is malloc'd bigger as needed	*/
 };
+
+
+/* ------ define functions and external variables ------ */
+
+extern int ora_fetchtest;
+
+void dbd_init_oci _((dbistate_t *dbistate));
+void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
+void dbd_fbh_dump _((imp_fbh_t *fbh, int i, int aidx));
+void ora_free_fbh_contents _((imp_fbh_t *fbh));
+int ora_dbtype_is_long _((int dbtype));
+int calc_cache_rows _((int num_fields, int est_width, int cache_rows, int has_longs));
+fb_ary_t *fb_ary_alloc _((int bufl, int size));
+
+#ifdef OCI_V8_SYNTAX
+
+int oci_error _((SV *h, OCIError *errhp, sword status, char *what));
+char *oci_stmt_type_name _((int stmt_type));
+char *oci_status_name _((sword status));
+int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
+void ora_free_lob_refetch _((imp_sth_t *imp_sth));
+int post_execute_lobs _((SV *sth, imp_sth_t *imp_sth, ub4 row_count));
+
+#define OCIAttrGet_stmhp(imp_sth, p, l, a) \
+	OCIAttrGet(imp_sth->stmhp, OCI_HTYPE_STMT, (dvoid*)(p), (l), (a), imp_sth->errhp)
+
+#define OCIAttrGet_parmdp(imp_sth, parmdp, p, l, a) \
+	OCIAttrGet(parmdp, OCI_DTYPE_PARAM, (dvoid*)(p), (l), (a), imp_sth->errhp)
+
+#define OCIHandleAlloc_ok(envhp, p, t) \
+	if (OCIHandleAlloc(    (envhp), (dvoid**)(p), (t), 0, 0)==OCI_SUCCESS) ; \
+	else croak("OCIHandleAlloc (type %d) failed",t)
+
+#define OCIDescriptorAlloc_ok(envhp, p, t) \
+	if (OCIDescriptorAlloc((envhp), (dvoid**)(p), (t), 0, 0)==OCI_SUCCESS) ; \
+	else croak("OCIDescriptorAlloc (type %d) failed",t)
+
+sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
+              dvoid **bufpp, ub4 *alenp, ub1 *piecep, dvoid **indpp));
+sb4 dbd_phs_out _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
+             dvoid **bufpp, ub4 **alenpp, ub1 *piecep,
+             dvoid **indpp, ub2 **rcodepp));
+
+
+#else	/* is OCI 7 */
+
+void ora_error _((SV *h, Lda_Def *lda, int rc, char *what));
+
+#endif /* OCI_V8_SYNTAX */
+
 
 
 /* These defines avoid name clashes for multiple statically linked DBD's	*/

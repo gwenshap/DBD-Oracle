@@ -4,7 +4,7 @@ use ExtUtils::testlib;
 
 die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 
-# $Id: test.pl,v 1.33 1998/12/16 00:19:34 timbo Exp $
+# $Id: test.pl,v 1.34 1998/12/19 23:19:56 timbo Exp $
 #
 # Copyright (c) 1995-1998, Tim Bunce
 #
@@ -19,7 +19,7 @@ die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.33 $}."\n";
+print q{Oraperl test application $Revision: 1.34 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^(Bad|Duplicate) free/)
@@ -143,7 +143,7 @@ sub test1 {
     {
 	#$lda->trace(2);
 	local($csr) = &ora_open($lda,
-	    "select 11*7.2	num_t,
+	    "select to_number('7.2')	num_t,
 		    SYSDATE	date_t,
 		    USER	char_t,
 		    ROWID	rowid_t,
@@ -276,6 +276,7 @@ sub test_fetch_perf {
     print "\nTesting internal row fetch overhead.\n";
     local($lda) = &ora_login($dbname, $dbuser, '')
 		    || die "ora_login: $ora_errno: $ora_errstr\n";
+    DBI->trace(0);
     $lda->trace(0);
     local($csr) = &ora_open($lda,"select 0,1,2,3,4,5,6,7,8,9 from dual");
     local($max) = 50000;
