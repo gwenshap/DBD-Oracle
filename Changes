@@ -20,6 +20,7 @@
   Fixed setting of $DBI::err to 0 triggering PrintWarn in DBI >= 1.41.
   Fixed some edge cases in row cache sizing.
   Fixed truncation error fetching very small numbers (1 ^ -130).
+  Fixed Oraperl emulation to not enable PrintError (broken since 1.13).
 
   Changed some utf8 internals for LOBs.
   Changed ORA_OCI constant from being just 7 or 8 to being a dualvar:
