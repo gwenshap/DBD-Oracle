@@ -64,15 +64,13 @@ static void dump_env_to_trace();
 static char *
 GetEnvOrRegKey(char *name)
 {
-    int len;
-    char *val = getenv(name);
-    if (val)
-	return val;
 #define REG_BUFSIZE 80
-    char  key[REG_BUFSIZE+1];
-    char  val[REG_BUFSIZE+1];
-    len = REG_BUFSIZE;
-
+    char key[REG_BUFSIZE+1];
+    char val[REG_BUFSIZE+1];
+    int  len = REG_BUFSIZE;
+    char *e = getenv(name);
+    if (e)
+	return e;
     if (!GetRegKey("SOFTWARE\\ORACLE\\ALL_HOMES", "LAST_HOME", val, &len))
 	return Nullch;
     val[2] = 0;
@@ -509,26 +507,28 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &charsetid, (ub4)0 ,
 			OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
     if (status != OCI_SUCCESS) {
-	oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet. Failed to get charset id.");
+	oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet OCI_ATTR_ENV_CHARSET_ID");
 	return 0;
     }
     OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &ncharsetid, (ub4)0 ,
 			OCI_ATTR_ENV_NCHARSET_ID, imp_dbh->errhp, status);
     if (status != OCI_SUCCESS) {
-	oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet. Failed to get ncharset id.");
+	oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet OCI_ATTR_ENV_NCHARSET_ID");
 	return 0;
     }
 #else				/* Oracle 8.x */
-    {	/* this is a rought hack as I can't test it myself */
-	STRLEN nlslen;
+    {
+	/* We don't have a way to get the actual charsetid & ncharsetid in use
+	*  but we only care about UTF8 so we'll just check for that and use the
+	*  the hardcoded utf8_csid if found
+	*/  
 	char *nls = GetEnvOrRegKey("NLS_LANG");
-	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8")
+	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8"))
 	    charsetid = utf8_csid;
-	*nls = GetEnvOrRegKey("NLS_NCHAR");
-	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8")
-	    ncharsetid = utf8_csid;
+	nls = GetEnvOrRegKey("NLS_NCHAR");
+	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8"))
+	     ncharsetid = utf8_csid;
     }
-
 #endif 
 #endif
 
@@ -540,7 +540,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     if (DBIS->debug >= 3) {
 	PerlIO_printf(DBILOGFP,"       charsetid=%d ncharsetid=%d "
 	    "(csid: utf8=%d al32utf8=%d)\n",
-	     charsetid,   ncharsetid, utf8_csid, al32utf8_csid);
+	     charsetid, ncharsetid, utf8_csid, al32utf8_csid);
     }
 
 

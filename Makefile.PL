@@ -50,7 +50,7 @@ my %opts = (
     DIR  => [],
     clean => {	FILES	=> 'Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def ora_explain mk.pm' },
     dist  => {
-	DIST_DEFAULT	=> 'clean distcheck disttest ci tardist',
+	DIST_DEFAULT	=> 'clean distcheck disttest tardist',
 	PREOP		=> '$(MAKE) -f Makefile.old distdir',
 	COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
     },
