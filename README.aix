@@ -1,3 +1,7 @@
+Compiler:
+	don't use GCC, use xlc_r. See below for details.
+
+
 From: Rafael Caceres <rcaceres@m1.aasa.com.pe>
 Date: 22 Jul 2003 10:05:20 -0500
 Message-Id: <1058886321.1066.13.camel@rcaceres.aasa.com.pe>

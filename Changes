@@ -10,9 +10,15 @@
   Fixed some LOB test problems with Oracle 8.1.7 by implementing ora_lob_append
     with OCILobGetLength() and OCILobWrite(), insted of buggy OCILobAppend(),
     if the Oracle client version is < 9.0. Thanks to Jeff Urlwin.
+  Fixed reporting of length truncated in error message thanks to Jeff Urlwin.
+  Fixed column_info() to handle TIMESTAMP and INTERVAL datatypes
+    for Oracle >= 8 thanks to Stephen Clouse.
 
   Changed some utf8 internals for LOBs.
+  Changed to not warn if ORACLE_HOME env var is not defined
+    as it's not used with Oracle's new 'Instant Client'.
 
+  Added bind_param() support for SQL_BLOB & SQL_CLOB thanks to Stephen Clouse.
   Added some experimental NCHAR/UTF8 support thanks to Lincoln Baxter.
     $dbh->{ora_ph_csform} = SQLCS_NCHAR;
     $sth->bind_param(..., { ora_csform => SQLCS_NCHAR });
