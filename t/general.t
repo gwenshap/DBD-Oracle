@@ -57,7 +57,7 @@ ok(0, $tmp = $dbh->selectall_arrayref(q{
 }));
 my @tmp = @{$tmp->[0]};
 #warn "@tmp"; $tmp[0]+=0; $tmp[1]+=0; warn "@tmp";
-ok(0, $tmp[0] <= 1e-130,    $tmp[0]);
+ok(0, $tmp[0] <= 1.0000000000000000000000000000000001e-130, $tmp[0]);
 ok(0, $tmp[1] >= 9.99e+125, $tmp[1]);
 
 

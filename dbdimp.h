@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.43 2001/08/30 15:48:36 timbo Exp $
+   $Id: dbdimp.h,v 1.44 2003/03/12 20:33:02 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -79,12 +79,22 @@ struct imp_drh_st {
 #ifdef OCI_V8_SYNTAX
     OCIEnv *envhp;
 #endif
+    SV *ora_long;
+    SV *ora_trunc;
+    SV *ora_cache;
+    SV *ora_cache_o;		/* for ora_open() cache override */
 };
 
 
 /* Define dbh implementor data structure */
 struct imp_dbh_st {
     dbih_dbc_t com;		/* MUST be first element in structure	*/
+
+#ifdef USE_ITHREADS
+    int refcnt ;        /* keep track of duped handles. MUST be first after com */
+    struct imp_dbh_st * shared_dbh ; /* pointer to shared space from which to dup and keep refcnt */
+    SV *                shared_dbh_priv_sv ;
+#endif
 
 #ifdef OCI_V8_SYNTAX
     void *(*get_oci_handle) _((imp_dbh_t *imp_dbh, int handle_type, int flags));
@@ -102,7 +112,11 @@ struct imp_dbh_st {
 
     int RowCacheSize;
     int ph_type;		/* default oratype for placeholders */
+
 };
+
+#define DBH_DUP_OFF sizeof(dbih_dbc_t)
+#define DBH_DUP_LEN (sizeof(struct imp_dbh_st) - sizeof(dbih_dbc_t))
 
 
 typedef struct lob_refetch_st lob_refetch_t;
@@ -236,6 +250,10 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
 extern int ora_fetchtest;
 
+#ifdef UTF8_SUPPORT
+extern int cs_is_utf8;
+#endif
+
 void dbd_init_oci _((dbistate_t *dbistate));
 void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
 void dbd_fbh_dump _((imp_fbh_t *fbh, int i, int aidx));
@@ -299,6 +317,7 @@ void ora_error _((SV *h, Lda_Def *lda, int rc, char *what));
 #define dbd_db_FETCH_attrib	ora_db_FETCH_attrib
 #define dbd_st_prepare		ora_st_prepare
 #define dbd_st_rows		ora_st_rows
+#define dbd_st_cancel		ora_st_cancel
 #define dbd_st_execute		ora_st_execute
 #define dbd_st_fetch		ora_st_fetch
 #define dbd_st_finish		ora_st_finish
@@ -310,3 +329,4 @@ void ora_error _((SV *h, Lda_Def *lda, int rc, char *what));
 #define dbd_bind_ph		ora_bind_ph
 
 /* end */
+

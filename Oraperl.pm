@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.41 2001/08/06 21:58:29 timbo Exp $
+# $Id: Oraperl.pm,v 1.42 2003/03/12 20:33:02 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -25,7 +25,7 @@ require 5.002;
 use DBI 0.84;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.41 $, 10);
+$VERSION = substr(q$Revision: 1.42 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -77,7 +77,7 @@ sub _warn {
     if ($_[0] =~ /^(Bad|Duplicate) free/) {
 	return unless $ENV{PERL_DBD_DUMP} eq 'dump';
 	print STDERR "Aborting with a core dump for diagnostics (PERL_DBD_DUMP)\n";
-	dump;
+	CORE::dump;
     }
     $prev_warn ? &$prev_warn(@_) : warn @_;
 }
@@ -92,8 +92,9 @@ sub ora_login {
     my($system_id, $name, $password) = @_;
     local($Oraperl::prev_warn) = $SIG{'__WARN__'} || 0; # must be local
     local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
-    # we still use the old style connect call with an explicit driver
-    my $dbh = DBI->connect($system_id, $name, $password, 'Oracle');
+    # we now use the new style connect, since the old style is
+    # deprecated
+    my $dbh = DBI->connect("dbi:Oracle:$system_id", $name, $password);
     return $dbh;
 }
 sub ora_logoff {
@@ -270,6 +271,13 @@ Oraperl - Perl access to Oracle databases for old oraperl scripts
 =head1 DESCRIPTION
 
 Oraperl is an extension to Perl which allows access to Oracle databases.
+
+The original oraperl was a Perl 4 binary with Oracle OCI compiled into it.
+The Perl 5 Oraperl module described here is distributed with L<DBD::Oracle>
+(a database driver what operates within L<DBI>) and adds an extra layer over
+L<DBI> method calls.
+The Oraperl module should only be used to allow existing Perl 4 oraperl scripts
+to run with minimal changes; any new development should use L<DBI> directly.
 
 The functions which make up this extension are described in the
 following sections. All functions return a false or undefined (in the

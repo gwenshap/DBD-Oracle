@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.92 2001/08/31 16:23:59 timbo Exp $
+#   Oracle.pm,v 1.1 2002/07/05 06:34:47 richter Exp
 #
 #   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.12';
+$DBD::Oracle::VERSION = '1.13';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -23,25 +23,27 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     @ISA = qw(DynaLoader Exporter);
     %EXPORT_TAGS = (
 	ora_types => [ qw(
-	    ORA_VARCHAR2 ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
-	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_MLSLABEL ORA_NTY
+	    ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
+	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
 	    ORA_CLOB ORA_BLOB ORA_RSET
 	) ],
+        ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
     );
     @EXPORT_OK = ('ORA_OCI');
-    Exporter::export_ok_tags('ora_types');
+    Exporter::export_ok_tags(qw(ora_types ora_session_modes));
 
-
-    my $Revision = substr(q$Revision: 1.92 $, 10);
+    my $Revision = substr(q$Revision: 1.94 $, 10);
 
     require_version DBI 1.20;
 
     bootstrap DBD::Oracle $VERSION;
 
-    $err = 0;		# holds error code   for DBI::err    (XXX SHARED!)
-    $errstr = "";	# holds error string for DBI::errstr (XXX SHARED!)
     $drh = undef;	# holds driver handle once initialised
 
+    sub CLONE {
+        $drh = undef ;
+    }
+              
     sub driver{
 	return $drh if $drh;
 	my($class, $attr) = @_;
@@ -54,10 +56,12 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	$drh = DBI::_new_drh($class, {
 	    'Name' => 'Oracle',
 	    'Version' => $VERSION,
-	    'Err'    => \$DBD::Oracle::err,
-	    'Errstr' => \$DBD::Oracle::errstr,
+	    'Err'    => \my $err,
+	    'Errstr' => \my $errstr,
 	    'Attribution' => "DBD::Oracle $VERSION using OCI$oci by Tim Bunce",
 	    });
+	DBD::Oracle::dr::init_oci($drh) ;
+	$drh->STORE('ShowErrorStatement', 1);
 
 	$drh;
     }
@@ -206,7 +210,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# then we may have to mung the dbname
 
 	if (DBD::Oracle::ORA_OCI() >= 8) {
-	    $dbname = $1 if !$dbname && $user =~ s/\@(.*)//s;
+	    $dbname = $1 if !$dbname && $user && $user =~ s/\@(.*)//s;
 	}
 	elsif ($dbname) {	# OCI 7 handling below
 
@@ -313,18 +317,26 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     }
 
 
-    sub table_info {
-	my($dbh, $attr) = @_;
-	# XXX add knowledge of temp tables, etc
+    sub get_info {
+	my($dbh, $info_type) = @_;
+	require DBD::Oracle::GetInfo;
+	my $v = $DBD::Oracle::GetInfo::info{int($info_type)};
+	$v = $v->($dbh) if ref $v eq 'CODE';
+	return $v;
+    }
 
+
+    sub table_info {
+	my($dbh, $CatVal, $SchVal, $TblVal, $TypVal) = @_;
+	# XXX add knowledge of temp tables, etc
 	# SQL/CLI (ISO/IEC JTC 1/SC 32 N 0595), 6.63 Tables
-	my $CatVal = $attr->{TABLE_CAT};
-	my $SchVal = $attr->{TABLE_SCHEM};
-	my $TblVal = $attr->{TABLE_NAME};
-	my $TypVal = $attr->{TABLE_TYPE};
+	if (ref $CatVal eq 'HASH') {
+	    ($CatVal, $SchVal, $TblVal, $TypVal) =
+		@$CatVal{'TABLE_CAT','TABLE_SCHEM','TABLE_NAME','TABLE_TYPE'};
+	}
 	my @Where = ();
 	my $Sql;
-	if ( $CatVal eq '%' && $SchVal eq '' && $TblVal eq '') { # Rule 19a
+	if ( defined $CatVal && $CatVal eq '%' && (!defined $SchVal || $SchVal eq '') && (!defined $TblVal || $TblVal eq '')) { # Rule 19a
 		$Sql = <<'SQL';
 SELECT NULL TABLE_CAT
      , NULL TABLE_SCHEM
@@ -334,18 +346,23 @@ SELECT NULL TABLE_CAT
   FROM DUAL
 SQL
 	}
-	elsif ( $SchVal eq '%' && $CatVal eq '' && $TblVal eq '') { # Rule 19b
+	elsif ( defined $SchVal && $SchVal eq '%' && (!defined $CatVal || $CatVal eq '') && (!defined $TblVal || $TblVal eq '')) { # Rule 19b
 		$Sql = <<'SQL';
-SELECT NULL      TABLE_CAT
-     , USERNAME  TABLE_SCHEM
-     , NULL      TABLE_NAME
-     , NULL      TABLE_TYPE
-     , NULL      REMARKS
-  FROM ALL_USERS
- ORDER BY 2
+SELECT NULL TABLE_CAT
+     , s    TABLE_SCHEM
+     , NULL TABLE_NAME
+     , NULL TABLE_TYPE
+     , NULL REMARKS
+  FROM
+(
+  SELECT USERNAME s FROM ALL_USERS
+  UNION
+  SELECT 'PUBLIC' s FROM DUAL
+)
+ ORDER BY TABLE_SCHEM
 SQL
 	}
-	elsif ( $TypVal eq '%' && $CatVal eq '' && $SchVal eq '' && $TblVal eq '') { # Rule 19c
+	elsif ( defined $TypVal && $TypVal eq '%' && (!defined $CatVal || $CatVal eq '') && (!defined $SchVal || $SchVal eq '') && (!defined $TblVal || $TblVal eq '')) { # Rule 19c
 		$Sql = <<'SQL';
 SELECT NULL TABLE_CAT
      , NULL TABLE_SCHEM
@@ -371,9 +388,12 @@ SELECT *
   FROM
 (
   SELECT NULL         TABLE_CAT
-     , decode( t.OWNER, 'PUBLIC', '', t.OWNER ) TABLE_SCHEM
+     , t.OWNER      TABLE_SCHEM
      , t.TABLE_NAME TABLE_NAME
-     , t.TABLE_TYPE TABLE_TYPE
+     , decode(t.OWNER
+	  , 'SYS'    , 'SYSTEM '
+	  , 'SYSTEM' , 'SYSTEM '
+          , '' ) || t.TABLE_TYPE TABLE_TYPE
      , c.COMMENTS   REMARKS
   FROM ALL_TAB_COMMENTS c
      , ALL_CATALOG      t
@@ -383,10 +403,10 @@ SELECT *
 )
 SQL
 		if ( defined $SchVal ) {
-			push @Where, "TABLE_SCHEM LIKE '$SchVal'";
+			push @Where, "TABLE_SCHEM LIKE '$SchVal' ESCAPE '\\'";
 		}
 		if ( defined $TblVal ) {
-			push @Where, "TABLE_NAME  LIKE '$TblVal'";
+			push @Where, "TABLE_NAME  LIKE '$TblVal' ESCAPE '\\'";
 		}
 		if ( defined $TypVal ) {
 			my $table_type_list;
@@ -442,6 +462,192 @@ SQL
 	$sth;
 }
 
+    sub foreign_key_info {
+	my $dbh  = shift;
+	my $attr = ( ref $_[0] eq 'HASH') ? $_[0] : {
+	    'UK_TABLE_SCHEM' => $_[1],'UK_TABLE_NAME ' => $_[2]
+	   ,'FK_TABLE_SCHEM' => $_[4],'FK_TABLE_NAME ' => $_[5] };
+	my $Sql = <<'SQL';  # XXX: DEFERABILITY
+SELECT *
+  FROM
+(
+  SELECT to_char( NULL )    UK_TABLE_CAT
+       , uk.OWNER           UK_TABLE_SCHEM
+       , uk.TABLE_NAME      UK_TABLE_NAME
+       , uc.COLUMN_NAME     UK_COLUMN_NAME
+       , to_char( NULL )    FK_TABLE_CAT
+       , fk.OWNER           FK_TABLE_SCHEM
+       , fk.TABLE_NAME      FK_TABLE_NAME
+       , fc.COLUMN_NAME     FK_COLUMN_NAME
+       , uc.POSITION        ORDINAL_POSITION
+       , 3                  UPDATE_RULE
+       , decode( fk.DELETE_RULE, 'CASCADE', 0, 'RESTRICT', 1, 'SET NULL', 2, 'NO ACTION', 3, 'SET DEFAULT', 4 )
+                            DELETE_RULE
+       , fk.CONSTRAINT_NAME FK_NAME
+       , uk.CONSTRAINT_NAME UK_NAME
+       , to_char( NULL )    DEFERABILITY
+       , decode( uk.CONSTRAINT_TYPE, 'P', 'PRIMARY', 'U', 'UNIQUE')
+                            UNIQUE_OR_PRIMARY
+    FROM ALL_CONSTRAINTS    uk
+       , ALL_CONS_COLUMNS   uc
+       , ALL_CONSTRAINTS    fk
+       , ALL_CONS_COLUMNS   fc
+   WHERE uk.OWNER            = uc.OWNER
+     AND uk.CONSTRAINT_NAME  = uc.CONSTRAINT_NAME
+     AND fk.OWNER            = fc.OWNER
+     AND fk.CONSTRAINT_NAME  = fc.CONSTRAINT_NAME
+     AND uk.CONSTRAINT_TYPE IN ('P','U')
+     AND fk.CONSTRAINT_TYPE  = 'R'
+     AND uk.CONSTRAINT_NAME  = fk.R_CONSTRAINT_NAME
+     AND uk.OWNER            = fk.R_OWNER
+     AND uc.POSITION         = fc.POSITION
+)
+ WHERE 1              = 1
+SQL
+	my @BindVals = ();
+	while ( my ( $k, $v ) = each %$attr ) {
+	    if ( $v ) {
+		$Sql .= "   AND $k = ?\n";
+		push @BindVals, $v;
+	    }
+	}
+	$Sql .= " ORDER BY UK_TABLE_SCHEM, UK_TABLE_NAME, FK_TABLE_SCHEM, FK_TABLE_NAME, ORDINAL_POSITION\n";
+	my $sth = $dbh->prepare( $Sql ) or return undef;
+	$sth->execute( @BindVals ) or return undef;
+	$sth;
+    }
+
+
+    sub column_info {
+	my $dbh  = shift;
+	my $attr = ( ref $_[0] eq 'HASH') ? $_[0] : {
+	    'TABLE_SCHEM' => $_[1],'TABLE_NAME' => $_[2],'COLUMN_NAME' => $_[3] };
+	my $Sql = <<'SQL';
+SELECT *
+  FROM
+(
+  SELECT to_char( NULL )     TABLE_CAT
+       , tc.OWNER            TABLE_SCHEM
+       , tc.TABLE_NAME       TABLE_NAME
+       , tc.COLUMN_NAME      COLUMN_NAME
+       , decode( tc.DATA_TYPE
+         , 'MLSLABEL' , -9106
+         , 'ROWID'    , -9104
+         , 'UROWID'   , -9104
+         , 'BFILE'    ,    -4 -- 31?
+         , 'LONG RAW' ,    -4
+         , 'RAW'      ,    -3
+         , 'LONG'     ,    -1
+         , 'UNDEFINED',     0
+         , 'CHAR'     ,     1
+         , 'NCHAR'    ,     1
+         , 'NUMBER'   ,     decode( tc.DATA_SCALE, NULL, 8, 3 )
+         , 'FLOAT'    ,     8
+         , 'VARCHAR2' ,    12
+         , 'NVARCHAR2',    12
+         , 'BLOB'     ,    30
+         , 'CLOB'     ,    40
+         , 'NCLOB'    ,    40
+         , 'DATE'     ,    93
+         , NULL
+         )                   DATA_TYPE          -- ...
+       , tc.DATA_TYPE        TYPE_NAME          -- std.?
+       , decode( tc.DATA_TYPE
+         , 'LONG RAW' , 2147483647
+         , 'LONG'     , 2147483647
+         , 'CLOB'     , 2147483647
+         , 'NCLOB'    , 2147483647
+         , 'BLOB'     , 2147483647
+         , 'BFILE'    , 2147483647
+         , 'NUMBER'   , decode( tc.DATA_SCALE
+                        , NULL, 126
+                        , nvl( tc.DATA_PRECISION, 38 )
+                        )
+         , 'FLOAT'    , tc.DATA_PRECISION
+         , 'DATE'     , 19
+         , tc.DATA_LENGTH
+         )                   COLUMN_SIZE
+       , decode( tc.DATA_TYPE
+         , 'LONG RAW' , 2147483647
+         , 'LONG'     , 2147483647
+         , 'CLOB'     , 2147483647
+         , 'NCLOB'    , 2147483647
+         , 'BLOB'     , 2147483647
+         , 'BFILE'    , 2147483647
+         , 'NUMBER'   , nvl( tc.DATA_PRECISION, 38 ) + 2
+         , 'FLOAT'    ,  8 -- ?
+         , 'DATE'     , 16
+         , tc.DATA_LENGTH
+         )                   BUFFER_LENGTH
+       , decode( tc.DATA_TYPE
+         , 'DATE'     ,  0
+         , tc.DATA_SCALE
+         )                   DECIMAL_DIGITS     -- ...
+       , decode( tc.DATA_TYPE
+         , 'FLOAT'    ,  2
+         , 'NUMBER'   ,  decode( tc.DATA_SCALE, NULL, 2, 10 )
+         , NULL
+         )                   NUM_PREC_RADIX
+       , decode( tc.NULLABLE
+         , 'Y'        ,  1
+         , 'N'        ,  0
+         , NULL
+         )                   NULLABLE
+       , cc.COMMENTS         REMARKS
+       , tc.DATA_DEFAULT     COLUMN_DEF         -- Column is LONG!
+       , decode( tc.DATA_TYPE
+         , 'MLSLABEL' , -9106
+         , 'ROWID'    , -9104
+         , 'UROWID'   , -9104
+         , 'BFILE'    ,    -4 -- 31?
+         , 'LONG RAW' ,    -4
+         , 'RAW'      ,    -3
+         , 'LONG'     ,    -1
+         , 'UNDEFINED',     0
+         , 'CHAR'     ,     1
+         , 'NCHAR'    ,     1
+         , 'NUMBER'   ,     decode( tc.DATA_SCALE, NULL, 8, 3 )
+         , 'FLOAT'    ,     8
+         , 'VARCHAR2' ,    12
+         , 'NVARCHAR2',    12
+         , 'BLOB'     ,    30
+         , 'CLOB'     ,    40
+         , 'NCLOB'    ,    40
+         , 'DATE'     ,     9 -- not 93!
+         , NULL
+         )                   SQL_DATA_TYPE      -- ...
+       , decode( tc.DATA_TYPE
+         , 'DATE'     ,     3
+         , NULL
+         )                   SQL_DATETIME_SUB   -- ...
+       , to_number( NULL )   CHAR_OCTET_LENGTH  -- TODO
+       , tc.COLUMN_ID        ORDINAL_POSITION
+       , decode( tc.NULLABLE
+         , 'Y'        , 'YES'
+         , 'N'        , 'NO'
+         , NULL
+         )                   IS_NULLABLE
+    FROM ALL_TAB_COLUMNS  tc
+       , ALL_COL_COMMENTS cc
+   WHERE tc.OWNER         = cc.OWNER
+     AND tc.TABLE_NAME    = cc.TABLE_NAME
+     AND tc.COLUMN_NAME   = cc.COLUMN_NAME
+)
+ WHERE 1              = 1
+SQL
+	my @BindVals = ();
+	while ( my ( $k, $v ) = each %$attr ) {
+	    if ( $v ) {
+		$Sql .= "   AND $k LIKE ? ESCAPE '\\'\n";
+		push @BindVals, $v;
+	    }
+	}
+	$Sql .= " ORDER BY TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION\n";
+	my $sth = $dbh->prepare( $Sql ) or return undef;
+	$sth->execute( @BindVals ) or return undef;
+	$sth;
+    }
+
     sub type_info_all {
 	my ($dbh) = @_;
 	my $names = {
@@ -464,20 +670,18 @@ SQL
 	    SQL_DATETIME_SUB	=>16,
 	    NUM_PREC_RADIX	=>17,
 	};
-	# Based on the values from Oracle 8.0.4 ODBC driver
-	my $varchar2_maxlen = (DBD::Oracle::ORA_OCI()>=8) ? 4000 : 2000;
 	my $ti = [
 	  $names,
           [ 'LONG RAW', -4, '2147483647', '\'', '\'', undef, 1, '0', '0',
             undef, '0', undef, undef, undef, undef, -4, undef, undef
           ],
-          [ 'RAW', -3, 255, '\'', '\'', 'max length', 1, '0', 3,
+          [ 'RAW', -3, 2000, '\'', '\'', 'max length', 1, '0', 3,
             undef, '0', undef, undef, undef, undef, -3, undef, undef
           ],
           [ 'LONG', -1, '2147483647', '\'', '\'', undef, 1, 1, '0',
             undef, '0', undef, undef, undef, undef, -1, undef, undef
           ],
-          [ 'CHAR', 1, 255, '\'', '\'', 'max length', 1, 1, 3,
+          [ 'CHAR', 1, 2000, '\'', '\'', 'max length', 1, 1, 3,
             undef, '0', '0', undef, undef, undef, 1, undef, undef
           ],
           [ 'NUMBER', 3, 38, undef, undef, 'precision,scale', 1, '0', 3,
@@ -485,13 +689,36 @@ SQL
           ],
           [ 'DOUBLE', 8, 15, undef, undef, undef, 1, '0', 3,
             '0', '0', '0', undef, undef, undef, 8, undef, 10
-          ],
-          [ 'DATE', 9, 19, '\'', '\'', undef, 1, '0', 3,
-            undef, '0', '0', undef, '0', '0', 11, undef, undef
-          ],
-          [ 'VARCHAR2', 12, $varchar2_maxlen, '\'', '\'', 'max length', 1, 1, 3,
-            undef, '0', '0', undef, undef, undef, 12, undef, undef
           ]
+        ];
+	my $version = ( ora_server_version($dbh)->[0] < DBD::Oracle::ORA_OCI() )
+	            ?   ora_server_version($dbh)->[0] : DBD::Oracle::ORA_OCI();
+	if ( $version < 8 ) {
+	    push @$ti,
+	    [ 'VARCHAR2', 12, 2000, '\'', '\'', 'max length', 1, 1, 3,
+	      undef, '0', '0', undef, undef, undef, 12, undef, undef
+	    ];
+	}
+	else {
+	    push @$ti,
+	    [ 'VARCHAR2', 12, 4000, '\'', '\'', 'max length', 1, 1, 3,
+	      undef, '0', '0', undef, undef, undef, 12, undef, undef
+            ],
+	    [ 'BLOB', 30, 2147483647, '\'', '\'', undef, 1, 1, 0,
+	      undef, 0, undef, undef, undef, undef, 30, undef, undef
+            ],
+	    [ 'CLOB', 40, 2147483647, '\'', '\'', undef, 1, 1, 0,
+	      undef, 0, undef, undef, undef, undef, 40, undef, undef
+	    ];
+# whole bunch more need adding...
+#	    [ 'TIMESTAMP WITH TIME ZONE', 11, 34, '\'', '\'', undef, 1, '0', 3,
+#             undef, '0', '0', undef, '0', '9', 11, undef, undef
+#            ],
+
+	}
+	push @$ti,
+	[ 'DATE', 93, 19, '\'', '\'', undef, 1, 0, 3,
+	  undef, 0, 0, undef, 0, 0, 9, 3, undef
         ];
 	return $ti;
     }
@@ -531,8 +758,8 @@ SQL
 		or return;
 	my ($line, $status, @lines);
 	# line can be greater that 255 (e.g. 7 byte date is expanded on output)
-	$sth->bind_param_inout(':l', \$line,  400);
-	$sth->bind_param_inout(':s', \$status, 20);
+	$sth->bind_param_inout(':l', \$line,  400, { ora_type => 1 });
+	$sth->bind_param_inout(':s', \$status, 20, { ora_type => 1 });
 	if (!wantarray) {
 	    $sth->execute or return undef;
 	    return $line if $status eq '0';
@@ -578,6 +805,17 @@ SQL
 	$sth->bind_param_inout(":param",      \$msg->[2], 4000);
 	$sth->execute or return undef;
 	return 1;
+    }
+
+    sub ora_server_version {
+	my $dbh = shift;
+	return $dbh->{ora_server_version} if defined $dbh->{ora_server_version};
+	$dbh->{ora_server_version} =
+	   [ split /\./, $dbh->selectrow_array(<<'SQL', undef, 'Oracle%') .''];
+SELECT version
+  FROM product_component_version
+ WHERE product LIKE ?
+SQL
     }
 
 }   # end of package DBD::Oracle::db
@@ -667,9 +905,15 @@ will use TCP/IP (or D for DECNET, etc.) for remote SQL*Net v1 connection.
 will use the info stored in the SQL*Net v2 F<tnsnames.ora>
 configuration file for local or remote connections.
 
-The ORACLE_HOME environment variable should be set correctly. It can be
-left unset if you aren't using any of Oracle's executables, but it is
-not recommended and error messages may not display.
+The ORACLE_HOME environment variable should be set correctly.
+In general, the value used should match the version of Oracle that
+was used to build DBD::Oracle.  If using dynamic linking then
+ORACLE_HOME should match the version of Oracle that will be used
+to load in the Oracle client libraries (via LD_LIBRARY_PATH, ldconfig,
+or similar on Unix).
+
+ORACLE_HOME can be left unset if you aren't using any of Oracle's
+executables, but it is not recommended and error messages may not display.
 
 Discouraging the use of ORACLE_SID makes it easier on the users to see
 what is going on. (It's unfortunate that TWO_TASK couldn't be renamed,
@@ -822,10 +1066,13 @@ Thanks to Mark Dedlow for this information.
 
 The ora_session_mode attribute can be used to connect with SYSDBA
 authorization and SYSOPER authorization.
+The ORA_SYSDBA and ORA_SYSOPER constants can be imported using
 
-  $mode = 2;	# SYSDBA
-  $mode = 4;	# SYSOPER
-  DBI->connect($dsn, $user, $passwd, { ora_session_mode => $mode });
+  use DBD::Oracle qw(:ora_session_modes);
+
+Example:
+
+  $dbh = DBI->connect($dsn, $usr, $pwd, { ora_session_mode => ORA_SYSDBA });
 
 =item ora_oratab_orahome
 
@@ -844,9 +1091,132 @@ monitoring and performance tuning purposes. For example:
 
   DBI->connect($dsn, $user, $passwd, { ora_module_name => $0 });
 
+=item ora_dbh_share
+
+Needs at least Perl 5.8.0 compiled with ithreads. Allows to share database
+connections between threads. The first connect will make the connection, 
+all following calls to connect with the same ora_dbh_share attribute
+will use the same database connection. The value must be a reference
+to a already shared scalar which is initialized to an empty string.
+
+  our $orashr : shared = '' ;
+
+  $dbh = DBI -> connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
+
+=back
+
+=head2 Database Handle Attributes
+
+=over 4
+
+=item C<ora_ph_type>
+
+The default placeholder data type for the database session.
+The C<TYPE> or L</ora_type> attributes to L<DBI/bind_param> and
+L<DBI/bind_param_inout> override the data type for individual placeholders.
+The most frequent reason for using this attribute is to permit trailing spaces
+in values passed by placeholders.
+
+Constants for the values allowed for this attribute can be imported using
+
+  use DBD::Oracle qw(:ora_types);
+
+Only the following values are permitted for this attribute.
+
+=over 4
+
+=item ORA_VARCHAR2
+
+Strip trailing spaces and allow embedded \0 bytes.
+This is the normal default placeholder type.
+
+=item ORA_STRING
+
+Don't strip trailing spaces and end the string at the first \0.
+
+=item ORA_CHAR
+
+Don't strip trailing spaces and allow embedded \0.
+Force 'blank-padded comparison semantics'.
+
+=back
+
+=back
+
+=head2 Prepare Attributes
+
+These attributes may be used in the C<\%attr> parameter of the
+L<DBI/prepare> database handle method.
+
+=over 4
+
+=item ora_parse_lang
+
+Tells the connected database how to interpret the SQL statement.
+If 1 (default), the native SQL version for the database is used.
+Other recognized values are 0 (old V6, treated as V7 in OCI8),
+2 (old V7), 7 (V7), and 8 (V8).
+All other values have the same effect as 1.
+
+=item ora_auto_lob
+
+If 1 (default), fetching retreives the contents of the CLOB or BLOB column.
+If 0, fetching retreives the LOB Locator of the CLOB or BLOB column.
+(OCI8 and later only)
+
+See the LOB tests in 05dbi.t of Oracle::OCI for examples
+of how to use LOB Locators.  See L</Handling LOBs> for more details.
+
+=item ora_check_sql
+
+If 1 (default), force SELECT statements to be described in prepare().
+If 0, allow SELECT statements to defer describe until execute().
+(OCI8 and later only)
+
+See L</Prepare postponed till execute> for more information.
+
+=back
+
+=head2 Placeholder Binding Attributes
+
+These attributes may be used in the C<\%attr> parameter of the
+L<DBI/bind_param> or L<DBI/bind_param_inout> statement handle methods.
+
+=over 4
+
+=item ora_type
+
+Specify the placeholder's data type using an Oracle data type.
+A fatal error is raised if C<ora_type> and the DBI C<TYPE> attribute
+are used for the same placeholder.
+Some of these types are not supported by the current version of
+DBD::Oracle and will cause a fatal error if used.
+Constants for the Oracle datatypes may be imported using
+
+  use DBD::Oracle qw(:ora_types);
+
+Potentially useful values when DBD::Oracle was built using OCI 7 and later:
+
+  ORA_VARCHAR2, ORA_STRING, ORA_LONG, ORA_RAW, ORA_LONGRAW,
+  ORA_CHAR, ORA_MLSLABEL, ORA_RSET
+
+Additional values when DBD::Oracle was built using OCI 8 and later:
+
+  ORA_CLOB, ORA_BLOB, ORA_NTY
+
+See L</Binding Cursors> for the correct way to use ORA_RSET.
+
+See L</Handling LOBs> for the correct way to use ORA_CLOB and ORA_BLOB.
+
+See also L<DBI/Placeholders and Bind Values> for more information.
+
 =back
 
 =head1 Metadata
+
+=head2 C<get_info()>
+
+DBD::Oracle supports C<get_info()>, but (currently) only a few info types.
 
 =head2 C<table_info()>
 
@@ -873,8 +1243,6 @@ The result set is ordered by TABLE_TYPE, TABLE_SCHEM, TABLE_NAME.
 The special enumerations of catalogs, schemas and table types are
 supported. However, TABLE_CAT is always NULL.
 
-The schema name for PUBLIC database objects is an empty string.
-
 An identifier is passed I<as is>, i.e. as the user provides or
 Oracle returns it.
 C<table_info()> performs a case-sensitive search. So, a selection
@@ -898,6 +1266,61 @@ If the primary key constraint was created without an identifier,
 PK_NAME contains a system generated name with the form SYS_Cn.
 
 The result set is ordered by TABLE_SCHEM, TABLE_NAME, KEY_SEQ.
+
+An identifier is passed I<as is>, i.e. as the user provides or
+Oracle returns it.
+See L</table_info()> for more detailed information.
+
+=head2 C<foreign_key_info()>
+
+This method (currently) supports the extended behavior of SQL/CLI, i.e. the
+result set contains foreign keys that refer to primary B<and> alternate keys.
+The field UNIQUE_OR_PRIMARY distinguishes these keys.
+
+Oracle does not support catalogs, so C<$pk_catalog> and C<$fk_catalog> are
+ignored as selection criteria (in the new style interface).
+The UK_TABLE_CAT and FK_TABLE_CAT fields of a fetched row are always
+NULL (undef).
+See L</table_info()> for more detailed information.
+
+If the primary or foreign key constraints were created without an identifier,
+UK_NAME or FK_NAME contains a system generated name with the form SYS_Cn.
+
+The UPDATE_RULE field is always 3 ('NO ACTION'), because Oracle (currently)
+does not support other actions.
+
+The DELETE_RULE field may contain wrong values. This is a known Bug (#1271663)
+in Oracle's data dictionary views. Currently (as of 8.1.7), 'RESTRICT' and
+'SET DEFAULT' are not supported, 'CASCADE' is mapped correctly and all other
+actions (incl. 'SET NULL') appear as 'NO ACTION'.
+
+The DEFERABILITY field is always NULL, because this columns is
+not present in the ALL_CONSTRAINTS view of older Oracle releases.
+
+The result set is ordered by UK_TABLE_SCHEM, UK_TABLE_NAME, FK_TABLE_SCHEM,
+FK_TABLE_NAME, ORDINAL_POSITION.
+
+An identifier is passed I<as is>, i.e. as the user provides or
+Oracle returns it.
+See L</table_info()> for more detailed information.
+
+=head2 C<column_info()>
+
+Oracle does not support catalogs so TABLE_CAT is ignored as
+selection criterion.
+The TABLE_CAT field of a fetched row is always NULL (undef).
+See L</table_info()> for more detailed information.
+
+The CHAR_OCTET_LENGTH field is (currently) always NULL (undef).
+
+Don't rely on the values of the BUFFER_LENGTH field!
+Especially the length of FLOATs may be wrong.
+
+Datatype codes for non-standard types are subject to change.
+
+Attention! The DATA_DEFAULT (COLUMN_DEF) column is of type LONG.
+
+The result set is ordered by TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION.
 
 An identifier is passed I<as is>, i.e. as the user provides or
 Oracle returns it.
@@ -1131,10 +1554,11 @@ Example:
         END; } ) ) {} # Statement succeeded
     }
     elsif ( 6550 != $dbh->err ) { die $dbh->errstr; } # Utter failure
-    my $msg = $dbh->func( 'plsql_errstr' );
-    die $dbh->errstr if ! defined $msg;
-    die $msg if $msg;
-
+    else {
+        my $msg = $dbh->func( 'plsql_errstr' );
+        die $dbh->errstr if ! defined $msg;
+        die $msg if $msg;
+    }
 
 =head2 dbms_output_enable / dbms_output_put / dbms_output_get
 
@@ -1235,12 +1659,14 @@ documentation:
 
 =head2 Prepare postponed till execute
 
-The DBD::Oracle module will avoid an explicit 'describe' operation
+With OCI8, the DBD::Oracle module can avoid an explicit 'describe' operation
 prior to the execution of the statement unless the application requests
 information about the results (such as $sth->{NAME}). This reduces
 communication with the server and increases performance. However, it also
 means that SQL errors are not detected until C<execute()> is called
-(instead of C<prepare()> as now).
+(instead of C<prepare()> as with OCI7).
+
+Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
 
 =head2 Handling LOBs
 
@@ -1291,6 +1717,8 @@ However, it is possible (though inefficient), using DBMS_LOB.WRITEAPPEND in PL/S
 
 To INSERT a LOB, you need UPDATE privilege.
 
+If L</ora_auto_lob> is 0 in prepare(), you can fetch the LOB Locators and
+do all the work yourself using Oracle::OCI.
 
 =head2 Binding Cursors
 
@@ -1392,6 +1820,9 @@ Also PL/Vision from RevealNet and Steven Feuerstein, and
 =head1 SEE ALSO
 
 L<DBI>
+
+http://search.cpan.org/author/TIMB/DBD-Oracle/MANIFEST for all files in
+the DBD::Oracle source distribution including the examples in Oracle.ex/.
 
 =head1 AUTHOR
 

@@ -1,7 +1,18 @@
 In general, on Windows, it's best to just use ActiveState Perl and the
 PPM package manager to install a pre-built version of DBD::Oracle.
 
+If you built Perl with gcc, read README.wingcc as well as this file.
+
 --- other information, some of which is out of date ---
+
+9/14/02 -- Michael Chase
+
+Makefile.PL uses Win32::TieRegistry or Win32::Registry to find the
+current Oracle Home directory if the ORACLE_HOME environment variable
+is not set.  If neither module is installed, you must set ORACLE_HOME
+before running Makefile.PL.  Since the registry location of the current
+Oracle Home is in different locations in different Oracle versions,
+it is usually safer to set ORACLE_HOME before running Makefile.PL.
 
 10/24/97 -- Jeff Urlwin
 
@@ -39,4 +50,3 @@ try to answer them quickly there.  Please put something about Win32 or
 95 or NT in the subject, as I get TONS of other email and spend a fair
 amount of time weeding out messages that are not relevant to what I
 do.  I may miss something if the subject is not clear.
-

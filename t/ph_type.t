@@ -1,7 +1,5 @@
 #!perl -w
 
-my $muted = 1;	# set to 0 to see tests fail etc etc
-
 sub ok ($$;$) {
     my($n, $ok, $warn) = @_;
     ++$t;
@@ -18,6 +16,10 @@ sub ok ($$;$) {
 use strict;
 use DBI qw(neat);
 use DBD::Oracle qw(ORA_OCI);
+use vars qw($tests);
+
+$| = 1;
+$^W = 1;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dsn    = $ENV{ORACLE_DSN}    || 'dbi:Oracle:';
@@ -33,12 +35,27 @@ unless($dbh) {
 	exit 0;
 }
 
-use vars qw($tests);
-$| = 1;
-$^W = 1;
+eval {
+    require Data::Dumper;
+    $Data::Dumper::Useqq = $Data::Dumper::Useqq =1;
+    $Data::Dumper::Terse = $Data::Dumper::Terse =1;
+    $Data::Dumper::Indent= $Data::Dumper::Indent=1;
+};
+
+# XXX ought to extend test to check 'blank padded comparision semantics'
+my @tests = ( # skip=1 to skip, ti=N to trace insert, ts=N to trace select
+  { type=>97, name=>"CHARZ",    chops_space=>0, embed_nul=>0, skip=>1, ti=>8 },
+  { type=> 5, name=>"STRING",   chops_space=>0, embed_nul=>0, skip=>1, ti=>8 },	# old Oraperl
+  { type=>96, name=>"CHAR",     chops_space=>0, embed_nul=>1, skip=>0 },
+  { type=> 1, name=>"VARCHAR2", chops_space=>1, embed_nul=>1, skip=>0 },	# current DBD::Oracle
+);
+
+$tests = 3;
+$_->{skip} or $tests+=8 for @tests;
+
 print "1..$tests\n";
 
-my ($sth,$expect,$tmp);
+my ($sth,$tmp);
 my $table = "dbd_oracle_test__drop_me";
 
 # drop table but don't warn if not there
@@ -46,123 +63,76 @@ eval {
   local $dbh->{PrintError} = 0;
   $dbh->do("DROP TABLE $table");
 };
-#warn $@ if $@;
 
-ok(0, $dbh->do("CREATE TABLE $table (test VARCHAR2(2), foo VARCHAR2(20))"));
+ok(0, $dbh->do("CREATE TABLE $table (name VARCHAR2(2), vc VARCHAR2(20), c CHAR(20))"));
 
 my $val_with_trailing_space = "trailing ";
 my $val_with_embedded_nul = "embedded\0nul";
 
-my @tests =
- ([  1, "VARCHAR2", 0, 1, 0 ],	# DBD::Oracle default
-  [  5, "STRING",   1, 0, 1 ],
-  [ 96, "CHAR",     1, 1, 0 ],
-  [ 97, "CHARZ",    1, 0, 1 ]);
+for my $test_info (@tests) {
+  next if $test_info->{skip};
 
-for my $test_ary (@tests) {
-  my ($ph_type, $name, $trailing_space_ok, $embed_nul_ok, $trace) = @$test_ary;
+  my $ph_type = $test_info->{type} || die;
+  my $name    = $test_info->{name} || die;
   print "#\n";
-  print "# testing $name (ora_type $ph_type) ...\n";
+  print "# testing @{[ %$test_info ]} ...\n";
   print "#\n";
-  if ($muted && $trace) {
-	print "# skipping tests\n";
-	foreach (1..12) { ok(0,1) }
-	next;
+  if ($test_info->{skip}) {
+    print "# skipping tests\n";
+    foreach (1..12) { ok(0,1) }
+    next;
   }
-  $dbh->trace(8) if $trace && !$muted;
 
-  ok(0, $dbh->{ora_ph_type} =  $ph_type );
+  $dbh->{ora_ph_type} =  $ph_type;
   ok(0, $dbh->{ora_ph_type} == $ph_type );
 
-  ok(0, $sth = $dbh->prepare("INSERT INTO $table VALUES (?,?)"));
-  ok(0, $sth->execute("ts", $val_with_trailing_space));
-  ok(0, $sth->execute("en", $val_with_embedded_nul));
-  ok(0, $sth->execute("em", '')); # empty string
+  $sth = $dbh->prepare("INSERT INTO $table(name,vc,c) VALUES (?,?,?)");
+  $sth->trace($test_info->{ti}) if $test_info->{ti};
+  $sth->execute("ts", $val_with_trailing_space, $val_with_trailing_space);
+  $sth->execute("en", $val_with_embedded_nul,   $val_with_embedded_nul);
+  $sth->execute("es", '', ''); # empty string
+  $sth->trace(0) if $test_info->{ti};
 
-  ok(0, $tmp = $dbh->selectall_hashref(qq{
-	SELECT test, foo, length(foo) as len, nvl(foo,'ISNULL') as isnull
+  $dbh->trace($test_info->{ts}) if $test_info->{ts};
+  $tmp = $dbh->selectall_hashref(qq{
+	SELECT name, vc, length(vc) as len, nvl(vc,'ISNULL') as isnull
 	FROM $table
-  }, "test"));
+  }, "name");
   ok(0, keys(%$tmp) == 3);
-  ok(0, $tmp->{en}->{foo});
-  ok(0, $tmp->{ts}->{foo});
-  $dbh->trace(0);
-  ok(0, $dbh->rollback );
+  $dbh->trace(0) if $test_info->{ts};
+  $dbh->rollback;
 
-  eval {
-    require Data::Dumper;
-    $Data::Dumper::Useqq = $Data::Dumper::Useqq =1;
-    $Data::Dumper::Terse = $Data::Dumper::Terse =1;
-    $Data::Dumper::Indent= $Data::Dumper::Indent=1;
-    print Dumper($tmp);
-  };
+  delete $_->{name} foreach values %$tmp;
+  print Data::Dumper::Dumper($tmp);
 
-  $expect = $val_with_trailing_space;
-  $expect =~ s/\s+$// unless $trailing_space_ok;
-  my $ts_pass = ($tmp->{ts}->{foo} eq $expect);
-  if (ORA_OCI==7 && $name eq 'VARCHAR2') {
-    warn " OCI7 trailing space behaviour differs" if -f "MANIFEST.SKIP";
-    $ts_pass = 1;
+  # check trailing_space behaviour
+  my $expect = $val_with_trailing_space;
+  $expect =~ s/\s+$// if $test_info->{chops_space};
+  my $ok = ($tmp->{ts}->{vc} eq $expect);
+  if (!$ok && ORA_OCI==7 && $name eq 'VARCHAR2') {
+    warn " OCI7 ora_type=1 placeholder doesn't strip trailing spaces, OCI8 currently does\n";
+    $ok = 1;
   }
-  ok(0, $ts_pass,
-	sprintf("expected %s but got %s for $name", neat($expect),neat($tmp->{ts}->{foo})) );
+  ok(0, $ok, sprintf(" expected %s but got %s for $name",
+			neat($expect),neat($tmp->{ts}->{vc})) );
 
+  # check embedded nul char behaviour
   $expect = $val_with_embedded_nul;
-  $expect =~ s/\0.*// unless $embed_nul_ok;
-  ok(0, $tmp->{en}->{foo} eq $expect,
-	sprintf("expected %s but got %s for $name", neat($expect),neat($tmp->{en}->{foo})) );
+  $expect =~ s/\0.*// unless $test_info->{embed_nul};
+  ok(0, $tmp->{en}->{vc} eq $expect, sprintf(" expected %s but got %s for $name",
+		neat($expect),neat($tmp->{en}->{vc})) );
 
-last if $trace;
+  # check empty string is NULL (irritating Oracle behaviour)
+  ok(0, !defined $tmp->{es}->{vc});
+  ok(0, !defined $tmp->{es}->{c});
+  ok(0, !defined $tmp->{es}->{len});
+  ok(0, $tmp->{es}->{isnull} eq 'ISNULL');
+
+  exit 1 if $test_info->{ti} || $test_info->{ts};
 }
 
 ok(0, $dbh->do("DROP TABLE $table"));
 ok(0, $dbh->disconnect );
 
-BEGIN { $tests = 53 }
-
 
 __END__
-
-Date: Mon, 05 Feb 2001 04:29:47 -0600
-From: "James E Jurach Jr." <muaddib@fundsxpress.com>
-Subject: Re: DBD::Oracle - Bind value of space wrongly interpreted as NULL
-To: Tim Bunce <Tim.Bunce@ig.co.uk>, dbi-users@isc.org
-cc: James Jurach <jjurach@fundsxpress.com>
-Reply-to: "James E. Jurach Jr." <jjurach@fundsxpress.com>
-Message-ID: <200102051029.EAA00487@umgah.mesas.com>
-
-Tim Bunce wrote on 08/11/2000 10:22:14:
-> I need a volunteer to write a test script (like the other t/*.t files)
-> that will... create a table with NULL and NOT NULL variants of CHAR and
-> VARCHAR columns, and then do a series of inserts and selects with and
-> without trailing spaces etc with ora_ph_type set to various values.
-> 
-> Wouldn`t be too hard to do as a series of nested loops (a little like
-> t/long.t, only simpler) driven by a data structure that says what to
-> expect in each case.
-> 
-> Any volunteers? This is your chance to give back...
-
-We've been having problems migrating from OCI_V7 to OCI_V8 using DBD-Oracle
-because of VARCHAR2 trailing space issues.  I have tried and failed to get
-the $dbh->{ora_ph_type} trick mentioned in Changes to work.  Invariably,
-when ora_ph_type is set to "5" (or "97"), I get the following error from the
-following pseudocode:
-
- $dbh->{ora_ph_type} = 5;
- $dbh->do("CREATE TABLE foobar (foo VARCHAR2(20))");
- $sth = $dbh->prepare("INSERT INTO foobar VALUES (?)");
- $sth->execute("trailing ");
-
-   ORA-01461: can bind a LONG value only for insert into a LONG column
-	(DBD ERROR: OCIStmtExecute)
-
-I have taken you up on your challenge to produce a test file, t/ph_type.t.
-It doesn't do much right now, so feel free to beef it up.  At least it
-reproduces the problem.
-
-Let me know if there is anything more I can do.
-
-james
-
-t/ph_type.t:

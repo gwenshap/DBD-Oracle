@@ -1,3 +1,8 @@
+14-Sep-2002 -- Michael Chase
+
+Makefile.PL should now create liboci.a for you.  If it fails, follow the
+directions below.
+
 19-may-1999
 
 added support for mingw32 and cygwin32 environments.
@@ -12,11 +17,5 @@ dlltool --input-def oci.def --output-lib liboci.a
 in the directory where you unpacked DBD::Oracle distribution
 archive.  this will create import library for Oracle 8.0.4.
 
-BUGS:
-
-- make clean does not make clean enough.  (fixed?)
-
-- liboci.a must be made before running Makefile.PL
-  otherwise it will not be added to link list.
-
-- Win32::Registry access was not tested under cygwin.
+Note: make clean removes *.a files, so put a copy in a safe place.
+ 

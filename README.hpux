@@ -1,10 +1,10 @@
 =head1 INTRODUCTION
 
 Building a working dynamically linked version of the Oracle DBD driver
-on HPUX (11.00) has been a challenge for many.  For months after taking a
-new job, where HPUX was the standard server environment, I had only been
-able to build a staticly linked version of perl and the DBD-Oracle 
-module on HPUX 11.00.
+on HP-UX (11.00) has been a challenge for many.  For months after taking a
+new job, where HP-UX was the standard database server environment, I had only been
+able to build a statically linked version of perl and the DBD-Oracle 
+module on HP-UX 11.00.
 
 Then Roger Foskett posted instructions for what turned out to be dynamic
 build.  Rogers's post got me farther than I had previously gotten.  In fact, 
@@ -18,83 +18,180 @@ The instructions in this file, which include building perl from
 sources, will produce a working dynamically linked DBD-Oracle that can
 be used with mod_perl and Apache.
 
-Both Roger Foskett and I have been using the HP softbench c compiler
-normally installed in:
+See Appendices for exact build configurations used by me an others.
 
-	/opt/softbench/bin/cc.
+=head1  First things First
 
-F<Makefile.PL> has been modified to check for some of the
-conditions which, when met, we know will produce a working build.
-However, there are many variations of Oracle installations and
-features.  Not all of these can be tested by any one of us,
-if you discover a way to make a variation which did not previous
-work, please submit patches to Makefile.PL to Tim Bunce, and 
-patches to this README to Tim Bunce or me.
+The reason you are even reading this file is because you want to connect 
+to an Oracle database from your perl program using the DBD::Oracle DBI 
+driver.  So before you start, install (atleast 
+the Oracle client software) (SQL*Net, Pro*C, SQL*Plus) upon the machine you 
+intend to install Perl/DBI/DBD-Oracle.  You B<do not>, I repeat, I<do not> need 
+to build a database on this machine.  
 
-The instructions herein, have compiled, linked cleanly, and tested 
-cleanly using the HP softbench compiler, and Oracle 8.0.5 (32bit), and
-Oracle 8.1.6 (64 bit).  Oracle 8.1.5 will probably work as well.
+After you have installed the Oracle client software, B<test it!>. Make sure you
+can connect to the target database using sqlplus (or any other Oracle
+supplied tool).  The (gory) details of the install are beyond the scope of
+this document, some information can be found in the section
+L<Compiling on a Client Machine>, or see your friendly Oracle DBA.
 
-This author now has Oracle 8.1.7 (64 bit) workting with DBI-1.18 and
-DBD-Oracle-1.07 and perl 5.6.1.  See appendices for my exact build
-configuration.
+=head1  Build your own perl
+ 
+HP's default perl is no good (and antique).  
 
+By default, HP-UX 11.00 delivers perl 5.00503.  Others tell me that
+the default is a threaded GNUpro build of 5.6.1.  This is not what I
+found our systems, and it probably depends on which packages you
+install.  In any case, this version of perl delivered by HP will
+in all likelihood not work.
 
-=head1  Build perl
-
-=head2 HP's default perl (probably no good)
-
-By default, HPUX 11.00 delivers perl 5.00503.  This version of perl will
-probably not work.  If you are reading this, you have probably
-discovered that something did not work.  To get good version of the
-DBD-Oracle driver, we have to start with a perl that as been built with
-the correct compiler flags and shared libraries.
-
-=head2 Building the right perl
-
-Generally, in order to get a version of the DBD-Oracle driver that
-works on HPUX you need to build your own version of perl from
+If you are reading this, you 
+have probably discovered that something did not work.  To get good
+version of the DBD-Oracle driver, we have to start with a perl that as
+been built with the correct compiler flags and shared libraries.  This
+means that you must build your own version of perl from
 sources.
 
-These instructions have been used to building a dynamically linked
+See L<Appendix A> for a copy of a makefile used by me to biuld
+perl on HP-UX and all other platforms on which he works (Sun and Red Hat).
+
+The instructions below have been used for building a dynamically linked
 working DBD-Oracle driver that works with mod_perl and Apache.  These
 instructions are based on perl 5.6.0 and 5.6.1.  To this author's knowledge,
 they have not be tested on earlier versions of perl.  
 
-It is important to build a B<non> threaded perl, but linked with 
+Note that is important to build a B<non>-threaded perl, but linked with 
 -lcl and -lpthread.   Since Oracle on HP uses libpthread, everything that
-dynamically loads it (such as DBD-Oracle) must have been built/linked
+dynamically loads it (such as DBD-Oracle) must be built/linked
 with '-lpthread -lcl'.  (When used with Apache, it and any associated
 modules these must also be built this way - otherwise all it does is core
 dump when loading DBD::Oracle). 
 
+BTW: Perl B<5.8> may change this...
+
 A good link that explains thread local storage problems is
 http://my1.itrc.hp.com/cm/QuestionAnswer/1,1150,0x0d0a6d96588ad4118fef0090279cd0f9!0,00.html
 
+=head1 Compilers
 
-=item Configure
+=head2 HP Softbench Compiler
 
-Once you have downloaded and unpacked the perl sources 
-(version 5.6.0 assumed here)
+Both Roger Foskett, I and most others have been using the HP Softbench 
+C compiler normally installed in:
 
-    cd Perl-5.6.0/
-    ./Configure -Ubincompat5005 #important that there is no malloc polution
+	/opt/softbench/bin/cc.
 
-You should configure perl to understand largefiles... basically you can accept the
-defaults for all options except:
+While the DBD-Oracle F<Makefile.PL> checks for some of the
+conditions which, when met, we know will produce a working build,
+there are many variations of Oracle installations and
+features.  Not all of these can be tested by any one of us,
+if you discover a way to make a variation which did not previous
+work, please submit patches to Makefile.PL to Tim Bunce, and 
+patches to this README to me, and I will incorporate them into the 
+next README.
 
-    Additional libraries: add -lcl -lpthread #FIRST in the list
-    ccflags: add '+z' 
+The instructions herein, have compiled, linked cleanly, and tested 
+cleanly using the HP softbench compiler, and Oracle 8.0.5 (32bit), and
+Oracle 8.1.6, 8.1.7 (64 bit).  Oracle 8.1.5 will probably work as well.
+
+=head2 gcc Compiler
+
+For along time many folks have asked, how they could build a DBD-Oracle
+perl using the gcc compiler, and while some had claimed to have done it,
+none were forth coming with precise (and repeatable) instructions for 
+doing so.
+
+Recently, Waldemar Zurowski and Michael Schuh sent useful information
+about builds of perl with DBD-Oracle using gcc on HP-UX.  Both were able
+to get working executables, and their explanations shed much light on
+the issues.
+
+Waldemar's build is described in L<Appendix B>, and Michael's is 
+described in L<Appendix C>.
+
+While I have not reproduced either of these configurations, I 
+beleive the information is complete enough (particularly in the
+aggregate) to be helpful to others who might wish to replicate it.  
+
+If someone would be willing to submit a makefile equivalent to
+the makefile in Appendix A, which uses gcc to build perl and the
+DBI/DBD-Oracle interfaces, I will be happy to include it in the next
+README.
+
+=head2 Just tell me the recipe...
+
+If you are using the softbench compiler, just copy and modify my makefile.
+A copy of this makefile, which I use to build perl and the DBI interfaces
+(and all other modules I use for that matter) on all platforms (HP, SUN
+and Red Hat) can be found in L<Appendix A>.  If you want to skip reading
+the rest of this screed, try copying the makefile into a directory where
+you have all your compressed tar balls, editing the macros at the top,
+and running make.
+
+It you are plan to give gcc a go, consider making modifications
+to this makefile, and sending it back to me, as a GCC example.
+
+=head2 Configure (doing it manually)
+ 
+Once you have downloaded and unpacked the perl sources (version 5.6.1
+assumed here), you must configure Perl.  For those of you new to building
+Perl from source, the Configure program will ask you a series of questions
+about how to build Perl.  You may supply default answers to the questions
+when you invoke the Configure program by command line flags.
+
+We want to build a Perl that understands large files (over 2GB),
+and that is incompatible with v5.005 perl scripts (compiling with v5.005 
+compatibility causes mod_perl to complain about malloc pollution).  At the
+command prompt type:
+
+    cd Perl-5.6.1/
+    ./Configure -Ubincompat5005 -Duselargefiles
+
+As described in the section "Building the right Perl", there are some
+modifications you must make during the Configure process... so, 
+when asked the question:
+
+    What libraries to use? -  Answer by prepending (i.e. at the beginning): -lcl -lpthread
+
+    For example:
+    What libraries to use? [-lnsl -lnm -lndbm -lmalloc -ldld -lm -lc -lndir -lcrypt -lsec] -lcl -lpthread -lnsl -lnm -lndbm -lmalloc -ldld -lm -lc -lndir -lcrypt -lsec
+
+H.Merijn Brand notes that the above can be accomplished by adding the following to 
+the ./Configure command line: 
+
+   -A prepend:libswanted='cl pthread ' 
+
+Do not forget the space before the trailing quote. Also note that this
+does not (yet) work with 64bit versions of GCC. 
+
+I use this in my standard build now. (See L<Appendix A>)
+
+When asked:
+
+    Any additional cc flags? - Answer by prepending: +z
+
+    For example:
+    Any additional cc flags? [-D_HP-UX_SOURCE -Aa] +z -D_HP-UX_SOURCE -Aa
+
+Lastly, and this is optional, when asked:
+
     Do you want to install perl as /usr/bin/perl? [y] n
-    Perl 5.005 binary compatable? [y] n #causes mod_perl to complain 
-                                        #about malloc polution
 
-BTW: When you add -lcl -lpthread to the library list, make sure to place
-them B<first>, in the library list, and then that you add all the of
-the libraries that were originally prosented as the default list. If you add
--lcl and -lpthread to the end of the list it will not work. I wasted a day 
-and a half trying to figure our why I had lost the recipe, before I 
-realized that this was the problem. The symptom will be that
+    You may or may not want to install directly in /usr/bin/perl,
+    many persons on HP install Perl in /opt/perl<version>/bin/perl and
+    put a symbolic link to /usr/bin/perl.  Furthermore, you can supply
+    the answer to this question by adding an additional switch to the
+    invokation of Configure such as: Configure -Dprefix=/opt/perl
+
+After you have answered the above questions, accept the default values for all
+of the remaining questions.  You may press <Enter> for each remaining
+question, or you may enter "& -d" (good idea) at the next question and
+the Configure will go into auto-pilot and use the Perl supplied defaults.
+
+BTW: If you add -lcl and -lpthread to the end of the list it will not
+work. I wasted a day and a half trying to figure out why I had lost the
+recipe, before I realized that this was the problem. The symptom will
+be that
 
    make test 
    
@@ -111,8 +208,8 @@ the '-d' option to process the config.sh file.
     make test
     make install
 
-If you are going to build mod_perl and Apache it as beed suggested that you modify
-Config.pm to the change the HPUX ldflags & ccdlflags in
+If you are going to build mod_perl and Apache it has been suggested
+that you modify Config.pm to the change the HP-UX ldflags & ccdlflags in
 F</your/install/prefix/lib/5.6.0/PA-RISC2.0/Config.pm> as follows:
 
     ccdlflags=''
@@ -124,34 +221,132 @@ This is not necessary if you are not using mod_perl and Apache.
 =head1 Build and Install DBI
 
     
-    cd DBI-1.14/
+    cd DBI-1.18/
     perl Makefile.PL
     make
     make test
     make install
 
-=head1 DBD-Oraclea-1.07 and later
+=head1 Build and Install DBD-Oracle-1.07 and later
 
-The standard mantra now works out of the box on HPUX:
-    
-    cd DBD-1.07/ #or more recent version
+It is critical to setup your Oracle environmental variables.  Many people
+do this incorrectly and spend days trying to get a working version of 
+DBD-Oracle.  Below are examples of a local database and a remote database
+(i.e. the database is on a different machine than your Perl/DBI/DBD 
+installation) environmental variable setup.
 
+Example (local database):
+
+    export ORACLE_USERID=<validuser/validpasswd>
     export ORACLE_HOME=<path to oracle>
     export ORACLE_SID=<a valid instance>
     export ORACLE_USERID=<validuser/validpasswd>
+    export SHLIB_PATH=$ORACLE_HOME/lib       #for 32bit HP
+    export LD_LIBRARY_PATH=$ORACLE_HOME/lib  #for 64bit HP (I defined them both)
 
+Example (remote database):
+
+    export ORACLE_USERID=<validuser/validpasswd>
+    export ORACLE_HOME=<path to oracle>
+    export ORACLE_SID=<a valid instance>@<valid tnsnames.ora entry>
+    export ORACLE_USERID=<validuser/validpasswd>
+    export SHLIB_PATH=$ORACLE_HOME/lib       #for 32bit HP
+    export LD_LIBRARY_PATH=$ORACLE_HOME/lib  #for 64bit HP (I defined them both)
+
+The standard mantra now works out of the box on HP-UX:
+    
+    cd DBD-1.07/ #or more recent version
     perl Makefile.PL
     make 
     make test
     make install # if all went smoothly
 
-If you have trouble, go though the instructions below, for hints
-of what might be wrong... and sent me a note, describing your
+If you have trouble, see the L<Trouble Shooting> instructions below, for hints
+of what might be wrong... and send me a note, describing your
 configuration, and what you did to fix it.
+
+=head1	Trouble Shooting
+
+=head2	"Unresolved symbol"
+
+In general, find the symbols, edit the Makefile, and make test.  
+
+You'll have to modify the recipe accordingly, in my case the symbol
+"LhtStrCreate" was unresolved. (Authors Note: thanks patch suggestions
+by Jay Strauss this situation which occurs with Oracle 8.1.6 should 
+now be handled in Makefile.PL.)
+
+1) Find the symbols.  
+
+   a) The following ksh/bash code (courtesy of Roger) will search 
+      from $ORACLE_HOME and below for Symbols in files in lib directories.
+      Save the following to a file called "findSymbol".
+   
+   >>>>  CUT HERE <<<<<
+   cd $ORACLE_HOME
+
+   echo "\nThis takes a while, grepping a lot of stuff"
+   echo "   ignore the \"no symbols\" warnings\n"
+
+   sym=$1; shift;
+   libs="*.sl"
+
+   for lib in  $(find . -name $libs -print); do
+      if nm -p $lib | grep -q $sym; then
+         echo "found \"$sym\" in $lib"
+      fi
+   done
+   >>>>> CUT HERE <<<<
+
+   b) Run it (replace "LhtStrCreate" with your "Unresolved symbol").  For 
+      example, at my installation, findSymbols produced the following output:
+
+      # chmod 755 findSymbols
+      # ./findSymbol LhtStrCreate
+      
+      found "LhtStrCreate" in ./lib/libagtsh.sl
+      found "LhtStrCreate" in ./lib/libclntsh.sl
+      found "LhtStrCreate" in ./lib/libwtc8.sl
+
+2) Edit the Makefile
+
+In the previous step your unresolved symbol was found in one or more
+library files.  You will need to edit the OTHERLDFLAGS makefile macro,
+and add the missing libraries.
+
+When you add those library files to OTHERLDFLAGS you must convert the
+name from the actual name to the notation that OTHERLDFLAGS uses.
+      
+      libclntsh.sl         becomes =>	-lclntsh
+      libagtsh.sl          becomes =>	-lagtsh
+      libwtc8.sl           becomes =>	-lwtc8
+
+That is, you replace the "lib" in the name to "-l" and remove the ".sl"	
+
+You can edit the Makefile in 2 ways:
+
+   a) Do this:
+
+      cat Makefile | sed 's/\(OTHERLDFLAGS.*$\)/\1 -lclntsh/' > Makefile.tmp
+      mv Makefile.tmp Makefile
+
+   b) Using vi, emacs... edit the file, find OTHERLDFLAGS, and add the 
+      above "-l" entries to the end of the line.
+
+      For example the line:
+      OTHERLDFLAGS =  -L/opt/oracle/product/8.1.6/lib/... -lqsmashr
+
+      Becomes:
+      OTHERLDFLAGS =  -L/opt/oracle/product/8.1.6/lib/... -lqsmashr -lclntsh
+
+3) make test
+
+Perform a make test, if symbols are still unresolved repeat the editing of 
+the Makefile and make test again.
 
 =head1  DBD-Oracle-1.06
 
-You are stronly urged to upgrade. However here is what you may
+You are strongly urged to upgrade. However here is what you may
 need to know to get it or work, if you insist on using an earlier
 version.
 
@@ -173,77 +368,76 @@ You can fix this as follows:
 	cat Makefile | sed 's/-Wl,+[sn]//' > Makefile.tmp
 	mv Makefile.tmp Makefile
 
-You can add -lqsmashr (assuming $ORACLE_HOME/lib/libqsmashr.sl exists) to the link 
-command, as follows
 
-   cat Makefile | sed 's/\(OTHERLDFLAGS=.*$\)/\1 -lqsmashr/' > Makefile.tmp
-	mv Makefile.tmp Makefile
+=head1 Building on a Oracle Client Machine
 
-Oracle version 8.1.6 and (maybe 8.1.5) (and probably later) versions, use the 
+If you need to build or deliver the DBD-Oracle interface on or to
+a machine on which Oracle has not been installed you need take into
+consideration the following:
 
-   +Wl,+n +Wl,+s 
+=over
 
-linker options which causes ld to complain about these as unknown options.  This
-is probably because Oracle is linking with the cc command, and we are linking with
-ld.  Oracle also fails to include libqsmashr which defines the Symbol LhrStrInsert().  
+=item 1) Oracle files are needed for DBD::Oracle to compile
 
-If you are using Oracle 8.0.5, check for, and remove if found,
-the linker options:  
+=item 2) Oracle files are needed for the compiled DBD to connect
 
-   +DA2.0W +DS2.0
+=item 3) ORACLE_HOME environment variable must be set
 
-Oracle 8.0.5 does not have libqsmashr.sl
+=item 4) SHLIB_PATH environment variable must be set
 
-We are now ready to make:
+=back
 
-    make
-    make test #needs valid TWO_TASK & ORACLE_USERID environment vars set)
+=head2 Compiling on a Client Machine
 
-At this point dld.sl may be reporting undefined symbol errors.
+This may seem obvious to some, but the Oracle software has to be
+present to compile and run DBD-Oracle.  The best way to compile and
+install on a client machine, is to use the to use the oracle installer
+to install the oracle (client) software locally.  Install SQL*Net, Pro*C
+and SQL*Plus.  After this some tests with SQL*Net (tnsping at a minimum)
+are an good idea.  Make sure you can connect to your remote database,
+and everything works with Oracle before you start bashing your head into
+the wall trying to get DBD-Oracle to work.
 
-In my case, LhtStrInsert was undefined.  To solve this problem, I had
-to looked though the Oracle libraries using nm.  I found the symbol
-in 3 separate libraries in $ORACLE_HOME/lib.  I then proceeded to as these
-libraries to the OTHERLDFLAGS makefile macro until I got a clean linke.
-libqsmashr.sl was what did the trick for me.
+If you do not have the Oracle installer handy, the follow hack has been
+known to work:
 
-The following ksh/bash function will search from the current directory 
-down for Symbols in files in lib directories:
+Either open an NFS share from the oracle installation directory on the
+machine that has Oracle and point both of the above-mentioned env vars to
+that share, or alternatively copy the following four directories from your
+Oracle installation over to the machine on which you are compiling the DBD:
 
-To make this search easy I took a code snippet suggested by Roger and turned
-it into a little symbol hunting ksh/bash function: 
+drwxr-xr-x   3 oracle   dba         3072 Jul  3 09:36 lib
+drwxr-xr-x  13 oracle   dba          512 Jul  3 09:38 network
+drwxr-xr-x   7 oracle   dba          512 Jul  2 19:25 plsql
+drwxr-xr-x  12 oracle   dba          512 Jul  3 09:38 rdbms
 
-   #cd to where you want to look
-  	#find_symbol Symbol ['libnamewildcard' as in '*.sl'] 
-   #based on a code fragment suggested by Roger Foskett
-	function find_symbol {
-	   sym=$1; shift;
-	   libs=$1; shift;
-	   set +u
-	   for libdir in $(find . | egrep '/lib$'); do
-	      cd $libdir;
-	      for lib in $(ls $libs); do
-	         if nm $lib | grep $sym; then
-	            echo $(pwd)/$lib : $sym
-	         fi
-	      done
-	      cd -
-	   done
-	   set -u
-	}
+then point the above-mentioned env vars to the containing directory (good
+place to put them, if copying locally, might be /usr/lib/oracle, 
+/usr/local/lib/oracle, or /opt/oracle/lib )
 
-To use this I cd'd to $ORACLE_HOME and searched for the definitions of the undefined
-symbol as follows:
-	
-	find_symbol LhtStrInsert '*.sl'
-	
-Once you have run make test successfully, you can install your build in your
-perl tree:
+In any case, the compiler needs to be able to find files in the above four
+directories from Oracle in order to get all the source code needed to
+compile properly.
 
-   make install
+=head2 Required Runtime environment
 
+Again, use the Oracle installer to install the Oracle Client on the machine
+where your scripts will be running.  If the Oracle installer is not available,
+the following hack should suffice:
+
+For running the compiled DBD in perl and connecting, you need only the
+files in the 'lib' folder mentioned above, either connecting to them through
+an NFS share on the Oracle machine, or having copied them directly onto the
+local machine, say, in /usr/lib/oracle . Make sure the env variable for
+ORACLE_HOME = /usr/lib/oracle and LD_LIBRARY_PATH includes /usr/lib/oracle .
+You can set the env var in your perl script by typing
+
+$ENV{'ORACLE_HOME'} = '/usr/lib/oracle';
 
 =head1 Apache and mod_perl
+
+B<Nota Bene:> this instructions are now more than a year and a half old,
+you may have to tinker.
 
 If you are not building this version of perl for Apache you can go on
 to build what ever other modules you require.  The following instructions
@@ -251,7 +445,7 @@ describe how these modules were built with the perl/DBD-Oracle built above:
 The following is what worked for Roger Foskett:
 
 
-=head2 Apache Web server
+=head1 Apache Web server
 
     cd apache_1.3.14/
     LDFLAGS_SHLIB_EXPORT="" \
@@ -304,21 +498,435 @@ caused problems on HP (the user 'www' may need to be created)
 
 The following folks contributed to this README:
 
-   Lincoln A. Baxter <lbaxter@fleetcc.com or lbaxter@netreach.net>
-   Roger Foskett <Roger.Foskett@icl.com>
-   Weiguo Sun <wesun@cisco.com>
-   Tony Foiani <anthony_foiani@non.hp.com>
+   Lincoln A. Baxter <lbaxter@fleetcc.com.Fix.This
+                    or lbaxter@netreach.net.Fix.This>
+   Jay Strauss <jjstrauss@yahoo.com.Fix.This>
+   Roger Foskett <Roger.Foskett@icl.com.Fix.This>
+   Weiguo Sun <wesun@cisco.com.Fix.This>
+   Tony Foiani <anthony_foiani@non.hp.com.Fix.This>
+   Hugh J. Hitchcock <hugh@hitchco.com.Fix.This>
+	Heiko Herms <Heiko.Herms.extern@HypoVereinsbank.de.Fix.This>
+   Waldemar Zurowski <bilbek0@poczta.onet.pl.Fix.This>
+   Michael Schuh <Michael.Schuh@airborne.com.Fix.This>
+   H.Merijn Brand <h.m.brand@hccnet.nl.Fix.This>
 
 And probably others unknown to me.
 
 =head1 AUTHOR
 
    Lincoln A. Baxter
-   IT Solutions Delivery, Fleet Credit Card Services
+   Business Solutions, Fleet Credit Card Services
    lbaxter@fleetcc.com or lbaxter@netreach.net
-   Office:  215.444.7973
 
-=head1 Appendix A (Miscellaneous links which might be usefull)
+=head1 Appendix A (Lincoln's makefile)
+
+The following is the text of the makefile I use to build perl on all platforms
+I run on. If you paste this to a text file, remember to remove leading blanks from
+the target lines, and replace leading blanks on the rule lines with TAB characters.
+
+
+   # makefile for rebuilding perl and all the modules we have built
+   # or for rebuilding individual modules
+   SHELL=/usr/bin/ksh
+   CPAN_VERSION=5.6.1
+   FCCS_VERSION=fccs-03
+   #needed for compatibility with ../build.mk:
+   TOOL=perl
+   PERL_VERSION=$(TOOL)-$(CPAN_VERSION)
+   TOP=/opt/oss
+   PERLDIR=$(PERL_VERSION)-$(FCCS_VERSION)
+   PERL_ROOT=$(TOP)/pkg
+   PREFIX=$(PERL_ROOT)/$(PERLDIR)
+   #needed for compatibility with ../biuld.mk:
+   VERSION=$(CPAN_VERSION)-$(FCCS_VERSION)
+
+   MQS=MQSeries-1.14
+   DBDORA=DBD-Oracle-1.12
+   DBI=DBI-1.20
+   EXPAT_VER=-1.95.2
+   MQSERVER='PERL_CHANNEL/TCP/dsas105(1414)'
+
+   MODULES=\
+      libnet-1.0703 \
+      Storable-0.7.2 \
+      Time-HiRes-01.20 \
+      Net-Daemon-0.35 \
+      Digest-MD5-2.16 \
+      Digest-SHA1-2.01 \
+      Digest-HMAC-1.01 \
+      MIME-Base64-2.12 \
+      Net-DNS-0.19 \
+      Mail-CheckUser-1.13 \
+      Proc-Daemon-0.02 \
+      Proc-Simple-1.14 \
+      Openview-Message-0.01 \
+      Business-CreditCard-0.26 \
+      Data-UUID-0.06
+
+   XML_PARSER=XML-Parser-2.31
+   XML_MODULES= \
+      XML-Simple-1.05 \
+      XML-Generator-0.8
+   #this does not behave same as 0.8 
+   #XML-Generator-0.91 
+
+   all: testOracleVar
+      @banner ALL_PERL
+      @echo "using perl PATH=$(PREFIX)/bin"
+      ( export PATH=$(PREFIX)/bin:$$PATH && make perl )
+      ( export PATH=$(PREFIX)/bin:$$PATH && make all_modules )
+
+   print_macros:
+      @echo TOOL=$(TOOL)
+      @echo CPAN_VERSION=$(CPAN_VERSION)
+      @echo PERL_VERSION=$(PERL_VERSION)
+      @echo FCCS_VERSION=$(FCCS_VERSION)
+      @echo PREFIX=$(PREFIX)
+      @echo VERSION=$(VERSION)
+      @echo PERLDIR=$(PERLDIR)
+      @echo PERL_ROOT=$(PERL_ROOT)
+
+   all_modules:  modules xmlparser xml_modules dbi dbd mqs 
+
+   modules : testPath 
+      rm -rf $(MODULES)
+      for m in $(MODULES); do \
+      make module MODULE=$$m  PREFIX=$(PREFIX) ; \
+      done
+
+   xml_modules : testPath 
+      rm -rf $(XML_MODULES)
+      for m in $(XML_MODULES); do \
+      make module MODULE=$$m  PREFIX=$(PREFIX) ; \
+      done
+
+   dbi : testPath  
+      make module MODULE=DBI-1.20 PREFIX=$(PREFIX) 
+
+   dbd : testPath testOracleVar dbi touch.d/$(DBDORA).tch
+
+   touch.d:
+      mkdir touch.d
+
+   xmlparser: touch.d/$(XML_PARSER).tch
+   touch.d/$(XML_PARSER).tch : $(XML_PARSER).tar.gz
+      tar -zxvf $(XML_PARSER).tar.gz 
+      (  cd $(XML_PARSER) && \
+         perl Makefile.PL EXPATLIBPATH=$(TOP)/lib \
+                        EXPATINCPATH=$(TOP)/include && \
+         make && \
+         make test && \
+         make install )
+      rm -rf $(XML_PARSER)
+      touch $@
+
+   #chmod +w CONFIG;
+   mqs_config:
+      ( cd $(MQS); \
+         mv CONFIG CONFIG.orig; \
+         cp ../$$(uname).MQS.CONFIG CONFIG \
+         ) 
+
+   mqs_target:
+      ( export MQSERVER=$(MQSERVER); \
+         cd $(MQS) ;\
+         make $(MQS_TARGET) \
+         )
+
+   mqs_build:
+      ( export MQSERVER=$(MQSERVER); \
+         cd $(MQS) ;\
+         cp ../$$(uname).MQS.CONFIG ./CONFIG; \
+         perl Makefile.PL; \
+         make ; \
+      ) 
+
+   mqs : testPath /opt/mqm touch.d/$(MQS).tch 
+   touch.d/$(MQS).tch:
+      @banner $(MQS)
+      rm -rf $(MQS)
+      gunzip -c $(MQS).tar.gz | tar -xvf -
+      touch $(MQS)/.LICENSE.ACCEPTED
+      make -s mqs_config
+      make -s mqs_build
+      make -s mqs_target MQS_TARGET=test
+      make -s mqs_target MQS_TARGET=install
+      touch $@
+
+
+   touch.d/$(DBDORA).tch: testOracleVar
+      @banner $(DBDORA)
+      test ! -z "$(ORACLE_HOME)"
+      -rm -rf   $(DBDORA) 
+      gunzip -c $(DBDORA).tar.gz | tar -xf -
+      cd $(DBDORA) ;\
+      perl Makefile.PL; \
+      make ; \
+      make test  ; \
+      make install 
+      touch touch.d/$(DBDORA).tch
+
+
+   perl : testVar $(PERL_VERSION) touch.d/$(PERL_VERSION).tch
+
+   touch.d/$(PERL_VERSION).tch:
+      @banner perl
+      @if ls  $(PREFIX) >/dev/null 2>&1 ; \
+      then \
+         echo "Error: Cannot install to an existing directory" ;\
+         echo "Error: Please delete or move $(PREFIX)" ;\
+         exit 1;\
+      fi
+      - cd $(PERL_VERSION); make distclean;  
+      cd $(PERL_VERSION); \
+      ./Configure -Dprefix=$(PREFIX) -Ubincompat5005 -Uuselargefiles \
+           -A eval:libswanted='\"cl pthread $$libswanted\" ' -des; \
+        make ; \
+        make test; \
+        make install  
+      touch touch.d/$(PERL_VERSION).tch
+
+   realclean distclean: clean_tch
+      -rm -rf $(PERL_VERSION)
+
+   clean : clean_tch
+   clean_tch :
+      -rm -f touch.d/*.tch
+
+   module : touch.d/$(MODULE).tch
+
+   touch.d/$(MODULE).tch :
+      @banner $(MODULE)
+      -rm -rf $(MODULE)
+      gunzip -c $(MODULE).tar.gz | tar -xf -
+      cd $(MODULE); \
+      perl Makefile.PL </dev/null; \
+      make test ; \
+      if test -r Skipit_Makefile.aperl; then \
+           make -f Makefile.aperl inst_perl MAP_TARGET=perl; \
+      fi ;\
+      make install 
+      rm -rf $(MODULE)
+      touch touch.d/$(MODULE).tch
+
+   $(PERL_VERSION):
+      @if ls  $(PREFIX) >/dev/null 2>&1 ; \
+      then \
+         echo "Error: Cannot install to an existing directory" ;\
+         echo "Error: Please delete or move $(PREFIX)" ;\
+         exit 1;\
+      fi
+      gunzip -c $(PERL_VERSION).tar.gz |tar xf -
+      @echo "untar of perl is done"
+
+   testVars : testVar testPath testOracleVar
+
+   testVar: touch.d
+      @echo "******** Building to: $(PREFIX) *********" 
+
+   testOracleVar:
+      @if test  -z "$$ORACLE_HOME" ; \
+      then \
+         echo " Please set \"export ORACLE_HOME=<value>\"" ;\
+         exit 1; \
+      else \
+         echo ORACLE_HOME=$(ORACLE_HOME); \
+      fi
+      @if test  -z "$$ORACLE_USERID" ; \
+      then \
+         echo " Please set \"export ORACLE_USERID=<username/password@dbname>\"" ;\
+         exit 1; \
+      else \
+         echo ORACLE_USERID=$(ORACLE_USERID); \
+      fi
+
+   testPath: 
+      @if echo $$PATH | egrep -q '^$(PREFIX)/bin:'; then \
+         echo PATH is OK; \
+      else \
+         echo "ERROR: You must have $(PREFIX)/bin first in your path as follows:" ;\
+         echo "   export PATH=$(PREFIX)/bin:\$$PATH" ;\
+         exit 1; \
+      fi
+
+
+
+=head1 Appendix B (gcc biuld info from Waldemar Zurowski)
+
+This is pretty much verbatim the build information I recieved from Waldemar Zurowski
+on building perl and DBD-Oracle using gcc on HP.  Note that this build was on
+a PA-RISC1.1 machine.  Differences for building on PA-RISC2.0 would be welcome and
+incorpated into the next README.
+
+=head2 Host
+
+   HP-UX hostname B.11.11 U 9000/800 XXXXXXXXX unlimited-user license
+
+=head2 Oracle
+
+   Oracle 8.1.7
+
+=head2 Parameters to build perl
+
+   ./Configure -des -Uinstallusrbinperl -Uusethreads -Uuseithreads
+   -Duselargefiles -Dcc=gcc -Darchname=PA-RISC1.1 -Dprefix=/opt/perl-non-thread
+   -Dlibs='-lcl -lpthread -L${ORACLE_HOME}/JRE/lib/PA_RISC/native_threads
+   -ljava -lnsl -lnm -lndbm -ldld -lm -lc -lndir -lcrypt -lsec'
+
+-L${ORACLE_HOME}/JRE/lib/PA_RISC/native_threads -ljava, was added
+because DBD::Oracle wants to link with it (probably due to Oracle's own
+build' rules picked up by Makefile.PL)
+
+Set environment variable LDOPTS to '+s' (see ld(1)). This holds
+extra parameters to HP-UX's ld command, as I don't use GNU ld (anybody does?).
+This allows to build executable, which when run would search for
+dynamic linked libraries using SHLIB_PATH (for 32-bit executable)
+and LD_LIBRARY_PATH (for 64-bit executable). Obviously LDOPTS is
+needed only when building perl _and_ DBI + DBD::Oracle.
+
+Then, after building perl + DBI + DBD::Oracle and moving it
+into production enviroment it was enough to add to SHLIB_PATH
+${ORACLE_HOME}/lib and ${ORACLE_HOME}/JRE/lib/PA_RISC/native_threads,
+for example:
+
+SHLIB_PATH=${ORACLE_HOME}/lib:${ORACLE_HOME}/JRE/lib/PA_RISC/native_threads:
+$SHLIB_PATH
+
+Please note output of ldd command:
+
+   $ ldd -s ./perl
+    [...]
+     find library=/home/ora817/JRE/lib/PA_RISC/native_threads/libjava.sl;
+   required by ./perl
+       search path=/home/ora817/lib:/home/ora817/JRE/lib/PA_RISC/native_threads
+   (SHLIB_PATH)
+       trying path=/home/ora817/lib/libjava.sl
+       trying path=/home/ora817/JRE/lib/PA_RISC/native_threads/libjava.sl
+           /home/ora817/JRE/lib/PA_RISC/native_threads/libjava.sl =>
+   /home/ora817/JRE/lib/PA_RISC/native_threads/libjava.sl
+    [...]
+
+All of this mess is necessary because of weakness of shl_load(3X),
+explained in current README.hpux and in some discussion forums at HP.com
+site. I have learned, that HP issued patch PHSS_24304 for HP-UX 11.11
+and PHSS_24303 for HP-UX 11.00, which introduced variable LD_PRELOAD.
+I haven't tried it yet, but it seems it is promising to completely avoid
+of building own perl binary, as it would be enough to set LD_PRELOAD to
+libjava.sl (for example) and all 'Cannot load XXXlibrary' during building
+of DBD::Oracle should be gone.
+
+The documentation says, that setting this variable should have the same
+effect as linking binary with this library. Also please note, that this
+variable is used only when binary is not setuid nor setgid binary (for
+obvious security reasons).
+
+It seems, that the best way to find out if you already have this patch
+applied, is to check if 'man 5 dld.sl' says anything about LD_PRELOAD
+environment variable.
+
+Best regards,
+
+Waldemar Zurowski
+
+Authors Note:  Search for references to LD_PRELOAD else where in this
+document.  Using LD_PRELOAD is probably a fragile solution at best.  Better
+to do what Waldemar actually did, which is to include libjava in the extra
+link options.
+  
+=head1 Appendix C (Miscellaneous links which might be usefull)
+
+Michael Schuh writes:
+
+It was a bit by trial and error and a bit more by following your
+suggestions (and mapping them to gcc) that I got something that worked.
+
+One of the most significant "mappings" was to take your suggestion under
+"Configure" to add "+z" to the ccflags variable and to change that to
+"-fPIC" (which, I learned from the gcc man page, is different than
+"-fpic" - I'm not sure if this is a significant difference, and, no, I
+don't want to experiment!).  
+
+I suspect that your hint about adding -lcl and -lpthread were crucial,
+but (after doing so) I never encountered any problems that were related
+to them.
+
+One thing that I did was create a shell script to set some variables,
+as the initial environment for root on the target system didn't work
+very well.  Here is that script, trimmed to remove a bunch of echo
+statements, etc.:
+
+   # -------------------------------------------------------------------
+   # root.env - sets some environment variables the way I want them...
+   #
+   # Mike Schuh, June 2002, July 2002
+
+   export CC=/usr/local/bin/gcc
+
+   export INSTALL=./install-sh
+
+   . appl_setup DDD 
+
+   export ORACLE_SID="SSS"
+   export ORACLE_USERID="XXX/YYY"
+
+   export PATH=/usr/local/bin:/usr/sbin:/usr/bin:/usr/ccs/bin:/opt/perl5/bin:/usr/c
+   ontrib/bin:/opt/nettladm/bin:/opt/fc/bin:/opt/fcms/bin:/opt/pd/bin:/usr/bin/X11:
+   /usr/contrib/bin/X11:/opt/hparray/bin:/opt/resmon/bin:/usr/sbin/diag/contrib:/op
+   t/pred/bin:/opt/gnome/bin:/sbin
+
+   # end of root.env
+
+The appl_setup sets some Oracle variables (specific to our installation),
+which I then override for the database that I am working on.  The script
+(which I source) also unse some variables specific to other applications
+(e.g., Tivoli), mostly to unclutter my debugging.  The INSTALL variable
+is related to building libgdbm.
+
+Here is the output of perl -V:
+
+   $ perl -V
+   Summary of my perl5 (revision 5.0 version 6 subversion 1) configuration:
+     Platform:
+       osname=hpux, osvers=11.00, archname=PA-RISC1.1
+       uname='hp-ux SYSTEMNAME b.11.00 a 9000800 2002134832 two-user license '
+       config_args='-Ubincompat5005 -Dcc=gcc -Duselargefiles'
+       hint=previous, useposix=true, d_sigaction=define
+       usethreads=undef use5005threads=undef useithreads=undef usemultiplicity=undef
+       useperlio=undef d_sfio=undef uselargefiles=define usesocks=undef
+       use64bitint=undef use64bitall=undef uselongdouble=undef
+     Compiler:
+       cc='gcc', ccflags ='-D_HPUX_SOURCE -L/lib/pa1.1 -DUINT32_MAX_BROKEN -fno-strict-aliasing -I/usr/local/include -fPIC',
+       optimize='-O',
+       cppflags='-D_HPUX_SOURCE -L/lib/pa1.1 -DUINT32_MAX_BROKEN -fno-strict-aliasing -I/usr/local/include -fPIC'
+       ccversion='', gccversion='3.0.4', gccosandvers='hpux11.00'
+       intsize=4, longsize=4, ptrsize=4, doublesize=8, byteorder=4321
+       d_longlong=define, longlongsize=8, d_longdbl=define, longdblsize=16
+       ivtype='long', ivsize=4, nvtype='double', nvsize=8, Off_t='off_t', lseeksize=4
+       alignbytes=8, usemymalloc=y, prototype=define
+     Linker and Libraries:
+       ld='ld', ldflags =' -L/usr/local/lib'
+       libpth=/usr/local/lib /lib /usr/lib /usr/ccs/lib
+       libs=-lcl -lpthread -lnsl -lnm -lndbm -lgdbm -ldld -lm -lc -lndir -lcrypt -lsec
+       perllibs=-lcl -lpthread -lnsl -lnm -ldld -lm -lc -lndir -lcrypt -lsec
+       libc=, so=sl, useshrplib=false, libperl=libperl.a
+     Dynamic Linking:
+       dlsrc=dl_hpux.xs, dlext=sl, d_dlsymun=undef, ccdlflags='-Wl,-E -Wl,-B,deferred '
+       cccdlflags='-fPIC', lddlflags='-b -L/usr/local/lib'
+
+   Characteristics of this binary (from libperl):
+     Compile-time options: USE_LARGE_FILES
+     Built under hpux
+     Compiled at Jul 18 2002 15:28:03
+     @INC:
+       /usr/local/lib/perl5/5.6.1/PA-RISC1.1
+       /usr/local/lib/perl5/5.6.1
+       /usr/local/lib/perl5/site_perl/5.6.1/PA-RISC1.1
+       /usr/local/lib/perl5/site_perl/5.6.1
+       /usr/local/lib/perl5/site_perl
+       .
+
+
+=head1 Appendix D (Miscellaneous links which might be usefull)
 
 Thanks to Tony Foiani for these references:
 
@@ -341,52 +949,57 @@ My employers web sniffer does not allow me browser this link (www.mail) in the
 URL.  So I have no idea how helpful this might be.  It might even be a link
 to my own posts.
 
-=head1 Appendix B (Perl Configuration Dumps)
+=head1 Appendix E (Perl Configuration Dumps)
 
 The following to sections provide full dumps of perl -V for three
 versions of perl that were successfully built and linked on
-HPUX 11.00.
+HP-UX 11.00.
 
 =head2 Lincoln Baxter's DBD-Oracle-1.07 Configuration
 
      Platform:
-       osname=hpux, osvers=11.00, archname=PA-RISC2.0
-       uname='hp-ux dhdb108 b.11.00 u 9000800 612309363 unlimited-user license '
-       config_args=''
-       hint=previous, useposix=true, d_sigaction=define
+       osname=hpux, osvers=11.11, archname=PA-RISC2.0
+       uname='hp-ux dhas116 b.11.11 u 9000800 1509760598 unlimited-user license '
+       config_args='-Dprefix=/opt/perl/5.6.1-fccs-02 -Ubincompat5005 -Uuselargefiles \
+         -A eval:libswanted=\"cl pthread $libswanted\"  -des'
+       hint=recommended, useposix=true, d_sigaction=define
        usethreads=undef use5005threads=undef useithreads=undef usemultiplicity=undef
-       useperlio=undef d_sfio=undef uselargefiles=define usesocks=undef
+       useperlio=undef d_sfio=undef uselargefiles=undef usesocks=undef
        use64bitint=undef use64bitall=undef uselongdouble=undef
      Compiler:
-       cc='cc', ccflags ='-D_HPUX_SOURCE -Aa -I/usr/local/include -DDEBUGGING -z',
+       cc='cc', ccflags ='-D_HP-UX_SOURCE -Aa',
        optimize='-O',
-       cppflags='-D_HPUX_SOURCE -Aa -I/usr/local/include -DDEBUGGING -z'
-       ccversion='', gccversion='', gccosandvers=''
+       cppflags='-D_HP-UX_SOURCE -Aa'
+       ccversion='B.11.11.02', gccversion='', gccosandvers=''
        intsize=4, longsize=4, ptrsize=4, doublesize=8, byteorder=4321
        d_longlong=undef, longlongsize=, d_longdbl=define, longdblsize=16
        ivtype='long', ivsize=4, nvtype='double', nvsize=8, Off_t='off_t', lseeksize=4
        alignbytes=8, usemymalloc=y, prototype=define
      Linker and Libraries:
-       ld='ld', ldflags =' -Wl,+vnocompatwarnings -L/usr/local/lib'
-       libpth=/usr/local/lib /lib /usr/lib /usr/ccs/lib
+       ld='ld', ldflags =' -Wl,+vnocompatwarnings -L/usr/local/lib -L/opt/gnu/lib'
+       libpth=/usr/local/lib /opt/gnu/lib /lib /usr/lib /usr/ccs/lib
        libs=-lcl -lpthread -lnsl -lnm -lndbm -ldld -lm -lc -lndir -lcrypt -lsec
        perllibs=-lcl -lpthread -lnsl -lnm -ldld -lm -lc -lndir -lcrypt -lsec
-       libc=, so=sl, useshrplib=false, libperl=libperl.a
+       libc=/lib/libc.sl, so=sl, useshrplib=false, libperl=libperl.a
      Dynamic Linking:
        dlsrc=dl_hpux.xs, dlext=sl, d_dlsymun=undef, ccdlflags='-Wl,-E -Wl,-B,deferred '
-       cccdlflags='+z', lddlflags='-b +vnocompatwarnings -L/usr/local/lib'
+       cccdlflags='+z', lddlflags='-b +vnocompatwarnings -L/usr/local/lib -L/opt/gnu/lib'
+
 
    Characteristics of this binary (from libperl): 
-     Compile-time options: DEBUGGING USE_LARGE_FILES
+     Compile-time options:
      Built under hpux
-     Compiled at Jul 15 2001 16:01:33
+     Compiled at Feb 26 2002 22:05:51
+     %ENV:
+       PERL5LIB="/home/baxtlinc/local/lib:/home/baxtlinc/perl/lib"
      @INC:
+       /home/baxtlinc/local/lib
        /home/baxtlinc/perl/lib
-       /opt/perl/5.6.1-fccs-01/lib/5.6.1/PA-RISC2.0
-       /opt/perl/5.6.1-fccs-01/lib/5.6.1
-       /opt/perl/5.6.1-fccs-01/lib/site_perl/5.6.1/PA-RISC2.0
-       /opt/perl/5.6.1-fccs-01/lib/site_perl/5.6.1
-       /opt/perl/5.6.1-fccs-01/lib/site_perl
+       /opt/perl/5.6.1-fccs-02/lib/5.6.1/PA-RISC2.0
+       /opt/perl/5.6.1-fccs-02/lib/5.6.1
+       /opt/perl/5.6.1-fccs-02/lib/site_perl/5.6.1/PA-RISC2.0
+       /opt/perl/5.6.1-fccs-02/lib/site_perl/5.6.1
+       /opt/perl/5.6.1-fccs-02/lib/site_perl
 
 
 =head2 Lincoln Baxter's DBD-Oracle-1.06 Configuration 
@@ -401,8 +1014,8 @@ HPUX 11.00.
        use64bitint=undef use64bitall=undef uselongdouble=undef usesocks=undef
      Compiler:
        cc='cc', optimize='-O', gccversion=
-       cppflags='-D_HPUX_SOURCE -I/usr/local/include +z -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -Ae'
-       ccflags ='-D_HPUX_SOURCE -I/usr/local/include +z -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -Ae'
+       cppflags='-D_HP-UX_SOURCE -I/usr/local/include +z -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -Ae'
+       ccflags ='-D_HP-UX_SOURCE -I/usr/local/include +z -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -Ae'
        stdchar='unsigned char', d_stdstdio=define, usevfork=false
        intsize=4, longsize=4, ptrsize=4, doublesize=8
        d_longlong=define, longlongsize=8, d_longdbl=define, longdblsize=16
@@ -442,8 +1055,8 @@ HPUX 11.00.
        use64bitint=undef use64bitall=undef uselongdouble=undef usesocks=undef
      Compiler:
        cc='cc', optimize='-O', gccversion=
-       cppflags='-D_HPUX_SOURCE -Aa -I/usr/local/include'
-       ccflags =' +z -D_HPUX_SOURCE -I/usr/local/include -D_LARGEFILE_SOURCE
+       cppflags='-D_HP-UX_SOURCE -Aa -I/usr/local/include'
+       ccflags =' +z -D_HP-UX_SOURCE -I/usr/local/include -D_LARGEFILE_SOURCE
    -D_FILE_OFFSET_BITS=64  -Ae '
        stdchar='unsigned char', d_stdstdio=define, usevfork=false
        intsize=4, longsize=4, ptrsize=4, doublesize=8
@@ -475,11 +1088,11 @@ HPUX 11.00.
 
 
 Roger also provides a link to some threads containing some of his
-DBD-Oracle and HPUX11 trials... 
+DBD-Oracle and HP-UX11 trials... 
 L<http://www.geocrawler.com/search/?config=183&words=Roger+Foskett>
 
 
-=head1 Appendix C (Why Dynamic Linking)
+=head1 Appendix F (Why Dynamic Linking)
 
 Some one posted to the DBI email list the following question:
 
@@ -488,6 +1101,8 @@ Some one posted to the DBI email list the following question:
 
 The answer is there are too many to count, but here are several big
 ones:
+
+=over
 
 =item 1 Much smaller executables 
 
@@ -515,5 +1130,131 @@ tested.
 
 =item 5 Its required for Apache and mod_perl.
 
+=back
+
+=head1 Appendix G (RE problem with libjava.sl)
+
+The following is a message I recieved from Jon Stevenson concerning a 
+problem with the libjava.sl.  Note that the gcc build described in
+L<Appendix B> also describes a problem with libjava.sl, which was solved
+by putting it in the extra libraries option at configure time.  That is
+probably a preferable solution.
 
 
+   -----Original Message-----
+   From: Stevenson, Jonathan [mailto:Jonathan.Stevenson@infores.com.Fix.This] 
+   Sent: Wednesday, March 27, 2002 6:31 AM
+   To: LBaxter@FLEETCC.COM.Fix.This
+   Cc: dbi_users@perl.org
+   Subject: RE: Error on make for DBD-Oracle 1.12 on HP-UX 11.0
+    
+   Hi Lincoln,
+
+   Thanks for your help with this. We now have a working installation,
+   although we still do have some issues to resolve still. The problem
+   seems to be the libjava.sl library. Running the make test step
+   generated this message: Can't shl_load() a library containing Thread
+   Local Storage.
+
+   We have got round this by setting the LD_PRELOAD to point to the
+   library - $ORACLE_HOME/JRE/lib/PA_RISC/native_threads/libjava.sl. The
+   make test passes OK, and make install works. My DBI test script is
+   able to do some basic stuff, so presumably it is OK.
+
+   There are some problems remaining with it, though. You have to
+   set the LD_PRELOAD variable before running any perl against Oracle
+   (as I guess the library does not get built into the DBD). We have
+   also noticed that if you set LD_PRELOAD as above, then run swlist,
+   the system coredumps (swlist works normally without this set).
+
+   This worries me, as it may cause other commands to coredump, so we
+   will need to try to extensively roadtest this before we can move
+   into production.
+
+   The libjava.sl library is only required for an advanced authentication
+   module that we do not use, so we are hoping that we can remove this
+   from our Oracle installation, and get around the problem this way.
+
+   We did manage to install DBD on one of our boxes before Xmas without
+   this problem, so we know that it can be done, we have just lost the
+   recipe that we need. If anyone has any suggestions that we could try,
+   we would be grateful. It is also worth noting that this error was what
+   hung us up trying to get gcc to work, so with this option, we may be
+   able to push forward on this. We will give it a go on another box,
+   and post if we get any joy from this.
+
+   I have included the recipe that we have used below. This does produce
+   a working build, we are just a little concerned about the side effects.
+
+   Cheers,
+
+   Jon
+ 
+ 
+   Machine specs:
+    
+   HP-UX 11.00
+   Oracle 8.1.6 client
+   HP ANSI C compiler (B.11.02.03)
+    
+
+   Downloaded:
+    
+   Perl 5.6.1  From http://www.cpan.org/src/index.html
+   <http://www.cpan.org/src/index.html>  (Stable release)
+    
+   DBI 1.21  From http://search.cpan.org/search?dist=DBI
+   <http://search.cpan.org/search?dist=DBI>  
+   DBD:Oracle 1.12  From http://search.cpan.org/search?module=DBD::Oracle
+   <http://search.cpan.org/search?module=DBD::Oracle> 
+    
+Create /tmp/perl temporary area and extract tar files
+    
+   cd /tmp/perl/perl-5.6.1
+   ../Configure -Ubincompat5005
+   #Prepend additional libraries with "-lcl -lpthread"
+   #Prepend cc flags with "+z"
+    
+   make 
+   make test
+   make install
+    
+Install DBI
+    
+   cd /tmp/perl/DBI-1.21
+   perl Makefile.PL
+   make
+   make test
+   make install
+    
+
+Install DBD:Oracle
+    
+   #Set the Oracle environment
+   export ORACLE_HOME=/oracle/app/oracle/product/8.1.6
+   export SHLIB_PATH=/usr/lib:/oracle/app/oracle/product/8.1.6/lib
+   export ORACLE_SID=sid
+   export ORACLE_USERID=userid/password@sid
+   export LD_LIBRARY_PATH=/oracle/app/oracle/product/8.1.6/lib
+
+   export LD_PRELOAD=/oracle/app/oracle/product/8.1.6/JRE/lib/PA_RISC/native_threads/libjava.sl 
+   # Need to prevent libjava.sl TLS error - need to do this for runtime as well
+    
+   cd /tmp/perl/DBD-Oracle-1.12
+   perl Makefile.PL
+
+   cat Makefile | sed 's/PERL_DL_NONLAZY=1/PERL_DL_NONLAZY=0/g' > Makefile.tmp
+   # Need to force load of all libraries
+   mv Makefile.tmp Makefile
+   make
+   make test
+   make install
+
+Apparently Oracle stored the 64 bit libraries in .../lib & .../rdbms/lib.
+32 bit libraries are available in .../lib32 and .../rdbms/lib32.  I'm forced
+to stay with Perl 32bit & the workaround is to manually edit the resulting
+Makefile.  Anyone have a patch to detect & correct this situation?
+
+John Schaefer
+
+BAESystems, San Diego

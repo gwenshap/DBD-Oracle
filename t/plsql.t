@@ -20,7 +20,7 @@ use strict;
 $| = 1;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect('', $dbuser, '', 'Oracle');
+my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', { PrintError => 0 });
 
 unless($dbh) {
 	warn "Unable to connect to Oracle ($DBI::errstr)\nTests skiped.\n";
