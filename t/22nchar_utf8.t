@@ -72,28 +72,31 @@ SKIP: {
     #TODO need a oracle 9i version test.... I guess I could clone one from Makefile.PL...
 
 
+#my $insert = 0;
+#if ( $insert ) {
     #$dbh->{ora_ph_csform} = SQLCS_NCHAR;
     # silently drop $table if it exists... 
     {
         local $dbh->{PrintError} = 0;
         $dbh->do(qq{ drop table $table });
     }
-
     ok( create_table( "ch_col VARCHAR2(20), nch_col NVARCHAR2(40)" ), "create table $table..." );
+#}
     my $cols = 'idx,ch_col,nch_col,dt' ;
     my $sstmt = "SELECT $cols FROM $table ORDER BY idx" ;
 
     my $sel_sth = $dbh->prepare($sstmt ); 
     ok( $sel_sth ,"prepare $sstmt" );
 
+    my ($idx, $ch_col, $nch_col, $dt );
+    $idx = 0;
+#if ( $insert ) {
     ok( $sel_sth->execute, 'execute select ... empty table' );
     ok( (not $sel_sth->fetch() ), 'fetch ... empty table' );
     my $ustmt = "INSERT into $table( $cols ) values( ?,?,?,sysdate )" ;
     ok( $ustmt ,"insert statement handle prepared" );
     $dbh->do( "delete from $table" );
 
-    my ($idx, $ch_col, $nch_col, $dt );
-    $idx = 0;
     my $csform = SQLCS_NCHAR;
     my $upd_sth = $dbh->prepare( $ustmt );
     ok($upd_sth, "prepare $ustmt" );
@@ -111,7 +114,7 @@ SKIP: {
         ok($upd_sth->bind_param( $colnum++ ,$nch_col ,{ ora_csform => $csform } ), "bind_param nch_col { ora_csform => SQLCS_NCHAR }" );
         ok($upd_sth->execute,"execute: $ustmt" );
     }
-
+#}
     #now we try to get the data out...
     ok($sel_sth->execute(),'select after inserting wide chars' );
     $idx = 0; $ch_col = ""; $nch_col = ""; $dt = "";
@@ -131,15 +134,15 @@ SKIP: {
         #diag( "\nchecking nch_col for row #$cnt selected out\n\n" );
         cmp_ok( nice_string($ch_col) ,'eq',
                 nice_string(_achar($cnt)),
-                "test of ch_col for row $cnt (using nice_string -- utf8 expected)" 
+                "test of ch_col  for row $cnt (utf8 comparison)" 
               );
         cmp_ok( byte_string($nch_col) ,'eq',
                 byte_string($widechars[$cnt-1]), 
-                "test of nch_col for row $cnt (using byte_string -- byte comparison only)" 
+                "test of nch_col for row $cnt (byte comparison)" 
               );
         cmp_ok( nice_string($nch_col) ,'eq',
                 nice_string($widechars[$cnt-1]), 
-                "test of nch_col for row $cnt (using nice_string -- utf8 expected)" 
+                "test of nch_col for row $cnt (utf8 comparison)" 
               );
     }
     cmp_ok($cnt, '==', $charcnt, "number of rows fetched" );
@@ -249,7 +252,7 @@ sub show_nls_info
    if ( not $ENV{NLS_LANG} ) { 
        $ENV{NLS_LANG} = 'AMERICAN_AMERICA.UTF8';
        return "\nsetting NLS_LANG=AMERICAN_AMERICA.UTF8 for $0\n";
-
+       #return "\nNLS_LANG is not set\n";
    } else {
        my $ret = "\nNLS_LANG=" .$ENV{NLS_LANG}. "\n" ;
        $ret .= "NLS_NCHAR=" .$ENV{NLS_NCHAR} ."\n" if $ENV{NLS_NCHAR};

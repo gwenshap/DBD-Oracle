@@ -391,6 +391,14 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                 return 0;
             }
 
+            /* HACK for when NLS_LANG is NOT set... use the utf8 ncharsetid  */
+            if ( 1 && (ncharsetid==1) ) {
+                ncharsetid = utf8_csid; /* NLS_LANG was not set... default it */
+                /* TIM: how do I turn this into a DBD warning... */
+                if ( 1 || (DBIS->debug >= 1) )
+                   PerlIO_printf(DBILOGFP,"NLS_LANG was not set or invalid, using ncharsetid=%d\n" ,utf8_csid ); 
+            }
+
             OCIEnvNlsCreate_log_stat( &imp_drh->envhp, OCI_DEFAULT, 0, NULL, NULL, NULL, 0, 0, charsetid, ncharsetid, status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
@@ -400,7 +408,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                 
 
             /* get the possible utf8/16 character set ids */
-            utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "UTF8");
+            utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "UTF8"); 
             al32utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "AL32UTF8");
             al16utf16_csid = OCINlsCharSetNameToId(imp_drh->envhp, "AL16UTF16");
             if ( 0 || DBIS->debug >= 3 )
@@ -453,6 +461,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 #endif
 
 #else /* (the old init code) NEW_OCI_INIT */
+
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, NULL, status,
