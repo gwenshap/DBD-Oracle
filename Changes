@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.16 (svn rev 425)   7th August 2004
+=head1 Changes in DBD-Oracle 1.16 (svn rev 442)   27th August 2004
 
   NOTE:
   This release has major changes to Unicode support. See below.
@@ -32,7 +32,7 @@
   Added automatic support for UTF-8 for both NLS_LANG and NLS_NCHAR
     Many thanks to Lincoln Baxter who did most of the hard work and testing
     and to Jeff Urlwin and others who also helped out.
-    Perl 5.8.x is highly recommended if you want to use Unicode.
+    Perl 5.8.x and Oracle 9+ are highly recommended if you want to use Unicode.
     See POD for more information and documentation.
   Added support for "... RETURNING lob_locator_column INTO ?"
     using $sth->bind_param_inout(2, \$loc, 0, {ora_type => ORA_BLOB});

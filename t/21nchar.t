@@ -18,6 +18,8 @@ SKIP: {
 
     $dbh = db_handle();
     plan skip_all => "Not connected to oracle" if not $dbh;
+
+    print STDERR " Database and client versions and character sets:\n";
     show_db_charsets( $dbh, \*STDERR );	# STDERR so we can see it in initial bug reports
 
     plan skip_all => "Oracle charset tests unreliable for Oracle 8 client"
