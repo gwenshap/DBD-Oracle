@@ -411,9 +411,10 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
             utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "UTF8"); 
             al32utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "AL32UTF8");
             al16utf16_csid = OCINlsCharSetNameToId(imp_drh->envhp, "AL16UTF16");
-            if ( 0 || DBIS->debug >= 3 )
-                PerlIO_printf(DBILOGFP,"      utf8_csid=%d al32utf8_csid=%d al16utf16_csid=%d\n", 
+            if ( 0 || DBIS->debug >= 3 )  {
+                PerlIO_printf(DBILOGFP,"       utf8_csid=%d al32utf8_csid=%d al16utf16_csid=%d\n", 
                                               utf8_csid,   al32utf8_csid,   al16utf16_csid );
+            }
 #if 0
             database_is_widemode = ( charsetid == utf8_csid )
                        || ( charsetid == al32utf8_csid )
@@ -432,10 +433,10 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                        /* || database_is_widemode */
                        ;
             if ( cs_is_utf8 ) utf8_csid = ncharsetid;
-            if ( 0 || (DBIS->debug >= 3) )
-                PerlIO_printf(DBILOGFP,"      charsetid=%d ncharsetid=%d cs_is_utf8=%d database_is_widemode=%d\n", 
-                                              charsetid,   ncharsetid,   cs_is_utf8,   database_is_widemode );
-
+            if ( 0 || (DBIS->debug >= 1) ) {
+                PerlIO_printf(DBILOGFP,"       cs_is_utf8=%d charsetid=%d ncharsetid=%d\n", /* database_is_widemode=%d */
+                                              cs_is_utf8,   charsetid,   ncharsetid );
+            }
 #if 0
             {
                 ub2 csid = 0;
