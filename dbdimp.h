@@ -268,7 +268,7 @@ and turned it back on... it _IS_ necessary (atleast in 9.2)
 
 void dbd_init_oci _((dbistate_t *dbistate));
 void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
-void dbd_fbh_dump _((imp_fbh_t *fbh, int i, int aidx));
+void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
 void ora_free_fbh_contents _((imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));

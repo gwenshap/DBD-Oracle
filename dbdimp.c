@@ -133,10 +133,7 @@ dbd_discon_all(drh, imp_drh)
 
 
 void
-dbd_fbh_dump(fbh, i, aidx)
-    imp_fbh_t *fbh;
-    int i;
-    int aidx;	/* array index */
+dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx)
 {
     PerlIO *fp = DBILOGFP;
     PerlIO_printf(fp, "    fbh %d: '%s'\t%s, ",

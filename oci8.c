@@ -1234,7 +1234,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	est_width += avg_width;
 
 	if (DBIS->debug >= 2)
-	    dbd_fbh_dump(fbh, i, 0);
+	    dbd_fbh_dump(fbh, (int)i, 0);
     }
     imp_sth->est_width = est_width;
 
@@ -1772,7 +1772,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	    if (phs->ora_field) {	/* must match this phs by field name	*/
 		char *ora_field_name = SvPV(phs->ora_field,na);
 		if (SvCUR(phs->ora_field) != SvCUR(sv)
-		|| ibcmp(ora_field_name, SvPV(sv,na), SvCUR(sv) ) )
+		|| ibcmp(ora_field_name, SvPV(sv,na), (I32)SvCUR(sv) ) )
 		    continue;
 	    }
 	    else			/* basic dumb match by type		*/
