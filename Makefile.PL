@@ -92,7 +92,7 @@ $::opt_V = 0;   # force assumption of specified Oracle version
 		# and we force our emulation of OCILobWriteAppend
 
 Getopt::Long::config( qw( no_ignore_case ) );
-GetOptions(qw(b! r=s v! d! g! p! l! c! 8! f! F! W! w! m=s n=s s=s S=s ProC!))
+GetOptions(qw(b! r=s v! d! g! p! l! c! f! F! W! w! m=s n=s s=s S=s V=s ProC!))
 	or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
