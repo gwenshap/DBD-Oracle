@@ -1915,15 +1915,19 @@ dbd_st_destroy(sth, imp_sth)
     dTHX ;
 
     if (DBIc_DBISTATE(imp_sth)->debug >= 6)
-	PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_destroy\n");
+	PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_destroy %s\n",
+	 (dirty) ? "(OCIHandleFree skipped during global destruction)" : "");
+
+    if (!dirty) { /* XXX not ideal, leak may be a problem in some cases */
+	OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
+	if (status != OCI_SUCCESS)
+	    oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
+    }
+
+    /* Free off contents of imp_sth	*/
 
     if (imp_sth->lob_refetch)
 	ora_free_lob_refetch(sth, imp_sth);
-    OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
-    if (status != OCI_SUCCESS)
-	oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
-
-    /* Free off contents of imp_sth	*/
 
     fields = DBIc_NUM_FIELDS(imp_sth);
     imp_sth->in_cache  = 0;

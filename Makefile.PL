@@ -561,7 +561,7 @@ if ($is_developer){  # a reasonable guess
 	$opts{DEFINE} .= ' -Wimplicit  -Wimplicit-int -Wimplicit-function-declaration -Werror-implicit-function-declaration -Wimport  -Winline -Wlong-long -Wmissing-braces -Wmissing-format-attribute  -Wmissing-noreturn -Wmultichar  -Wpacked -Wparentheses  -Wpointer-arith  -Wreturn-type  -Wsequence-point -Wsign-compare  -Wswitch  -Wtrigraphs  -Wundef -Wuninitialized -Wunreachable-code -Wunused  -Wunused-function  -Wunused-label  -Wunused-parameter -Wunused-value  -Wunused-variable  -Wwrite-strings -Wbad-function-cast  -Wmissing-declarations -Wnested-externs'
 		if $::opt_w;
     }
-    $opts{dynamic_lib}->{OTHERLDFLAGS} = "$::opt_g ".($opts{dynamic_lib}->{OTHERLDFLAGS}||'');
+    $opts{dynamic_lib}->{OTHERLDFLAGS} .= " $::opt_g";
 }
 
 # HP-UX 9 cannot link a non-PIC object file into a shared library.
@@ -581,6 +581,8 @@ if ($os eq 'hpux') {
     print "***$BELL\n";
     sleep 3;
     $opts{DEFINE} .= ' $(HP64DEFINES)' if ($Config{archname} =~ /-thread\b/i and perl_is_64bit());
+    # linker doesn't understand +DD64 flag Weiguo Sun <wesun@cisco.com>
+    $opts{dynamic_lib}->{OTHERLDFLAGS} =~ s/+DD64\b// if $opts{dynamic_lib}->{OTHERLDFLAGS};
     # see also const_cccmd for -Aa to -Ae flag change
 }
 

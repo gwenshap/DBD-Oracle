@@ -19,6 +19,7 @@
   Fixed binding to allow overloaded scalars (not for 'inout' params).
   Fixed setting of $DBI::err to 0 triggering PrintWarn in DBI >= 1.41.
   Fixed memory leaks in auto LOB refetch code thanks to Dongqiang Bai.
+  Fixed HPUX 64bit build issues thanks to Weiguo Sun.
 
   Changed some utf8 internals for LOBs.
   Changed ORA_OCI constant from being just 7 or 8 to being a dualvar:
