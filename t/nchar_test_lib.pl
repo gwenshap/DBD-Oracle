@@ -91,13 +91,18 @@ sub extra_wide_rows
 }
 sub narrow_data 	# Assuming WE8ISO8859P1 or WE8MSWIN1252 character set 
 {
+    my $highbitset = [
+    	# These non-unicode strings are not safe if client charset is utf8
+	# because we have to let oracle assume they're utf8 but they're not
+        [ chr(161), "upside down bang" ],
+        [ chr(162), "cent char"        ],
+        [ chr(163), "british pound"    ],
+    ];
     [
         [ "a",      "lowercase a"      ],
         [ "b",      "lowercase b"      ],
         [ chr(3),   "control-C"        ],
-        [ chr(161), "upside down bang" ],
-        [ chr(162), "cent char"        ],
-        [ chr(163), "british pound"    ],
+	(nls_local_has_utf8()) ? () : @$highbitset
     ];
 }
 
@@ -171,7 +176,7 @@ sub drop_table
     my ($dbh) = @_;
     my $table = table();
     local $dbh->{PrintError} = 0;
-    $dbh->do(qq{ drop table $table });
+    $dbh->do(qq{ drop table $table }) if $dbh->{Active};
 }
 
 sub insert_handle 
