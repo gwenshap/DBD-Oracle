@@ -14,7 +14,7 @@ sub ok ($$;$) {
 }
 
 use DBI;
-use DBD::Oracle qw(ORA_RSET);
+use DBD::Oracle qw(ORA_RSET SQLCS_NCHAR);
 use strict;
 
 $| = 1;
@@ -272,7 +272,6 @@ if (1) {
     ok(0, "@r" eq "@s2", "\nref=(@r),\nsql=(@s2)");
 }
 
-# --- test ping
 print "test bind_param_inout of param that's not assigned to in executed statement\n";
 # See http://www.mail-archive.com/dbi-users@perl.org/msg18835.html
 if (1) {
@@ -298,6 +297,39 @@ ok(0, $p3 eq 'Y');
 print "After p1=[$p1] p2=[$p2] p3=[$p3]\n" ;
 }
 
+SKIP: {
+    sub skip { ok(0,1) for (1..$_[1]); print "$_[0]\n"; local $^W; last SKIP };
+
+    print "test nvarchar2 arg passing to functions\n";
+    # http://www.nntp.perl.org/group/perl.dbi.users/24217
+    my $func_name = "dbd_oracle_nvctest".($ENV{DBD_ORACLE_SEQ}||'');
+    $dbh->do(qq{
+	CREATE OR REPLACE FUNCTION $func_name(arg nvarchar2, arg2 nvarchar2)
+	RETURN int IS
+	BEGIN
+	  if arg is null or arg2 is null then
+	     return -1;
+	  else
+	     return 1;
+	  end if;
+	END;
+    }) or skip("Can't create a function ($DBI::errstr)", 16);
+    my $sth = $dbh->prepare(qq{SELECT $func_name(?, ?) FROM DUAL});
+    ok(0, $sth);
+    ok(0, $sth->bind_columns(\my $returnVal));
+    for (1..2) {
+	ok(0, $sth->bind_param(1, "foo", { ora_csform => SQLCS_NCHAR }));
+	ok(0, $sth->bind_param(2, "bar", { ora_csform => SQLCS_NCHAR }));
+	ok(0, $sth->execute());
+	ok(0, $sth->fetch);
+	ok(0, $returnVal eq "1");
+    }
+    ok(0, $sth->execute("baz",undef));
+    ok(0, $sth->fetch);
+    ok(0, $returnVal eq "-1");
+    ok(0, $dbh->do(qq{drop function $func_name}));
+}
+
 
 # --- To do
     #   test NULLs at first bind
@@ -305,13 +337,14 @@ print "After p1=[$p1] p2=[$p2] p3=[$p3]\n" ;
     #   returning NULLs
     #   multiple params, mixed types and in only vs inout
 
-# --- test ping
+
+print "test ping\n";
 ok(0,  $dbh->ping);
 $dbh->disconnect;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 67 }
+BEGIN { $tests = 83 }
 # end.
 
 __END__
