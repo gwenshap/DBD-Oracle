@@ -1542,7 +1542,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	 * (I got "ORA-01461: can bind a LONG value only for insert into a LONG column" errors
 	 * from t/24implicit_utf8.t - which is the only test affected by this, I think)
 	*/
-	    /* && !CS_IS_UTF8(charsetid)	/* but CHAR set isn't	*/
+	    /* && !CS_IS_UTF8(charsetid)	-- but CHAR set isn't	*/
 	) {  
             phs->csform = SQLCS_NCHAR;
         }
@@ -1579,10 +1579,9 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 void
 dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 {
+    char *note = "";
     /* XXX doesn't check arcode for error, caller is expected to */
     if (phs->indp == 0) {                       /* is okay      */
-	char *note = "";
-	SvPOK_only_UTF8(sv);
 	if (phs->is_inout && phs->alen == SvLEN(sv)) {
 	    /* if the placeholder has not been assigned to then phs->alen */
 	    /* is left untouched: still set to SvLEN(sv). If we use that  */
@@ -1590,21 +1589,34 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 	    phs->alen = SvCUR(sv);
 	    note = " UNTOUCHED?";
 	}
-	SvCUR_set(sv, phs->alen);
-	*SvEND(sv) = '\0';
+	if (SvPVX(sv)) {
+	    SvCUR_set(sv, phs->alen);
+	    *SvEND(sv) = '\0';
+	    SvPOK_only_UTF8(sv);
+	}
+	else {	/* shouldn't happen */
+	    debug = 2;
+	    note = " [placeholder has no data buffer]";
+	}
 	if (debug >= 2)
 	    PerlIO_printf(DBILOGFP, "       out %s = %s (arcode %d, ind %d, len %d)%s\n",
 		phs->name, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen, note);
     }
     else
     if (phs->indp > 0 || phs->indp == -2) {     /* truncated    */
-	SvPOK_only_UTF8(sv);
-	SvCUR(sv) = phs->alen;
-	*SvEND(sv) = '\0';
+	if (SvPVX(sv)) {
+	    SvCUR_set(sv, phs->alen);
+	    *SvEND(sv) = '\0';
+	    SvPOK_only_UTF8(sv);
+	}
+	else {	/* shouldn't happen */
+	    debug = 2;
+	    note = " [placeholder has no data buffer]";
+	}
 	if (debug >= 2)
 	    PerlIO_printf(DBILOGFP,
-		"       out %s = %s\t(TRUNCATED from %d to %ld, arcode %d)\n",
-		phs->name, neatsvpv(sv,0), phs->indp, (long)phs->alen, phs->arcode);
+		"       out %s = %s\t(TRUNCATED from %d to %ld, arcode %d)%s\n",
+		phs->name, neatsvpv(sv,0), phs->indp, (long)phs->alen, phs->arcode, note);
     }
     else
     if (phs->indp == -1) {                      /* is NULL      */
