@@ -6,7 +6,7 @@ LOBs
 http://www.csis.gvsu.edu/GeneralInfo/Oracle/appdev.920/a96595/dci06mlt.htm
 http://technet.oracle.com/tech/oci/htdocs/faq.html#1000425
 
-
+Convert most of test.pl into standard t/*.t tests.
 
 Resolve imp_sth->stmt_type != OCI_STMT_SELECT issue - add an attribute for it?
 

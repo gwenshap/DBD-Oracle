@@ -103,12 +103,14 @@ sub run_long_tests {
 
     my $long_data0;
     if ($utf8_test) {
-      $long_data0 = ("0\x{263A}xyX"   x 2048) x (1    );  # 10KB  < 64KB
+      my $utf_x = eval q{ "0\x{263A}xyX" };
+      my $utf_z = eval q{ "0\x{263A}xyZ" };
+      $long_data0 = ($utf_x x 2048) x (1    );  # 10KB  < 64KB
       if (length($long_data0) > 10240) {
 	print "known bug in Perl5.6.0, applying workaround\n";
-	$long_data0 = "0\x{263A}xyZ";
+	$long_data0 = $utf_z;
 	foreach my $i (1..2047) {
-	  $long_data0 .= "0\x{263A}xyZ";
+	  $long_data0 .= $utf_z;
 	}
       }
       if ($type_name =~ /BLOB/) {

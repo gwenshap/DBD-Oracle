@@ -24,14 +24,20 @@ README.hpux
 README.java
 README.login
 README.longs
+README.macosx
 README.sec
+README.utf8
 README.win32
 README.wingcc	Notes about building with mingw32 and cygwin32
-README.utf8
 Todo
 dbdimp.c
 dbdimp.h
 hints/svr4.pl
+hints/macos_bundle.syms
+hints/macos_lib.syms
+hints/macos_syms.pl
+hints/dgux.pl
+lib/DBD/Oracle/GetInfo.pm
 oci.def		OCI.DLL export declarations
 oci7.c
 oci8.c
@@ -42,8 +48,9 @@ t/base.t
 t/cursor.t
 t/general.t
 t/long.t
-t/plsql.t
+t/meta.t
 t/ph_type.t
+t/plsql.t
 t/reauth.t
 t/select.t
 test.pl

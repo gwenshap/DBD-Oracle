@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.42 2003/03/12 20:33:02 timbo Exp $
+# $Id: Oraperl.pm,v 1.43 2003/03/25 17:40:10 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -20,12 +20,12 @@
 
 package Oraperl;
 
-require 5.002;
+require 5.004;
 
-use DBI 0.84;
+use DBI 1.21;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.42 $, 10);
+$VERSION = substr(q$Revision: 1.43 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -94,7 +94,14 @@ sub ora_login {
     local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
     # we now use the new style connect, since the old style is
     # deprecated
-    my $dbh = DBI->connect("dbi:Oracle:$system_id", $name, $password);
+    my $dbh = DBI->connect("dbi:Oracle:$system_id", $name, $password, {
+	HandleError => sub {
+	    my ($errstr, $h,) = @_;
+	    $Oraperl::ora_errno  = $h->err;
+	    $Oraperl::ora_errstr = $h->errstr;
+	    return; # false
+	},
+    });
     return $dbh;
 }
 sub ora_logoff {

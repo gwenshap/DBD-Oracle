@@ -1,4 +1,19 @@
-=head1 Changes in DBD-Oracle 1.13    xx March 2003  
+=head1 Changes in DBD-Oracle 1.14    27th March 2003  
+
+  NOTE: OCI 7 and Oraperl will not be supported in future releases.
+
+  Implemented inserting NULL values into LOB fields using placeholders,
+    (sponsored by bayerwald-fenster.de thanks to Bernhard Donaubauer).
+  Fixed broken get_info() due to missing GetInfo.pm #2274.
+  Fixed compiler warnings/errors thanks to H.Merijn Brand.
+  Fixed bind_param with array ref to croak not warn, reported by Steven Roels.
+  Fixed "Bad hash" error using $sth->{ParamValues} if there were no placeholders.
+  Fixed Makefile.PL for more HPUX/Oracle configurations thanks to Lincoln Baxter.
+  Simplified MacOS X build thanks to Brook Schofield, see README.macosx.
+  Updated README.hpux thanks to H.Merijn Brand, Jay Strauss, and Lincoln Baxter.
+  Updated README and README.utf8 with minor changes thanks to Alexey Mahotkin.
+
+=head1 Changes in DBD-Oracle 1.13    14th March 2003  
 
   Fixed null user issue when using OS Authentication thanks to Christopher R. Baker
   Fixed precision for Raw types in oci7.c thanks to J.D. Laub.
