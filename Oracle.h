@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.h,v 1.8 1995/08/26 17:39:01 timbo Rel $
+   $Id: Oracle.h,v 1.9 1996/10/15 02:19:14 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -56,7 +56,7 @@ SV  *dbd_db_FETCH _((SV *dbh, SV *keysv));
 
 int  dbd_st_prepare _((SV *sth, char *statement, SV *attribs));
 int  dbd_st_rows _((SV *sv));
-int  dbd_bind_ph _((SV *h, SV *param, SV *value, SV *attribs));
+int  dbd_bind_ph _((SV *h, SV *param, SV *value, SV *attribs, int is_inout, IV maxlen));
 int  dbd_st_execute _((SV *sv));
 AV  *dbd_st_fetch _((SV *sv));
 int  dbd_st_finish _((SV *sth));

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.11 1996/03/05 02:27:25 timbo Exp $
+   $Id: dbdimp.h,v 1.12 1996/10/15 02:19:14 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -39,15 +39,19 @@ struct imp_sth_st {
     Cda_Def cdabuf;
 
     /* Input Details	*/
-    char      *statement;   /* sql (see sth_scan)		*/
-    HV        *bind_names;
+    char      *statement;	/* sql (see sth_scan)		*/
+    HV        *all_params_hv;	/* all params, keyed by name	*/
+    AV        *out_params_av;	/* quick access to inout params	*/
 
-    /* Output Details	*/
+    /* Select Column Output Details	*/
     int        done_desc;   /* have we described this sth yet ?	*/
     imp_fbh_t *fbh;	    /* array of imp_fbh_t structs	*/
     char      *fbh_cbuf;    /* memory for all field names       */
     sb4   long_buflen;      /* length for long/longraw (if >0)	*/
     bool  long_trunc_ok;    /* is truncating a long an error	*/
+
+	/* (In/)Out Parameter Details */
+    bool  has_inout_params;
 };
 #define IMP_STH_EXECUTING	0x0001
 
@@ -83,6 +87,15 @@ struct phs_st {	/* scalar placeholder EXPERIMENTAL	*/
     SV	*sv;		/* the scalar holding the value		*/
     sword ftype;	/* external OCI field type		*/
     sb2 indp;		/* null indicator			*/
+
+    /* fields for inout params */
+    bool is_inout;
+    char *progv;
+    ub2 alen;
+    ub2 arcode;
+    int alen_incnull;	/* 0 or 1 if alen should include null	*/
+
+    char name[1];	/* struct is malloc'd bigger as needed	*/
 };
 
 
@@ -91,8 +104,8 @@ void	fbh_dump _((imp_fbh_t *fbh, int i));
 
 void	dbd_init _((dbistate_t *dbistate));
 void	dbd_preparse _((imp_sth_t *imp_sth, char *statement));
-int	dbd_describe _((SV *h, imp_sth_t *imp_sth));
-int dbd_st_blob_read _((SV *sth, int field, long offset, long len,
+int 	dbd_describe _((SV *h, imp_sth_t *imp_sth));
+int 	dbd_st_blob_read _((SV *sth, int field, long offset, long len,
 			SV *destrv, long destoffset));
 
 /* end */

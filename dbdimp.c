@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.22 1996/08/22 23:20:19 timbo Exp $
+   $Id: dbdimp.c,v 1.23 1996/10/15 02:19:14 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -226,7 +226,6 @@ dbd_db_STORE(dbh, keysv, valuesv)
     int on = SvTRUE(valuesv);
 
     if (kl==10 && strEQ(key, "AutoCommit")) {
-	/* Ignore SvTRUE warning: '=' where '==' may have been intended. */
 	if ( (on) ? ocon(&imp_dbh->lda) : ocof(&imp_dbh->lda) ) {
 	    ora_error(dbh, &imp_dbh->lda, imp_dbh->lda.rc, "ocon/ocof failed");
 	    /* XXX um, we can't return FALSE and true isn't acurate */
@@ -353,6 +352,7 @@ dbd_preparse(imp_sth, statement)
     phs_t phs_tpl;
     SV *phs_sv;
     int idx=0, style=0, laststyle=0;
+    STRLEN namelen;
 
     /* allocate room for copy of statement with spare capacity	*/
     /* for editing '?' or ':1' into ':p1' so we can use obndrv.	*/
@@ -395,115 +395,26 @@ dbd_preparse(imp_sth, statement)
 	    continue;
 	}
 	*dest = '\0';			/* handy for debugging	*/
+	namelen = (dest-start);
 	if (laststyle && style != laststyle)
 	    croak("Can't mix placeholder styles (%d/%d)",style,laststyle);
 	laststyle = style;
-	if (imp_sth->bind_names == NULL)
-	    imp_sth->bind_names = newHV();
+	if (imp_sth->all_params_hv == NULL)
+	    imp_sth->all_params_hv = newHV();
 	phs_tpl.sv = &sv_undef;
-	phs_sv = newSVpv((char*)&phs_tpl, sizeof(phs_tpl));
-	hv_store(imp_sth->bind_names, start, (STRLEN)(dest-start),
-		phs_sv, 0);
-	/* warn("bind_names: '%s'\n", start);	*/
+	phs_sv = newSVpv((char*)&phs_tpl, sizeof(phs_tpl)+namelen+1);
+	hv_store(imp_sth->all_params_hv, start, namelen, phs_sv, 0);
+	strcpy( ((phs_t*)SvPVX(phs_sv))->name, start);
+	/* warn("params_hv: '%s'\n", start);	*/
     }
     *dest = '\0';
-    if (imp_sth->bind_names) {
-	DBIc_NUM_PARAMS(imp_sth) = (int)HvKEYS(imp_sth->bind_names);
+    if (imp_sth->all_params_hv) {
+	DBIc_NUM_PARAMS(imp_sth) = (int)HvKEYS(imp_sth->all_params_hv);
 	if (dbis->debug >= 2)
 	    fprintf(DBILOGFP, "scanned %d distinct placeholders\n",
 		(int)DBIc_NUM_PARAMS(imp_sth));
     }
 }
-
-
-int
-dbd_bind_ph(sth, ph_namesv, newvalue, attribs)
-    SV *sth;
-    SV *ph_namesv;
-    SV *newvalue;
-    SV *attribs;
-{
-    D_imp_sth(sth);
-    SV **svp;
-    STRLEN name_len;
-    char *name;
-    char buf[90];
-    phs_t *phs;
-
-    STRLEN value_len;
-    void  *value_ptr;
-
-    if (SvNIOK(ph_namesv) ) {	/* passed as a number	*/
-	name = buf;
-	sprintf(name, ":p%d", (int)SvIV(ph_namesv));
-	name_len = strlen(name);
-    } else {
-	name = SvPV(ph_namesv, name_len);
-    }
-
-    if (dbis->debug >= 2)
-	fprintf(DBILOGFP, "bind %s <== '%s' (attribs: %s)\n",
-		name, SvPV(newvalue,na), attribs ? SvPV(attribs,na) : "" );
-
-    svp = hv_fetch(imp_sth->bind_names, name, name_len, 0);
-    if (svp == NULL)
-	croak("dbd_bind_ph placeholder '%s' unknown", name);
-    phs = (phs_t*)((void*)SvPVX(*svp));		/* placeholder struct	*/
-
-    if (phs->sv == &sv_undef) {	 /* first bind for this placeholder	*/
-	phs->sv = newSV(0);
-	phs->ftype = 1;
-    }
-
-    if (attribs) {
-	/* Setup / Clear attributes as defined by attribs.		*/
-	/* If attribs is EMPTY then reset attribs to default.		*/
-	;	/* XXX */
-	if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_type",8, 0)) == NULL) {
-	    if (!dbtype_is_string(SvIV(*svp)))	/* mean but safe	*/
-		croak("bind_param %s ora_type %d not a simple string type",
-			name, (int)SvIV(*svp));
-	    phs->ftype = SvIV(*svp);
-	}
-
-    }	/* else if NULL / UNDEF then don't alter attributes.	*/
-	/* This approach allows maximum performance when	*/
-	/* rebinding parameters often (for multiple executes).	*/
-
-    /* At the moment we always do sv_setsv() and rebind.	*/
-    /* Later we may optimise this so that more often we can	*/
-    /* just copy the value & length over and not rebind.	*/
-
-    if (SvOK(newvalue)) {
-	/* XXX need to consider oraperl null vs space issues?	*/
-	/* XXX need to consider taking reference to source var	*/
-	sv_setsv(phs->sv, newvalue);
-	value_ptr = SvPV(phs->sv, value_len);
-	phs->indp = 0;
-
-	/* Since we don't support LONG VAR types we must check	*/
-	/* for lengths too big to pass to obndrv as an sword.	*/
-	if (value_len > SWORDMAXVAL)	/* generally INT_MAX	*/
-	    croak("bind_param %s value is too long (%d bytes, max %d)",
-			name, value_len, SWORDMAXVAL);
-    } else {
-	value_ptr = "";
-	value_len = 0;
-	phs->indp = -1;
-    }
-
-    /* this will change to odndra sometime	*/
-    if (obndrv(imp_sth->cda, (text*)name, -1,
-	    (ub1*)value_ptr, (sword)value_len,
-	    phs->ftype, -1, &phs->indp,
-	    (text*)0, -1, -1)) {
-	D_imp_dbh_from_sth;
-	ora_error(sth, &imp_dbh->lda, imp_sth->cda->rc, "obndrv failed");
-	return 0;
-    }
-    return 1;
-}
-
 
 
 
@@ -524,6 +435,16 @@ dbd_describe(h, imp_sth)
 	return 1;	/* success, already done it */
     imp_sth->done_desc = 1;
 
+    if (imp_sth->cda->ft == 34) {	/* SQL function "PL/SQL EXECUTE"	*/
+	if (dbis->debug >= 2)
+	    fprintf(DBILOGFP, "    dbd_describe skipped for pl/sql\n");
+	return 1;
+    }
+
+    if (dbis->debug >= 2)
+	fprintf(DBILOGFP, "    dbd_describe (for sql func %d after oci func %d)...\n",
+			imp_sth->cda->ft, imp_sth->cda->fc);
+
     if (!f_cbufl) {
 	f_cbufl_max = 120;
 	New(1, f_cbufl, f_cbufl_max, sb4);
@@ -531,7 +452,7 @@ dbd_describe(h, imp_sth)
 
     /* Get number of fields and space needed for field names	*/
     while(++i) {	/* break out within loop		*/
-	sb1 cbuf[256];	/* generous max column name length	*/
+	sb1 cbuf[257];	/* generous max column name length	*/
 	sb2 dbtype = 0;	/* workaround for problem log #405032	*/
 	if (i >= f_cbufl_max) {
 	    f_cbufl_max *= 2;
@@ -601,7 +522,7 @@ dbd_describe(h, imp_sth)
 	(void)SvPOK_only(fbh->sv);
 	fbh->buf = (ub1*)SvPVX(fbh->sv);
 
-	/* BIND */
+	/* DEFINE output column variable storage */
 	if (odefin(imp_sth->cda, i, fbh->buf, fbh->bufl,
 		fbh->ftype, -1, &fbh->indp,
 		(text*)0, -1, -1, &fbh->rlen, &fbh->rcode)) {
@@ -617,8 +538,172 @@ dbd_describe(h, imp_sth)
 	ora_error(h, &imp_dbh->lda, imp_sth->cda->rc, "odescr failed");
 	return 0;
     }
+
+    if (dbis->debug >= 2)
+	fprintf(DBILOGFP, "    dbd_describe completed for %d columns\n", (int)num_fields);
+
     return 1;
 }
+
+
+
+static int 
+_dbd_rebind_ph(sth, imp_sth, phs, maxlen) 
+    SV *sth;
+    imp_sth_t *imp_sth;
+    phs_t *phs;
+    int maxlen;
+{
+    maxlen = (maxlen < phs->alen) ? phs->alen : maxlen;
+
+    if (dbis->debug >= 2)
+	fprintf(DBILOGFP, "bind %s <== '%.200s' (size %d/%d, ora_type %d)\n",
+	    phs->name, (char*)phs->progv, phs->alen,maxlen, phs->ftype);
+
+    if (phs->alen_incnull)
+	++phs->alen;
+
+    /* Since we don't support LONG VAR types we must check	*/
+    /* for lengths too big to pass to obndrv as an sword.	*/
+    if (maxlen > SWORDMAXVAL)	/* generally 64K	*/
+	croak("Can't bind %s, value is too long (%d bytes, max %d)",
+		    phs->name, maxlen, SWORDMAXVAL);
+
+    if (0) {	/* old code */
+	if (obndrv(imp_sth->cda, (text*)phs->name, -1,
+		(ub1*)phs->progv, (sword)phs->alen,
+		phs->ftype, -1, &phs->indp,
+		(text*)0, -1, -1)) {
+	    D_imp_dbh_from_sth;
+	    ora_error(sth, &imp_dbh->lda, imp_sth->cda->rc, "obndrv failed");
+	    return 0;
+	}
+    }
+    else {
+	if (obndra(imp_sth->cda, (text *)phs->name, -1,
+		(ub1*)phs->progv, maxlen, (sword)phs->ftype, -1,
+		&phs->indp, &phs->alen, &phs->arcode, 0, (ub4 *)0,
+		(text *)0, -1, -1)) {
+	    D_imp_dbh_from_sth;
+	    ora_error(sth, &imp_dbh->lda, imp_sth->cda->rc, "obndra failed");
+	    return 0;
+	}
+    }
+    return 1;
+}
+
+
+int
+dbd_bind_ph(sth, ph_namesv, newvalue, attribs, is_inout, maxlen)
+    SV *sth;
+    SV *ph_namesv;
+    SV *newvalue;
+    SV *attribs;
+    int is_inout;
+    IV maxlen;
+{
+    D_imp_sth(sth);
+    SV **phs_svp;
+    STRLEN name_len;
+    char *name;
+    char namebuf[30];
+    phs_t *phs;
+
+    if (SvNIOK(ph_namesv) ) {	/* passed as a number	*/
+	name = namebuf;
+	sprintf(name, ":p%d", (int)SvIV(ph_namesv));
+	name_len = strlen(name);
+    } else {
+	name = SvPV(ph_namesv, name_len);
+    }
+
+    if (dbis->debug >= 2)
+	fprintf(DBILOGFP, "bind %s <== '%.200s' (attribs: %s)\n",
+		name, SvPV(newvalue,na), attribs ? SvPV(attribs,na) : "" );
+
+    phs_svp = hv_fetch(imp_sth->all_params_hv, name, name_len, 0);
+    if (phs_svp == NULL)
+	croak("Can't bind unknown placeholder '%s'", name);
+    phs = (phs_t*)SvPVX(*phs_svp);	/* placeholder struct	*/
+
+    if (phs->sv == &sv_undef) {	/* first bind for this placeholder	*/
+	phs->ftype = 1;			/* our default type VARCHAR2	*/
+	if (is_inout) {
+	    /* ensure room for result, 28 is magic number (see sv_2pv)	*/
+	    I32 grow_len = (maxlen < 28) ? 28 : maxlen+1;
+	    ++imp_sth->has_inout_params;
+	    phs->is_inout = 1;
+	    phs->sv = SvREFCNT_inc(newvalue);
+	    if (SvOOK(phs->sv))
+		sv_backoff(phs->sv);
+	    /* pre-upgrade to cut down risks of SvPVX realloc/move	*/
+	    (void)SvUPGRADE(phs->sv, SVt_PVNV);
+	    /* ensure we have a string to point oracle at		*/
+	    (void)SvPV(phs->sv, na);
+	    SvGROW(phs->sv, grow_len);
+	    phs->progv = SvPVX(phs->sv);
+	    /* build array of phs's so we can deal with out vars fast	*/
+	    if (!imp_sth->out_params_av)
+		imp_sth->out_params_av = newAV();
+	    av_push(imp_sth->out_params_av, SvREFCNT_inc(*phs_svp));
+	}
+	else {
+	    phs->sv = newSV(0);
+	    phs->is_inout = 0;
+	}
+
+	if (attribs) {	/* only look for ora_type on first bind of var	*/
+	    SV **svp;
+	    /* Setup / Clear attributes as defined by attribs.		*/
+	    /* XXX If attribs is EMPTY then reset attribs to default?	*/
+	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_type",8, 0)) != NULL) {
+		int ora_type = SvIV(*svp);
+		if (!dbtype_is_string(ora_type))	/* mean but safe	*/
+		    croak("Can't bind %s, ora_type %d not a simple string type",
+			    phs->name, ora_type);
+		phs->ftype = ora_type;
+	    }
+	}
+
+	/* some types require the trailing null included in the length.	*/
+	phs->alen_incnull = (phs->ftype==SQLT_STR || phs->ftype==SQLT_AVC);
+
+    }
+    else if (is_inout != phs->is_inout) {
+	croak("Can't change param %s in/out mode", phs->name);
+    }
+
+
+    /* At the moment we always do sv_setsv() and rebind.	*/
+    /* Later we may optimise this so that more often we can	*/
+    /* just copy the value & length over and not rebind.	*/
+
+    if (!SvOK(newvalue)) {	/* undef == NULL		*/
+	phs->indp  = -1;
+	phs->progv = "";
+	phs->alen  = 0;
+    }
+    else {
+	STRLEN value_len;
+
+	phs->indp = 0;
+
+	/* XXX need to consider oraperl null vs space issues?	*/
+
+	if (is_inout) {	/* XXX */
+	    phs->progv = SvPV(phs->sv, value_len);
+	}
+	else {
+	    sv_setsv(phs->sv, newvalue);
+	    phs->progv = SvPV(phs->sv, value_len);
+	}
+	phs->alen = value_len + phs->alen_incnull;
+    }
+
+
+    return _dbd_rebind_ph(sth, imp_sth, phs, maxlen);
+}
+
 
 
 int
@@ -626,11 +711,46 @@ dbd_st_execute(sth)	/* <0 is error, >=0 is ok (row count) */
     SV *sth;
 {
     D_imp_sth(sth);
+    int debug = dbis->debug;
+    int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
 
     if (!imp_sth->done_desc) {
-	/* describe and allocate storage for results		*/
+	/* describe and allocate storage for results (if any needed)	*/
 	if (!dbd_describe(sth, imp_sth))
 	    return -1; /* dbd_describe already called ora_error()	*/
+    }
+
+    if (debug >= 2)
+	fprintf(DBILOGFP,
+	    "    dbd_st_execute (for sql func %d after oci func %d)...\n",
+			imp_sth->cda->ft, imp_sth->cda->fc);
+
+    if (outparams) {	/* check validity of bound SV's	*/
+	int i = outparams;
+	STRLEN phs_len;
+	while(--i >= 0) {
+	    phs_t *phs = (phs_t*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
+	    /* Make sure we have the value in string format. Typically a number	*/
+	    /* will be converted back into a string using the same bound buffer	*/
+	    /* so the progv test below will not trip.			*/
+	    if (!SvPOK(phs->sv)) {		/* ooops, no string ($var = 42)	*/
+		SvPV(phs->sv, phs_len);		/* get a string ("42")		*/
+		phs->alen = phs_len + phs->alen_incnull;
+	    }
+	    else {
+		if (SvOOK(phs->sv))
+		    sv_backoff(phs->sv);
+		phs->alen = SvCUR(phs->sv) + phs->alen_incnull;
+	    }
+	    /* Some checks for mutated storage since we pointed oracle at it.	*/
+	    /* XXX Instead of croaking we could rebind (probably will later).	*/
+	    if (SvTYPE(phs->sv) != SVt_PVNV)
+		croak("Placeholder %s value mutated type after bind.\n", phs->name);
+	    if (SvPVX(phs->sv) != phs->progv)
+		croak("Placeholder %s value mutated location after bind.\n", phs->name);
+	    if (debug >= 2)
+		warn("pre %s = '%s' (len %d)\n", phs->name, SvPVX(phs->sv), phs->alen);
+	}
     }
 
     /* Trigger execution of the statement			*/
@@ -638,7 +758,45 @@ dbd_st_execute(sth)	/* <0 is error, >=0 is ok (row count) */
         ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oexec error");
 	return -1;
     }
-    DBIc_ACTIVE_on(imp_sth);
+
+    if (debug >= 2)
+	fprintf(DBILOGFP, "    dbd_st_execute complete (rc %d, w %02x, rpc %ld, op%d)\n",
+		imp_sth->cda->rc,  imp_sth->cda->wrn,
+		imp_sth->cda->rpc, imp_sth->has_inout_params);
+
+    if (outparams) {	/* check validity of bound SV's	*/
+	int i = outparams;
+	STRLEN retlen;
+	while(--i >= 0) {
+	    phs_t *phs = (phs_t*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
+	    SV *sv = phs->sv;
+	    if (phs->indp == 0) {			/* is okay	*/
+		SvPOK_only(sv);
+		SvCUR(sv) = phs->alen;
+		*SvEND(sv) = '\0';
+		if (debug >= 2)
+		    warn("    %s = '%s' (len %d)\n", phs->name, SvPV(sv,retlen),retlen);
+	    }
+	    else
+	    if (phs->indp > 0 || phs->indp == -2) {	/* truncated	*/
+		SvPOK_only(sv);
+		SvCUR(sv) = phs->alen;
+		*SvEND(sv) = '\0';
+		if (debug >= 2)
+		    warn("    %s = '%s' (TRUNCATED from %d to %d)\n", phs->name,
+			    SvPV(sv,retlen), phs->indp, retlen);
+	    }
+	    else
+	    if (phs->indp == -1) {			/* is NULL	*/
+		(void)SvOK_off(phs->sv);
+		if (debug >= 2)
+		     warn("    %s = undef (NULL)\n", phs->name);
+	    }
+	    else croak("%s bad indp %d", phs->name, phs->indp);
+	}
+    }
+
+    DBIc_ACTIVE_on(imp_sth);	/* XXX should only set for select ?	*/
     return imp_sth->cda->rpc;	/* row count	*/
 }
 
@@ -821,20 +979,22 @@ dbd_st_destroy(sth)
     Safefree(imp_sth->fbh_cbuf);
     Safefree(imp_sth->statement);
 
-    if (imp_sth->bind_names) {
-	HV *hv = imp_sth->bind_names;
+    if (imp_sth->out_params_av)
+	sv_free((SV*)imp_sth->out_params_av);
+
+    if (imp_sth->all_params_hv) {
+	HV *hv = imp_sth->all_params_hv;
 	SV *sv;
 	char *key;
 	I32 retlen;
 	hv_iterinit(hv);
 	while( (sv = hv_iternextsv(hv, &key, &retlen)) != NULL ) {
-	    phs_t *phs_tpl;
 	    if (sv != &sv_undef) {
-		phs_tpl = (phs_t*)SvPVX(sv);
+		phs_t *phs_tpl = (phs_t*)SvPVX(sv);
 		sv_free(phs_tpl->sv);
 	    }
 	}
-	sv_free((SV*)imp_sth->bind_names);
+	sv_free((SV*)imp_sth->all_params_hv);
     }
 
     DBIc_IMPSET_off(imp_sth);		/* let DBI know we've done it	*/

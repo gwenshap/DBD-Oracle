@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl -w
 
-# $Id: test.pl,v 1.24 1996/09/23 19:30:58 timbo Exp $
+# $Id: test.pl,v 1.25 1996/10/15 02:19:14 timbo Exp $
 #
 # Copyright (c) 1995, Tim Bunce
 #
@@ -10,7 +10,7 @@
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.24 $}."\n";
+print q{Oraperl test application $Revision: 1.25 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^Bad free/) ? warn "See README about Bad free() warnings!\n": warn @_;
@@ -20,7 +20,8 @@ $opt_d = 0;		# debug
 $opt_l = 0;		# log
 $opt_c = 5;		# count for loops
 $opt_m = 0;		# count for mem leek test
-&Getopts('m:d:c:l') || die "Invalid options\n";
+$opt_p = 1;		# test pl/sql code
+&Getopts('m:d:c:lp ') || die "Invalid options\n";
 
 $ENV{PERL_DBI_DEBUG} = 2 if $opt_d;
 $ENV{ORACLE_HOME} = '/usr/oracle' unless $ENV{ORACLE_HOME};
@@ -66,7 +67,8 @@ $start = time;
 rename("test.log","test.olog") if $opt_l;
 eval 'DBI->internal->{DebugLog} = "test.log";'  if $opt_l;
 
-&test3($opt_m) if ($opt_m);
+&test3($opt_m) if $opt_m;
+
 &test1();
 
 print "\nTesting repetitive connect/open/close/disconnect:\n";
@@ -83,7 +85,9 @@ $csr2 = &ora_open($lda2, "select 42 from dual") || die "ora_open: $ora_errno: $o
 &ora_logoff($lda2) || warn "ora_logoff($lda2): $ora_errno: $ora_errstr\n";
 print "done.\n";
 
-&test3($opt_m) if ($opt_m);
+&test3($opt_m) if $opt_m;
+
+&test_plsql() if $opt_p;
 
 $dur = time - $start;
 print "\nTest complete ($dur seconds).\n";
@@ -195,6 +199,75 @@ sub test3 {
 	&test2();
     }
     system("echo $i; $ps$$") if (($i % 10) == 0);
+}
+
+
+sub test_plsql {
+
+	print "\nTesting PL/SQL interaction.\n";
+
+    local($l) = &ora_login($dbname, $dbuser, '')
+			|| die "ora_login: $ora_errno: $ora_errstr\n";
+    my $c;
+
+    $c = &ora_open($l, q{
+		begin RAISE invalid_number; end;
+    });
+    # Expect ORA-01722: invalid number
+    die "ora_open: $ora_errstr" unless $ora_errno == 1722;
+
+    $c = &ora_open($l, q{
+		DECLARE FOO EXCEPTION;
+		begin raise foo; end;
+    });
+    # Expect ORA-06510: PL/SQL: unhandled user-defined exception
+    die "ora_open: $ora_errstr" unless $ora_errno == 6510;
+
+    $c = &ora_open($l, q{
+		begin raise_application_error(-20101,'app error'); end;
+    });
+    # Expect our exception number and error text
+    die "ora_open: $ora_errno $ora_errstr"
+	    unless $ora_errno == 20101;			# our exception number
+    die "ora_open: $ora_errstr"
+	    unless $ora_errstr =~ m/app error/;	# our exception text
+
+    $c = &ora_open($l, q{
+	declare err_num number; err_msg char(510);
+	begin
+	    err_num := :1;
+	    err_msg := :2;
+	    raise_application_error(-20000-err_num, 'plus '||err_msg);
+	end;
+    }) || die "ora_open: $ora_errstr";
+    $c->execute(42,"my msg");
+    # Expect our exception number and error text
+    die "ora_open: $ora_errno $ora_errstr"
+	    unless $ora_errno == 20042;				# our exception number
+    die "ora_open: $ora_errstr"
+	    unless $ora_errstr =~ m/plus my msg/;	# our exception text
+
+    print "Testing bind_param_inout. Expect '200', '3800', '75800':\n";
+    #$l->debug(2);
+    #DBI->internal->{DebugDispatch} = 2;
+    $c = &ora_open($l, q{
+	declare bar number;
+	begin bar := :1; bar := bar * 20; :1 := bar; end;
+    }) || die "ora_open: $ora_errstr";
+    $param = 10;
+    $c->bind_param_inout(1, \$param, 100) || die "bind_param_inout $ora_errstr";
+    do {
+	$c->execute	|| die "execute $ora_errstr";
+	print "param='$param'\n";
+	$param -= 10;
+    } while ($param < 70000);
+
+    # To do
+    #	test NULLs at first bind
+    #	NULLS later binds.
+    #	returning NULLS
+    #	multiple params, mixed types and in only vs inout
+    #	automatic rebind if location changes
 }
 
 # end.

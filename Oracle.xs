@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.xs,v 1.41 1996/07/26 21:08:14 timbo Exp $
+   $Id: Oracle.xs,v 1.42 1996/10/15 02:19:14 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -56,6 +56,10 @@ disconnect_all(drh)
 		DBIc_ERR(imp_drh), DBIc_ERRSTR(imp_drh));
 	XSRETURN(0);
     }
+    /* perl_destruct with perl_destruct_level and $SIG{__WARN__} set	*/
+    /* to a code ref core dumps when sv_2cv triggers warn loop.		*/
+    if (perl_destruct_level)
+	perl_destruct_level = 0;
     XST_mIV(0, 1);
 
 
@@ -174,7 +178,21 @@ bind_param(sth, param, value, attribs=Nullsv)
     SV *	attribs
     CODE:
     DBD_ATTRIBS_CHECK("bind_param", sth, attribs);
-    ST(0) = dbd_bind_ph(sth, param, value, attribs) ? &sv_yes : &sv_no;
+    ST(0) = dbd_bind_ph(sth, param, value, attribs, FALSE, 0) ? &sv_yes : &sv_no;
+
+
+void
+bind_param_inout(sth, param, value_ref, maxlen, attribs=Nullsv)
+    SV *	sth
+    SV *	param
+    SV *	value_ref
+    IV 		maxlen
+    SV *	attribs
+    CODE:
+    DBD_ATTRIBS_CHECK("bind_param_inout", sth, attribs);
+	if (!SvROK(value_ref))	/* XXX needs better message */
+		croak("bind_param_inout needs a reference to the value");
+    ST(0) = dbd_bind_ph(sth, param, SvRV(value_ref), attribs, TRUE, maxlen) ? &sv_yes : &sv_no;
 
 
 void
@@ -195,7 +213,7 @@ execute(sth, ...)
         idx = sv_2mortal(newSViv(0));
 	for(i=1; i < items ; ++i) {
 	    sv_setiv(idx, i);
-	    if (!dbd_bind_ph(sth, idx, ST(i), Nullsv))
+	    if (!dbd_bind_ph(sth, idx, ST(i), Nullsv, FALSE, 0))
 		++error;
 	}
 	if (error) {

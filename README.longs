@@ -1,0 +1,58 @@
+Some examples related to the use of LONG types.
+
+----------------------------------------------------------------------
+Example for reading LONG fields via blob_read:
+ 
+    my $sql = "SELECT long_field FROM table_name WHERE id = :1";
+    my $csr = ora_open($lda, $sql) or die $ora_errstr;
+    ora_bind($csr, $id) or die $ora_errstr;
+    # ora_fetch() needs to be called in an array context
+    my (@data) = ora_fetch($csr);
+    my ($frag, $blob, $length, $ll, $offset);
+    $blob = '';
+    $length = 4096; # use benchmarks to get best value for you
+    $offset = 0;
+    while (1)
+    {
+        $frag = $csr->blob_read(0, $offset, $length);
+        last unless defined $frag;
+        $ll = length $frag;
+        last unless $ll;
+        $blob .= $frag;
+        $offset += $ll;
+    }
+    print $blob;
+
+With thanks to james.taylor@srs.gov and desilva@ind70.industry.net.
+
+----------------------------------------------------------------------
+
+Example for inserting LONGS From: Andrew Berry <adb@bha.oz.au>
+
+# Assuming the existence of @row and an associative array (%clauses) containing the 
+# column names and placeholders, and an array @types containing column types ...
+
+	$ih = $db->prepare("INSERT INTO $table ($clauses{names})
+				 VALUES ($clauses{places})")
+			|| die "prepare insert into $table: " . $db->errstr;		  
+
+	$attrib{'ora_type'} = $longrawtype;  # $longrawtype == 24
+
+	##-- bind the parameter for each of the columns
+	for ($i = 0; $i < @types; $i++) {
+
+		##-- long raw values must have their type attribute explicitly specified
+		if ($types[$i] == $longrawtype) {
+			$ih->bind_param($i+1, $row[$i], \%attrib)
+				|| die "binding placeholder for LONG RAW " . $db->errstr;
+		}
+		##-- other values work OK with the default attributes
+		else {
+			$ih->bind_param($i+1, $row[$i])
+				|| die "binding placeholder" . $db->errstr;
+		}
+	}
+
+	$ih->execute || die "execute INSERT into $table: " . $db->errstr;
+
+----------------------------------------------------------------------

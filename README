@@ -52,9 +52,9 @@ documentation for more details. Test your setting by connecting to
 the database using an Oracle tool such as sqlplus. Once you can do
 that then you can test DBD::Oracle knowing that it should work.
 
-The test will connect to the database using the value of the
-ORACLE_USER environment variable so you should set that to the
-correct value before starting the test. Please read README.login.
+The supplied test will connect to the database using the value of the
+ORACLE_USER environment variable so you should set that to the correct
+value before starting the test. Please read README.login.
 
 	make test
 	make test TEST_VERBOSE=1   (if any of the t/* tests fail)
@@ -85,7 +85,7 @@ web you can subscribe by sending a message to dbi-request@fugue.com, it
 may take a few days to be processed).
 
 Please post details of any problems (or changes you needed to make) to
-dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk.
+dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk. But note...
 
 ** IT IS IMPORTANT TO INCLUDE THE FOLLOWING INFORMATION:
 
@@ -109,7 +109,7 @@ dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk.
 5. If you get a core dump when using Oraperl try adding this *before*
    your 'use Oraperl' line: BEGIN { $Oraperl::safe = 1 }
    unless your version of Oraperl.pm already has $safe=1 in it
-   (it does by default now).
+   (it does by default now so you can probably ignore this step).
 
 6. If you still get a core dump rebuild DBD::Oracle with debugging
    enabled by executing: perl Makefile.PL -g  (note the -g option)
@@ -128,13 +128,17 @@ posting. If you're not then I'm *very* likely to simply say "upgrade to
 the latest". You would do yourself a favour by upgrading beforehand.
 
 Please remember that I'm _very_ busy. Try to help yourself first,
-then try to help me help you by following these guidelines.
+then try to help me help you by following these guidelines carefully.
 
 Regards,
 Tim.
 
 ===============================================================================
 Examples and other info:
+
+README.clients  -- building/using DBD::Oracle on minimally configured systems
+README.login    -- help for login problems
+README.longs    -- examples dealing with LONG types (blobs)
 
 DBI 'home page': http://www.hermetica.com/technologia/DBI
 
@@ -173,32 +177,6 @@ ftp://ftp.bf.rmit.edu.au/pub/perl/db
 ftp://ftp.bf.rmit.edu.au/pub/Oracle
 ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources
 ftp://ftp.bf.rmit.edu.au/pub/Oracle/OS/MS/NT/ntoraperl.zip
-
-
-===============================================================================
-Example for reading LONG fields via blob_read:
-
-	my $sql = "SELECT long_field FROM table_name WHERE id = :1";
-	my $csr = ora_open($lda, $sql) or die $ora_errstr;
-	ora_bind($csr, $id) or die $ora_errstr;
-	# ora_fetch() needs to be called in an array context
-	my (@data) = ora_fetch($csr); 
-	my ($frag, $blob, $length, $ll, $offset);
-	$blob = '';
-	$length = 4096; # use benchmarks to get best value for you
-	$offset = 0;
-	while (1)
-	{
-		$frag = $csr->blob_read(0, $offset, $length);
-		last unless defined $frag;
-		$ll = length $frag;
-		last unless $ll;
-		$blob .= $frag;
-		$offset += $ll;
-	}
-	print $blob;
-
-With thanks to james.taylor@srs.gov and desilva@ind70.industry.net.
 
 
 ===============================================================================
@@ -322,6 +300,24 @@ Example:
    $ENV{NLS_LANG}  = "american_america.we8iso8859p1";
    $ENV{ORA_NLS}   = "/home/oracle/ocommon/nls/admin/data";
    $ENV{ORA_NLS32} = "/home/oracle/ocommon/nls/admin/data";
+
+Also From: Yngvi Thor Sigurjonsson <yngvi@hagkaup.is>
+I would like all of you who are using 8-bit characters and "export" for
+backups to make sure that you have NLS_LANG set when export is run. 
+Otherwise you might get unusable backups with ? replacing all your
+beloved characters. We were lucky once when we noticed that our exports
+were damaged before disaster struck.
+
+-------------------------------------------------------------------------------
+AIX - warnings like these when building perl are not usually a problem:
+
+ld: 0711-415 WARNING: Symbol Perl_sighandler is already exported.
+ld: 0711-319 WARNING: Exported symbol not defined: Perl_abs_amg
+
+When building on AIX check to make sure that all of bos.adt (13 pieces)
+and all of bos.compat (11 pieces) are installed.
+
+Thanks to Mike Moran <mhm@austin.ibm.com> for this information.
 
 -------------------------------------------------------------------------------
 HP-UX 9.x: Terry Greenlaw <z50816@mip.lasc.lockheed.com>

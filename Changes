@@ -1,4 +1,20 @@
-Changes in DBD::Oracle 0.39 (Oraperl 1.28), ??th Aug 1996
+Changes in DBD::Oracle 0.40 (Oraperl 1.29), 14th Oct 1996
+
+	WARNING - This release contains significant changes to the
+	placeholding binding code. You should test it carefully
+	before using in live systems.
+
+	Implemented PL/SQL output values via $sth->bind_param_inout.
+	See the code at the end of test.pl for example usage.
+
+	Binding is now implemented using obndra rather than obndrv.
+	This may have a subtle effect when matching char fields
+	against placeholders with trailing spaces.
+
+	Fixed bind_param ora_type attribute. Thanks to Stephen Zander
+	for the patch.  Updated README's. Added README.longs.
+
+Changes in DBD::Oracle 0.39 (Oraperl 1.29), 23rd Sep 1996
 
 	Fix for DEC "target := MACRO = string" Makefile syntax.
 	Added README notes from Dave Moellenhoff, Lou Henefeld and others.

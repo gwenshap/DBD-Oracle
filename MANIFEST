@@ -2,6 +2,7 @@ MANIFEST
 README
 README.login
 README.clients
+README.longs
 Changes
 Todo
 Makefile.PL
@@ -15,7 +16,7 @@ test.pl
 t/base.t
 hints/svr4.pl
 oraperl.ph	Old oraperl file included for completeness of emulation
-oraperl.ex/Readme	Oraperl examples (copied unchanged from oraperl-2.4)
+oraperl.ex/Readme	Oraperl examples (copied mostly unchanged from oraperl-2.4)
 oraperl.ex/bind.pl
 oraperl.ex/commit.pl
 oraperl.ex/ex.pl

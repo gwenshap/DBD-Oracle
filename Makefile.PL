@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.50 1996/09/23 19:30:58 timbo Exp $
+# $Id: Makefile.PL,v 1.51 1996/10/15 02:19:14 timbo Exp $
 
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
 
@@ -61,7 +61,7 @@ print "Using Oracle in $OH\n";
 # --- What Oracle is installed...
 
 warn "\nWARNING: Oracle OCI (Pro*C) does not appear to be installed.\n"
-	."You must install Pro*C before you can build DBD::Oracle properly.\n\n"
+	."You should install Pro*C before you can build DBD::Oracle properly.\n\n"
     unless (-f "$OH/lib/libocic.a"
 			and (-f "$OH/rdbms/demo/oratypes.h" or -f "$OH/rdbms/public/oratypes.h"))
 		or (-f "$OH/precomp/demo/proc/proc.mk");	# 7.3.x
@@ -74,12 +74,15 @@ $procmk = "$OH/proc16/lib/proc16.mk"      unless -f $procmk;
 die q{
 	Unable to locate proc.mk in your Oracle installation.
 
-	proc.mk is part of the Oracle Pro*C product. You need to build
+	proc.mk is part of the Oracle Pro*C product. You should build
 	DBD::Oracle on a system which has Oracle Pro*C installed.
 
 	If proc.mk is installed somewhere non-standard you can use
 		perl Makefile.PL -m /path/to/proc.mk
 	to specify where it is.
+
+	See README.clients for more information and some alternatives.
+
 } unless -f $procmk;
 
 my @mkfiles;
@@ -321,7 +324,13 @@ sub fetch_oci_macros {
 
 sub read_inc_file {
     my $file = shift;
-    my $fh = new FileHandle "<$file" or die "Unable to read $file: $!";
+    my $fh;
+    unless ($fh = new FileHandle "<$file") {
+		# Workaround more oracle bungling (Oracle 7.3.2/Solaris x86)
+		my $alt; ($alt = $file) =~ s/\.dk\.mk$/\.mk/;
+		$fh = new FileHandle "<$alt";
+		die "Unable to read $file: $!" unless $fh;
+	}
     print "Reading $file.\n";
     my @lines;
     push(@mkfiles, $file);

@@ -2,6 +2,15 @@ This file contains some random notes relating to minimal Oracle
 configurations for building and/or using DBD::Oracle / Oraperl.
 
 -------------------------------------------------------------------------------
+With recent versions of Oracle (specifically around 7.3) you may be
+able to build DBD::Oracle without Pro*C installed by using the Oracle
+supplied oracle.mk file:
+
+	perl Makefile.PL -m $ORACLE_HOME/rdbms/demo/oracle.mk
+
+(The oracle.mk file might also be found in $ORACLE_HOME/rdbms/public/)
+
+-------------------------------------------------------------------------------
 From: James Cooper <pixel@coe.missouri.edu>
 
 >      [...], what do I need in addition to perl5 to access an Oracle database 
