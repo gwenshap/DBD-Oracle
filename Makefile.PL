@@ -115,7 +115,8 @@ my $ORACLE_ENV  = ($os eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 my $OH = $ENV{$ORACLE_ENV} || '';
 $OH  = win32_oracle_home($OH) if ($os eq 'MSWin32') or ($os =~ /cygwin/i);
-($OH = unixify $OH) =~ s:/$:: if $os eq 'VMS';
+$OH = unixify $OH if $os eq 'VMS';
+$OH =~ s:/$::;
 
 die qq{  The $ORACLE_ENV environment variable must be set.
   It must be set to hold the path to an Oracle installation directory
@@ -172,7 +173,7 @@ if ($os ne 'VMS' and $os ne 'MSWin32' ) {
 		print "$_\n";
 	    }
 	}
-	elsif ( $OH =~ m!.*(\d+\.\d+\.\d+)! ) { #decode it from $OH if possible
+	elsif ( $OH =~ m![^\d\.](\d+\.\d+\.\d+)! ) { #decode it from $OH if possible
 	    $inspdver{RDBMS} = $1;
 	}
 	elsif ( "$OH/" =~ m!\D(1?\d)(\d)(\d?)\D!) { # scary but handy

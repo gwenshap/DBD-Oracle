@@ -905,6 +905,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	if (fbh->ftype == 112 && (cs_is_utf8 || csform == SQLCS_NCHAR))
 	    DBD_SET_UTF8(dest_sv);
 	
+        ora_free_templob(sth, imp_sth, lobloc);
     }
     else {			/* LOB length is 0 */
 	assert(amtp == 0);

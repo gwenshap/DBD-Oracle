@@ -1674,8 +1674,10 @@ dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
 
     retl = ora_blob_read_piece(sth, imp_sth, fbh, bufsv,
 				 offset, len, destoffset);
-    if (!SvOK(bufsv))	/* ora_blob_read_piece recorded error */
+    if (!SvOK(bufsv)) { /* ora_blob_read_piece recorded error */
+        ora_free_templob(sth, imp_sth, (OCILobLocator*)fbh->desc_h);
 	return 0;
+    }
     ftype = ftype;	/* no unused */
 
     if (DBIS->debug >= 3)
@@ -1767,6 +1769,32 @@ ora_free_phs_contents(phs)
 	OCIDescriptorFree_log(phs->desc_h, phs->desc_t);
     sv_free(phs->ora_field);
     sv_free(phs->sv);
+}
+
+void
+ora_free_templob(sth, imp_sth, lobloc)
+    SV *sth;
+    imp_sth_t *imp_sth; 
+    OCILobLocator *lobloc;
+{
+    boolean is_temporary;
+    sword status;
+    OCILobIsTemporary_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &is_temporary, status);
+    if (status != OCI_SUCCESS) {
+        oci_error(sth, imp_sth->errhp, status, "OCILobIsTemporary");
+        return;
+    }
+
+    if (is_temporary) {
+        if (DBIS->debug >= 3) {
+            PerlIO_printf(DBILOGFP, "       OCILobFreeTemporary %s\n", oci_status_name(status));
+        }
+        OCILobFreeTemporary_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc, status);
+        if (status != OCI_SUCCESS) {
+            oci_error(sth, imp_sth->errhp, status, "OCILobFreeTemporary");
+            return;
+        }
+    }
 }
 
 

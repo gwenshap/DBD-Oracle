@@ -13,6 +13,7 @@
   Fixed reporting of length truncated in error message thanks to Jeff Urlwin.
   Fixed column_info() to handle TIMESTAMP and INTERVAL datatypes
     for Oracle >= 8 thanks to Stephen Clouse.
+  Fixed handling of temporary LOBs thanks to Chris Donnelly.
 
   Changed some utf8 internals for LOBs.
   Changed to not warn if ORACLE_HOME env var is not defined
