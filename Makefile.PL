@@ -1,8 +1,7 @@
-
 ##
 ##  You should not need to edit this file.
 ##
-#vim: ts=8:sw=4
+# vim: ts=8:sw=4
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.004 }
@@ -88,9 +87,9 @@ $::opt_F = 0;	# force - ignore errors
 $::opt_W = 0;	# just write a basic default Makefile (won't build)
 $::opt_w = 0;	# enable many gcc compiler warnings
 $::opt_ProC= 0;	# enable integration with ProC
-$::opt_8 = 0;   # force support for oracle version 8.x
-	        # currently, this means *not* using the new OCI_INIT
-	        # code and forcing our version of OCILobWriteAppend
+$::opt_V = 0;   # force assumption of specified Oracle version
+		# If == 8 then we don't use the new OCI_INIT code
+		# and we force our emulation of OCILobWriteAppend
 
 Getopt::Long::config( qw( no_ignore_case ) );
 GetOptions(qw(b! r=s v! d! g! p! l! c! 8! f! F! W! w! m=s n=s s=s S=s ProC!))
@@ -139,81 +138,12 @@ die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
 
 print "Using Oracle in $OH\n";
 
-# We'll try to dig up some Oracle version information. Not essential.
-my @inspdver;
-my %inspdver = ( RDBMS => 0, rdbms_ver => 0 );
+# $client_version => Major.Minor, $client_version_full => Major.Minor.X.Y.Z
+my ($client_version, $client_version_full) = get_client_version($::opt_V);
 
-if (!$::opt_8) {
-   if ($os ne 'VMS' ) {
-      my $sqlplus = "$OH/bin/sqlplus";
-      if ($os eq 'Win32') {
-	 $sqlplus .= ".exe";
-	 $sqlplus =~ s#/#\\#g;
-      }
-      
-      if (-x $sqlplus) {
-	 # Try to use the _SQLPLUS_RELEASE predefined variable from sqlplus
-	 # Documented in the SQL*Plus reference guide:
-	 #  http://download-west.oracle.com/docs/cd/B12037_01/server.101/b12170/ch13.htm#i2675128
-	 # Output is in the following format:
-	 #   DEFINE _SQLPLUS_RELEASE = "902000400" (CHAR)       Representing 9.2.0.4.0
-	 #   DEFINE _SQLPLUS_RELEASE = "1001000200" (CHAR)      Representing 10.1.0.2.0
-	 my $sqlplus_release = `echo DEFINE _SQLPLUS_RELEASE | $sqlplus -S /nolog 2>&1`;
-	 if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)" \(CHAR\)$/) {
-	    $inspdver{RDBMS} = sprintf("%d.%d.%d.%d", $1, $2, $3, $4);
-	 }
-      }
-      
-      if (!$inspdver{RDBMS}) {
-	 if (open INST, "<$OH/install/unix.rgs") {
-	    local $/ = undef;
-	    <INST> =~ m/^(rdbms|sql\*plus)\s+([\d.]+)/m;
-	    $inspdver{RDBMS} = $2 if $2;
-	    close INST;
-	 }
-	 elsif ( -x "$OH/orainst/inspdver" ) { # client only install does not have this
-	    open INST, "$OH/orainst/inspdver |";
-	    my @inspdver = <INST>;
-	    close INST;
-	    foreach (@inspdver) {
-	       chop;
-	       $inspdver{$2}    = $1 if m/^(\S+)\s+(.*)/;
-	       $inspdver{RDBMS} = $1 if m/^(\d+\.\d+\.\d+)\S*\s+.*RDBMS/;
-	       next unless $::opt_v
-		     or 	m/RDBMS/i	or m/PL.SQL/i
-		     or 	m/Precomp/i	or m/Pro\*C/i;
-	       print "$_\n";
-	    }
-	 }
-	 elsif ( $OH =~ m![^\d\.](\d+\.\d+\.\d+)! ) { #decode it from $OH if possible
-	    $inspdver{RDBMS} = $1;
-	 }
-	 elsif ( "$OH/" =~ m!\D(1?\d)(\d)(\d?)\D!) { # scary but handy
-	    $inspdver{RDBMS} = join ".", $1, $2, ($3||'0');
-	 }
-      }
+die "DBD::Oracle no longer supports Oracle versions before 8.\n"
+    if $client_version < 8;
 
-    # hack up a simple floating point form of the version: 8.1.6.2 => 8.1
-      ($inspdver{rdbms_ver} = $inspdver{RDBMS}) =~ s/^(\d+\.\d+).*/$1/;
-
-      print "Oracle version $inspdver{RDBMS} ($inspdver{rdbms_ver})\n" if $inspdver{RDBMS};
-
-      if (!DBI::looks_like_number($inspdver{rdbms_ver}) || $inspdver{rdbms_ver} < 7 || $inspdver{rdbms_ver} >= 11) {
-	 print qq{
-WARNING: could not decode oracle version from sqlplus,
-$OH/orainst/inspdver, or $OH/install/unix.rgs
-or from $ORACLE_ENV path $OH.
-Oracle version based logic in Makefile.PL may produce erroneous results.
-};
-      }
-      die "DBD::Oracle no longer supports Oracle 7.\n" if $inspdver{RDBMS} =~ /^7\./;
-      print "\n";
-   }
-} else {
-   # force oracle 8 interfaces
-   $inspdver{RDBMS} = "8.0.0";
-   $inspdver{rdbms_ver} = "8.0";
-}
 
 # Check for symbol table problem in libclntsh.dylib.9.0 on MacOS X
 if ($os eq 'darwin') {
@@ -225,7 +155,8 @@ if ($os eq 'darwin') {
     }
     close FH;
     unless ($stripped) {
-	die "ERROR: symbol table needs modification in Oracle library:\n\t$oracle_lib\nManual modification required - see README.macosx\n";
+	die "ERROR: symbol table needs modification in Oracle library:\n"
+	   ."\t$oracle_lib\nManual modification required - see README.macosx\n";
     }
 }
 
@@ -478,7 +409,6 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
         }
 
         if ( $osvers >= 11 and
-             $inspdver{RDBMS} =~ /^7.3/ and
              $linkwith =~ m/-lcl\b/ && $linkwith =~ m/-l:libcl.a/
 	) {  # from h.m.brand@hccnet.nl
             print "Warning: Stripping -lcl from the link flags, because it\n",
@@ -492,7 +422,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
         # Jay:     8.1.6 gets Unresolved symbols on LhtStrInsert
         #           $linkwith =~ s/$/ -lclntsh/ if ( $linkwith !~ = m/-lclntsh/ );
         #          Tim - Not to be disobedient but at this point of the code
-        #          $inspdver{RDBMS} = 0, so I can't do Oracle version 8.1.6 logic
+        #          $client_version_full = 0, so I can't do Oracle version 8.1.6 logic
         #          So it seems easier to modify if I do it like below rather than above
         #          obviously its your choice
         #
@@ -505,7 +435,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
         #
         # Jay:     Add Librarys where one gets Unresolved symbols
         #
-        if ( ( $osvers >= 11 and $inspdver{RDBMS} =~ /^8.1.6/ )
+        if ( ( $osvers >= 11 and $client_version_full =~ /^8\.1\.6/ )
         or   ( $osvers >= 11 and $OH =~ m,/8\.1\.6, ) ) {
             my @extraLib = qw[libqsmashr.sl libclntsh.sl];
             foreach my $extraLib (@extraLib) {
@@ -606,14 +536,15 @@ $opts{DEFINE} .= ' -DCAN_USE_PRO_C' if $::opt_ProC;
 $opts{DEFINE} .= ' -DUTF8_SUPPORT' if ($] >= 5.006);
 
 # Use OCIEnvNlsCreate if available for best unicode behaviour
-$opts{DEFINE} .= ' -DNEW_OCI_INIT' if $inspdver{rdbms_ver} >= 9.2;
-$opts{DEFINE} .= " -DORA_OCI_VERSION=\\\"$inspdver{rdbms_ver}\\\"";
+$opts{DEFINE} .= ' -DNEW_OCI_INIT' if $client_version >= 9.2;
+$opts{DEFINE} .= " -DORA_OCI_VERSION=\\\"$client_version\\\"";
 # force additional special behavior for oci 8.  For now, this means
 # providing OciLobWriteAppend
 # use this if, for some reason the default handling for this function
 # doesn't work or you are building a binary release for distribution
 # to machines with older client libraries.
-$opts{DEFINE} .= " -DORA_OCI_8" if ($::opt_8);
+$opts{DEFINE} .= " -DORA_OCI_8" if $::opt_V && $client_version == 8.0;
+
 
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($is_developer){  # a reasonable guess
@@ -704,7 +635,7 @@ if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
     sleep 5;
 }
 
-if ($inspdver{rdbms_ver} >= 8.106 && $Config{archname} !~ /-thread\b/i) {
+if ($Config{archname} !~ /-thread\b/i) {
     print "\n";
     print "Warning: If you have problems you may need to rebuild perl with threading enabled.$BELL\n";
     sleep 5;
@@ -880,12 +811,11 @@ sub perl_is_64bit {
 }
 sub ora_libdir {
     my $libdir = 'lib' ;
-    if ( $inspdver{rdbms_ver} >= 9 )
-    {
+    if ( $client_version >= 9 ) {
 	$libdir = 'lib32' if ! perl_is_64bit() and -d "$OH/lib32";
     }
-    elsif ( $inspdver{rdbms_ver} >= 8 ) {
-        $libdir = 'lib64' if perl_is_64bit() and -d "$OH/lib64";
+    else {
+        $libdir = 'lib64' if   perl_is_64bit() and -d "$OH/lib64";
     }
     return $libdir;
 }
@@ -1106,7 +1036,7 @@ sub fetch_oci_macros {
 	else {
 	    $linkvia .= '$(SSDBED) '	if $MK{SSDBED};
 	    $linkvia .= '$(DEF_OPT) '	if $MK{DEF_OPT};
-	    if ($inspdver{RDBMS} =~ /^8\.0\./ and $os eq 'dec_osf' and $osvers >= 4.0) {
+	    if ($client_version_full =~ /^8\.0\./ and $os eq 'dec_osf' and $osvers >= 4.0) {
 		$linkvia .= '$(SCOREPT) $(NAETAB) $(NAEDHS) $(LLIBRDBMS_CLT) $(LLIBMM) ';
 		$linkvia .= '$(NETLIBS) $(CORELIBS) $(LLIBCOMMON) $(LLIBEPC) ';
 		$need_ldlp_env = "LD_LIBRARY_PATH";
@@ -1255,7 +1185,7 @@ sub find_bin{
     foreach (split(/$path_sep/, $ENV{PATH})){
 	return "$_/$bin" if -x "$_/$bin";
     }
-    return "<$bin not found>";
+    return undef;
 }
 
 
@@ -1281,6 +1211,88 @@ sub find_headers {
 	sleep 5;
     }
     return @h_dir;
+}
+
+
+sub get_client_version {
+    my ($force_version) = @_;
+
+    my $client_version_full = '';
+
+    my $sqlplus_exe = ($os eq 'Win32') ? "sqlplus.exe" : "sqlplus";
+    local $ENV{PATH} = join $Config{path_sep}, $ENV{PATH}, "$OH/bin", $OH;
+
+    if (find_bin($sqlplus_exe)) {
+	# Try to use the _SQLPLUS_RELEASE predefined variable from sqlplus
+	# Documented in the SQL*Plus reference guide:
+	#  http://download-west.oracle.com/docs/cd/B12037_01/server.101/b12170/ch13.htm#i2675128
+	# Output is in the following format:
+	#   DEFINE _SQLPLUS_RELEASE = "902000400" (CHAR)       Representing 9.2.0.4.0
+	#   DEFINE _SQLPLUS_RELEASE = "1001000200" (CHAR)      Representing 10.1.0.2.0
+	my $sqlplus_release = `echo DEFINE _SQLPLUS_RELEASE | $sqlplus_exe -S /nolog 2>&1`;
+	if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)" \(CHAR\)$/) {
+	    $client_version_full = sprintf("%d.%d.%d.%d", $1, $2, $3, $4);
+	}
+    }
+
+    if (!$client_version_full && open INST, "<$OH/install/unix.rgs") {
+	local $/ = undef;
+	<INST> =~ m/^(rdbms|sql\*plus)\s+([\d.]+)/m;
+	$client_version_full = $2 if $2;
+	close INST;
+    }
+
+    if (!$client_version_full && -x "$OH/orainst/inspdver" ) {
+	open INST, "$OH/orainst/inspdver |"; # client only install does not have this
+	my @inspdver = <INST>;
+	close INST;
+	foreach (@inspdver) {
+	    $client_version_full = $1 if m/^(\d+\.\d+\.\d+)\S*\s+.*RDBMS/;
+	    next unless $::opt_v
+		or 	m/RDBMS/i	or m/PL.SQL/i
+		or 	m/Precomp/i	or m/Pro\*C/i;
+	    print $_;
+	}
+    }
+    if (!$client_version_full) {
+	print "I'm having trouble finding your Oracle version number\n"
+	    unless $force_version;
+	if ( $OH =~ m![^\d\.]((?:8|9|10)\.\d+\.\d+)! ) { #decode it from $OH if possible
+	    $client_version_full = $1;
+	}
+	elsif ( "$OH/" =~ m!\D(8|9|10)(\d)(\d?)\D!) { # scary but handy
+	    $client_version_full = join ".", $1, $2, ($3||'0');
+	}
+    }
+
+    if ($force_version && $force_version ne $client_version_full) {
+	print "Forcing Oracle version to be treated as $force_version\n";
+	$client_version_full = $force_version;
+    }
+
+    if ($client_version_full && $client_version_full !~ m/^(7|8|9|1\d)\.\d+/
+    ) {
+	print "Oracle version seems to be $client_version_full but that looks wrong so I'll ignore it.\n";
+	$client_version_full = "";
+    }
+
+    if (!$client_version_full) {
+	$client_version_full = "8.0.0.0";
+        print qq{
+WARNING: I could not determine Oracle client version so I'll just
+default to version $client_version_full. Some features of DBD::Oracle may not work.
+Oracle version based logic in Makefile.PL may produce erroneous results.
+You can use "perl Makefile.PL -V X.Y" to specify a your client version.
+};
+    }
+
+    # hack up a simple floating point form of the version: 8.1.6.2 => 8.1
+    ($client_version = $client_version_full) =~ s/^(\d+\.\d+).*/$1/;
+
+    print "Oracle version $client_version_full ($client_version)\n";
+
+    return $client_version unless wantarray;
+    return ($client_version, $client_version_full);
 }
 
 
