@@ -1,7 +1,7 @@
-=head1 README.vms for DBD::Oracle
+=head1 README.vms for DBI and DBD::Oracle
 
 Date: Wed, 15 Sep 2004 11:44:09 +0300
-From: Jakob Snoer <jakob.snoer@nordea.com>
+From: Jakob Snoer <jakob.snoer@dk.ibm.com>
 
 This is related to Oracle RDBMS 9.2 and later, since Oracle 
 made fundamental changes to oracle installation requirements 
@@ -13,7 +13,7 @@ requiring an ODS-5 disk to install Oracle Home on instead of
 the good old ODS-2.
 
 Another major change is the introduction of an Oracle generated
-logical table for oracle logical names like ORA_ROOT and all
+logical name table for oracle logical names like ORA_ROOT and all
 its derivatives like ORA_PROGINT etc. And that this logical name
 table is inserted in LNM$FILE_DEV in LNM$PROCESS_DIRECTORY.
 
@@ -40,16 +40,19 @@ logical names, but if not told otherwise by the user does it
 in the first table in above list, and not as one would normally
 expect in the process table.
 
-Installing DBI and DBD::Oracle has influence upon this since it
-tests a new feature in the Oracle RDBMS: UTF8 and UTF16 character
-set functionallity, and in order to do this it sets and unsets
-the related environment variables NLS_NCHAR and NLS_LANG.
+Installing DBI and DBD::Oracle has influence upon this since in
+both cases a few enviroment variables are read or set in the
+test phase.
+For DBI it is the logical SYS$SCRATCH, which is a JOB logical.
+For DBD-Oracle it is when testing a new feature in the Oracle 
+RDBMS: UTF8 and UTF16 character set functionallity, and in order 
+to do this it sets and unsets the related environment variables 
+NLS_NCHAR and NLS_LANG.
 
-If one is not careful this changes the values set in
-the oracle table - and in the worst case stays active until the
-next major system reset. It can also be a very hard error to
-track down since it happens in a place where one normally never
-looks.
+If one is not careful this changes the values set in the oracle 
+table - and in the worst case stays active until the next major 
+system reset. It can also be a very hard error to track down 
+since it happens in a place where one normally never looks.
 
 Furthermore, it is very possibly that some or all of the UTF tests
 fails, since if one have a variable like NLS_LANG in his process
@@ -57,7 +60,8 @@ table, then even though 'mms test' sets it in the wrong table
 it is not invoked as it is overruled by the process logical...
 
 The way to ensure that no logicals are set in the oracle table and
-that the UTF tests get the best environment to test in, use the
+that the UTF tests get the best environment to test in, and that 
+DBI correctly translates the SYS$SCRATCH logical, use the
 logical
 
       PERL_ENV_TABLES
@@ -65,11 +69,12 @@ logical
 to ensure that PERL's behavior is to leave the oracle table alone and
 use the process table instead:
 
-      $ DEFINE PERL_ENV_TABLES LNM$PROCESS
+      $ DEFINE PERL_ENV_TABLES LNM$PROCESS, LNM$JOB
 
 This tells PERL to use the LNM$PROCESS table as the default place to
 set and unset variables so that only the perl users environment
-is affected when installing DBD::Oracle.
+is affected when installing DBD::Oracle, and ensures that the
+LNM$JOB table is read when SYS$SCRATCH is to be translated.
 
 PERL_ENV_TABLES is well documented in the PERLVMS man page.
 

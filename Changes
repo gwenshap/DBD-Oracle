@@ -1,3 +1,7 @@
+=head1 Changes in DBD-Oracle 1.17 (svn rev NNN)
+
+  Changed README.vms re logical name tables thanks to Jakob Snoer.
+
 =head1 Changes in DBD-Oracle 1.16 (svn rev 515)   22nd October 2004
 
   NOTE:
