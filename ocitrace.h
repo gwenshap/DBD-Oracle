@@ -8,7 +8,7 @@
 
 #define DBD_OCI_TRACEON	(DBIS->debug >= 6)
 #define DBD_OCI_TRACEFP	(DBILOGFP)
-#define OciTp		("OCI")			/* OCI Trace Prefix */
+#define OciTp		("\tOCI")		/* OCI Trace Prefix */
 #define OciTstr(s)	((s) ? (text*)(s) : (text*)"<NULL>")
 #define ul_t(v)		((unsigned long)(v))
 #define pul_t(v)	((unsigned long *)(v))

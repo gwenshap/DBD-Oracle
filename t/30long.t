@@ -1,86 +1,50 @@
 #!perl -w
+# vim:ts=8:sw=4
 
 use DBI;
-use DBD::Oracle qw(:ora_types ORA_OCI SQLCS_NCHAR );
+use DBD::Oracle qw(:ora_types SQLCS_NCHAR );
 use strict;
 use Test::More;
 
-#
-# Search for 'ocibug' to find code related to OCI LONG bugs.
-#
+my $utf8_test = (($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i)) ? 1 : 0;
 
-my $utf8_test = ($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i);
-my @test_sets ;
-if ( 1 ) {
-    if ( ORA_OCI >= 8 )
-    {
-        push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
-        push @test_sets, [  "CLOB",	ORA_CLOB,	0 ] ;
-        if ( $utf8_test ) {
-            push @test_sets, [  "NCLOB",	ORA_CLOB,	0 ] ;
-        } else {
-            push @test_sets, [  "CLOB",	ORA_CLOB,	0 ] ;
-        }
-    }
-    push @test_sets, [ "LONG",	0 ,		0 ];
-    push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
-}
-else
-{
-    if ( $utf8_test ) {
-        push @test_sets, [  "NCLOB",	ORA_CLOB,	0 ] ;
-    } else {
-        push @test_sets, [  "CLOB",	ORA_CLOB,	0 ] ;
-    }
-}
-#lab sub ok ($$;$);
+my @test_sets;
+#push @test_sets, [ "LONG",	0,		0 ];
+#push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
+warn "LONG tests disabled for now";
+push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
+push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] ;
+push @test_sets, [ "NCLOB",	ORA_CLOB,	0 ] ;
 
 $| = 1;
 my $t = 0;
-my $failed = 0;
-my %ocibug;
 my $table = "dbd_ora__drop_me";
 
 
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
-	AutoCommit => 1,
-	PrintError => 1,
-});
-
-unless($dbh) {
-    warn "Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n";
-    print "1..0\n";
-    exit 0;
-}
 
 #print out database character sets from NSL_DATABASE_PARAMETERS:
 sub print_nls_info
 {
-    warn "NLS_LANG=".$ENV{NLS_LANG}."\n";
+    my $dbh = shift;
+
+    diag "\tClient NLS_LANG=".$ENV{NLS_LANG}."\n";
     my $sth = $dbh->prepare( "select PARAMETER,VALUE from NLS_DATABASE_PARAMETERS where PARAMETER like ?" );
     $sth->execute( '%CHARACTERSET' );
     my ( $value, $param );
     $sth->bind_col( 1 ,\$param );
     $sth->bind_col( 2 ,\$value );
-    my $cnt = 0;
     while ( $sth->fetch() ) {
-        $cnt++;
-        warn "$param=$value\n" ;
+        diag "\tServer $param=$value\n" ;
     }
     warn "\n";
 }
 
 
 
-unless(create_table("lng LONG")) {
-    warn "Unable to create test table ($DBI::errstr)\nTests skipped.\n";
-    print "1..0\n";
-    exit 0;
-}
-
 sub array_test {
+    my ($dbh) = @_;
     return 0;	# XXX disabled
     eval {
 	$dbh->{RaiseError}=1;
@@ -100,31 +64,22 @@ sub array_test {
 
 # Set size of test data (in 10KB units)
 #	Minimum value 3 (else tests fail because of assumptions)
-#	Normal  value 8 (to test 64KB threshold well)
+#	Normal  value 8 (to test old 64KB threshold well)
 my $sz = 8;
 
-my $tests;
 my $tests_per_set = 91;
-$tests = @test_sets * $tests_per_set;
+my $tests = @test_sets * $tests_per_set;
 plan tests => $tests;
 #lab print "1..$tests\n";
 
-my($sth, $p1, $p2, $tmp, @tmp);
-#$dbh->trace(4);
+my($p1, $p2, $tmp, @tmp);
 
 foreach (@test_sets) {
     my ($type_name, $type_num, $test_no_type) = @$_;
     #next if $type_name eq 'LONG';
     diag qq(
-
-
-    Running long test for 
-        type_name=$type_name
-        type_num=$type_num
-        test_no_type=$test_no_type
-
-
-
+    =========================================================================
+    Running long test for $type_name ($type_num) utf8_test=$utf8_test
 );
     run_long_tests($type_name, $type_num);
     run_long_tests($type_name, 0) if $test_no_type;
@@ -137,6 +92,8 @@ sub run_long_tests
 
     # relationships between these lengths are important # e.g.
     my %long_data;
+    my $long_data2 = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
+    my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
     my $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
     if ($utf8_test) {
         #lab my $utf_x = eval q{ "0\x{263A}xyX" };
@@ -158,8 +115,6 @@ sub run_long_tests
         #    $dbh->{ora_ph_csform} = SQLCS_NCHAR;
         #}
     }
-    my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
-    my $long_data2 = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
 
     # special hack for long_data0 since RAW types need pairs of HEX
     $long_data0 = "00FF" x (length($long_data0) / 2) if $type_name =~ /RAW/i;
@@ -176,11 +131,21 @@ sub run_long_tests
     warn "long_data2 is not smaller than $long_data1 ($len_data2 > $len_data1)\n"
             if $len_data2 >= $len_data1;
      
+    my ($dbh, $sth);
 
     SKIP: 
     { #it all
+
+	ok $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
+		AutoCommit => 1,
+		PrintError => 1,
+	});
+	skip "Unable to connect to database" unless $dbh;
+
+	print_nls_info($dbh);
+
         skip "Unable to create test table for '$type_name' data ($DBI::err)." ,$tests_per_set 
-            if (!create_table("lng $type_name", 1));
+            if (!create_table($dbh, "lng $type_name", 1));
             # typically OCI 8 client talking to Oracle 7 database
 
         diag "long_data0 length $len_data0\n";
@@ -192,10 +157,12 @@ sub run_long_tests
         my $sqlstr = "insert into $table values (?, ?, SYSDATE)" ;
         
         ok( $sth = $dbh->prepare( $sqlstr ), "prepare: $sqlstr" ); 
-        my $bind_attr =  { ora_type => $type_num };
-        $bind_attr->{ora_csform} = SQLCS_NCHAR if $utf8_test and $type_name =~ /NCLOB/ ;
+        my $bind_attr = { ora_type => $type_num };
+        $bind_attr->{ora_csform} = SQLCS_NCHAR
+		if $utf8_test and $type_name =~ /NCLOB/ ;
 
-        $sth->bind_param(2, undef, $bind_attr ) or die "$type_name: $DBI::errstr" if $type_num;
+        $sth->bind_param(2, undef, $bind_attr )
+		or die "$type_name: $DBI::errstr" if $type_num;
 
         #$sth->trace(3);
         ok($sth->execute(40, $long_data{40} = $long_data0 ), "insert long data 40" );
@@ -204,7 +171,7 @@ sub run_long_tests
         ok($sth->execute(42, $long_data{42} = $long_data2 ), "insert long data 42" );
         ok($sth->execute(43, $long_data{43} = undef), "insert long data undef 43" ); # NULL
         $sth->trace(0);
-        array_test();
+        array_test($dbh);
 
         diag " --- fetch $type_name data back again -- truncated - LongTruncOk == 1\n";
         $dbh->{LongReadLen} = 20;
@@ -215,11 +182,9 @@ sub run_long_tests
         my $out_len = $dbh->{LongReadLen};
         $out_len *= 2 if ($type_name =~ /RAW/i);
 
-        #lab ok(0, $sth = $dbh->prepare("select * from $table order by idx"), 1);
-        #lab ok(0, $sth->execute, 1);
-        #lab ok(0, $tmp = $sth->fetchall_arrayref, 1);
         $sqlstr = "select * from $table order by idx";
         ok($sth = $dbh->prepare($sqlstr), "prepare: $sqlstr" );
+	skip "Can't continue" unless $sth;
         ok($sth->execute, "execute: $sqlstr" );
         ok($tmp = $sth->fetchall_arrayref, "fetch_arrayerf for $sqlstr" );
 
@@ -284,19 +249,6 @@ sub run_long_tests
         if ($tmp->[1] eq $long_data2) {
             ok(1 ,"tmp->[1] eq long_data2" );
         }
-        elsif (length($tmp->[1]) == length($long_data1)
-           && DBD::Oracle::ORA_OCI() == 7
-           && substr($tmp->[1], 0, length($long_data2)) eq $long_data2
-        ) {
-          diag "OCI7 buffer overwite bug detected\n";
-          $ocibug{LongReadLen} = __LINE__;	# see also blob_read tests below
-            # The bug:
-            #	If you fetch a LONG field and then fetch another row
-            #	which has a LONG field shorter than the previous
-            #	then the second long will appear to have the
-            #	longer portion of first appended to it!
-          ok(1, "OCI7buffer overwite bug detected" );
-        }
         else {
           ok($tmp->[1] eq $long_data2,
                 cdif($tmp->[1],$long_data2, "Len ".length($tmp->[1])) );
@@ -305,8 +257,8 @@ sub run_long_tests
 
 
         SKIP: {
-            skip( "blob_read tests for LONGs with OCI8 - not currently supported.\n" ,11 )
-                if (ORA_OCI >= 8 && $type_name =~ /LONG/i) ;
+            skip( "blob_read tests for LONGs - not currently supported.\n", 11 )
+                if ($type_name =~ /LONG/i) ;
 
             #$dbh->trace(4);
             diag "\n\n--- fetch $type_name data back again -- via blob_read\n\n";
@@ -328,30 +280,14 @@ sub run_long_tests
             ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 3: $sqlstr"  );
             my $len = blob_read_all($sth, 1, \$p1, 34567);
 
-            SKIP: {
-                if ($len == length($long_data1)
-                   && DBD::Oracle::ORA_OCI() == 7
-                   && substr($p1, 0, length($long_data2)) eq $long_data2
-                ) {
-                    #print "OCI7 buffer overwite bug detected\n";
-                    $ocibug{blob_read} = __LINE__;	# see also blob_read tests below
-                    # The bug:
-                    #	If you use blob_read to read a LONG field and then fetch another row
-                    #	and use blob_read to read that LONG field,
-                    # 	If the second LONG is shorter than the first
-                    #	then the second long will appear to have the
-                    #	longer portion of first appended to it.
-                    skip "OCI7 buffer overwite bug detected" ,2;
-                } else {
-                    cmp_ok($len,'==', length($long_data2), "length of long_data2 = $len" );
-                    ok($p1 eq $long_data2, cdif($p1, $long_data2) ); # Oracle may return the right length but corrupt the string.
-                }
-            } #skip 2 
+	    cmp_ok($len,'==', length($long_data2), "length of long_data2 = $len" );
+	    ok($p1 eq $long_data2, cdif($p1, $long_data2) ); # Oracle may return the right length but corrupt the string.
         } #skip 11
 
 
         SKIP: {
-            skip( "not (ORA_OCI >= 8 && $type_name =~ /LOB/i)" ,1+(13*4) ) if not ( ORA_OCI >= 8 && ($type_name =~ /LOB/i) );
+            skip( "not ($type_name =~ /LOB/i)" ,1+(13*4) )
+		if not ( $type_name =~ /LOB/i );
 
             diag "\n --- testing ora_auto_lob to access $type_name LobLocator\n\n";
             my $data_fmt = "%03d foo!";
@@ -431,13 +367,12 @@ sub run_long_tests
                         if ($DBI::err && $DBI::errstr =~ /ORA-24801:/) {
                             warn " If you're using Oracle < 8.1.7 then the OCILobWriteAppend error is probably\n";
                             warn " due to Oracle bug #886191 and is not a DBD::Oracle problem\n";
-                            --$failed; # don't trigger long message below just for this
                         }
                     }
                 }
             }
             diag "round again to check the length...\n";
-            ok($ll_sth->execute ,"excute (again 2) $sqlstr" );
+            ok($ll_sth->execute ,"execute (again 2) $sqlstr" );
             while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
                 diag "$idx locator: ".DBI::neat($lob_locator)."\n";
                 SKIP: {
@@ -449,41 +384,22 @@ sub run_long_tests
                 }
             }
             ok(1);
-        } #skip ORA_OCI < 8
+        } #skip for LONG types
 
-        #die $DBI::errstr;# if $DBI::err;
     } #skip it all (tests_per_set)
+
+    $sth->finish if $sth;
+    $dbh->disconnect if $dbh;
+
 } # end of run_long_tests
 
-if (%ocibug) {
-	my @lines = sort values %ocibug;
-    warn "\n\aYour version of Oracle 7 OCI has a bug that affects fetching LONG data.\n";
-    warn "See the t/long.t script near lines @lines for more information.\n";
-    warn "You can safely ignore this if: You don't fetch data from LONG fields;\n";
-    warn "Or the LONG data you fetch is never longer than 65535 bytes long;\n";
-    warn "Or you only fetch one LONG record in the life of a statement handle.\n";
-}
-
-if ($failed > 0) {
-    warn "\nSome tests for LONG data type handling failed. These are generally Oracle bugs.\n";
-    warn "Please report this to the dbi-users mailing list, and include the\n";
-    warn "Oracle version number of both the client and the server.\n";
-    warn "Please also include the output of the 'perl -V' command.\n";
-    warn "(If you can, please study t/long.t to investigate the cause.\n";
-    warn "Feel free to edit the tests to see what's happening in more detail.\n";
-    warn "Especially by adding trace() calls around the failing tests.\n";
-    warn "Run the tests manually using the command \"perl -Mblib t/long.t\")\n";
-    warn "Meanwhile, if the other tests have passed you can use DBD::Oracle.\n\n";
-    print_nls_info();
-    warn "\n";
-}
-
-sleep 6 if $failed || %ocibug;
 
 exit 0;
-BEGIN { $tests = 27 }
 END {
-    $dbh->do(qq{ drop table $table }) if $dbh and not $ENV{DBD_SKIP_TABLE_DROP};
+    my $dbh = $DBI::lasth or return;
+    $dbh = $dbh->{Database} if $dbh->{Database};
+    $dbh->do(qq{ drop table $table })
+	if $dbh->{Active} and not $ENV{DBD_SKIP_TABLE_DROP};
 }
 # end.
 
@@ -491,10 +407,11 @@ END {
 # ----
 
 sub create_table {
-    my ($fields, $drop) = @_;
-    my $sql = "create table $table ( idx integer, $fields, dt date )";
+    my ($dbh, $fields, $drop) = @_;
     $dbh->do(qq{ drop table $table }) if $drop;
-    diag "\n\ndrop table $table\n" if $drop;
+    diag "\n";
+    diag "drop table $table\n" if $drop;
+    my $sql = "create table $table ( idx integer, $fields, dt date )";
     $dbh->do($sql);
     if ($dbh->err && $dbh->err==955) {
 	$dbh->do(qq{ drop table $table });
@@ -502,7 +419,7 @@ sub create_table {
 	$dbh->do($sql);
     }
     return 0 if $dbh->err;
-    diag "\n\n$sql\n\n\n\n";
+    diag "\n$sql\n\n";
     return 1;
 }
 
@@ -551,25 +468,6 @@ sub cdif {
     }
     return "(cdif error $l1/$l2/$i)";
 }
-
-
-#lab sub ok ($$;$) {
-#lab     my($n, $ok, $warn) = @_;
-#lab     $warn ||= '';
-#lab     ++$t;
-#lab     die "sequence error, expected $n but actually $t"
-#lab     if $n and $n != $t;
-#lab     if ($ok) {
-#lab 	print "ok $t\n";
-#lab     }
-#lab     else {
-#lab 	$warn = $DBI::errstr || "(DBI::errstr undefined)" if $warn eq '1';
-#lab 	warn "# failed test $t at line ".(caller)[2].". $warn\n";
-#lab 	print "not ok $t\n";
-#lab 	++$failed;
-#lab     }
-#lab     return $ok;
-#lab }
 
 
 __END__

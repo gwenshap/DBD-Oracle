@@ -673,7 +673,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
     OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, 
 			     lobl, &loblen, status);
     if (status != OCI_SUCCESS) {
-	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength");
+	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength ora_blob_read_mb_piece");
 	sv_set_undef(dest_sv);	/* signal error */
 	return 0;
     }
@@ -759,7 +759,7 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 
     OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, lobl, &loblen, status);
     if (status != OCI_SUCCESS) {
-	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength");
+	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength ora_blob_read_piece");
 	sv_set_undef(dest_sv);	/* signal error */
 	return 0;
     }
@@ -850,7 +850,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
     /* and in terms of characters for CLOBs				*/
     OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc, &loblen, status);
     if (status != OCI_SUCCESS) {
-	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength");
+	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength fetch_func_autolob");
 	return 0;
     }
     loblen_is_chars = (fbh->ftype == 112);
@@ -1006,6 +1006,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	D_imp_drh_from_dbh ;
     UV	long_readlen;
     ub4 num_fields;
+    int num_errors = 0;
     int has_longs = 0;
     int est_width = 0;		/* estimated avg row width (for cache)	*/
     int i = 0;
@@ -1242,7 +1243,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		imp_sth->errhp, status);
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
-	    return 0;
+	    ++num_errors;
 	}
     }
     else {				/* set cache size by memory	*/
@@ -1259,7 +1260,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status,
 		"OCIAttrSet OCI_ATTR_PREFETCH_ROWS/OCI_ATTR_PREFETCH_MEMORY");
-	    return 0;
+	    ++num_errors;
 	}
     }
 
@@ -1288,36 +1289,47 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    fb_ary->arcode, OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status, "OCIDefineByPos");
-	    return 0;
+	    ++num_errors;
 	}
 
 #ifdef OCI_ATTR_CHARSET_ID /* lab: without this, it BREAKS! 
                               but we will use the charsetid we got at 
                               startup... */
-        if ( 0 || (fbh->dbtype == 1) ) {
+/* does not seem to be needed, and the OCIAttrSet OCI_ATTR_CHARSET_FORM
+	was failing anyway in my tests using Oracle 9.0.1
+*/
+        if ( (fbh->dbtype == 1) ) {
 #define USE_NLS_NCHAR
 #ifdef USE_NLS_NCHAR
             ub2 csid = ( fbh->csform == 2 ) ? ncharsetid : charsetid; 
-            /* ub2 csform = ((fbh->csform == 2) && cs_is_utf8) ? fbh->csform : 1 ; */
             ub2 csform = fbh->csform;
+            /* ub2 csform = ((fbh->csform == 2) && cs_is_utf8) ? fbh->csform : 1 ; */
             /* ub2 csform = (fbh->csform == 2) ? fbh->csform : 1 ; */
 #else
             ub2 csid = fbh->csid;  
             ub2 csform = fbh->csform;
 #endif
-            if (0 || DBIS->debug >= 2 )
+            if (DBIS->debug >= 3)
                PerlIO_printf(DBILOGFP, "    calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
 
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csid, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
+	    if (status != OCI_SUCCESS) {
+		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_ID");
+		++num_errors;
+	    }
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csform, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
+	    if (status != OCI_SUCCESS) {
+		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");
+		++num_errors;
+	    }
         }
 #endif
 
 	if (fbh->ftype == 108) {
 	    oci_error(h, NULL, OCI_ERROR, "OCIDefineObject call needed but not implemented yet");
-	    return 0;
+	    ++num_errors;
 	}
 
     }
@@ -1327,7 +1339,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	"    dbd_describe'd %d columns (row bytes: %d max, %d est avg, cache: %d)\n",
 	(int)num_fields, imp_sth->t_dbsize, imp_sth->est_width, imp_sth->cache_rows);
 
-    return 1;
+    return (num_errors>0) ? 0 : 1;
 }
 
 
