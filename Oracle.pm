@@ -1451,7 +1451,9 @@ See L</table_info()> for more detailed information.
 
 =head1 Unicode
 
-DBD::Oracle now supports Unicode UTF-8.
+DBD::Oracle now supports Unicode UTF-8. There are, however, a number
+of issues you should be aware of, so please read all this section
+carefully.
 
 In this section we'll discuss "Perl and Unicode", then "Oracle and
 Unicode", and finally "DBD::Oracle and Unicode".
@@ -1464,7 +1466,7 @@ many misconceptions about Unicode and you may be holding some of them.
 
 Perl began implementing Unicode with version 5.6, but the implementaion
 was not finalized until version 5.8 and later. If you plan to use Unicode
-you are strongly urged to use perl 5.8.2 or later and to I<carefully> read
+you are I<strongly> urged to use perl 5.8.2 or later and to I<carefully> read
 the perl documention on Unicode:
 
    perldoc perluniintro    # in perl 5.8 or later
@@ -1521,6 +1523,12 @@ For example:
    NLS_LANG=AMERICAN_AMERICA.AL32UTF8
    NLS_NCHAR=UTF8
    NLS_NCHAR=AL32UTF8
+
+Oracle 8 client libraries have a number of bugs related to character
+set handling, especially when connected to an Oracle 9+ server.
+For this reason a number of DBD::Oracle tests are disabled when
+using an Oracle 8 client. If you wish to use Unicode, I recommend
+upgrading client and server to Oracle 9 or later.
 
 =head2 Oracle UTF8 is not UTF-8
 
