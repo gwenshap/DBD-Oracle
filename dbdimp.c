@@ -391,8 +391,6 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                     return 0;
                 }
             }
-#define LAB_DEBUG 1
-#if LAB_DEBUG
 #ifdef SKIP_THIS
         PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"UTF8\") returns %d\n", 
                       OCINlsCharSetNameToId(imp_drh->envhp, "UTF8") );
@@ -411,7 +409,6 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                       ); */
             if ( ! stat ) cs_is_utf8 = ( charsetid == utf8_csid );
         }
-#endif
 
 #else /* (the old way) NEW_OCI_INIT */
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
