@@ -4,7 +4,10 @@
 # vim: ts=8:sw=4
 
 BEGIN { $^W = 1 }
-BEGIN { require 5.004 }
+
+# perl5.5 could be supported with some work.
+# If you need it, then do the work yourself and send me a diff. Thanks.
+BEGIN { require 5.006 }
 
 use ExtUtils::MakeMaker 5.16, qw(&WriteMakefile $Verbose);
 use Getopt::Long;
