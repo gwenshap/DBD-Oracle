@@ -224,6 +224,8 @@ extern ub2 al16utf16_csid;
 
 int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
 
+/* XXX CS_IS_UTF8 shouldn't include al16utf16_csid */
+/* or else should be renamed CS_IS_UTF. Perhaps we need two macros */
 #define CS_IS_UTF8( cs ) \
    (  ( cs == utf8_csid ) \
 	|| ( cs == al32utf8_csid ) \

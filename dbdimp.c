@@ -532,7 +532,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 
 #ifndef NEW_OCI_INIT /* have to get charsetid & ncharsetid the old way */
-#ifdef OCI_ATTR_ENV_CHARSET_ID /* its not there in 8.1.7 */
+#ifdef OCI_ATTR_ENV_CHARSET_ID	/* Oracle 9.0+ */
     OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &charsetid, (ub4)0 ,
 			OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
     if (status != OCI_SUCCESS) {
@@ -545,6 +545,9 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet. Failed to get ncharset id.");
 	return 0;
     }
+#else				/* Oracle 8.x */
+    /* do we need to do something here for Oracle 8 */
+    /* or perhaps use charsetid & ncharsetid being 0 to disable code elsewhere */
 #endif 
 #endif
 
@@ -1555,9 +1558,9 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
         }
 
         /* set csform implicitly if sv is UTF8 and it is not already set and csid is uft8 */
-        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && cs_is_utf8 ) { 
-        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && CS_IS_UTF8(csid) ) { /* && column supports utf8? */ 
-        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && (CS_IS_UTF8(charsetid) || CS_IS_UTF8(ncharsetid)) ) {  
+        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && cs_is_utf8 )  
+        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && CS_IS_UTF8(csid) )  /* && column supports utf8? */ 
+        if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && (CS_IS_UTF8(charsetid) || CS_IS_UTF8(ncharsetid)) ) 
 
 #else
         /* lab: OK, perhaps we should leave this the way it was... and just document that it will not work
