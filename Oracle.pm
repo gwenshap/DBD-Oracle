@@ -904,7 +904,7 @@ If a C<port> number is not specified then the descriptor will try both
 port(s) are in use by typing "$ORACLE_HOME/bin/lsnrctl stat" on the server.
 
 
-=head2 Oracle environment variables
+=head2 Oracle Environment Variables
 
 Oracle typically uses two environment variables to specify default
 connections: ORACLE_SID and TWO_TASK.
@@ -949,10 +949,20 @@ that DBD::Oracle was compiled with.
 
 Discouraging the use of ORACLE_SID makes it easier on the users to see
 what is going on. (It's unfortunate that TWO_TASK couldn't be renamed,
-since it makes no sense to the end user, and doesn't have the ORACLE
-prefix).
+since it makes no sense to the end user, and doesn't have the ORACLE prefix).
 
 =head2 Connection Examples Using DBD::Oracle
+
+First, how to connect to a local database I<without> using a Listener:
+
+  $dbh = DBI->connect('dbi:Oracle:SID','scott', 'tiger');
+
+you can also leave the SID empty:
+
+  $dbh = DBI->connect('dbi:Oracle:','scott', 'tiger');
+
+in which case Oracle client code will use the ORACLE_SID environment
+variable (if TWO_TASK env var isn't defined).
 
 Below are various ways of connecting to an oracle database using
 SQL*Net 1.x and SQL*Net 2.x.  "Machine" is the computer the database is
@@ -969,26 +979,15 @@ B<Note:> Some of these formats may not work with Oracle 8+.
   #  - or -
   $dbh = DBI->connect('dbi:Oracle:','scott/tiger');
 
-works for SQL*Net 2.x, so does
+Refer to your Oracle documentatiion for valis values of TWO_TASK.
 
-  $ENV{TWO_TASK}    = 'T:Machine:SID';
-
-for SQL*Net 1.x connections.  For local connections you can use the
-pipe driver:
-
-  $ENV{TWO_TASK}    = 'P:SID';
-
-Here are some variations (not setting TWO_TASK)
-
-  $dbh = DBI->connect('dbi:Oracle:T:Machine:SID','username','password')
-
-  $dbh = DBI->connect('dbi:Oracle:','username@T:Machine:SID','password')
-
-  $dbh = DBI->connect('dbi:Oracle:','username@DB','password')
+Here are some variations (not setting TWO_TASK) in order of preference:
 
   $dbh = DBI->connect('dbi:Oracle:DB','username','password')
 
   $dbh = DBI->connect('dbi:Oracle:DB','username/password','')
+
+  $dbh = DBI->connect('dbi:Oracle:','username@DB','password')
 
   $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=ORCL;port=1521', 'scott/tiger', '')
 
