@@ -2464,6 +2464,13 @@ single-pass insertion of values with re-used sequence values
   $sth->execute;
   print "The id of the new record is $new_id\n";
 
+If you have many columns to bind you can use code like this:
+
+  @params = (... column values for record to be inserted ...);
+  $sth->bind_param($_, $params[$_-1]) for (1..@params);
+  $sth->bind_param_inout(@params+1, \my $new_id, 99);
+  $sth->execute;
+
 =head1 Returning A Recordset
 
 DBD::Oracle does not currently support binding a PL/SQL table (aka array)
