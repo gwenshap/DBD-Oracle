@@ -564,8 +564,8 @@ $opts{DEFINE} .= ' -DUTF8_SUPPORT' if ($] >= 5.006);
 # Use OCIEnvNlsCreate if available for best unicode behaviour
 $opts{DEFINE} .= ' -DNEW_OCI_INIT' if $client_version >= 9.2;
 $opts{DEFINE} .= ($os ne 'VMS')
-	? " -DORA_OCI_VERSION=\\\"$client_version\\\""
-	: " -DORA_OCI_VERSION=\"$client_version\"";
+	? " -DORA_OCI_VERSION=\\\"$client_version_full\\\""
+	: " -DORA_OCI_VERSION=\"$client_version_full\"";
 # force additional special behavior for oci 8.  For now, this means
 # providing OciLobWriteAppend
 # use this if, for some reason the default handling for this function

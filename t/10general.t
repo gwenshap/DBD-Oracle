@@ -89,7 +89,7 @@ ok($ora_oci);
 ok($ora_oci >= 8);
 is($ora_oci+0, int($ora_oci));
 my @ora_oci = split(/\./, $ora_oci,-1);
-is(@ora_oci, 2);
+ok(scalar @ora_oci >= 2);
 is($ora_oci[0], $ora_oci+0);
 
 exit 0;

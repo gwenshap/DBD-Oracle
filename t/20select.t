@@ -110,6 +110,24 @@ sub run_select_tests {
   
 } # end of run_select_tests
 
+
+if (0) { # UNION ALL causes Oracle 9 (not 8) to describe col1 as zero length
+# causing "ORA-24345: A Truncation or null fetch error occurred" error
+# Looks like an Oracle bug
+$dbh->trace(9);
+ok 0, $sth = $dbh->prepare(qq{
+	SELECT :HeadCrncy FROM DUAL
+	UNION ALL
+	SELECT :HeadCrncy FROM DUAL
+});
+$dbh->trace(0);
+ok 0, $sth->execute("EUR");
+ok 0, $tmp = $sth->fetchall_arrayref;
+use Data::Dumper;
+die Dumper $tmp;
+}
+
+
 # $dbh->{USER} is just there so it works for old DBI's before Username was added
 my @pk = $dbh->primary_key(undef, $dbh->{USER}||$dbh->{Username}, uc $table);
 print "primary_key($table): ".Dumper(\@pk);
