@@ -1,7 +1,8 @@
 /*
+   vim:sw=4:ts=8
    $Id: oci8.c,v 1.44 2004/02/26 01:32:01 timbo Exp $
 
-   Copyright (c) 1998,1999,2000,2001  Tim Bunce
+   Copyright (c) 1998-2004  Tim Bunce  Ireland
 
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file,
@@ -1029,6 +1030,16 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->dbtype, 0, OCI_ATTR_DATA_TYPE, status);
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->dbsize, 0, OCI_ATTR_DATA_SIZE, status);
+#ifdef OCI_ATTR_CHAR_USED
+        /* 0 means byte-length semantics, 1 means character-length semantics */
+	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->len_char_used, 0, OCI_ATTR_CHAR_USED, status);
+        /* OCI_ATTR_CHAR_SIZE: like OCI_ATTR_DATA_SIZE but measured in chars	*/
+	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->len_char_size, 0, OCI_ATTR_CHAR_SIZE, status);
+#endif
+#ifdef OCI_ATTR_CHARSET_ID
+	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->csid,   0, OCI_ATTR_CHARSET_ID,   status);
+	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->csform, 0, OCI_ATTR_CHARSET_FORM, status);
+#endif
 	/* OCI_ATTR_PRECISION returns 0 for most types including some numbers		*/
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->prec,   0, OCI_ATTR_PRECISION, status);
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->scale,  0, OCI_ATTR_SCALE,     status);
@@ -1051,6 +1062,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		/* FALLTHRU */
 	case  96:				/* CHAR		*/
 		fbh->disize = fbh->dbsize;
+#ifdef UTF8_SUPPORT
+		if (cs_is_utf8)
+		    fbh->disize = fbh->dbsize * 4;
+#endif
 		fbh->prec   = fbh->disize;
 		break;
 	case  23:				/* RAW		*/
@@ -1134,10 +1149,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		    warn(p, i, fbh->dbtype, "");
 		break;
 	}
-	if (DBIS->debug>=3)
+	if (DBIS->debug >= 3)
            PerlIO_printf(DBILOGFP,
-	        "    dbd_describe'd %d columns (row bytes: %d max, %d est avg, cache: %d)\n",
-	        (int)num_fields, imp_sth->t_dbsize, imp_sth->est_width, imp_sth->cache_rows);
+	        "    col %2d: dbtype %d, scale %d, prec %d, nullok %d, name %s\n"
+	         "          : dbsize %d, char_used %d, char_size %d, csid %d, csform %d, disize %d\n",
+		i, fbh->dbtype, fbh->scale, fbh->prec, fbh->nullok, fbh->name,
+		fbh->dbsize, fbh->len_char_used, fbh->len_char_size, fbh->csid, fbh->csform, fbh->disize);
 
 	if (fbh->ftype == 5)	/* XXX need to handle wide chars somehow */
 	    fbh->disize += 1;	/* allow for null terminator */

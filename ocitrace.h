@@ -1,4 +1,3 @@
-#ifdef OCI_V8_SYNTAX
 #ifndef DBD_OCI_TRACEON
 
 /* OCI functions "wrapped" to produce tracefile dumps (may be handy when giving
@@ -271,4 +270,3 @@
 	  oci_status_name(stat)),stat : stat
 
 #endif /* !DBD_OCI_TRACEON */
-#endif /* OCI_V8_SYNTAX */

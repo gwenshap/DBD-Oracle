@@ -56,11 +56,9 @@ typedef struct imp_fbh_st imp_fbh_t;
 
 struct imp_drh_st {
     dbih_drc_t com;		/* MUST be first element in structure	*/
-#ifdef OCI_V8_SYNTAX
     OCIEnv *envhp;
     int proc_handles;           /* If true, the envhp handle is owned by ProC
                                    and must not be freed. */
-#endif
     SV *ora_long;
     SV *ora_trunc;
     SV *ora_cache;
@@ -78,7 +76,6 @@ struct imp_dbh_st {
     SV *                shared_dbh_priv_sv ;
 #endif
 
-#ifdef OCI_V8_SYNTAX
     void *(*get_oci_handle) _((imp_dbh_t *imp_dbh, int handle_type, int flags));
     OCIEnv *envhp;		/* copy of drh pointer	*/
     OCIError *errhp;
@@ -87,13 +84,6 @@ struct imp_dbh_st {
     OCISession *authp;
     int proc_handles;           /* If true, srvhp, svchp, and authp handles
                                    are owned by ProC and must not be freed. */
-#else
-    Lda_Def ldabuf;
-    Lda_Def *lda;		/* points to ldabuf	*/
-    ub1     hdabuf[HDA_SIZE];
-    ub1     *hda;		/* points to hdabuf	*/
-#endif
-
     int RowCacheSize;
     int ph_type;		/* default oratype for placeholders */
     ub1 ph_csform;		/* default charset for placeholders */
@@ -110,7 +100,6 @@ typedef struct lob_refetch_st lob_refetch_t;
 struct imp_sth_st {
     dbih_stc_t com;		/* MUST be first element in structure	*/
 
-#ifdef OCI_V8_SYNTAX
     void *(*get_oci_handle) _((imp_sth_t *imp_sth, int handle_type, int flags));
     OCIEnv	*envhp;		/* copy of dbh pointer	*/
     OCIError	*errhp;		/* copy of dbh pointer	*/
@@ -121,10 +110,6 @@ struct imp_sth_st {
     U16		auto_lob;
     int  	has_lobs;
     lob_refetch_t *lob_refetch;
-#else
-    Cda_Def *cda;	/* normally just points to cdabuf below */
-    Cda_Def cdabuf;
-#endif
     int  	disable_finish; /* fetched cursors can core dump in finish */
 
     /* Input Details	*/
@@ -167,30 +152,27 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     int field_num;	/* 0..n-1		*/
 
     /* Oracle's description of the field	*/
-#ifdef OCI_V8_SYNTAX
     OCIParam  *parmdp;
     OCIDefine *defnp;
     void *desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4   desc_t;	/* OCI type of descriptorh		*/
     int  (*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
-    ub2  dbsize;
+
     ub2  dbtype;	/* actual type of field (see ftype)	*/
+    ub2  dbsize;
     ub2  prec;		/* XXX docs say ub1 but ub2 is needed	*/
     sb1  scale;
     ub1  nullok;
+    char *name;
+    SV   *name_sv;	/* only set for OCI8			*/
+    ub4  len_char_used;	/* OCI_ATTR_CHAR_USED			*/
+    ub2  len_char_size;	/* OCI_ATTR_CHAR_SIZE			*/
+    ub2  csid;		/* OCI_ATTR_CHARSET_ID			*/
+    ub1  csform;	/* OCI_ATTR_CHARSET_FORM		*/
+
+    sb4  disize;	/* max display/buffer size		*/
     char *bless;	/* for Oracle::OCI style handle data	*/
     void *special;	/* hook for special purposes (LOBs etc)	*/
-#else
-    sb4  dbsize;
-    sb2  dbtype;	/* actual type of field (see ftype)	*/
-    sb2  prec;
-    sb2  scale;
-    sb2  nullok;
-    sb4  cbufl;		/* length of select-list item 'name'	*/
-#endif
-    SV   *name_sv;	/* only set for OCI8			*/
-    char *name;
-    sb4  disize;	/* max display/buffer size		*/
 
     /* Our storage space for the field data as it's fetched	*/
     sword ftype;	/* external datatype we wish to get	*/
@@ -212,14 +194,10 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     IV  maxlen;		/* max possible len (=allocated buffer)	*/
     sb4 maxlen_bound;	/* and Oracle bind has been called	*/
 
-#ifdef OCI_V8_SYNTAX
     OCIBind *bndhp;
     void *desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4   desc_t;	/* OCI type of desc_h			*/
     ub4   alen;
-#else
-    ub2   alen;		/* effective length ( <= maxlen )	*/
-#endif
     ub2 arcode;
 
     sb2 indp;		/* null indicator			*/
@@ -257,8 +235,6 @@ int pp_rebind_ph_rset_in _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 #define OTYPE_IS_LONG(t)  ((t)==8 || (t)==24 || (t)==94 || (t)==95)
 
-#ifdef OCI_V8_SYNTAX
-
 int oci_error _((SV *h, OCIError *errhp, sword status, char *what));
 char *oci_stmt_type_name _((int stmt_type));
 char *oci_status_name _((sword status));
@@ -280,12 +256,6 @@ int dbd_rebind_ph_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 void * oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags);
 void * oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags);
-
-#else	/* is OCI 7 */
-
-void ora_error _((SV *h, Lda_Def *lda, int rc, char *what));
-
-#endif /* OCI_V8_SYNTAX */
 
 #include "ocitrace.h"
 

@@ -2,11 +2,7 @@
 
 DBISTATE_DECLARE;
 
-#ifdef OCI_V8_SYNTAX
 # define DBD_ORA_OCI 8
-#else
-# define DBD_ORA_OCI 7
-#endif
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle
 
@@ -129,15 +125,11 @@ ora_lob_write(dbh, locator, offset, data)
     amtp = data_len;
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (0 && SvUTF8(data) && !IN_BYTES) { amtp = sv_len_utf8(data); }  */
-#ifdef OCI_V8_SYNTAX
     OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset,
 	    bufp, (ub4)data_len, OCI_ONE_PIECE,
 	    NULL, NULL,
 	    0 /* indicate UTF8? */, SQLCS_IMPLICIT, status);
-#else
-    status = OCI_ERROR;
-#endif
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
 	ST(0) = &sv_undef;
@@ -163,7 +155,6 @@ ora_lob_append(dbh, locator, data)
     amtp = data_len;
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (0 && SvUTF8(data) && !IN_BYTES) { amtp = sv_len_utf8(data); }  */
-#ifdef OCI_V8_SYNTAX
 #ifdef OCI_HTYPE_DIRPATH_FN_CTX /* Oracle is >= 9.0 */
     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 			       &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
@@ -198,15 +189,6 @@ ora_lob_append(dbh, locator, data)
        }
     }
 #endif
-#else
-    status = OCI_ERROR;
-    /*
-     * make the error indicator a bit more generic, since this point
-     * just knows we don't have OIC_V8_SYNTAX.  May help during debug
-     */
-    oci_error(dbh, imp_dbh->errhp, status, "ora_lob_append");
-    ST(0) = &sv_undef;
-#endif
 
 
 void
@@ -228,7 +210,6 @@ ora_lob_read(dbh, locator, offset, length)
     bufp_len = SvLEN(dest_sv);	/* XXX bytes not chars? */
     bufp = SvPVX(dest_sv);
     amtp = length;	/* if utf8 and clob/nclob: in: chars, out: bytes */
-#ifdef OCI_V8_SYNTAX
     /* http://www.lc.leidenuniv.nl/awcourse/oracle/appdev.920/a96584/oci16m40.htm#427818 */
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (0 && SvUTF8(dest_sv) && !IN_BYTES) { amtp = sv_len_utf8(dest_sv); }  */
@@ -236,9 +217,6 @@ ora_lob_read(dbh, locator, offset, length)
 	    &amtp, (ub4)offset, /* offset starts at 1 */
 	    bufp, (ub4)bufp_len,
 	    0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
-#else
-    status = OCI_ERROR;
-#endif
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobRead");
 	dest_sv = &sv_undef;
@@ -258,11 +236,7 @@ ora_lob_trim(dbh, locator, length)
     D_imp_dbh(dbh);
     sword status;
     CODE:
-#ifdef OCI_V8_SYNTAX
     OCILobTrim_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, length, status);
-#else
-    status = OCI_ERROR;
-#endif
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobTrim");
 	ST(0) = &sv_undef;
@@ -280,11 +254,7 @@ ora_lob_length(dbh, locator)
     sword status;
     ub4 len = 0;
     CODE:
-#ifdef OCI_V8_SYNTAX
     OCILobGetLength_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &len, status);
-#else
-    status = OCI_ERROR;
-#endif
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobTrim");
 	ST(0) = &sv_undef;

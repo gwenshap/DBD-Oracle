@@ -7,6 +7,9 @@
   Fixed Oracle 10 version detection on clients thanks to Andy Hassall.
   Fixed suprious warning from Makefile.PL thanks to Marko Asplund.
   Fixed placeholder names to be case insensitive thanks to Charles Jardine.
+  Fixed some LOB test problems with Oracle 8.1.7 by implementing ora_lob_append
+    with OCILobGetLength() and OCILobWrite(), insted of buggy OCILobAppend(),
+    if the Oracle client version is < 9.0. Thanks to Jeff Urlwin.
 
   Changed some utf8 internals for LOBs.
 
@@ -14,8 +17,6 @@
     $dbh->{ora_ph_csform} = SQLCS_NCHAR;
     $sth->bind_param(..., { ora_csform => SQLCS_NCHAR });
     this is still a work-in-progress, help welcome.
-  Added alternative implementation for ora_lob_append for Oracle < 9.0
-    using OCILobGetLength() and OCILobWrite() thanks to Jeff Urlwin.
   Added $dbh->{ora_parse_error_offset} docs thanks to Andy Hassall.
   Added $dbh->reauthenticate($user,$pass) docs thanks to Andy Hassall.
   Corrected typo in ora_lob_read() example thanks to Johannes Wierny.
