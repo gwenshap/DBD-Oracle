@@ -247,6 +247,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     SV **use_proc_connection_sv;
     D_imp_drh_from_dbh;
 
+    imp_dbh->envhp = imp_drh->envhp;	/* will be NULL on first connect */
 
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
     shared_dbh_priv_svp = (DBD_ATTRIB_OK(attr)?hv_fetch((HV*)SvRV(attr), "ora_dbh_share", 13, 0):NULL) ;
@@ -297,10 +298,22 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     if (DBIS->debug >= 6 )
 	dump_env_to_trace();
 
+    if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_envhp", 9)) && SvOK(*svp)) {
+	if (!SvTRUE(*svp)) {
+	    imp_dbh->envhp = NULL; /* force new environment */
+	}
+	else {
+	    IV tmp;
+	    if (!sv_isa(*svp, "ExtProc::OCIEnvHandle"))
+		croak("ora_envhp value is not of type ExtProc::OCIEnvHandle");
+	    tmp = SvIV((SV*)SvRV(*svp));
+	    imp_dbh->envhp = (struct OCIEnv *)tmp;
+	}
+    }
+
     /* "extproc" dbname is special if "ora_context" attribute also given */
     if (strEQ(dbname,"extproc") && (svp=DBD_ATTRIB_GET_SVP(attr, "ora_context", 11))) {
 	IV tmp;
-	SV **envsvp;
 	SV **svcsvp;
 	SV **errsvp;
 	if (!svp)
@@ -312,13 +325,9 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	if (this_ctx == NULL)
 	    croak("ora_context referenced ExtProc value is NULL");
 	/* new */
-	if ((envsvp=DBD_ATTRIB_GET_SVP(attr, "ora_envhp", 9)) &&
-		(svcsvp=DBD_ATTRIB_GET_SVP(attr, "ora_svchp", 9)) &&
-		(errsvp=DBD_ATTRIB_GET_SVP(attr, "ora_errhp", 9))) {
-		if (!sv_isa(*envsvp, "ExtProc::OCIEnvHandle"))
-	   		croak("ora_envhp value is not of type ExtProc::OCIEnvHandle");
-		tmp = SvIV((SV*)SvRV(*envsvp));
-		imp_drh->envhp = (struct OCIEnv *)tmp;
+	if ((svcsvp=DBD_ATTRIB_GET_SVP(attr, "ora_svchp", 9)) &&
+	    (errsvp=DBD_ATTRIB_GET_SVP(attr, "ora_errhp", 9))
+	) {
 		if (!sv_isa(*svcsvp, "ExtProc::OCISvcHandle"))
 	   		croak("ora_svchp value is not of type ExtProc::OCISvcHandle");
 		tmp = SvIV((SV*)SvRV(*svcsvp));
@@ -330,19 +339,18 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	}
 	/* end new */
 	else {
-		status = OCIExtProcGetEnv(this_ctx, &imp_drh->envhp,
+		status = OCIExtProcGetEnv(this_ctx, &imp_dbh->envhp,
 			&imp_dbh->svchp, &imp_dbh->errhp);
 		if (status != OCI_SUCCESS) {
 		    oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCIExtProcGetEnv");
 		    return 0;
 		}
 	}
-	imp_dbh->envhp = imp_drh->envhp;
 	is_extproc = 1;
 	goto dbd_db_login6_out;
     }
 
-    if (!imp_drh->envhp || is_extproc) {
+    if (!imp_dbh->envhp || is_extproc) {
 	SV **init_mode_sv;
 	ub4 init_mode = OCI_OBJECT;	/* needed for LOBs (8.0.4)	*/
 	DBD_ATTRIB_GET_IV(attr, "ora_init_mode",13, init_mode_sv, init_mode);
@@ -355,8 +363,8 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 #ifdef SQL_SINGLE_RCTX
 	    /* Use existing SQLLIB connection. Do not call OCIInitialize(),	*/
 	    /* since presumably SQLLIB already did that.			*/
-	    status = SQLEnvGet(SQL_SINGLE_RCTX, &imp_drh->envhp);
-	    imp_drh->proc_handles = 1;
+	    status = SQLEnvGet(SQL_SINGLE_RCTX, &imp_dbh->envhp);
+	    imp_dbh->proc_handles = 1;
 #else
 	    status = OCI_ERROR;
 	    err_hint = "ProC connection reuse not available in this build of DBD::Oracle";
@@ -372,7 +380,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 
              size_t rsize = 0;
 
-	    imp_drh->proc_handles = 0;
+	    imp_dbh->proc_handles = 0;
 
 #ifdef NEW_OCI_INIT
 	    /* XXX recent oracle docs recommend using OCIEnvCreate() instead of	*/
@@ -399,7 +407,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                    PerlIO_printf(DBILOGFP,"NLS_LANG was not set or invalid, using ncharsetid=%d\n" ,utf8_csid ); 
             }
 
-            OCIEnvNlsCreate_log_stat( &imp_drh->envhp, OCI_DEFAULT, 0, NULL, NULL, NULL, 0, 0, charsetid, ncharsetid, status );
+            OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, NULL, NULL, NULL, 0, 0, charsetid, ncharsetid, status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
                     "OCIEnvNlsCreate. Check ORACLE_HOME and NLS settings etc.");
@@ -408,9 +416,9 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
                 
 
             /* get the possible utf8/16 character set ids */
-            utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "UTF8"); 
-            al32utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "AL32UTF8");
-            al16utf16_csid = OCINlsCharSetNameToId(imp_drh->envhp, "AL16UTF16");
+            utf8_csid = OCINlsCharSetNameToId(imp_dbh->envhp, "UTF8"); 
+            al32utf8_csid = OCINlsCharSetNameToId(imp_dbh->envhp, "AL32UTF8");
+            al16utf16_csid = OCINlsCharSetNameToId(imp_dbh->envhp, "AL16UTF16");
             if ( 0 || DBIS->debug >= 3 )  {
                 PerlIO_printf(DBILOGFP,"       utf8_csid=%d al32utf8_csid=%d al16utf16_csid=%d\n", 
                                               utf8_csid,   al32utf8_csid,   al16utf16_csid );
@@ -470,7 +478,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 		return 0;
 	    }
 
-	    OCIEnvInit_log_stat( &imp_drh->envhp, OCI_DEFAULT, 0, 0, status);
+	    OCIEnvInit_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, 0, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCIEnvInit");
 		return 0;
@@ -507,9 +515,6 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 		}
 	    }
 	}
-    }
-    else {
-	imp_dbh->envhp = imp_drh->envhp;
     }
 
     OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
@@ -601,6 +606,9 @@ dbd_db_login6_out:
     DBIc_ACTIVE_on(imp_dbh);	/* call disconnect before freeing	*/
     imp_dbh->ph_type = 1;	/* SQLT_CHR "(ORANET TYPE) character string" */
     imp_dbh->ph_csform = SQLCS_IMPLICIT;
+
+    if (!imp_drh->envhp)	/* cache first envhp info drh as future default */
+	imp_drh->envhp = imp_dbh->envhp;
 
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
     if (shared_dbh_ssv && !shared_dbh) {
