@@ -314,8 +314,12 @@ SKIP: {
 	  end if;
 	END;
     }) or skip("Can't create a function ($DBI::errstr)", 16);
-    my $sth = $dbh->prepare(qq{SELECT $func_name(?, ?) FROM DUAL});
-    ok(0, $sth);
+    my $sth = $dbh->prepare(qq{SELECT $func_name(?, ?) FROM DUAL}, {
+	# Oracle 8 describe fails with ORA-06553: PLS-561: charset mismatch
+	ora_check_sql => 0,
+    });
+    ok(0, $sth, "Can't prepare select from function ($DBI::errstr)");
+    skip("Can't select from function ($DBI::errstr)", 15) unless $sth;
     ok(0, $sth->bind_columns(\my $returnVal));
     for (1..2) {
 	ok(0, $sth->bind_param(1, "foo", { ora_csform => SQLCS_NCHAR }));

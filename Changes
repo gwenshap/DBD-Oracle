@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.16 (svn rev 505)   19th October 2004
+=head1 Changes in DBD-Oracle 1.16 (svn rev 509)   21st October 2004
 
   NOTE:
   This release has major changes to Unicode support. See below.

@@ -42,9 +42,10 @@ SKIP: {
 }
 
 END {
+    local($?, $!);
     eval {
-        local $dbh->{PrintError} = 0;
-	     drop_table($dbh) if $dbh and not $ENV{'DBD_SKIP_TABLE_DROP'};
+        local $dbh->{PrintError} = 0 if $dbh;
+	drop_table($dbh) if $dbh and not $ENV{'DBD_SKIP_TABLE_DROP'};
     };
 }
 

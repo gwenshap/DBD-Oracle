@@ -752,14 +752,14 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
     OCILobLocator *lobl = (OCILobLocator*)fbh->desc_h;
     sword ftype = fbh->ftype;
     sword status;
-    char *typename;
+    char *type_name;
 
     if (ftype == 112)
-    	typename = "CLOB";
+    	type_name = "CLOB";
     else if (ftype == 113)
-    	typename = "BLOB";
+    	type_name = "BLOB";
     else if (ftype == 114)
-    	typename = "BFILE";
+    	type_name = "BFILE";
     else {
 	oci_error(sth, imp_sth->errhp, OCI_ERROR,
 	"blob_read not currently supported for non-LOB types with OCI 8 "
@@ -783,7 +783,7 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	return 0;
     }
     if (ftype == 112 && csform == SQLCS_NCHAR)
-        typename = "NCLOB";
+        type_name = "NCLOB";
 
     /*
      * We assume our caller has already done the
@@ -821,7 +821,7 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	PerlIO_printf(DBILOGFP,
 	    "        blob_read field %d: ftype %d %s, offset %ld, len %lu."
 		    "LOB csform %d, len %lu, amtp %lu, (destoffset=%ld)\n",
-	    fbh->field_num+1, ftype, typename, offset, ul_t(len),
+	    fbh->field_num+1, ftype, type_name, offset, ul_t(len),
 	    csform, loblen, ul_t(amtp), destoffset);
 
     if (loblen > 0) {
