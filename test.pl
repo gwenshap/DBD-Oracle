@@ -202,7 +202,7 @@ sub test_leak {
     local($ps) = (-d '/proc') ? "ps -lp " : "ps -l";
     local($i) = 0;
     my $execute_sth = 100;
-    print "\nMemory leak test:".($skip_sth ? " (no prepare's)" : "")."\n";
+    print "\nMemory leak test: (execute $execute_sth):\n";
     while(++$i <= $count) {
 	&test2($execute_sth);
 	system("echo $i; $ps$$") if (($i % 10) == 1);

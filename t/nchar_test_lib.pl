@@ -68,7 +68,7 @@ sub wide_data
 # These are not safe for db's with US7ASCII
 #       [ "\x{A1}", "upside down bang" ],
 #       [ "\x{A2}", "cent char"        ],
-#       [ "\x{A3}", "brittish pound"   ],
+#       [ "\x{A3}", "british pound"    ],
     ];
 }
 sub extra_wide_rows
@@ -97,7 +97,7 @@ sub narrow_data 	# Assuming WE8ISO8859P1 or WE8MSWIN1252 character set
         [ "b",      "lowercase b"      ],
         [ chr(161), "upside down bang" ],
         [ chr(162), "cent char"        ],
-        [ chr(163), "brittish pound"   ],
+        [ chr(163), "british pound"    ],
     ];
 }
 
@@ -126,7 +126,14 @@ my $tdata_hr = {
 sub test_data
 {
     my ($which) = @_;
-    return $tdata_hr->{$which};
+    my $test_data = $tdata_hr->{$which} or die;
+    $test_data->{dump} = "DUMP(%s)";
+    if ($ENV{DBD_ORACLE_TESTLOB}) { # XXX temp. needs reworking
+	# Nvarchar -> Nclob and varchar -> clob
+	$test_data->{cols}[0][1] =~ s/varchar.*/CLOB/;
+        $test_data->{dump} = "DUMP(DBMS_LOB.SUBSTR(%s))";
+    }
+    return $test_data;
 }
 
 sub db_handle
@@ -226,6 +233,7 @@ sub insert_rows #1 + rows*2 +rows*ncols tests
 sub dump_table
 {
     my ( $dbh ,@cols ) = @_;
+return; # not needed now select_handle() includes a DUMP column
     my $table = table();
     my $colstr = '';
     foreach my $col ( @cols ) {
@@ -233,13 +241,11 @@ sub dump_table
         $colstr .= "dump($col)"
     }
     my $sql = "select $colstr from $table order by idx" ;
-    my $sth = $dbh->prepare( $sql );
     print "dumping $table\nprepared: $sql\n" ;
     my $colnum = 0;
-    my @data = ();;
-    $sth->execute();
+    my $data = eval { $dbh->selectall_arrayref( $sql ) } || [];
     my $cnt = 0;
-    while ( my $aref = $sth->fetchrow_arrayref() ) {
+    while ( my $aref = shift @$data ) {
         $cnt++;
         my $colnum = 0;
         foreach my $col ( @cols ) {
@@ -258,7 +264,7 @@ sub select_handle #1 test
     {
         $sql .= $$col[0] . ", ";
     }
-    $sql .= "DUMP(".$tdata->{cols}[0][0] . "), ";
+    $sql .= sprintf "$tdata->{dump}, ", $tdata->{cols}[0][0];
     $sql .= "dt from $table order by idx" ;
     my $h = $dbh->prepare( $sql );
     ok( $h ,"prepared: $sql" );
@@ -277,7 +283,8 @@ sub select_rows # 1 + numcols + rows * cols * 2
     my $table = table();
     my $trows = $tdata->{rows};
     my $tcols = $tdata->{cols};
-    my $sth = select_handle($dbh,$tdata);
+    my $sth = select_handle($dbh,$tdata)
+	or do { fail(); return };
     my @data = ();
     my $colnum = 0;
     foreach my $col ( @$tcols )
@@ -285,7 +292,7 @@ sub select_rows # 1 + numcols + rows * cols * 2
         ok( $sth->bind_col( $colnum+1 ,\$data[$colnum] ), "bind column " .$$tcols[$colnum][0] );
         $colnum++;
     }
-    my $dumpcol = "DUMP(" .$tdata->{cols}[0][0] .")";
+    my $dumpcol = sprintf $tdata->{dump}, $tdata->{cols}[0][0];
     #ok( $sth->bind_col( $colnum+1 ,\$data[$colnum] ),  "bind column DUMP(" .$tdata->{cols}[0][0] .")" );
     $sth->bind_col( $colnum+1 ,\$data[$colnum] );
     my $cnt = 0;
