@@ -154,11 +154,7 @@ ora_lob_write(dbh, locator, offset, data)
 	    &amtp, (ub4)offset,
 	    bufp, (ub4)data_len, OCI_ONE_PIECE,
 	    NULL, NULL,
-#ifdef SET_CHARSET_ID
-	    csid, csform , status );
-#else
-	    (ub2)0, csform , status );
-#endif
+	    (ub2)0, csform , status);
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
 	ST(0) = &sv_undef;
@@ -209,11 +205,7 @@ ora_lob_append(dbh, locator, data)
     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 			       &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
 			       NULL, NULL,
-#ifdef SET_CHARSET_ID
-			       csid, csform , status);
-#else
 			       (ub2)0, csform , status);
-#endif
     if (status != OCI_SUCCESS) {
        oci_error(dbh, imp_dbh->errhp, status, "OCILobWriteAppend");
        ST(0) = &sv_undef;
@@ -235,11 +227,7 @@ ora_lob_append(dbh, locator, data)
 			    &amtp, startp,
 			    bufp, (ub4)data_len, OCI_ONE_PIECE,
 			    NULL, NULL,
-#ifdef SET_CHARSET_ID
-			       csid, csform , status);
-#else
-			       (ub2)0, csform , status);
-#endif
+			    (ub2)0, csform , status);
        if (status != OCI_SUCCESS) {
 	  oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
 	  ST(0) = &sv_undef;
@@ -296,11 +284,7 @@ ora_lob_read(dbh, locator, offset, length)
     OCILobRead_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset, /* offset starts at 1 */
 	    bufp, (ub4)bufp_len,
-#ifdef SET_CHARSET_ID
-	    0, 0, csid, csform, status);
-#else
 	    0, 0, (ub2)0, csform, status);
-#endif
 
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobRead");

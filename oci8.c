@@ -697,11 +697,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 
       OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 			  &amtp, (ub4)1 + offset, buffer, buflen,
-#ifdef SET_CHARSET_ID
-                          0, 0, csid ,csform ,status );
-#else
                           0, 0, (ub2)0 ,csform ,status );
-#endif
 			  /* lab  0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status); */
 
       if (dbis->debug >= 3)
@@ -801,16 +797,12 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
             sv_set_undef(dest_sv);	/* signal error */
             return 0;
         }
-        UTF8_FIXUP_CSID( csid ,"ora_blob_read_peice" );
+        UTF8_FIXUP_CSID( csid ,"ora_blob_read_piece" );
 #endif /* OCI_ATTR_CHARSET_ID */
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 	    &amtp, (ub4)1 + offset, bufp, buflen,
-#ifdef SET_CHARSET_ID
-		0, 0, csid, csform, status);
-#else
 		0, 0, (ub2)0 , csform, status);
-#endif
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
 		"       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu (cs form=%d, id=%d)\n",
@@ -946,12 +938,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
 	    &amtp, (ub4)1, SvPVX(dest_sv), buflen,
-#ifdef SET_CHARSET_ID
-	    0, 0, csid, csform, status);
-#else
 	    0, 0, (ub2)0, csform, status);
-#endif
-	    /* lab: 0, 0, (ub2)0, csform, status); */
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
 		"       OCILobRead field %d %s: csform %d, LOBlen %luc, LongReadLen %luc, BufLen %lub, Got %luc\n",
@@ -1305,7 +1292,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    ++num_errors;
 	}
 
-#ifdef OCI_ATTR_CHARSET_ID
+#ifdef OCI_ATTR_CHARSET_FORM
         if ( (fbh->dbtype == 1) ) { /*  && (fbh->csform == SQLCS_NCHAR) && CS_IS_UTF8(ncharsetid) ) { */
             /* ok... after doing what tim asked: setting SvUTF8 strictly based on csid 8bit Nchar test was broken
                and this currently effectively just sets Attrs to the values in fhb ignoring ncharsetid altogether 
@@ -1313,7 +1300,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
              */
             ub2 csid = ( fbh->csform == SQLCS_NCHAR ) ? ncharsetid : charsetid; /* fbh->csid; */  
             ub1 csform = fbh->csform;
-	    /* docs say must set OCI_ATTR_CHARSET_FORM before OCI_ATTR_CHARSET_ID */
             if (DBIS->debug >= 3)
                PerlIO_printf(DBILOGFP, "     calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csform, 
@@ -1322,16 +1308,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
                 oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");
                 ++num_errors;
             }
-#ifdef SET_CHARSET_ID
-            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csid, 
-                                 (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status );
-	    if (status != OCI_SUCCESS) {
-		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_ID");
-		++num_errors;
-	    }
-#endif
         }
-#endif /* OCI_ATTR_CHARSET_ID */
+#endif /* OCI_ATTR_CHARSET_FORM */
 
 	if (fbh->ftype == 108) {
 	    oci_error(h, NULL, OCI_ERROR, "OCIDefineObject call needed but not implemented yet");
@@ -1967,11 +1945,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
                 UTF8_FIXUP_CSID( csid, "post_execute_lobs" );
 #endif /* OCI_ATTR_CHARSET_ID */
 
-#ifdef SET_CHARSET_ID
-                fbh->csid = csid;
-#else
-                fbh->csid = 0;
-#endif
+                fbh->csid = csid; /* for information only */
                 fbh->csform = csform;
             }
 

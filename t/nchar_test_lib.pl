@@ -1,13 +1,20 @@
 use strict;
 use warnings;
 use Data::Dumper;
+use DBI;
 
 require utf8;
 
 # perl 5.6 doesn't define utf8::is_utf8()
-*utf8::is_utf8 = sub {
-    return 0; # XXX fortunately not needed for any tests
-} unless defined &{"utf8::is_utf8"};
+unless (defined &{"utf8::is_utf8"}) {
+    die "Can't run tests using Perl $] without DBI >= 1.38"
+	unless $DBI::VERSION >= 1.38;
+    *utf8::is_utf8 = sub {
+	my $v = DBI::neat(shift);
+	return 1 if $v =~ /^"/; # XXX ugly hack, sufficient here
+	return 0;
+    }
+}
 
 sub long_test_cols
 {
@@ -37,20 +44,30 @@ sub wide_data
         [ "\x{03}",   "control-C"        ], 
         [ "a",        "lowercase a"      ],
         [ "b",        "lowercase b"      ],
-        [ "\x{08A1}", "upside down bang" ],
-        [ "\x{08A2}", "cent char"        ],
-        [ "\x{08A3}", "brittish pound"   ],
+        [ "\x{A1}", "upside down bang" ],
+        [ "\x{A2}", "cent char"        ],
+        [ "\x{A3}", "brittish pound"   ],
         [ "\x{263A}", "smiley face"      ],
     ];
 }
 sub extra_wide_rows
 {
+   # Non-BMP characters require use of surrogates with UTF-16
+   # So U+10304 becomes U+D800 followed by U+DF04 (I think) in UTF-16.
+   #
+   # When encoded as standard UTF8, which Oracle calls AL32UTF8, it should
+   # be a single UTF8 code point (that happens to occupy 4 bytes).
+   #
+   # When encoded as "CESU-8", which Oracle calls UTF8, each surrogate
+   # is treated as a code point so you get 2 UTF8 code points
+   # (that happen to occupy 3 bytes each). That is not valid UTF8.
+   # See http://www.unicode.org/reports/tr26/ for more information.
    return (  
-      [ "\x{32263A}",   "3 byte wide char"  ],
-      [ "\x{2532263A}", "4 byte wide char"  ],  
+      [ "\x{10304}", "SMP Plane 1 wide char"  ], # OLD ITALIC LETTER E
+      [ "\x{20301}", "SIP Plane 2 wide char"  ], # CJK Unified Ideographs Extension B
    );
 }
-sub narrow_data
+sub narrow_data 	# Assuming latin1 character set XXX?
 {
     [
         [ chr(3),   "control-C"        ],
@@ -59,17 +76,6 @@ sub narrow_data
         [ chr(161), "upside down bang" ],
         [ chr(162), "cent char"        ],
         [ chr(163), "brittish pound"   ],
-    ];
-}
-sub utf8_narrow_data
-{
-    [
-        [ "\x{03}", "control-C"        ],
-        [ "a",      "lowercase a" ],
-        [ "b",      "lowercase b" ],
-        [ "\x{08A1}", "upside down bang" ],
-        [ "\x{08A2}", "cent char"        ],
-        [ "\x{08A3}", "brittish pound"   ],
     ];
 }
 
@@ -122,8 +128,11 @@ sub show_test_data
     foreach my $recR ( @$rowsR )
     {
         $cnt++;
-        printf( "row: %3d: nice_string=%s byte_string=%s (%s)\n",
-                $cnt ,nice_string($$recR[0]),  byte_string($$recR[0]), $$recR[1] );
+	my $v = $$recR[0];
+        my $byte_string = byte_string($v);
+        my $nice_string = nice_string($v);
+        printf( "row: %3d: nice_string=%s byte_string=%s (%s, %s)\n",
+                $cnt, $nice_string, $byte_string, $v, DBI::neat($v));
     }
     return $cnt;
 }
@@ -265,20 +274,12 @@ sub select_rows # 1 + numcols + rows * cols * 2
         {
             my $res = $data[$i];
             my $is_utf8 = utf8::is_utf8( $res ) ? "(uft8 string)" : "";
-            cmp_ok( byte_string($res), 'eq',
-                    byte_string($$trows[$cnt][$i] ),
+            cmp_ok( byte_string($res), 'eq', byte_string($$trows[$cnt][$i] ),
                     "byte_string test of row $cnt; column: " .$$tcols[$i][0] .$is_utf8
                     );
-            if ( 1 or nls_lang_is_utf8() ) {
-                cmp_ok( nice_string($res), 'eq',
-                        nice_string($$trows[$cnt][$i] ),
-                        "nice_string test of row $cnt; column: " .$$tcols[$i][0] .$is_utf8
-                        );
-            } else {
-                cmp_ok( $res, 'eq',$$trows[$cnt][$i],
-                        "nice_string test of row $cnt; column: " .$$tcols[$i][0] .$is_utf8
-                        );
-            }
+	    cmp_ok( nice_string($res), 'eq', nice_string($$trows[$cnt][$i] ),
+		    "nice_string test of row $cnt; column: " .$$tcols[$i][0] .$is_utf8
+		    );
             $sth->trace(0) if $cnt >= 3 ;
         }
         $cnt++;
@@ -320,21 +321,20 @@ sub create_table
 sub show_db_charsets
 {
     my ( $dbh ) = @_;
-    #verify the NLS NCHAR character set is 'UTF8'
     my $paramsH = $dbh->ora_nls_parameters();
-    #warn Dumper( $paramsH );
     print "Database character set is " .$paramsH->{NLS_CHARACTERSET} ."\n";
     print "Database NCHAR character set is " .$paramsH->{NLS_NCHAR_CHARACTERSET} ."\n";
 }
-sub db_is_ascii    { my ($dbh) = @_; return  ( $dbh->ora_nls_parameters()->{'NLS_CHARACTERSET'}       =~ m/US7ASCII/i ); }
-sub db_is_utf8     { my ($dbh) = @_; return  ( $dbh->ora_nls_parameters()->{'NLS_CHARACTERSET'}       =~ m/UTF/i ); }
-sub nchar_is_utf8  { my ($dbh) = @_; return  ( $dbh->ora_nls_parameters()->{'NLS_NCHAR_CHARACTERSET'} =~ m/UTF/i ); }
+sub db_ochar_is_utf { return shift->ora_can_unicode & 2 }
+sub db_nchar_is_utf { return shift->ora_can_unicode & 1 }
 
-sub nls_lang_is_utf8
+sub nls_local_has_utf8
 {
-   return 0 if not defined $ENV{NLS_LANG};
-   return ( $ENV{NLS_LANG} =~ m/utf8/i );
+   (my $NLS_LANG = $ENV{NLS_LANG}||'') =~ s/.*\.//;
+   my $nls = join " ", $NLS_LANG, $ENV{NLS_NCHAR}||'';
+   return $nls =~ m/utf8/i;
 }
+
 sub set_nls_nchar
 {
     my ($cset,$verbose) = @_;
@@ -361,15 +361,21 @@ sub set_nls_lang_charset
     }
 }
 
-sub _achar { chr(ord("@")+$_[0]); }
-sub byte_string { my $ret = join( "|" ,unpack( "C*" ,$_[0] ) ); return $ret; }
+sub byte_string {
+    my $ret = join( "|" ,unpack( "C*" ,$_[0] ) );
+    return $ret;
+}
 sub nice_string {
-    my @chars = map { $_ > 255 ?                  # if wide character...
+    my @raw_chars = (utf8::is_utf8($_[0]))
+	? unpack("U*", $_[0])		# unpack unicode characters
+	: unpack("C*", $_[0]);		# not unicode, so unpack as bytes
+    my @chars = map {
+	$_ > 255 ?                    # if wide character...
           sprintf("\\x{%04X}", $_) :  # \x{...}
           chr($_) =~ /[[:cntrl:]]/ ?  # else if control character ...
           sprintf("\\x%02X", $_) :    # \x..
           chr($_)                     # else as themselves
-    } unpack("U*", $_[0]);           # unpack Unicode characters
+    } @raw_chars;
    
    foreach my $c ( @chars )
    {

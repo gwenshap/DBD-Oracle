@@ -31,7 +31,6 @@ SKIP: {
     }
     plan skip_all => "Not connected to oracle" if not $dbh;
     plan skip_all => "Oracle version < 9" if not ( ORA_OCI >= 9 ); 
-#    plan skip_all => "Database NCHAR character set is not a utf-N charset" if not nchar_is_utf8($dbh) ;
 
     print "testing control and 8 bit chars:\n" ;
     my $tdata = test_data( 'narrow_nchar' );
@@ -42,7 +41,6 @@ SKIP: {
 
     plan tests => $testcount ;
     #TODO need a oracle 9i version test.... I guess I could clone one from Makefile.PL...
-
     show_test_data( $tdata ,0 );
 
     drop_table($dbh);

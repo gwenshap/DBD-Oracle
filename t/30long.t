@@ -24,7 +24,7 @@ plan tests => $tests;
 
 $| = 1;
 my $table = table();
-my $utf8_test;	# set per test_set below
+my $use_utf8_data;	# set per test_set below
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 
 # Set size of test data (in 10KB units)
@@ -39,10 +39,10 @@ show_db_charsets($dbh) if $dbh;
 
 foreach (@test_sets) {
     my ($type_name, $type_num, $test_no_type) = @$_;
-    $utf8_test = use_utf8_data($dbh,$type_name);
+    $use_utf8_data = use_utf8_data($dbh,$type_name);
     print qq(
     =========================================================================
-    Running long test for $type_name ($type_num) utf8_test=$utf8_test
+    Running long test for $type_name ($type_num) use_utf8_data=$use_utf8_data
 );
     run_long_tests($type_name, $type_num);
     run_long_tests($type_name, 0) if $test_no_type;
@@ -50,12 +50,13 @@ foreach (@test_sets) {
 
 sub use_utf8_data
 {
-    my $want_utf8 = (($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i)) ? 1 : 0;
     my ( $dbh, $type_name ) = @_;
-    return 0 if not $want_utf8;
-    return 1 if ( $type_name =~ m/CLOB/i and db_is_utf8($dbh) and $want_utf8 );
-    return 1 if ( $type_name =~ m/NCLOB/i and nchar_is_utf8($dbh) and $want_utf8 );
-    return 1 if ( $type_name =~ m/BLOB/i and $want_utf8 );
+    my $nls_lang  = $ENV{NLS_LANG}  || '';
+    $nls_lang =~ s/.*\.//; # trim locale incase it contains "utf"
+    my $nls_nchar = $ENV{NLS_NCHAR} || $nls_lang;
+    return 0 unless $] >= 5.006;
+    return 1 if $type_name =~ m/^CLOB/i  and db_ochar_is_utf($dbh) && $nls_lang  =~ /utf8/i;
+    return 1 if $type_name =~ m/^NCLOB/i and db_nchar_is_utf($dbh) && $nls_nchar =~ /utf8/i;
     return 0;
 }
 
@@ -72,7 +73,7 @@ sub run_long_tests
         my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
         my $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
 
-        if ( $utf8_test ) { # make $long_data0 be UTF8
+        if ( $use_utf8_data ) { # make $long_data0 be UTF8
             my $utf_x = "0\x{263A}xyX"; #lab: the ubiquitous smiley face
             $long_data0 = ($utf_x x 2048) x (1    );        # 10KB  < 64KB
             if (length($long_data0) > 10240) {
@@ -122,8 +123,6 @@ sub run_long_tests
         my $bind_attr = { ora_type => $type_num };
         $bind_attr->{ora_csform} = SQLCS_NCHAR
 		if $type_name =~ /^NCLOB/; # XXX do by default internally?
-		#if $utf8_test; #use_utf8_data($dbh,$type_name);  #$type_name =~ /NCLOB/ and nchar_is_utf8($dbh);
-		#if $utf8_test and $type_name =~ /NCLOB/ ;
 
         $sth->bind_param(2, undef, $bind_attr )
 		or die "$type_name: $DBI::errstr" if $type_num;

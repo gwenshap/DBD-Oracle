@@ -28,13 +28,13 @@ SKIP: {
 
     plan skip_all => "Not connected to oracle" if not $dbh;
     plan skip_all => "Oracle version < 9.2" if 0; # need a oracle 9i version test.... 
-    plan skip_all => "Database NCHAR character set is not UTF8" if not nchar_is_utf8($dbh) ;
+    plan skip_all => "Database NCHAR character set is not Unicode" if not db_nchar_is_utf($dbh) ;
     print "testing utf8 with nchar columns\n" ;
 
     show_db_charsets( $dbh );
     my $tdata = test_data( 'wide_nchar' );
 
-    if ( $dbh->ora_nls_parameters()->{NLS_NCHAR_CHARACTERSET} eq 'UTF8' ) {
+    if ( $dbh->ora_can_unicode & 1 ) {
         push( @{$tdata->{rows}} ,extra_wide_rows() ) ;
         print " --- added 2 rows with extra wide chars to test data\n" ;
     }

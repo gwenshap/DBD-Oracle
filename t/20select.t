@@ -5,6 +5,9 @@ use DBD::Oracle qw(:ora_types ORA_OCI);
 use Data::Dumper;
 use strict;
 
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
+
 sub ok ($$;$);
 
 $| = 1;
@@ -26,21 +29,12 @@ unless($dbh) {
     exit 0;
 }
 
-#lab: protect test from unicode if everything is not in order... it if is
-#     it appears the test is broken...
-#use Data::Dumper;
-my $utf8_test = "";
-$utf8_test = ($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i);
-if ( $utf8_test )
-{
-   my $can_unicode = $dbh->ora_can_unicode();
-   print "ora_can_unicode=$can_unicode\n" ;
-   #print Dumper( $dbh->ora_nls_parameters() );
-   $utf8_test = $can_unicode & 2;
-}
-#print "utf8_test=$utf8_test\n";
+my $utf8_test = ($] >= 5.006)
+	&& nls_local_has_utf8()
+	&& ($dbh->ora_can_unicode() & 2);
+print "Including unicode test\n" if $utf8_test;
 
-unless(create_table("str CHAR(10)")) {
+unless(create_test_table("str CHAR(10)")) {
     warn "Unable to create test table ($DBI::errstr)\nTests skiped.\n";
     print "1..0\n";
     exit 0;
@@ -84,7 +78,7 @@ sub run_select_tests {
   my $data2 = "2bcdefabcd";
   my $data3 = "2bcdefabcd12345";
   
-  if (!create_table("lng $type_name", 1)) {
+  if (!create_test_table("lng $type_name", 1)) {
     # typically OCI 8 client talking to Oracle 7 database
     warn "Unable to create test table for '$type_name' data ($DBI::err). Tests skipped.\n";
     foreach (1..$tests_per_set) { ok(0, 1) }
@@ -130,7 +124,7 @@ END {
 
 # ----
 
-sub create_table {
+sub create_test_table {
     my ($fields, $drop) = @_;
     my $sql = qq{create table $table (
 	idx integer,

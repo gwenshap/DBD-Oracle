@@ -220,17 +220,11 @@ extern ub2 charsetid;
 extern ub2 ncharsetid;
 extern ub2 cs_is_utf8;
 extern ub2 al32utf8_csid;
-extern ub2 al16utf16_csid; 
 
 int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
 
-/* XXX CS_IS_UTF8 shouldn't include al16utf16_csid */
-/* or else should be renamed CS_IS_UTF. Perhaps we need two macros */
 #define CS_IS_UTF8( cs ) \
-   (  ( cs == utf8_csid ) \
-	|| ( cs == al32utf8_csid ) \
-	|| ( cs == al16utf16_csid ) \
-   )
+   (  ( cs == utf8_csid ) || ( cs == al32utf8_csid ) )
 
 #define UTF8_FIXUP_CSID( csid ,where ) \
     if ( CS_IS_UTF8( csid ) && (csid != ncharsetid) ) { \
@@ -240,9 +234,13 @@ int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
                     csid ,ncharsetid, where ); \
         csid = ncharsetid; \
     }
+/* XXX UTF8_FIXUP_CSID is disabled for now */
+#undef UTF8_FIXUP_CSID
+#define UTF8_FIXUP_CSID(csid,where)   0
 
+/* XXX DBD_SET_UTF8 should be passed and use the *relevant* csid,
+   which means either ncharsetid or charsetid (NLS_NCHAR/NLS_LANG) */
 #define DBD_SET_UTF8(sv,csid)   ( CS_IS_UTF8(ncharsetid) ? SvUTF8_on(sv) : 0 )
-#undef SET_CHARSET_ID
 
 #else /* UTF8_SUPPORT */
 #define DBD_SET_UTF8(sv,csid)   0

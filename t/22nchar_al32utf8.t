@@ -28,7 +28,7 @@ SKIP: {
 
     plan skip_all => "Not connected to oracle" if not $dbh;
     plan skip_all => "Oracle version < 9.2" if 0; # need a oracle 9i version test.... 
-    plan skip_all => "Database NCHAR character set is not UTF8" if not nchar_is_utf8($dbh) ;
+    plan skip_all => "Database NCHAR character set is not Unicode" if not db_nchar_is_utf($dbh) ;
     print "testing utf8 with nchar columns\n" ;
 
     show_db_charsets( $dbh );
