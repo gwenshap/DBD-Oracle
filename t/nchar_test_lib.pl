@@ -70,12 +70,12 @@ sub extra_wide_rows
    # Non-BMP characters require use of surrogates with UTF-16
    # So U+10304 becomes U+D800 followed by U+DF04 (I think) in UTF-16.
    #
-   # When encoded as standard UTF8, which Oracle calls AL32UTF8, it should
-   # be a single UTF8 code point (that happens to occupy 4 bytes).
+   # When encoded as standard UTF-8, which Oracle calls AL32UTF8, it should
+   # be a single UTF-8 code point (that happens to occupy 4 bytes).
    #
-   # When encoded as "CESU-8", which Oracle calls UTF8, each surrogate
-   # is treated as a code point so you get 2 UTF8 code points
-   # (that happen to occupy 3 bytes each). That is not valid UTF8.
+   # When encoded as "CESU-8", which Oracle calls "UTF8", each surrogate
+   # is treated as a code point so you get 2 UTF-8 code points
+   # (that happen to occupy 3 bytes each). That is not valid UTF-8.
    # See http://www.unicode.org/reports/tr26/ for more information.
    return (  
       [ "\x{10304}", "SMP Plane 1 wide char"  ], # OLD ITALIC LETTER E

@@ -1476,7 +1476,7 @@ See L</table_info()> for more detailed information.
 
 =head1 Unicode
 
-DBD::Oracle now supports Unicode UTF8.
+DBD::Oracle now supports Unicode UTF-8.
 
 In this section we'll discuss "Perl and Unicode", then "Oracle and
 Unicode", and finally "DBD::Oracle and Unicode".
@@ -1497,7 +1497,7 @@ the perl documention on Unicode:
 
 And then read it again.
 
-Perl's internal unicode format is UTF8
+Perl's internal unicode format is UTF-8
 which corresponds to the Oracle character set called AL32UTF8.
 
 =head2 Oracle and Unicode
@@ -1547,7 +1547,7 @@ For example:
    NLS_NCHAR=UTF8
    NLS_NCHAR=AL32UTF8
 
-=head2 Oracle UTF8 is not UTF8
+=head2 Oracle UTF8 is not UTF-8
 
 AL32UTF8 should be used in preference to UTF8 if it works for you,
 which it should for Oracle 9.2 or later. If you're using an old
@@ -1556,7 +1556,7 @@ avoid using any unicode characters that require surrogates, in other
 words characters beyond the Unicode BMP (Basic Multilingual Plane).
 
 That's because the character set that Oracle calls "UTF8" doesn't
-conform to the UTF8 standard in its handling of surrogate characters.
+conform to the UTF-8 standard in its handling of surrogate characters.
 Technically the encoding that Oracle calls "UTF8" is known as "CESU-8".
 Here are a couple of extracts from L<http://www.unicode.org/reports/tr26/>:
 
@@ -1575,8 +1575,8 @@ Here are a couple of extracts from L<http://www.unicode.org/reports/tr26/>:
 Oracle use this internally because it collates (sorts) in the same order
 as UTF16 which is the basis of Oracle's internal collation definitions.
 
-To fix UTF8 for clients Oracle chose to define a new character
-set called "AL32UTF8" which does conform to the UTF8 standard.
+Rather than change UTF8 for clients Oracle chose to define a new character
+set called "AL32UTF8" which does conform to the UTF-8 standard.
 (The AL32UTF8 character set can't be used on the server because it
 would break collation.)
 
@@ -1596,18 +1596,18 @@ importing the C<ORA_OCI> constant from DBD::Oracle.
 B<Fetching Data>
 
 Any data returned from Oracle to DBD::Oracle in the AL32UTF8
-character set will be marked as UTF8 to ensure correct handling by perl.
+character set will be marked as UTF-8 to ensure correct handling by perl.
 
 For Oracle to return data in the AL32UTF8 character set the
 NLS_LANG or NLS_NCHAR environment variable I<must> be set as described
 in the previous section.
 
 When fetching NCHAR, NVARCHAR, or NCLOB data from Oracle, DBD::Oracle
-will set the perl UTF8 flag on the returned data if either NLS_NCHAR
+will set the perl UTF-8 flag on the returned data if either NLS_NCHAR
 is AL32UTF8, or NLS_NCHAR is not set and NLS_LANG is AL32UTF8.
 
 When fetching other character data from Oracle, DBD::Oracle
-will set the perl UTF8 flag on the returned data if NLS_LANG is AL32UTF8.
+will set the perl UTF-8 flag on the returned data if NLS_LANG is AL32UTF8.
 
 B<Sending Data using Placeholders>
 
