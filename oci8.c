@@ -747,11 +747,17 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
     ub4 loblen = 0;
     ub4 buflen;
     ub4 amtp = 0;
+    ub1 csform = 0;
     OCILobLocator *lobl = (OCILobLocator*)fbh->desc_h;
     sword ftype = fbh->ftype;
     sword status;
+    char *typename;
 
-    if (ftype != 112 && ftype != 113) {
+    if (ftype == 112)
+    	typename = "CLOB";
+    else if (ftype == 113)
+    	typename = "BLOB";
+    else {
 	oci_error(sth, imp_sth->errhp, OCI_ERROR,
 	"blob_read not currently supported for non-LOB types with OCI 8 "
 	"(but with OCI 8 you can set $dbh->{LongReadLen} to the length you need,"
@@ -767,8 +773,14 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	return 0;
     }
 
-    amtp = (loblen > len) ? len : loblen;
-    buflen = amtp;	/* set right semantics for OCILobRead */
+    OCILobCharSetForm_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csform, status );
+    if (status != OCI_SUCCESS) {
+	oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
+	sv_set_undef(dest_sv);	/* signal error */
+	return 0;
+    }
+    if (ftype == 112 && csform == SQLCS_NCHAR)
+        typename = "NCLOB";
 
     /*
      * We assume our caller has already done the
@@ -777,26 +789,51 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
      *		SvGROW(dest_sv, buflen+destoffset+1);
      */
 
+    /*	amtp is:      LOB/BFILE  CLOB/NCLOB
+	Input         bytes      characters
+	Output FW     bytes      characters    (FW=Fixed Width charset, VW=Variable)
+	Output VW     bytes      characters(in), bytes returned (afterwards)
+    */
+    amtp = (loblen > len) ? len : loblen;
+
+    /* buflen: length of buffer in bytes */
+    /* so for CLOBs that'll be returned as UTF8 we need more bytes that chars */
+    /* XXX the x4 here isn't perfect - really the code should be changed to loop */
+    if (ftype == 112 && CSFORM_IMPLIES_UTF8(csform)) {
+	buflen = amtp * 4;
+	/* XXX destoffset would be counting chars here as well */
+	SvGROW(dest_sv, (destoffset*4) + buflen + 1);
+	if (destoffset) {
+	    oci_error(sth, imp_sth->errhp, OCI_ERROR,
+	    "blob_read with non-zero destoffset not currently supported for UTF8 values");
+	    sv_set_undef(dest_sv);	/* signal error */
+	    return 0;
+	}
+    }
+    else {
+	buflen = amtp;
+    }
+
+    if (DBIS->debug >= 3)
+	PerlIO_printf(DBILOGFP,
+	    "        blob_read field %d: ftype %d %s, offset %ld, len %lu."
+		    "LOB csform %d, len %lu, amtp %lu, (destoffset=%ld)\n",
+	    fbh->field_num+1, ftype, typename, offset, ul_t(len),
+	    csform, loblen, ul_t(amtp), destoffset);
+
     if (loblen > 0) {
-        ub1 csform = 0;
         ub1 * bufp = (ub1 *)(SvPVX(dest_sv));
 	bufp += destoffset;
-
-        OCILobCharSetForm_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csform, status );
-        if (status != OCI_SUCCESS) {
-            oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
-            sv_set_undef(dest_sv);	/* signal error */
-            return 0;
-        }
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 	    &amtp, (ub4)1 + offset, bufp, buflen,
 		0, 0, (ub2)0 , csform, status);
+
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
-		"        OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu (csform=%d)\n",
+		"        OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, amtp %lu\n",
 		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
-		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp), csform);
+		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
 	if (status != OCI_SUCCESS) {
 	    oci_error(sth, imp_sth->errhp, status, "OCILobRead");
 	    sv_set_undef(dest_sv);	/* signal error */
