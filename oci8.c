@@ -1140,7 +1140,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 
 	case   2:				/* NUMBER	*/
-		fbh->disize = 130+3;	/* worst case! 1**-130	*/
+		fbh->disize = 130+38+3;		/* worst case	*/
 		avg_width = 4;     /* > approx +/- 1_000_000 ?  */
 		break;
 
