@@ -843,10 +843,10 @@ SQL
 	my $dbh = shift;
 	return $dbh->{ora_server_version} if defined $dbh->{ora_server_version};
 	$dbh->{ora_server_version} =
-	   [ split /\./, $dbh->selectrow_array(<<'SQL', undef, 'Oracle%') .''];
+	   [ split /\./, $dbh->selectrow_array(<<'SQL', undef, 'Oracle%', 'Personal Oracle%') .''];
 SELECT version
   FROM product_component_version
- WHERE product LIKE ?
+ WHERE product LIKE ? or product LIKE ?
 SQL
     }
 
