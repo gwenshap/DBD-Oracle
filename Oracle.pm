@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.91 2001/08/31 15:54:13 timbo Exp $
+#   $Id: Oracle.pm,v 1.92 2001/08/31 16:23:59 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.11';
+$DBD::Oracle::VERSION = '1.12';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -32,7 +32,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.91 $, 10);
+    my $Revision = substr(q$Revision: 1.92 $, 10);
 
     require_version DBI 1.20;
 
