@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.37 2000/07/11 22:14:20 timbo Exp $
+   $Id: dbdimp.h,v 1.38 2001/06/05 22:46:50 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -91,6 +91,7 @@ struct imp_dbh_st {
     dbih_dbc_t com;		/* MUST be first element in structure	*/
 
 #ifdef OCI_V8_SYNTAX
+    void *(*get_oci_handle) _((imp_dbh_t *imp_dbh, int handle_type, int flags));
     OCIEnv *envhp;		/* copy of drh pointer	*/
     OCIError *errhp;
     OCIServer *srvhp;
@@ -115,6 +116,7 @@ struct imp_sth_st {
     dbih_stc_t com;		/* MUST be first element in structure	*/
 
 #ifdef OCI_V8_SYNTAX
+    void *(*get_oci_handle) _((imp_dbh_t *imp_dbh, int handle_type, int flags));
     OCIEnv	*envhp;		/* copy of dbh pointer	*/
     OCIError	*errhp;		/* copy of dbh pointer	*/
     OCIServer	*srvhp;		/* copy of dbh pointer	*/
@@ -255,6 +257,8 @@ char *oci_stmt_type_name _((int stmt_type));
 char *oci_status_name _((sword status));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 void ora_free_lob_refetch _((SV *sth, imp_sth_t *imp_sth));
+void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));
+void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
 int post_execute_lobs _((SV *sth, imp_sth_t *imp_sth, ub4 row_count));
 ub4 ora_parse_uid _((imp_dbh_t *imp_dbh, char **uidp, char **pwdp));
 char *ora_sql_error _((imp_sth_t *imp_sth, char *msg));
@@ -265,6 +269,9 @@ sb4 dbd_phs_out _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
              dvoid **bufpp, ub4 **alenpp, ub1 *piecep,
              dvoid **indpp, ub2 **rcodepp));
 int dbd_rebind_ph_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
+
+void * oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags);
+void * oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags);
 
 #else	/* is OCI 7 */
 

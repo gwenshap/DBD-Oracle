@@ -61,11 +61,14 @@ ok(0, $tmp[0] <= 1e-130,    $tmp[0]);
 ok(0, $tmp[1] >= 9.99e+125, $tmp[1]);
 
 
+my $warn='';
 eval {
+	$SIG{__WARN__} = sub { $warn = $_[0] };
 	$dbh->{RaiseError} = 1;
 	$dbh->do("some invalid sql statement");
 };
-ok(0, $@ =~ /DBD::Oracle::db do failed:/, "eval error: ``$@'' expected 'do failed:'");
+ok(0, $@    =~ /DBD::Oracle::db do failed:/, "eval error: ``$@'' expected 'do failed:'");
+ok(0, $warn =~ /DBD::Oracle::db do failed:/, "warn error: ``$warn'' expected 'do failed:'");
 $dbh->{RaiseError} = 0;
 
 # ---
@@ -76,7 +79,7 @@ $dbh->{PrintError} = 0;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 16 }
+BEGIN { $tests = 17 }
 # end.
 
 __END__

@@ -27,7 +27,8 @@ There are several ways to workaround this:
     certainly don't need it.)
 
 2/  Use the LD_PRELOAD environment variable to force the pre-loading
-    of the thread library.
+    of the thread library. Note that this must be set before perl
+    starts, you can't set it via $ENV{LD_PRELOAD} within the script.
 
 3/  Link the thread library to your perl binary.
     You can do that either by (re)building perl with thread support
@@ -62,7 +63,7 @@ The steps to take are:
    you're about to modify.
  - take a backup copy of your Oracle installation! You have been warned!
 
- - go to $ORACLE_HOME/network/lib
+ - go to $ORACLE_HOME/network/lib (or it maybe (also?) in $ORACLE_HOME/oas/lib)
  - rebuild nautab.o with:
 
      make -f ins_nau.mk NAU_ADAPTERS="IDENTIX KERBEROS5 SECURID" nautab.o
@@ -127,7 +128,9 @@ There is an option to the dynamic linker "LD_PRELOAD" and if you set it with
  LD_PRELOAD=/lib/libthread.so.1
  export LD_PRELOAD
 
-before starting any DBD::oracle app, the app works!
+before starting any DBD::oracle app, the app works! (Note that this must
+be set before perl starts, you can't set it via $ENV{LD_PRELOAD} within
+the script.)
 
 It looks like after libjava and libjvm is loaded, the library search path
 is somehow stripped to the one of the perl binary ...
@@ -148,14 +151,18 @@ Final Summary (this is mostly Andi's work summarized here)
 
 1. Copy your ORACLE_HOME in it's entirety to a new directory.
 cp -r $ORACLE_HOME $ORACLE_HOME.nojava
+
 2. Set your ORACLE_HOME variable to the new one. Save the old one for reference.
 export OLD_ORACLE_HOME=$ORACLE_HOME
 export ORACLE_HOME=$ORACLE_HOME.nojava
-3. cd $ORACLE_HOME/network/lib
-(This is your new ORACLE_HOME - the temporary one that will soon be without
-Java or Radius)
+
+3. cd $ORACLE_HOME/network/lib (or it maybe (also?) in $ORACLE_HOME/oas/lib)
+This is your new ORACLE_HOME - the temporary one that will soon be without
+Java or Radius.
+
 4. build nautab.o with
 make -f ins_nau.mk NAU_ADAPTERS="IDENTIX KERBEROS5 SECURID" nautab.o
+
 5. go to $ORACLE_HOME/lib
 edit file "ldflags" and delete all occurences of "-lnrad8" and "-ljava"
 and "-[LR]$ORACLE_HOME/JRE/lib/sparc/native_threads"
@@ -166,32 +173,35 @@ sed "s%-L$OLD_ORACLE_HOME/JRE/lib/sparc/native_threads%%g" | \
 sed "s%-R$OLD_ORACLE_HOME/JRE/lib/sparc/native_threads%%g" | > newldflags
 If you look at newldflags, and like it, then run:
 cp ldflags oldldflags; cp newldflags ldflags
+
 6. go to $ORACLE_HOME/bin and build a new libclntsh.so with "genclntsh"
 genclntsh
+
 7. go to your DBD::oracle install directory and go through the regular
 install process.
 perl Makefile.PL; make; make install
 (I find the make test less useful than my test.pl perl file.)
+
 8. Set LD_LIBRARY_PATH=$ORACLE_HOME/lib.
 This part is very important - remember that at this stage ORACLE_HOME is set
 to the nojava home. Make this permanent by explicitly setting
 LD_LIBRARY_PATH to the nojava lib directory in your .profile.
 This is the step that stalled me - thanks again to Andi.
-9. Test this out. I use the following, which I call test.pl, which fails
+
+9. Test this out. I use the following command which fails
 nicely if we've failed, and is very quiet if we've succeeded:
-#!/usr/bin/perl
-use strict;
-use DBI;
-use DBD::Oracle;
-0;
-./test.pl should have no output. Congratulations.
+  perl -MDBD::Oracle -e 0
+there should be no output. Congratulations.
+
 10. Get rid of everything other than libclntsh.so in your new ORACLE_HOME -
 the rest is a waste of space.
 cd $ORACLE_HOME; cd ..
 mv $ORACLE_HOME $ORACLE_HOME.rmme
 mkdir $ORACLE_HOME; mkdir $ORACLE_HOME/lib
 cp $ORACLE_HOME.rmme/lib/libclntsh.so $ORACLE_HOME/lib
+
 11. Run test.pl again just to be sure it still works.
+
 12. If test.pl is still working, then we can reclaim space with
 rm -fr $ORACLE_HOME.rmme
 

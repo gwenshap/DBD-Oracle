@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.61 2000/07/14 21:52:08 timbo Exp $
+   $Id: dbdimp.c,v 1.64 2001/06/06 00:46:39 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -29,7 +29,13 @@ static int ora_sigchld_restart = 1;
 static int set_sigint_handler  = 0;
 #endif
 
-static int ora2sql_type _((int oratype));
+typedef struct sql_fbh_st sql_fbh_t;
+struct sql_fbh_st {
+  int dbtype;
+  int prec;
+  int scale;
+};
+static sql_fbh_t ora2sql_type _((imp_fbh_t* fbh));
 
 void ora_free_phs_contents _((phs_t *phs));
 static void dump_env_to_trace();
@@ -185,6 +191,8 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 
 #ifdef OCI_V8_SYNTAX
     D_imp_drh_from_dbh;
+
+    imp_dbh->get_oci_handle = oci_db_handle;
 
     if (DBIS->debug >= 6 )
 	dump_env_to_trace();
@@ -610,6 +618,7 @@ dbd_preparse(imp_sth, statement)
 		*dest++ = *src++;
 	    style = ":foo";
 	} else {			/* perhaps ':=' PL/SQL construct */
+	    /* if (src == ':') *dest++ = *src++; XXX? move past '::'? */
 	    continue;
 	}
 	*dest = '\0';			/* handy for debugging	*/
@@ -728,22 +737,24 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
     ub2 **alen_ptr_ptr;
 {
     STRLEN value_len;
+    int at_exec = (phs->desc_h == NULL);
 
-/* for inserting longs: */
-/*    sv_insert +4	*/
-/*    sv_chop(phs->sv, SvPV(phs->sv,na)+4);	XXX */
-
-    /* convert to a string ASAP */
-    if (!SvPOK(phs->sv) && SvOK(phs->sv))
-	sv_2pv(phs->sv, &na);
+    if (!SvPOK(phs->sv)) {	/* normalizations for special cases	*/
+	if (SvOK(phs->sv)) {	/* ie a number, convert to string ASAP	*/
+	    if (!(SvROK(phs->sv) && phs->is_inout))
+		sv_2pv(phs->sv, &na);
+	}
+	else /* ensure we're at least an SVt_PV (so SvPVX etc work)	*/
+	    SvUPGRADE(phs->sv, SVt_PV);
+    }
 
     if (DBIS->debug >= 2) {
 	char *val = neatsvpv(phs->sv,0);
  	fprintf(DBILOGFP, "       bind %s <== %.1000s (", phs->name, val);
- 	if (SvOK(phs->sv)) 
- 	     fprintf(DBILOGFP, "size %ld/%ld/%ld, ",
- 		(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
-	else fprintf(DBILOGFP, "NULL, ");
+ 	if (!SvOK(phs->sv)) 
+	    fprintf(DBILOGFP, "NULL, ");
+	fprintf(DBILOGFP, "size %ld/%ld/%ld, ",
+	    (long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
  	fprintf(DBILOGFP, "ptype %d, otype %d%s)\n",
  	    (int)SvTYPE(phs->sv), phs->ftype,
  	    (phs->is_inout) ? ", inout" : "");
@@ -758,15 +769,13 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 	    croak(no_modify);
 	if (imp_sth->ora_pad_empty)
 	    croak("Can't use ora_pad_empty with bind_param_inout");
-	/* phs->sv _is_ the real live variable, it may 'mutate' later	*/
-	/* pre-upgrade high to reduce risk of SvPVX realloc/move	*/
-	(void)SvUPGRADE(phs->sv, SVt_PVNV);
-	/* ensure room for result, 28 is magic number (see sv_2pv)	*/
-	SvGROW(phs->sv, ((phs->maxlen < 28) ? 28 : phs->maxlen)+1/*for null*/);
-    }
-    else {
-	/* phs->sv is copy of real variable, upgrade to at least string	*/
-	(void)SvUPGRADE(phs->sv, SVt_PV);
+	if (1 || !at_exec) {
+	    /* phs->sv _is_ the real live variable, it may 'mutate' later	*/
+	    /* pre-upgrade high to reduce risk of SvPVX realloc/move	*/
+	    (void)SvUPGRADE(phs->sv, SVt_PVNV);
+	    /* ensure room for result, 28 is magic number (see sv_2pv)	*/
+	    SvGROW(phs->sv, ((phs->maxlen < 28) ? 28 : phs->maxlen)+1/*for null*/);
+	}
     }
 
     /* At this point phs->sv must be at least a PV with a valid buffer,	*/
@@ -777,7 +786,7 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 	phs->indp  = 0;
     }
     else {	/* it's null but point to buffer incase it's an out var	*/
-	phs->progv = SvPVX(phs->sv);	/* can be NULL (undef) */
+	phs->progv = NULL;
 	phs->indp  = -1;
 	value_len  = 0;
     }
@@ -809,11 +818,11 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 #endif
 
     if (DBIS->debug >= 3) {
-	fprintf(DBILOGFP, "       bind %s <== '%.*s' (size %ld/%ld, otype %d, indp %d)\n",
+	fprintf(DBILOGFP, "       bind %s <== '%.*s' (size %ld/%ld, otype %d, indp %d, at_exec %d)\n",
  	    phs->name,
 	    (int)(phs->alen>SvIV(DBIS->neatsvpvlen) ? SvIV(DBIS->neatsvpvlen) : phs->alen),
 	    (phs->progv) ? phs->progv : "",
- 	    (long)phs->alen, (long)phs->maxlen, phs->ftype, phs->indp);
+ 	    (long)phs->alen, (long)phs->maxlen, phs->ftype, phs->indp, at_exec);
     }
 
     return 1;
@@ -923,7 +932,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	ENTER;
 	SAVETMPS;
 	PUSHMARK(SP);
-	XPUSHs(sv_2mortal(newRV(DBIc_MY_H(imp_dbh))));
+	XPUSHs(sv_2mortal(newRV((SV*)DBIc_MY_H(imp_dbh))));
 	XPUSHs(sv_2mortal(newRV((SV*)init_attr)));
 	PUTBACK;
 	count = perl_call_pv("DBI::_new_sth", G_ARRAY);
@@ -1061,8 +1070,9 @@ dbd_rebind_ph(sth, imp_sth, phs)
 	    return 0;
 	}
 	if (at_exec) {
-	    OCIBindDynamic_log(phs->bndhp, imp_sth->errhp, (dvoid *)phs, dbd_phs_in,
-				(dvoid *)phs, dbd_phs_out, status);
+	    OCIBindDynamic_log(phs->bndhp, imp_sth->errhp,
+			(dvoid *)phs, dbd_phs_in,
+			(dvoid *)phs, dbd_phs_out, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
 		return 0;
@@ -1078,7 +1088,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
 		    phs->name, phs->maxlen, MINSWORDMAXVAL);
 
     if (obndra(imp_sth->cda, (text *)phs->name, -1,
-	    (ub1*)phs->progv, (sword)phs->maxlen, /* cast reduces max size */
+	    (ub1*)phs->progv, (sword)SvCUR(phs->sv), /* cast reduces max size */
 	    (sword)phs->ftype, -1,
 	    &phs->indp, alen_ptr, &phs->arcode, 0, (ub4 *)0,
 	    (text *)0, -1, -1)) {
@@ -1130,7 +1140,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	croak("Can't bind a non-scalar value (%s)", neatsvpv(newvalue,0));
     if (SvROK(newvalue) && !IS_DBI_HANDLE(newvalue))
 	/* dbi handle allowed for cursor variables */
-	croak("Can't bind a reference (%s)", neatsvpv(newvalue,0));
+	warn("Can't bind a reference (%s)", neatsvpv(newvalue,0));
     if (SvTYPE(newvalue) == SVt_PVLV && is_inout)	/* may allow later */
 	croak("Can't bind ``lvalue'' mode scalar as inout parameter (currently)");
 
@@ -1181,7 +1191,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	    }
 	}
 	if (sql_type)
-	    phs->ftype = ora_sql_type(imp_sth, phs->name, sql_type);
+	    phs->ftype = ora_sql_type(imp_sth, phs->name, (int)sql_type);
 
 #ifndef OCI_V8_SYNTAX
 	/* treat Oracle8 LOBS as simple LONGs for Oracle7 	*/
@@ -1206,14 +1216,14 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	croak("Can't rebind or change param %s in/out mode after first bind (%d => %d)",
 		phs->name, phs->is_inout , is_inout);
     }
-    else if (sql_type && phs->ftype != ora_sql_type(imp_sth, phs->name, sql_type)) {
+    else if (sql_type && phs->ftype != ora_sql_type(imp_sth, phs->name, (int)sql_type)) {
 	croak("Can't change TYPE of param %s to %d after initial bind",
 		phs->name, sql_type);
     }
 
     phs->maxlen = maxlen;		/* 0 if not inout		*/
 
-    if (!is_inout) {	/* normal bind to take a (new) copy of current value	*/
+    if (!is_inout) {	/* normal bind so take a (new) copy of current value	*/
 	if (phs->sv == &sv_undef)	/* (first time bind) */
 	    phs->sv = newSV(0);
 	sv_setsv(phs->sv, newvalue);
@@ -1263,12 +1273,14 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	int i = outparams;
 	while(--i >= 0) {
 	    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
+	    SV *sv = phs->sv;
+
 	    /* Make sure we have the value in string format. Typically a number	*/
 	    /* will be converted back into a string using the same bound buffer	*/
 	    /* so the progv test below will not trip.			*/
 
 	    /* is the value a null? */
-	    phs->indp = (SvOK(phs->sv)) ? 0 : -1;
+	    phs->indp = (SvOK(sv)) ? 0 : -1;
 
 	    /* Some checks for mutated storage since we pointed oracle at it.	*/
 	    if (phs->out_prepost_exec) {
@@ -1276,12 +1288,22 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		    return -2; /* out_prepost_exec already called ora_error()	*/
 	    }
 	    else
-	    if (SvTYPE(phs->sv) != phs->sv_type
-		    || (SvOK(phs->sv) && !SvPOK(phs->sv))
+	    if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
+		if (debug >= 2)
+ 		    fprintf(DBILOGFP,
+ 		        "      with %s = [] (len %ld/%ld, indp %d, otype %d, ptype %d)\n",
+ 			phs->name,
+			(long)phs->alen, (long)phs->maxlen, phs->indp,
+			phs->ftype, (int)SvTYPE(sv));
+		av_clear((AV*)SvRV(sv));
+	    }
+	    else
+	    if (SvTYPE(sv) != phs->sv_type
+		    || (SvOK(sv) && !SvPOK(sv))
 		    /* SvROK==!SvPOK so cursor (SQLT_CUR) handle will call dbd_rebind_ph */
 		    /* that suits us for now */
-		    || SvPVX(phs->sv) != phs->progv
-		    || (SvPOK(phs->sv) && SvCUR(phs->sv) > UB2MAXVAL)
+		    || SvPVX(sv) != phs->progv
+		    || (SvPOK(sv) && SvCUR(sv) > UB2MAXVAL)
 	    ) {
 		if (!dbd_rebind_ph(sth, imp_sth, phs))
 		    croak("Can't rebind placeholder %s", phs->name);
@@ -1289,14 +1311,14 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	    else {
  		/* String may have grown or shrunk since it was bound	*/
  		/* so tell Oracle about it's current length		*/
-		phs->alen = SvCUR(phs->sv) + phs->alen_incnull;
+		phs->alen = (SvOK(sv)) ? SvCUR(sv) + phs->alen_incnull : 0+phs->alen_incnull;
 		if (debug >= 2)
  		    fprintf(DBILOGFP,
  		        "      with %s = '%.*s' (len %ld/%ld, indp %d, otype %d, ptype %d)\n",
  			phs->name, (int)phs->alen,
-			(phs->indp == -1) ? "" : SvPVX(phs->sv),
+			(phs->indp == -1) ? "" : SvPVX(sv),
 			(long)phs->alen, (long)phs->maxlen, phs->indp,
-			phs->ftype, (int)SvTYPE(phs->sv));
+			phs->ftype, (int)SvTYPE(sv));
 	    }
 	}
     }
@@ -1393,6 +1415,7 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
     if (outparams) {	/* check validity of bound output SV's	*/
 	int i = outparams;
 	while(--i >= 0) {
+ 	    /* phs->alen has been updated by Oracle to hold the length of the result */
 	    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
 	    SV *sv = phs->sv;
 
@@ -1401,36 +1424,14 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		    return -2; /* out_prepost_exec already called ora_error()	*/
 	    }
 	    else
- 	    /* phs->alen has been updated by Oracle to hold the length of the result	*/
-	    if (phs->indp == 0) {			/* is okay	*/
-		SvPOK_only(sv);
-		SvCUR(sv) = phs->alen;
-		*SvEND(sv) = '\0';
-		if (debug >= 2)
-		    fprintf(DBILOGFP,
-			"       out %s = '%s'\t(len %ld, arcode %d)\n",
-			phs->name, SvPV(sv,na), (long)phs->alen, phs->arcode);
+	    if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
+		AV *av = (AV*)SvRV(sv);
+		I32 avlen = AvFILL(av);
+		if (avlen >= 0)
+		    dbd_phs_avsv_complete(phs, avlen, debug); 
 	    }
 	    else
-	    if (phs->indp > 0 || phs->indp == -2) {	/* truncated	*/
-		SvPOK_only(sv);
-		SvCUR(sv) = phs->alen;
-		*SvEND(sv) = '\0';
-		if (debug >= 2)
-		    fprintf(DBILOGFP,
-			"       out %s = '%s'\t(TRUNCATED from %d to %ld, arcode %d)\n",
-			phs->name, SvPV(sv,na), phs->indp, (long)phs->alen, phs->arcode);
-	    }
-	    else
-	    if (phs->indp == -1) {			/* is NULL	*/
-		(void)SvOK_off(phs->sv);
-		if (debug >= 2)
-		    fprintf(DBILOGFP,
-			"       out %s = undef (NULL, arcode %d)\n",
-			phs->name, phs->arcode);
-	    }
-	    else croak("panic: %s bad indp %d, arcode %d",
-		phs->name, phs->indp, phs->arcode);
+		dbd_phs_sv_complete(phs, sv, debug);
 	}
     }
 
@@ -1491,7 +1492,7 @@ dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
     if (DBIS->debug >= 3)
 	fprintf(DBILOGFP,
 	    "    blob_read field %d+1, ftype %d, offset %ld, len %ld, destoffset %ld, retlen %ld\n",
-	    field, imp_sth->fbh[field].ftype, offset, len, destoffset, retl);
+	    field, imp_sth->fbh[field].ftype, offset, len, destoffset, (long)retl);
 
     SvCUR_set(bufsv, destoffset+retl);
 
@@ -1751,19 +1752,19 @@ dbd_st_FETCH_attrib(sth, imp_sth, keysv)
 	AV *av = newAV();
 	retsv = newRV(sv_2mortal((SV*)av));
 	while(--i >= 0)
-	    av_store(av, i, newSViv(ora2sql_type(imp_sth->fbh[i].dbtype)));
+	    av_store(av, i, newSViv(ora2sql_type(imp_sth->fbh+i).dbtype));
 
     } else if (kl==5 && strEQ(key, "SCALE")) {
 	AV *av = newAV();
 	retsv = newRV(sv_2mortal((SV*)av));
 	while(--i >= 0)
-	    av_store(av, i, newSViv(imp_sth->fbh[i].scale));
+	    av_store(av, i, newSViv(ora2sql_type(imp_sth->fbh+i).scale));
 
     } else if (kl==9 && strEQ(key, "PRECISION")) {
 	AV *av = newAV();
 	retsv = newRV(sv_2mortal((SV*)av));
 	while(--i >= 0)
-	    av_store(av, i, newSViv(imp_sth->fbh[i].prec));
+	    av_store(av, i, newSViv(ora2sql_type(imp_sth->fbh+i).prec));
 
 #ifndef OCI_V8_SYNTAX
 #ifdef XXXXX
@@ -1805,21 +1806,41 @@ dbd_st_FETCH_attrib(sth, imp_sth, keysv)
 
 /* --------------------------------------- */
 
-static int
-ora2sql_type(oratype)
-   int oratype;
-{
-    switch(oratype) {	/* oracle Internal (not external) types */
-    case SQLT_CHR:  return SQL_VARCHAR;
-    case SQLT_NUM:  return SQL_DECIMAL;
-    case SQLT_LNG:  return SQL_LONGVARCHAR;	/* long */
-    case SQLT_DAT:  return SQL_DATE;
-    case SQLT_BIN:  return SQL_BINARY;		/* raw */
-    case SQLT_LBI:  return SQL_LONGVARBINARY;	/* long raw */
-    case SQLT_AFC:  return SQL_CHAR;		/* Ansi fixed char */
+static sql_fbh_t
+ora2sql_type(imp_fbh_t* fbh) {
+    sql_fbh_t sql_fbh;
+    sql_fbh.dbtype = fbh->dbtype;
+    sql_fbh.prec   = fbh->prec;
+    sql_fbh.scale  = fbh->scale;
+
+    switch(fbh->dbtype) { /* oracle Internal (not external) types */
+    case SQLT_NUM:
+        if (fbh->scale == -127) { /* FLOAT, REAL, DOUBLE_PRECISION */
+            sql_fbh.dbtype = SQL_DOUBLE;
+            sql_fbh.scale  = 0; /* better: undef */
+        }
+        else if (fbh->scale == 0) {
+            if (fbh->prec == 0) { /* NUMBER */
+                sql_fbh.dbtype = SQL_DOUBLE;
+                sql_fbh.prec   = 126;
+            }
+            else { /* INTEGER, NUMBER(p,0) */
+                sql_fbh.dbtype = SQL_DECIMAL; /* better: SQL_INTEGER */
+            }
     }
-    /* else map type into DBI reserved standard range */
-    return -9000 - oratype;
+        else { /* NUMBER(p,s) */
+            sql_fbh.dbtype = SQL_DECIMAL; /* better: SQL_NUMERIC */
+        }
+        break;
+    case SQLT_CHR:  sql_fbh.dbtype = SQL_VARCHAR;       break;
+    case SQLT_LNG:  sql_fbh.dbtype = SQL_LONGVARCHAR;   break; /* long */
+    case SQLT_DAT:  sql_fbh.dbtype = SQL_DATE;          break;
+    case SQLT_BIN:  sql_fbh.dbtype = SQL_BINARY;        break; /* raw */
+    case SQLT_LBI:  sql_fbh.dbtype = SQL_LONGVARBINARY; break; /* long raw */
+    case SQLT_AFC:  sql_fbh.dbtype = SQL_CHAR;          break; /* Ansi fixed char */
+    default:        sql_fbh.dbtype = -9000 - fbh->dbtype;      /* else map type into DBI reserved standard range */
+    }
+    return sql_fbh;
 }
 
 static void
@@ -1827,7 +1848,9 @@ dump_env_to_trace() {
     FILE *fp = DBILOGFP;
     int i = 0;
     char *p;
+#ifndef __BORLANDC__
     extern char **environ;
+#endif
     fprintf(fp, "Environment variables:\n");
     do {
 	p = (char*)environ[i++];

@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.39 1999/06/05 03:23:07 timbo Exp $
+# $Id: Oraperl.pm,v 1.40 2001/06/05 22:46:50 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -25,7 +25,7 @@ require 5.002;
 use DBI 0.84;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.39 $, 10);
+$VERSION = substr(q$Revision: 1.40 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -828,7 +828,7 @@ It is quite possible, indeed probable, that some differences in
 behaviour will exist. These are probably confined to error handling.
 
 B<All> differences in behaviour which are not documented here should be
-reported to Tim.Bunce@ig.co.uk B<and> CC'd to dbi-users@fugue.com.
+reported to to dbi-users@perl.org.
 
 
 =head1 SEE ALSO

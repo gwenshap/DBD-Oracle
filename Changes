@@ -1,3 +1,21 @@
+Changes in DBD::Oracle 1.07 5th June 2001
+
+  This release is mostly targeted at the needs of the new Oracle::OCI module.
+    It's not a general release and not recommended for production use.
+
+  Fixed SCALE/PRECISION/TYPE values for numeric types, including FLOAT,
+    to be more correct thanks to Steffen Goeldner.
+    NOTE: this may break code that depends on the old values!
+  Fixed Win32::TieRegistry and Tie::Registry usage thanks to David Bradford.
+  Fixed insert/update of LOBs while AutoCommit enabled.
+  Fixed error in 'LOB value truncated' error thanks to Paul Walmsley.
+  Fixed old oci7 LONG buffer overwrite bug thanks to Bruce Templeton.
+  Fixed ocitrace.h not to trip up some compilers.
+  Added table_info() search attribs thanks to Steffen Goeldner and Olga Voronova.
+  Implemented some reworking of the placeholder handling, especially
+    in relation to the start of some basic array support.
+  Updated email and web page details to dbi-users@perl.org and dbi.perl.org.
+
 Changes in DBD::Oracle 1.06 14th July 2000
 
   Fixed ora_ph_type attribute to allow 96 or 97.

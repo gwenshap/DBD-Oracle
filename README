@@ -123,12 +123,10 @@ then you could try forcing a 'static' build using:
 Please don't post problems to comp.lang.perl.* or perl5-porters.
 This software is supported via the dbi-users mailing list.  For more
 information and to keep informed about progress you can join the
-mailing list via http://www.fugue.com/dbi (if you are unable to use the
-web you can subscribe by sending a message to dbi-request@fugue.com, it
-may take a few days to be processed).
+mailing list by sending a message to dbi-users-help@perl.org
 
 Please post details of any problems (or changes you needed to make) to
-dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk. But note...
+dbi-users@perl.org and CC them to me at Tim.Bunce@pobox.com. But note...
 
 ** IT IS IMPORTANT TO INCLUDE *ALL* THE FOLLOWING INFORMATION:
 
