@@ -214,7 +214,6 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
 extern int ora_fetchtest;
 
-#define LABHACK
 #ifdef UTF8_SUPPORT
 extern ub2 utf8_csid;
 extern ub2 charsetid;
@@ -222,6 +221,8 @@ extern ub2 ncharsetid;
 extern ub2 cs_is_utf8;
 extern ub2 al32utf8_csid;
 extern ub2 al16utf16_csid; 
+
+int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
 
 #define CS_IS_UTF8( cs ) \
    (  ( cs == utf8_csid ) \
@@ -238,8 +239,14 @@ extern ub2 al16utf16_csid;
         csid = ncharsetid; \
     }
 
+#define DBD_SET_UTF8(sv)   (cs_is_utf8? set_utf8(sv): 0)
 
-#endif
+#else /* UTF8_SUPPORT */
+#define DBD_SET_UTF8(sv)   0
+#define UTF8_FIXUP_CSID(csid,where)   0
+#endif /* UTF8_SUPPORT */
+
+
 
 void dbd_init_oci _((dbistate_t *dbistate));
 void dbd_preparse _((imp_sth_t *imp_sth, char *statement));

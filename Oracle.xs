@@ -129,7 +129,8 @@ ora_lob_write(dbh, locator, offset, data)
     amtp = data_len;
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (0 && SvUTF8(data) && !IN_BYTES) { amtp = sv_len_utf8(data); }  */
-#ifdef LABHACK
+    /* added by lab: */
+    /* LAB do something about length here? see above comment */
     OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
@@ -144,7 +145,6 @@ ora_lob_write(dbh, locator, offset, data)
         return;
     }
     UTF8_FIXUP_CSID( csid ,"ora_lob_write" );
-#endif
 #endif
     OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset,
@@ -180,7 +180,8 @@ ora_lob_append(dbh, locator, data)
     amtp = data_len;
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (1 && SvUTF8(data) && !IN_BYTES) */
-#ifdef LABHACK
+    /* added by lab: */
+    /* LAB do something about length here? see above comment */
     OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
@@ -195,7 +196,6 @@ ora_lob_append(dbh, locator, data)
         return;
     }
     UTF8_FIXUP_CSID( csid ,"ora_lob_append" );
-#endif
 #endif
 #ifdef OCI_HTYPE_DIRPATH_FN_CTX /* Oracle is >= 9.0 */
     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
@@ -253,15 +253,15 @@ ora_lob_read(dbh, locator, offset, length)
     CODE:
     csid = 0;
     csform = SQLCS_IMPLICIT;
-    dest_sv = sv_2mortal(newSV(length));
+    dest_sv = sv_2mortal(newSV(length*4)); /*LAB: crude hack that works... tim did it else where XXX */
     SvPOK_on(dest_sv);
-    bufp_len = SvLEN(dest_sv);	/* XXX bytes not chars? */
+    bufp_len = SvLEN(dest_sv);	/* XXX bytes not chars? (lab: yes) */
     bufp = SvPVX(dest_sv);
     amtp = length;	/* if utf8 and clob/nclob: in: chars, out: bytes */
     /* http://www.lc.leidenuniv.nl/awcourse/oracle/appdev.920/a96584/oci16m40.htm#427818 */
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (0 && SvUTF8(dest_sv) && !IN_BYTES) { amtp = sv_len_utf8(dest_sv); }  */
-#ifdef LABHACK
+    /* added by lab: */
     OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
@@ -277,7 +277,6 @@ ora_lob_read(dbh, locator, offset, length)
     }
     UTF8_FIXUP_CSID( csid ,"ora_lob_read" );
 #endif
-#endif
     OCILobRead_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset, /* offset starts at 1 */
 	    bufp, (ub4)bufp_len,
@@ -291,6 +290,8 @@ ora_lob_read(dbh, locator, offset, length)
         SvCUR(dest_sv) = amtp; /* always bytes here */
         *SvEND(dest_sv) = '\0';
     }
+    if ( csid ) 
+       DBD_SET_UTF8(dest_sv);
     ST(0) = dest_sv;
 
 void

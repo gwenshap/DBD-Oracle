@@ -28,26 +28,6 @@ my $table = table();
 my ($dbh);
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 
-#print out database character sets from NSL_DATABASE_PARAMETERS:
-#sub print_nls_info
-#{
-#    my $dbh = shift;
-#
-#    $ENV{NLS_LANG}
-#    diag "\tClient NLS_LANG=".$ENV{NLS_LANG}."\n";
-#    my $sth = $dbh->prepare( "select PARAMETER,VALUE from NLS_DATABASE_PARAMETERS where PARAMETER like ?" );
-#    $sth->execute( '%CHARACTERSET' );
-#    my ( $value, $param );
-#    $sth->bind_col( 1 ,\$param );
-#    $sth->bind_col( 2 ,\$value );
-#    while ( $sth->fetch() ) {
-#        diag "\tServer $param=$value\n" ;
-#    }
-#    warn "\n";
-#}
-#
-
-
 sub array_test {
     my ($dbh) = @_;
     return 0;	# XXX disabled
@@ -86,7 +66,7 @@ foreach (@test_sets) {
     my ($type_name, $type_num, $test_no_type) = @$_;
     #next if $type_name eq 'LONG';
     $utf8_test = use_utf8_data($dbh,$type_name);
-    diag qq(
+    print qq(
     =========================================================================
     Running long test for $type_name ($type_num) utf8_test=$utf8_test
 );
@@ -167,11 +147,11 @@ sub run_long_tests
             if (!create_table($dbh, $tdata, 1));
             # typically OCI 8 client talking to Oracle 7 database
 
-        diag "long_data0 length $len_data0\n";
-        diag "long_data1 length $len_data1\n";
-        diag "long_data2 length $len_data2\n";
+        print "long_data0 length $len_data0\n";
+        print "long_data1 length $len_data1\n";
+        print "long_data2 length $len_data2\n";
 
-        diag " --- insert some $type_name data (ora_type $type_num)\n";
+        print " --- insert some $type_name data (ora_type $type_num)\n";
         #lab ok(0, $sth = $dbh->prepare("insert into $table values (?, ?, SYSDATE)"), 1);
         my $sqlstr = "insert into $table values (?, ?, SYSDATE)" ;
         
@@ -192,10 +172,10 @@ sub run_long_tests
         $sth->trace(0);
         array_test($dbh);
 
-        diag " --- fetch $type_name data back again -- truncated - LongTruncOk == 1\n";
+        print " --- fetch $type_name data back again -- truncated - LongTruncOk == 1\n";
         $dbh->{LongReadLen} = 20;
         $dbh->{LongTruncOk} =  1;
-        diag "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
+        print "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
 
         # This behaviour isn't specified anywhere, sigh:
         my $out_len = $dbh->{LongReadLen};
@@ -226,12 +206,12 @@ sub run_long_tests
             ok(!defined $tmp->[3][1], "last row undefined"); # NULL # known bug in DBD::Oracle <= 1.13
         }
 
-        diag " --- fetch $type_name data back again -- truncated - LongTruncOk == 0\n";
+        print " --- fetch $type_name data back again -- truncated - LongTruncOk == 0\n";
         $dbh->{LongReadLen} = $len_data1 - 10; # so $long_data0 fits but long_data1 doesn't
         $dbh->{LongReadLen} = $dbh->{LongReadLen} / 2 if $type_name =~ /RAW/i;
         my $LongReadLen = $dbh->{LongReadLen};
         $dbh->{LongTruncOk} = 0;
-        diag "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
+        print "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
 
         $sqlstr = "select * from $table order by idx";
         ok($sth = $dbh->prepare($sqlstr), "prepare $sqlstr" );
@@ -250,10 +230,10 @@ sub run_long_tests
         }
 
 
-        diag " --- fetch $type_name data back again -- complete - LongTruncOk == 0\n";
+        print " --- fetch $type_name data back again -- complete - LongTruncOk == 0\n";
         $dbh->{LongReadLen} = $len_data1 +1000;
         $dbh->{LongTruncOk} = 0;
-        diag "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
+        print "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
 
         $sqlstr = "select * from $table order by idx";
         ok($sth = $dbh->prepare($sqlstr), "prepare: $sqlstr" );
@@ -282,7 +262,7 @@ sub run_long_tests
                 if ($type_name =~ /LONG/i) ;
 
             #$dbh->trace(4);
-            diag "\n\n--- fetch $type_name data back again -- via blob_read\n\n";
+            print " --- fetch $type_name data back again -- via blob_read\n\n";
 
             $dbh->{LongReadLen} = 1024 * 90;
             $dbh->{LongTruncOk} =  1;
@@ -319,9 +299,9 @@ sub run_long_tests
 
         SKIP: {
             skip( "not ($type_name =~ /LOB/i)" ,1+(13*4) )
-		if not ( $type_name =~ /LOB/i );
+                if not ( $type_name =~ /LOB/i );
 
-            diag "\n --- testing ora_auto_lob to access $type_name LobLocator\n\n";
+            print " --- testing ora_auto_lob to access $type_name LobLocator\n\n";
             my $data_fmt = "%03d foo!";
 
             $sqlstr = qq{
@@ -330,56 +310,54 @@ sub run_long_tests
                 };
             my $ll_sth = $dbh->prepare($sqlstr, { ora_auto_lob => 0 } );  # 0: get lob locator instead of lob contents
             ok($ll_sth ,"prepare $sqlstr" );
-            ok($ll_sth->execute ,"execute $sqlstr" );
+            #print_lengths($dbh);
 
+            ok($ll_sth->execute ,"execute $sqlstr" );
             while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
-                diag "$idx: ".DBI::neat($lob_locator)."\n";
+                print "$idx: ".DBI::neat($lob_locator)."\n";
                 last if !defined($lob_locator) && $idx == 43;
 
-                ok($lob_locator, "lob_locator false");
+                ok($lob_locator, '$lob_locator is true' );
                 is(ref $lob_locator , 'OCILobLocatorPtr', '$lob_locator is a OCILobLocatorPtr' );
-                ok( (ref $lob_locator and $$lob_locator), "lob_locator deref ptr false" ) ;
-                my $data = sprintf $data_fmt, $idx;
+                ok( (ref $lob_locator and $$lob_locator), '$lob_locator deref ptr is true' ) ;
+                my $data = sprintf $data_fmt, $idx; #create a little data
                 #print "\nlincoln: could it be that ora_lob_write is the function that is trashing things...\n\n" if $utf8_test;
                 $dbh->trace(0) if $utf8_test;
+                print "length of data to be written at offset 1: " .length($data) ."\n" ;
+#$dbh->trace(6);
                 ok($dbh->func($lob_locator, 1, $data, 'ora_lob_write') ,"ora_lob_write" ); #lab: is this trashing things (I don't see how)
                 #ok(1,"skipped ora_lob_write" );
                 $dbh->trace(0);
 
             }
             #$dbh->commit;
-            if ( 0 ) {
-                my $tsql = "select length(lng),idx from $table order by idx" ;
-                my $tsth = $dbh->prepare( $tsql );
-                $tsth->execute();
-                while ( my ( $l,$i ) = $tsth->fetchrow_array() )
-                {
-                    last if not defined $l;
-                    print "$i: $l\n";
-                }
-            }
+            #print_substrs($dbh,12);
+            #print_lengths($dbh);
             #diag "RE prepare: $sqlstr\n" ;
             #$ll_sth = $dbh->prepare($sqlstr, { ora_auto_lob => 0 } );  # 0: get lob locator instead of lob contents
-            diag "round again to check contents after lob write updates...\n";
+
+            print " --- round again to check contents after lob write updates...\n";
             SKIP: { #28
                 if ( $utf8_test ) {
-                   skip "\nora_lob_read does seem to work on second execute when charset is utf8 (patches welcome)" ,28 ;
+                   #skip "\nora_lob_read does seem to work on second execute when charset is utf8 (patches welcome)" ,28 ;
                 }
+#$dbh->trace(6);
                 ok($ll_sth->execute,"execute (again 1) $sqlstr" );
                 while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
-                    diag "$idx locator: ".DBI::neat($lob_locator)."\n";
+                    print "$idx locator: ".DBI::neat($lob_locator)."\n";
                     #next if !defined($lob_locator) && $idx == 43;
                     SKIP: {
                         skip "long_data{idx} not ndefined" ,7 if ! defined $long_data{$idx};
 
-                        diag "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
+                        print "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
 
-                    #$dbh->trace(6) if $utf8_test; #look here
+#$dbh->trace(6) if $utf8_test; #look here
                         my $content = $dbh->func($lob_locator, 1, 20, 'ora_lob_read');
-                    $dbh->trace(0);
-                        diag "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
+                        $dbh->trace(0);
+#exit(0);
+                        print "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
                         ok($content,"content is true" );
-                        diag "$idx content: ".DBI::neat($content)."\n";
+                        print "$idx content: ".nice_string($content)."\n"; #.DBI::neat($content)."\n";
                         cmp_ok(length($content) ,'==', 20 ,"lenth(content)" );
 
                         # but prefix has been overwritten:
@@ -402,17 +380,18 @@ sub run_long_tests
                             warn " If you're using Oracle < 8.1.7 then the OCILobWriteAppend error is probably\n";
                             warn " due to Oracle bug #886191 and is not a DBD::Oracle problem\n";
                         }
+#$dbh->trace(6) if $utf8_test; 
                     }
                 }
             }
-            diag "round again to check the length...\n";
+            print " --- round again to check the length...\n";
             SKIP: { #10
                 if ( $utf8_test ) {
-                   skip "\nora_lob_read does seem to work on second execute when charset is utf8 (patches welcome)" ,10 ;
+                   #skip "\nora_lob_read does seem to work on second execute when charset is utf8 (patches welcome)" ,10 ;
                 }
                ok($ll_sth->execute ,"execute (again 2) $sqlstr" );
                while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
-                   diag "$idx locator: ".DBI::neat($lob_locator)."\n";
+                   print "$idx locator: ".DBI::neat($lob_locator)."\n";
                    SKIP: {
                        skip "lob_locator not defined" ,2 if not defined $lob_locator;
                        my $len = $dbh->func($lob_locator, 'ora_lob_length');
@@ -443,25 +422,34 @@ END {
 }
 # end.
 
+sub print_substrs
+{
+    my ($dbh,$len) = @_;
+    my $tsql = "select substr(lng,1,$len),idx from $table order by idx" ;
+    print "-- prepare: $tsql\n" ;
+    my $tsth = $dbh->prepare( $tsql );
+    $tsth->execute();
+    while ( my ( $d,$i ) = $tsth->fetchrow_array() )
+    {
+        last if not defined $d;
+        print "$i: $d\n";
+    }
+}
 
-# ----
+sub print_lengths
+{
+    my ($dbh) = @_;
+    my $tsql = "select length(lng),idx from $table order by idx" ;
+    print "-- prepare: $tsql\n" ;
+    my $tsth = $dbh->prepare( $tsql );
+    $tsth->execute();
+    while ( my ( $l,$i ) = $tsth->fetchrow_array() )
+    {
+        last if not defined $l;
+        print "$i: $l\n";
+    }
+}
 
-#sub create_table {
-#    my ($dbh, $fields, $drop) = @_;
-#    $dbh->do(qq{ drop table $table }) if $drop;
-#    diag "\n";
-#    diag "drop table $table\n" if $drop;
-#    my $sql = "create table $table ( idx integer, $fields, dt date )";
-#    $dbh->do($sql);
-#    if ($dbh->err && $dbh->err==955) {
-#	$dbh->do(qq{ drop table $table });
-#	warn "Unexpectedly had to drop old test table '$table'\n" unless $dbh->err;
-#	$dbh->do($sql);
-#    }
-#    return 0 if $dbh->err;
-#    diag "\n$sql\n\n";
-#    return 1;
-#}
 
 sub blob_read_all {
     my ($sth, $field_idx, $blob_ref, $lump) = @_;

@@ -491,9 +491,9 @@ ora_utf8_to_bytes (ub1 *buffer, ub4 chars_wanted, ub4 max_bytes)
  * Maybe setting the flag should be default in Japan or
  * Europe? Deduce that from NLS_LANG? Possibly...
  */
-#define DBD_SET_UTF8(sv)   (cs_is_utf8? set_utf8(sv): 0)
+/* #define DBD_SET_UTF8(sv)   (cs_is_utf8? set_utf8(sv): 0) */
 
-static int 
+int 
 set_utf8(SV *sv) {
     ub1 *c;
     for (c = (ub1*)SvPVX(sv); c < (ub1*)SvEND(sv); c++) {
@@ -504,8 +504,10 @@ set_utf8(SV *sv) {
     }
     return 0;
 }
-#else
-#define DBD_SET_UTF8(sv)   0
+/* #else
+   #define DBD_SET_UTF8(sv)   0
+*/
+
 #endif
 
 static int	/* LONG and LONG RAW */
@@ -648,7 +650,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
      */
     ub2 csid = 0;
     ub1 csform = SQLCS_IMPLICIT;
-#ifdef LABHACK
+
     OCILobCharSetForm_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csform, status );
     if (status != OCI_SUCCESS) {
         oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
@@ -662,7 +664,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 	sv_set_undef(dest_sv);	/* signal error */
 	return 0;
     }
-#endif
+    UTF8_FIXUP_CSID( csid ,"ora_blob_read_bm_peice" );
 #endif
     if (ftype != 112) {
 	oci_error(sth, imp_sth->errhp, OCI_ERROR,
@@ -789,12 +791,15 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
             sv_set_undef(dest_sv);	/* signal error */
             return 0;
         }
+#ifdef OCI_ATTR_CHARSET_ID
         OCILobCharSetId_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csid, status );
         if (status != OCI_SUCCESS) {
             oci_error(sth, imp_sth->errhp, status, "OCILobCharSetId");
             sv_set_undef(dest_sv);	/* signal error */
             return 0;
         }
+        UTF8_FIXUP_CSID( csid ,"ora_blob_read_peice" );
+#endif /* OCI_ATTR_CHARSET_ID */
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 	    &amtp, (ub4)1 + offset, bufp, buflen,
@@ -912,6 +917,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
             sv_set_undef(dest_sv);
             return 0;
         }
+#ifdef OCI_ATTR_CHARSET_ID
 	OCILobCharSetId_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &csid, status );
         if (status != OCI_SUCCESS) {
             oci_error(sth, imp_sth->errhp, status, "OCILobCharSetId");
@@ -919,6 +925,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
             return 0;
         }
         UTF8_FIXUP_CSID( csid ,"fetch_func_auto_lob" );
+#endif /* OCI_ATTR_CHARSET_ID */
 
 	if (fbh->dbtype == 114) {
 	    OCILobFileOpen_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
@@ -1955,19 +1962,6 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	    status = OCI_SUCCESS;
 	}
 	else if (amtp > 0) {	/* since amtp==0 & OCI_ONE_PIECE fail (OCI 8.0.4) */
-#ifdef LABHACK
-#ifdef SKIP_THIS
-X            if ( SvUTF8(phs->sv) )
-X            {
-X                csid = ncharsetid;
-X                csform = SQLCS_NCHAR;
-X            }
-X            if( ! fbh->csid )
-X            {
-X                fbh->csid = csid;
-X                fbh->csform = csform;
-X            }
-#else /* SKIP_THIS */
             if( ! fbh->csid ) {
                 OCILobCharSetForm_log_stat( imp_sth->envhp, errhp, fbh->desc_h, &csform, status );
                 if (status != OCI_SUCCESS) {
@@ -1989,10 +1983,9 @@ X            }
                 fbh->csid = csid;
                 fbh->csform = csform;
             }
-#endif /* SKIP_THIS */
-#endif /* LABHACK */
+
             if (DBIS->debug >= 3)
-                PerlIO_printf(DBILOGFP, "lab       calling OCILobWrite fbh->csid=%d fbh->csform=%d\n"
+                PerlIO_printf(DBILOGFP, "      calling OCILobWrite fbh->csid=%d fbh->csform=%d\n"
                     ,fbh->csid ,fbh->csform );
 	    OCILobWrite_log_stat(imp_sth->svchp, errhp,
 		    fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
@@ -2003,6 +1996,9 @@ X            }
 	}
 	else {			/* amtp==0 so truncate LOB to zero length */
 	    OCILobTrim_log_stat(imp_sth->svchp, errhp, fbh->desc_h, 0, status);
+            if (status != OCI_SUCCESS) {
+                return oci_error(sth, errhp, status, "OCILobTrim in post_execute_lobs");
+            }
 	}
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,

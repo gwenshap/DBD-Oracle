@@ -1517,8 +1517,6 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 
     rebind_ok = dbd_rebind_ph(sth, imp_sth, phs);
 
-#define LAB_UNICODE_SUPPORT 1
-#ifdef LAB_UNICODE_SUPPORT
 
     /*
      * API:
@@ -1527,7 +1525,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
      *    $dbh->{ora_ph_csform} = 2;	# default all future ph to SQLCS_NCHAR
      */
     
-    if ( rebind_ok ) 
+    if ( rebind_ok )  /* here we set csform and csid if specified by user or utf8 input found */
     {
         /* set csform implicitly if sv is UTF8 and it is not already set ... */
         if ( (phs->csform == SQLCS_IMPLICIT) && SvUTF8(phs->sv) && cs_is_utf8  /* && column supports utf8? */ ) {
@@ -1553,7 +1551,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 
             }
 
-#if 0
+#if 0 /* XXXX I wonder why I commented this out... lab */
             OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND
                 &utf8_csid (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID imp_sth->errhp, status);
             if ( status != OCI_SUCCESS ) {
@@ -1570,8 +1568,6 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
             }
         }
     }
-
-#endif /* LAB_UNICODE_SUPPORT */
 
     return rebind_ok;
 }
