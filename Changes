@@ -1,0 +1,156 @@
+Changes in DBD::Oracle 0.29, 2 March 1996
+
+	Fixed Makefile.PL to get DBIXS.h from right spot.
+    Changes to suit perl5.002 and site_lib directories.
+	Detects old versions ahead of new in @INC.
+	Random tidy-ups.
+
+Changes in DBD::Oracle 0.28, 29 Jan 1996:
+
+	Minor release for Perl5.002 (beta2 or later).
+	Requires Perl5.002 and DBI 0.66;
+
+	Only functional change is to suppress (rare) 'handle not setup'
+	warnings unless debugging.
+
+Changes in DBD::Oracle 0.27, 16 Nov 1995:
+
+	Improved oraperl compatibility in assorted ways.
+	Added the original oraperl manual to Oraperl.pm as pod.
+	(perldoc Oraperl will display the manual).
+	The manual highlights remaining differences in the emulation.
+	Added original oraperl examples into oraperl.ex directory.
+
+	Improved error reporting in test.pl.
+	Removed some internal limits.
+	Renamed readblob to blob_read and fixed return value.
+	Implemented $sth = $dbh->tables method (see DBI changes file).
+	Uses $Config{archlibexp} not $Config{archlib} in makefile.PL
+	Requires DBI-0.65.
+
+	I've still not got around to implementing a row cache (array
+	fetch) but it's next on my list.
+
+	This should be the last alpha release of the oraperl emulation.
+	(The DBD::Oracle module itself will remain alpha for awhile yet.)
+
+
+Changes in DBD::Oracle 0.26, 23 Oct 1995:
+
+	Removed error message (sql) size limits in parse and ora_error.
+	Fixed FETCH NUM_OF_PARAMS so it doesn't trigger a describe.
+	The ora_lengths and ora_types attributes work in non-oraperl mode.
+
+
+Changes in DBD::Oracle 0.25, 26 Aug 1995:
+
+	User visible changes:
+
+	Fixed bug in parsing '?' style placeholders.
+	$sth->bind_param now checks for a too long LONG type string.
+	$sth->prepare now takes attributes:
+		ora_parse_lang  => 0 | 1 | 2  (v6, auto v6/v7, v7)
+		ora_parse_defer => 0 | 1      (control defered parsing)
+
+	Other changes to be propogated to other drivers:
+
+	Added usage of new DBD_ATTRIB_* macros to XS and C code.
+	dbd_bind_ph return value inverted to make it consistent.
+	Added braces around XSRETURN_UNDEF in execute.
+	Checked for describe failure in FETCH.
+	Removed NumParams since it's now called NUM_OF_PARAMS in DBI.
+	Updated NEED_DBIXS_VERSION in Oracle.h
+
+
+Changes in DBD::Oracle 0.24, 22 Aug 1995:
+
+	User visible changes:
+
+	$sth->bind_param method implemented (needs testing :-)
+	and new DBI $sth->bind_col* methods work for DBD::Oracle.
+
+	Other changes to be propogated to other drivers:
+
+	- Slight change to STORE functions to allow them to return status
+	  if called as $h->STORE(...).
+
+	- Revised signature of dbd_bind_ph function and added a bind_param
+	  method for it. Prototype moved from dbdimp.h to Oracle.h
+
+	- Revised execute method to use modified dbd_bind_ph function and
+	  remove remaining oracle specifics.
+
+	- imp_xxh_t structures first element now called 'com' not 'dbihcom'
+	  and new DBI macros used to access fields.
+
+
+Changes in DBD::Oracle 0.23, 18 Aug 1995:
+
+	Fixed Oraperl.pm debug which was left on by default by accident.
+	Added small patches from Davide.Migliavacca@inferentia.it for
+	longs (dbtype_is_long, dbd_describe and dbd_st_readblob).
+	Added svr4 hints from Alan Burlison <aburlison@cix.compulink.co.uk>
+	Changed dbd_describe to return true for success (to be consistent).
+
+
+Changes in DBD::Oracle 0.22, 17 Aug 1995:
+
+	Much more maturity, in line with the required DBI-0.60 release.
+	The .xs file is now very 'clean'. It's an excellent base for
+	developing other drivers. See notes in the DBI Changes file.
+
+	The oraperl &ora_do should be working now (along with $sth->do()).
+	It does not leak (as far as I can tell).
+
+	This release is stable enough for general use again (like 0.20).
+	Please test heavily.
+
+
+Changes in DBD::Oracle 0.21, 15 Aug 1995:
+
+	NOTE: THIS IS AN UNSTABLE RELEASE!
+	It requires the closely related DBI 0.59 release.
+	See Changes file in that release.
+	Major reworking of internal data management!
+
+	Only execute and fetchrow have yet to move into dbdimp.c.
+	These were kept back since I plan other associated changes.
+
+	Known problems:
+	Warning mode is on by default so certain oraperl coding
+	styles cause warnings such as:
+	    Statement handle ... destroyed without finish() at ...
+	    disconnect(...) invalidates 1 associated cursor(s) at ...
+	In future oraperl mode handles will have those warnings disabled.
+	...other changes to numerous/minor to mention
+
+Changes in DBD::Oracle 0.20, 1 Aug 1995:
+
+	Fixed core dump when binding an undef (treated as a NULL)
+	Binding a string longer that 2000 bytes will use LONG type.
+	Workaround OSF makefile and oratype.h problems
+	PL/SQL := construct will no longer confuse dbd_preparse()
+
+Changes in DBD::Oracle 0.19, 21 June 1995:
+
+	Added $VERSION
+	disconnect_all now gives error 'not implemented'.
+	Reworked memory management, imp_dbh's are cached.
+	imp_dbh_t now has an in_use flag and generation counter.
+	st::DESTROY now checks its imp_dbh for validity.
+	&ora_do() now returns "OK" for 0 rows (as per oraperl).
+	Reworked logging to use DBILOGFP macro.
+	Now test code added to loop through logon/prep/fin/logoff.
+	
+
+Changes in DBD::Oracle 0.18:
+
+	Makefile.PL: HPUX now builds with LINKTYPE=static automatically.
+	Fixed errors on logout/global destruction.
+	Added logout/global destruction test to test.pl.
+	Changed Oraperl.pm default mode from safe to fast (see func_ref()).
+	Added platform who's-who list to README.
+	Added $sth->readblob($field, $offset, $length [, \$dest) method.
+	(You need to add the following after line 80 in DBI/DBI.pm:
+	   'readblob' =>   {'U'=>[4,5,'$field, $offset, $len [, \\$buf]']},
+	in order to access the new readblob method.)

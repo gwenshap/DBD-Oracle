@@ -1,0 +1,26 @@
+MANIFEST
+README
+Changes
+Todo
+Makefile.PL
+Oracle.pm
+Oracle.xs
+Oracle.h
+Oraperl.pm
+dbdimp.h
+dbdimp.c
+test.pl
+t/base.t
+t/main.t
+hints/svr4.pl
+oraperl.ph	Old oraperl file included for completeness of emulation
+oraperl.ex/Readme	Oraperl examples (copied unchanged from oraperl-2.4)
+oraperl.ex/bind.pl
+oraperl.ex/commit.pl
+oraperl.ex/ex.pl
+oraperl.ex/japh
+oraperl.ex/mkdb.pl
+oraperl.ex/oradump.pl
+oraperl.ex/sql
+oraperl.ex/tabinfo.pl
+

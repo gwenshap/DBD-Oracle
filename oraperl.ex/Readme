@@ -1,0 +1,38 @@
+[ Tim Bunce, 16th Nov 1995: The only change I've made to these
+  original oraperl examples by Kevin Stock is to add the magic
+	eval 'use Oraperl; 1' || die $@ if $] >= 5;
+  line to each. ]
+
+This directory contains a few sample Oraperl scripts. Some are genuinely
+useful (sql, for example, is installed as part of make install) while
+others are just demonstrations of different things.
+
+bind.pl		Demonstrates how &ora_bind() and &ora_fetch() may be
+		combined to make a simple table lookup program
+
+commit.pl	Demonstrates the use of &ora_commit() and &ora_rollback()
+
+ex.pl		This was my first ever Oraperl script. I think I wrote it even
+		before writing Oraperl! It reads data from a table and prints
+		it using a format. It also illustrates how to recognise NULL
+		fields.
+
+japh		Just another Perl hacker, written in Oraperl
+		This is no one-liner, but it demonstrates a few things.
+
+mkdb.pl		Creates a database, puts some data into it, drops it. The nice
+		thing about this is that it detects whether it is running under
+		Oraperl or Coraperl, and changes its output accordingly. It
+		also illustrates handling of NULL fields, with both &ora_bind()
+		and &ora_fetch().
+
+oradump.pl	Dumps the contents of an Oracle table into a set of insert
+		statements.
+
+sql		This was written in response to a posting on the net, asking
+		whether there was a tool which would execute an SQL statement
+		specified on the command line. Manual page built-in.
+
+tabinfo.pl	Displays the structure of the specified table.
+		This is mainly to show the use of &ora_lengths, &ora_titles
+		and &ora_types.
