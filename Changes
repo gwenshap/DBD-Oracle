@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.16 (svn rev 398)   15th July 2004
+=head1 Changes in DBD-Oracle 1.16 (svn rev 425)   7th August 2004
 
   NOTE:
   This release has major changes to Unicode support. See below.
@@ -8,16 +8,15 @@
   Fixed some LOB test problems with Oracle 8.1.7 by implementing ora_lob_append
     with OCILobGetLength() and OCILobWrite(), instead of buggy OCILobWriteAppend(),
     if the Oracle client version is < 9.0. Thanks to Jeff Urlwin.
+  Fixed handling of temporary LOBs thanks to Chris Donnelly.
+  Fixed memory leaks in auto LOB refetch code thanks to Dongqiang Bai.
   Fixed reporting of length truncated in error message thanks to Jeff Urlwin.
   Fixed column_info() to handle TIMESTAMP and INTERVAL datatypes
     for Oracle >= 8 thanks to Stephen Clouse.
-  Fixed handling of temporary LOBs thanks to Chris Donnelly.
   Fixed STORE to cache attribute value in handle cache.
   Fixed seg fault returning LOB Locators reported by Raj Chandran.
   Fixed binding to allow overloaded scalars (not for 'inout' params).
   Fixed setting of $DBI::err to 0 triggering PrintWarn in DBI >= 1.41.
-  Fixed memory leaks in auto LOB refetch code thanks to Dongqiang Bai.
-  Fixed HPUX 64bit build issues thanks to Weiguo Sun.
 
   Changed some utf8 internals for LOBs.
   Changed ORA_OCI constant from being just 7 or 8 to being a dualvar:
@@ -50,6 +49,7 @@
     Fixed build32/build64 Makefile.PL bug spotted by Sean Kelly.
     Fixed Oracle version detection on clients thanks to Marko Asplund.
     Fixed Oracle 10 version detection on clients thanks to Andy Hassall.
+    Fixed HP-UX 64bit build issues thanks to Weiguo Sun.
     Fixed suprious warning from Makefile.PL thanks to Marko Asplund.
     Fixed compiler warnings thanks to Robert Baron.
     Fixed oci.def for Cygwin by adding OCILobWriteAppend thanks to Gert-Jan Paulissen.
