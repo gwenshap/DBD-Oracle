@@ -12,7 +12,7 @@ BEGIN {
 }
 
 use DBI qw(:sql_types);
-use DBD::Oracle qw(:ora_types ORA_OCI);
+use DBD::Oracle qw(:ora_types ORA_OCI SQLCS_NCHAR );
 
 use File::Basename;
 
@@ -57,7 +57,7 @@ SKIP: {
     #TODO need a oracle 9i version test.... I guess I could clone one from Makefile.PL...
 
 
-    #$dbh->{ora_ph_csform} = 2;
+    #$dbh->{ora_ph_csform} = SQLCS_NCHAR;
     # silently drop $table if it exists... 
     {
         local $dbh->{PrintError} = 0;
@@ -79,7 +79,7 @@ SKIP: {
 
     my ($idx, $ch_col, $nch_col, $dt );
     $idx = 0;
-    my $csform = $ENV{DBD_CSFORM} ? $ENV{DBD_CSFORM} : 2;
+    my $csform =  SQLCS_NCHAR;
     my $upd_sth = $dbh->prepare( $ustmt );
     ok($upd_sth, "prepare $ustmt" );
     foreach my $widechar ( @ncharstrings ) 
@@ -106,7 +106,7 @@ SKIP: {
        ok($sel_sth->bind_col( $colnum++, \$ch_col  ), 'bind_col ch_col' ); 
        ok($sel_sth->bind_col( $colnum++, 
                               \$nch_col ), 'bind_col nch_col (implicit)' ); 
-                              #\$nch_col ,{ ora_csform => 2 } ), 'bind ncl_col ora_csform => (2) SQLCS_NCHAR' );
+                              #\$nch_col ,{ ora_csform => SQLCS_NCHAR } ), 'bind nch_col ora_csform => SQLCS_NCHAR' );
        ok($sel_sth->bind_col( $colnum++ ,\$dt ),   'bind_col dt' );
     }
     my $cnt = 0;

@@ -365,57 +365,49 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	}
 	else {		/* Normal connect. */
 
-             ub2 charset ,ncharset;
-             size_t rsize;
+             ub2 charsetid = 0;
+             ub2 ncharsetid = 0;
+             size_t rsize = 0;
 
 	    imp_drh->proc_handles = 0;
+
+#ifdef NEW_OCI_INIT
 	    /* XXX recent oracle docs recommend using OCIEnvCreate() instead of	*/
 	    /* OCIInitialize + OCIEnvInit, we'd need ifdef's for old versions	*/
 
-#ifdef NEW_OCI_INIT
-            {
-                /* nlsbuf = char[120]; /* FIX magic number */
-                OCINlsEnvironmentVariableGet_log_stat( &charset, 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
-                if (status != OCI_SUCCESS) {
-                    oci_error(dbh, NULL, status,
-                        "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
-                    return 0;
-                }
-
-                OCINlsEnvironmentVariableGet_log_stat( &ncharset, 0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
-                if (status != OCI_SUCCESS) {
-                    oci_error(dbh, NULL, status,
-                        "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
-                    return 0;
-                }
-
-                OCIEnvNlsCreate_log_stat( &imp_drh->envhp, OCI_DEFAULT, 0, NULL, NULL, NULL, 0, 0, charset, ncharset, status );
-                if (status != OCI_SUCCESS) {
-                    oci_error(dbh, NULL, status,
-                        "OCIEnvNlsCreate. Check ORACLE_HOME and NLS settings etc.");
-                    return 0;
-                }
+            OCINlsEnvironmentVariableGet_log_stat( &charsetid, 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
+            if (status != OCI_SUCCESS) {
+                oci_error(dbh, NULL, status,
+                    "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
+                return 0;
             }
-#ifdef SKIP_THIS
-        PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"UTF8\") returns %d\n", 
-                      OCINlsCharSetNameToId(imp_drh->envhp, "UTF8") );
-        PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"AL32UTF8\") returns %d\n", 
-                      OCINlsCharSetNameToId(imp_drh->envhp, "AL32UTF8") );
-#endif
-        if ( 1 )
-        {
-            int charsetid = 0;
-            int rsize = 0;
-            int stat = 0;
-            utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "UTF8");
-            stat = OCINlsEnvironmentVariableGet(&charsetid,2,OCI_NLS_CHARSET_ID,0,&rsize);
-            /*  PerlIO_printf(DBILOGFP,"(lab) OCINlsEnvironmentVariableGet() returns %d: charsetid=%d rsize=%d\n", 
-                      stat, charsetid, rsize 
-                      ); */
-            if ( ! stat ) cs_is_utf8 = ( charsetid == utf8_csid );
-        }
 
-#else /* (the old way) NEW_OCI_INIT */
+            OCINlsEnvironmentVariableGet_log_stat( &ncharsetid, 0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
+            if (status != OCI_SUCCESS) {
+                oci_error(dbh, NULL, status,
+                    "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
+                return 0;
+            }
+
+            OCIEnvNlsCreate_log_stat( &imp_drh->envhp, OCI_DEFAULT, 0, NULL, NULL, NULL, 0, 0, charsetid, ncharsetid, status );
+            if (status != OCI_SUCCESS) {
+                oci_error(dbh, NULL, status,
+                    "OCIEnvNlsCreate. Check ORACLE_HOME and NLS settings etc.");
+                return 0;
+            }
+            /* PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"UTF8\") returns %d\n", 
+            *          OCINlsCharSetNameToId(imp_drh->envhp, "UTF8") );
+            *  PerlIO_printf(DBILOGFP,"(lab) OCINlsCharSetNameToId(imp_sth->envhp, \"AL32UTF8\") returns %d\n", 
+            *          OCINlsCharSetNameToId(imp_drh->envhp, "AL32UTF8") );
+            */    
+            utf8_csid = OCINlsCharSetNameToId(imp_drh->envhp, "UTF8");
+	    if (status != OCI_SUCCESS) {
+	 	oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
+	 	return 0;
+            }
+            cs_is_utf8 = ( ncharsetid == utf8_csid );
+
+#else /* (the old init code) NEW_OCI_INIT */
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, NULL, status,
@@ -429,7 +421,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 		return 0;
 	    }
 #endif /* NEW_OCI_INIT */
-	}
+        }
     }
 
     if (shared_dbh_ssv) {
@@ -1421,17 +1413,15 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 
     rebind_ok = dbd_rebind_ph(sth, imp_sth, phs);
 
-    /* XXXX if rebind_ok && phs->csform != SQLCS_IMPLICIT
-     * OCIAttrSet_log_stat OCI_ATTR_CHARSET_FORM
-     check status && call oci_error if !OCI_SUCCESS, set rebind_ok=0
-     if debug write message to log
-     API:
-	$sth->bind_param(1, $value, { ora_csform => 2 }); # 2 = SQLCS_NCHAR
-    also
-	$dbh->{ora_ph_csform} = 2;	# default all future ph to SQLCS_NCHAR
-    */
 #define LAB_UNICODE_SUPPORT 1
 #ifdef LAB_UNICODE_SUPPORT
+
+    /*
+     * API:
+     *	  $sth->bind_param(1, $value, { ora_csform => 2 }); # 2 = SQLCS_NCHAR
+     * also
+     *    $dbh->{ora_ph_csform} = 2;	# default all future ph to SQLCS_NCHAR
+     */
     
     if ( rebind_ok && phs->csform != SQLCS_IMPLICIT ) {
 	sword status;
