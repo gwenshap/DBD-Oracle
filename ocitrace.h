@@ -37,6 +37,24 @@
 */
 
 /* added by lab */
+#define OCILobCharSetId_log_stat( envhp, errhp, locp, csidp, stat ) \
+   stat = OCILobCharSetId( envhp, errhp, locp, csidp ); \
+	(DBD_OCI_TRACEON) \
+   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+         "OCILobCharSetForm(%p,%p,%p,%d)=%s\n",\
+         (void*)envhp, (void*)errhp, (void*)locp, *csidp, oci_status_name(stat)),stat \
+   : stat
+
+/* added by lab */
+#define OCILobCharSetForm_log_stat( envhp, errhp, locp, formp, stat ) \
+   stat = OCILobCharSetForm( envhp, errhp, locp, formp ); \
+	(DBD_OCI_TRACEON) \
+   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+         "OCILobCharSetForm(%p,%p,%p,%p)=%s\n",\
+         (void*)envhp, (void*)errhp, (void*)locp, (void*)formp, oci_status_name(stat)),stat \
+   : stat
+
+/* added by lab */
 #define OCINlsEnvironmentVariableGet_log_stat( valp, size, item, charset, rsizep ,stat ) \
    stat = OCINlsEnvironmentVariableGet(  valp, size, item, charset, rsizep ); \
 	(DBD_OCI_TRACEON) \

@@ -214,7 +214,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
 extern int ora_fetchtest;
 
-#undef LABHACK
+#define LABHACK
 #ifdef UTF8_SUPPORT
 extern ub2 utf8_csid;
 extern ub2 charsetid;

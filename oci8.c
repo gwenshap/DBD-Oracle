@@ -644,13 +644,22 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
      *		(void)SvUPGRADE(dest_sv, SVt_PV);
      */
     ub2 csid = 0;
-    ub2 csform = SQLCS_IMPLICIT;
+    ub1 csform = SQLCS_IMPLICIT;
 #ifdef LABHACK
-    if ( 1 || SvUTF8(dest_sv) )
-    {
-        csid = ncharsetid;
-        csform = SQLCS_NCHAR;
+    OCILobCharSetForm_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csform, status );
+    if (status != OCI_SUCCESS) {
+        oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
+	sv_set_undef(dest_sv);	/* signal error */
+	return 0;
     }
+#ifdef OCI_ATTR_CHARSET_ID
+    OCILobCharSetId_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csid, status );
+    if (status != OCI_SUCCESS) {
+        oci_error(sth, imp_sth->errhp, status, "OCILobCharSetId");
+	sv_set_undef(dest_sv);	/* signal error */
+	return 0;
+    }
+#endif
 #endif
     if (ftype != 112) {
 	oci_error(sth, imp_sth->errhp, OCI_ERROR,
@@ -766,8 +775,27 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
      */
 
     if (loblen > 0) {
+        ub1 csform;
+        ub2 csid;
         ub1 * bufp = (ub1 *)(SvPVX(dest_sv));
 	bufp += destoffset;
+
+#ifdef LABHACK
+        OCILobCharSetForm_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csform, status );
+        if (status != OCI_SUCCESS) {
+            oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
+            sv_set_undef(dest_sv);	/* signal error */
+            return 0;
+        }
+#ifdef OCI_ATTR_CHARSET_ID
+        OCILobCharSetId_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csid, status );
+        if (status != OCI_SUCCESS) {
+            oci_error(sth, imp_sth->errhp, status, "OCILobCharSetId");
+            sv_set_undef(dest_sv);	/* signal error */
+            return 0;
+        }
+#endif
+#endif
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 	    &amtp, (ub4)1 + offset, bufp, buflen,
@@ -878,7 +906,19 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
     if (loblen > 0) {
 	ub1  csform = 0;
-	OCILobCharSetForm(imp_sth->envhp, imp_sth->errhp, lobloc, &csform);
+	ub2  csid = 0;
+	OCILobCharSetForm_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &csform, status );
+        if (status != OCI_SUCCESS) {
+            oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
+            sv_set_undef(dest_sv);
+            return 0;
+        }
+	OCILobCharSetId_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &csid, status );
+        if (status != OCI_SUCCESS) {
+            oci_error(sth, imp_sth->errhp, status, "OCILobCharSetId");
+            sv_set_undef(dest_sv);
+            return 0;
+        }
 
 	if (fbh->dbtype == 114) {
 	    OCILobFileOpen_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
@@ -892,7 +932,8 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
 	    &amtp, (ub4)1, SvPVX(dest_sv), buflen,
-	    0, 0, (ub2)0, csform, status);
+	    0, 0, csid, csform, status);
+	    /* lab: 0, 0, (ub2)0, csform, status); */
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
 		"       OCILobRead field %d %s: csform %d, LOBlen %luc, LongReadLen %luc, BufLen %lub, Got %luc\n",
@@ -1106,6 +1147,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    else
 #endif
 		fbh->disize = long_readlen;
+                /* not governed by else: */
 		fbh->dbsize = (fbh->disize>65535) ? 65535 : fbh->disize;
 		fbh->ftype  = 94; /* VAR form */
 		fbh->fetch_func = fetch_func_varfield;
@@ -1129,6 +1171,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	case 113:				/* BLOB		*/
 	case 114:				/* BFILE	*/
 		fbh->ftype  = fbh->dbtype;
+                /* do we need some addition size logic here? (lab) */
 		fbh->disize = fbh->dbsize *10 ;	/* XXX! */
 		fbh->fetch_func = (imp_sth->auto_lob)
 				? fetch_func_autolob : fetch_func_getrefpv;
@@ -1384,14 +1427,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 			--datalen;
 		}
 		sv_setpvn(sv, p, (STRLEN)datalen);
-#if 0 /*def OCI_ATTR_CHARSET_ID /* */
-                if ( (fbh->dbtype==1) && (fbh->csform) ) /* && (fbh->csid==871) ) */
-                { 
-                    DBD_SET_UTF8(sv);
-                } 
-#endif
-
-#if 1 /*def LAB_SKIP_THIS /*UTF8_SUPPORT*/
+#ifdef UTF8_SUPPORT
 		DBD_SET_UTF8(sv);
 #endif
 	    }
@@ -1409,7 +1445,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 		    /* but it'll only be accessible via prior bind_column()	*/
 		    sv_setpvn(sv, (char*)&fb_ary->abuf[0],
 			  fb_ary->arlen[0]);
-#ifdef UTF8_SUPPORT /* lab: this is probably wrong too */
+#ifdef UTF8_SUPPORT 
 		    DBD_SET_UTF8(sv);
 #endif
 		}
@@ -1859,8 +1895,6 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
     lob_refetch_t *lr;
     D_imp_dbh_from_sth;
     SV *dbh = (SV*)DBIc_MY_H(imp_dbh);
-    ub2 csform = 0;
-    ub2 csid = SQLCS_IMPLICIT;
 
     if (!imp_sth->auto_lob)
 	return 1;	/* application doesn't want magical lob handling */
@@ -1890,7 +1924,10 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	imp_fbh_t *fbh = &lr->fbh_ary[i];
 	int rc = fbh->fb_ary->arcode[0];
 	phs_t *phs = (phs_t*)fbh->special;
+        ub1 csform = 0;
+        ub2 csid = SQLCS_IMPLICIT;
 	ub4 amtp;
+
         SvUPGRADE(phs->sv, SVt_PV);	/* just in case */
 	amtp = SvCUR(phs->sv);		/* XXX UTF8? */
 	if (rc == 1405) {		/* NULL - return undef */
@@ -1899,16 +1936,36 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	}
 	else if (amtp > 0) {	/* since amtp==0 & OCI_ONE_PIECE fail (OCI 8.0.4) */
 #ifdef LABHACK
-            if ( SvUTF8(phs->sv) )
-            {
-                csid = ncharsetid;
-                csform = SQLCS_NCHAR;
-            }
-            if( ! fbh->csid )
-            {
+#ifdef SKIP_THIS
+X            if ( SvUTF8(phs->sv) )
+X            {
+X                csid = ncharsetid;
+X                csform = SQLCS_NCHAR;
+X            }
+X            if( ! fbh->csid )
+X            {
+X                fbh->csid = csid;
+X                fbh->csform = csform;
+X            }
+#else /* SKIP_THIS */
+            if( ! fbh->csid ) {
+                OCILobCharSetForm_log_stat( imp_sth->envhp, errhp, fbh->desc_h, &csform, status );
+                if (status != OCI_SUCCESS) {
+                    return oci_error(sth, errhp, status, "OCILobCharSetForm");
+                }
+#ifdef OCI_ATTR_CHARSET_ID
+                OCILobCharSetId_log_stat( imp_sth->envhp, errhp, fbh->desc_h, &csid, status );
+                if (status != OCI_SUCCESS) {
+                    return oci_error(sth, errhp, status, "OCILobCharSetId");
+                }
+                if ( SvUTF8(phs->sv) && ! (csid == ncharsetid) && (DBIS->debug >= 3) )
+                    PerlIO_printf(DBILOGFP, "lab       how come sv is UTF8 and csid != ncharsetid\n" );
+#endif /* OCI_ATTR_CHARSET_ID */
+
                 fbh->csid = csid;
                 fbh->csform = csform;
             }
+#endif /* SKIP_THIS */
 #endif /* LABHACK */
 	    OCILobWrite_log_stat(imp_sth->svchp, errhp,
 		    fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,

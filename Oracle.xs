@@ -120,29 +120,39 @@ ora_lob_write(dbh, locator, offset, data)
     STRLEN data_len; /* bytes not chars */
     dvoid *bufp;
     sword status;
-    ub2 csform;
+    ub2 csid;
+    ub1 csform;
     CODE:
+    csid = 0;
+    csform = SQLCS_IMPLICIT;
     bufp = SvPV(data, data_len);
     amtp = data_len;
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (0 && SvUTF8(data) && !IN_BYTES) { amtp = sv_len_utf8(data); }  */
 #ifdef LABHACK
-    if (1 && SvUTF8(data) && !IN_BYTES) { /* lab uncommented */
-        amtp = sv_len_utf8(data); 
-        csform = SQLCS_NCHAR;
-    } else {
-        csform = SQLCS_IMPLICIT;
+    OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
+    if (status != OCI_SUCCESS) {
+        oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
+	ST(0) = &sv_undef;
+        return;
+    }
+#ifdef OCI_ATTR_CHARSET_ID
+    OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
+    if (status != OCI_SUCCESS) {
+        oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
+	ST(0) = &sv_undef;
+        return;
     }
 #endif
+#endif
+    if (DBIS->debug >= 2 )
+	PerlIO_printf(DBILOGFP, "    Calling OCILobWrite with csid=%d csform=%d\n",csid, csform );
+
     OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset,
 	    bufp, (ub4)data_len, OCI_ONE_PIECE,
 	    NULL, NULL,
-#ifdef LABHACK
-		 ncharsetid, csform , status);
-#else
-	    0 /* indicate UTF8? */, SQLCS_IMPLICIT, status);
-#endif
+	    csid, csform , status );
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
 	ST(0) = &sv_undef;
@@ -163,28 +173,38 @@ ora_lob_append(dbh, locator, data)
     dvoid *bufp;
     sword status;
     ub4 startp;
-    ub2 csform;
+    ub1 csform;
+    ub2 csid;
     CODE:
+    csid = 0;
+    csform = SQLCS_IMPLICIT;
     bufp = SvPV(data, data_len);
     amtp = data_len;
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
+    /* if (1 && SvUTF8(data) && !IN_BYTES) */
 #ifdef LABHACK
-    if (1 && SvUTF8(data) && !IN_BYTES) { /* lab uncommented */
-        amtp = sv_len_utf8(data); 
-        csform = SQLCS_NCHAR;
-    } else {
-        csform = SQLCS_IMPLICIT;
+    OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
+    if (status != OCI_SUCCESS) {
+        oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
+	ST(0) = &sv_undef;
+        return;
     }
+#ifdef OCI_ATTR_CHARSET_ID
+    OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
+    if (status != OCI_SUCCESS) {
+        oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
+	ST(0) = &sv_undef;
+        return;
+    }
+    if (DBIS->debug >= 2 )
+	PerlIO_printf(DBILOGFP, "    Calling OCILobWriteAppend with csid=%d csform=%d\n",csid, csform );
+#endif
 #endif
 #ifdef OCI_HTYPE_DIRPATH_FN_CTX /* Oracle is >= 9.0 */
     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 			       &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
 			       NULL, NULL,
-#ifdef LABHACK
-			       ncharsetid, csform , status);
-#else
-			       0 /* indicate UTF8? */, SQLCS_IMPLICIT, status);
-#endif
+			       csid, csform , status);
     if (status != OCI_SUCCESS) {
        oci_error(dbh, imp_dbh->errhp, status, "OCILobWriteAppend");
        ST(0) = &sv_undef;
@@ -200,11 +220,13 @@ ora_lob_append(dbh, locator, data)
     } else {
        /* start one after the end -- the first position in the LOB is 1 */
        startp++;
+       if (DBIS->debug >= 2 )
+            PerlIO_printf(DBILOGFP, "    Calling OCILobWrite with csid=%d csform=%d\n",csid, csform );
        OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 			    &amtp, startp,
 			    bufp, (ub4)data_len, OCI_ONE_PIECE,
 			    NULL, NULL,
-			    0 /* indicate UTF8? */, SQLCS_IMPLICIT, status);
+			       csid, csform , status);
        if (status != OCI_SUCCESS) {
 	  oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
 	  ST(0) = &sv_undef;
@@ -229,8 +251,11 @@ ora_lob_read(dbh, locator, offset, length)
     SV *dest_sv;
     dvoid *bufp;
     sword status;
-    ub2 csform;
+    ub2 csid;
+    ub1 csform;
     CODE:
+    csid = 0;
+    csform = SQLCS_IMPLICIT;
     dest_sv = sv_2mortal(newSV(length));
     SvPOK_on(dest_sv);
     bufp_len = SvLEN(dest_sv);	/* XXX bytes not chars? */
@@ -240,21 +265,28 @@ ora_lob_read(dbh, locator, offset, length)
     /* if locator is CLOB and data is UTF8 and not in bytes pragma */
     /* if (0 && SvUTF8(dest_sv) && !IN_BYTES) { amtp = sv_len_utf8(dest_sv); }  */
 #ifdef LABHACK
-    if (1 && SvUTF8(dest_sv) && !IN_BYTES) { /* lab uncommented */
-        amtp = sv_len_utf8(dest_sv); 
-        csform = SQLCS_NCHAR;
-    } else {
-        csform = SQLCS_IMPLICIT;
+    OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
+    if (status != OCI_SUCCESS) {
+        oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
+	dest_sv = &sv_undef;
+        return;
+    }
+#ifdef OCI_ATTR_CHARSET_ID
+    OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
+    if (status != OCI_SUCCESS) {
+        oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
+	dest_sv = &sv_undef;
+        return;
     }
 #endif
+#endif
+    if (DBIS->debug >= 2 )
+	PerlIO_printf(DBILOGFP, "    Calling OCILobRead with csid=%d csform=%d\n",csid, csform );
     OCILobRead_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 	    &amtp, (ub4)offset, /* offset starts at 1 */
 	    bufp, (ub4)bufp_len,
-#ifdef LABHACK
-	    0, 0, (ub2)ncharsetid, (ub1)csform, status);
-#else
-	    0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status);
-#endif
+	    0, 0, csid, csform, status);
+
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobRead");
         dest_sv = &sv_undef;
