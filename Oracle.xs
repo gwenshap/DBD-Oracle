@@ -201,7 +201,7 @@ ora_lob_append(dbh, locator, data)
     }
     UTF8_FIXUP_CSID( csid ,csform ,"ora_lob_append" );
 #endif
-#ifdef OCI_HTYPE_DIRPATH_FN_CTX /* Oracle is >= 9.0 */
+#if !defined(ORA_OCI_8) && defined(OCI_HTYPE_DIRPATH_FN_CTX) /* Oracle is >= 9.0 */
     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 			       &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
 			       NULL, NULL,
