@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.41 1996/06/19 00:48:09 timbo Exp $
+# $Id: Makefile.PL,v 1.44 1996/06/21 21:19:48 timbo Exp $
 
 require 5.002;
 
@@ -90,6 +90,13 @@ if ($::opt_s) {
 	exit;
 }
 
+if ($Config{osname} eq 'solaris' and $Config{osver} == 2.5
+		and $linkwith_s =~ /-lthread/) {
+	warn "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
+	warn "Deleting -lthread from link list as a possible workround.\n";
+	$linkwith_s =~ s/\s*-lthread\b/ /g;
+}
+
 my $OCIINCLUDE = $MK{INCLUDE} || '';
 $opts{LIBS} = [ "-L$libhome $linkwith_s" ];
 # INSTALLARCHLIB included _after_ INSTALLSITEARCH for transition period
@@ -114,6 +121,7 @@ $opts{DEFINE} = '-Wall -pedantic -Wno-comment -Wtraditional'
 	if $Config{cc} eq 'gcc';
 
 $opts{DEFINE} .= '-Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
+
 warn "WARNING: Your GNU C compiler is very old. Please upgrade.\n"
     if ($Config{gccversion} and $Config{gccversion} =~ m/^(1|2\.[1-5])/);
 

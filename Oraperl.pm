@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.27 1996/06/19 00:48:09 timbo Exp $
+# $Id: Oraperl.pm,v 1.28 1996/06/21 18:25:00 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -23,7 +23,7 @@ require 5.002;
 use DBI 0.69;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.27 $, 10);
+$VERSION = substr(q$Revision: 1.28 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -38,6 +38,7 @@ $VERSION = substr(q$Revision: 1.27 $, 10);
 
 $debug    = 0 unless defined $debug;
 $debugdbi = 0;
+my $bad_free_dump = $ENV{DBD_DUMP};
 # $safe		# set true/false before 'use Oraperl' if needed.
 $safe = 1 unless defined $safe;
 
@@ -75,6 +76,15 @@ sub _func_ref {
     \&{"${pkg}::$name"};
 }
 
+sub _warn {
+	my $prev_warn = shift;
+	if ($_[0] =~ /free\(\) ignored/) {
+		dump if $bad_free_dump;
+		return;
+	}
+	$prev_warn ? &$prev_warn(@_) : warn @_;
+}
+
 
 #	-----------------------------------------------------------------
 #
@@ -83,9 +93,17 @@ sub _func_ref {
 
 sub ora_login {
     my($system_id, $name, $password) = @_;
+	local($Oraperl::prev_warn) = $SIG{'__WARN__'} || 0; # must be local
+	local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
     $Oraperl::drh->connect($system_id, $name, $password);
 }
-*ora_logoff  = _func_ref('db::disconnect');
+sub ora_logoff {
+    my($dbh) = @_;
+	local($Oraperl::prev_warn) = $SIG{'__WARN__'} || 0; # must be local
+	local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
+    $dbh->disconnect();
+}
+
 
 
 # -----------------------------------------------------------------

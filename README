@@ -5,8 +5,8 @@ DBD::Oracle  --  an Oracle 7 interface for Perl 5.
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file.
 
-
 ** WARNING: THIS IS MOSTLY ALPHA SOFTWARE. Your mileage may vary.      **
+
 ** THE ORAPERL EMULATION IS NO LONGER ALPHA. IT IS NOW FULLY RELEASED. **
 
    The only currently supported interface is via Oraperl.pm, the
@@ -90,9 +90,16 @@ Tim.
 ===============================================================================
 Examples and other info:
 
-ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources/......
+DBI 'home page': http://www.hermetica.com/technologia/DBI
 
-Jeff Stander's stuff stands out for Oraperl.
+Master archive site for Perl DB information:
+    ftp://ftp.demon.co.uk/pub/perl/db/
+Mailing list archive:                /DBI/perldb-interest/
+Perl 4 Oraperl (v2.4)                /perl4/oraperl/
+
+ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources/...
+
+Jeff Stander's stuff stands out for Oraperl:
 Directories of interest might be
 	/pub/Oracle/sources
 	/pub/Oracle/sources/jstander
@@ -117,30 +124,29 @@ ftp://ftp.bf.rmit.edu.au/pub/Oracle
 ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources
 ftp://ftp.bf.rmit.edu.au/pub/Oracle/OS/MS/NT/ntoraperl.zip
 
-ftp://ftp.demon.co.uk/pub/perl/db/perl4/oraperl/
 
 ===============================================================================
 Example for reading LONG fields via blob_read:
 
-my $sql = "SELECT long_field FROM table_name WHERE id = :1";
-my $csr = ora_open($lda, $sql) or die $ora_errstr;
-ora_bind($csr, $id) or die $ora_errstr;
-# ora_fetch() needs to be called in an array context
-my (@data) = ora_fetch($csr); 
-my ($frag, $blob, $length, $ll, $offset);
-$blob = '';
-$length = 4096; # use benchmarks to get best value for you
-$offset = 0;
-while (1)
-{
-    $frag = $csr->blob_read(0, $offset, $length);
-    last unless defined $frag;
-    $ll = length $frag;
-    last unless $ll;
-    $blob .= $frag;
-    $offset += $ll;
-}
-print $blob;
+	my $sql = "SELECT long_field FROM table_name WHERE id = :1";
+	my $csr = ora_open($lda, $sql) or die $ora_errstr;
+	ora_bind($csr, $id) or die $ora_errstr;
+	# ora_fetch() needs to be called in an array context
+	my (@data) = ora_fetch($csr); 
+	my ($frag, $blob, $length, $ll, $offset);
+	$blob = '';
+	$length = 4096; # use benchmarks to get best value for you
+	$offset = 0;
+	while (1)
+	{
+		$frag = $csr->blob_read(0, $offset, $length);
+		last unless defined $frag;
+		$ll = length $frag;
+		last unless $ll;
+		$blob .= $frag;
+		$offset += $ll;
+	}
+	print $blob;
 
 With thanks to james.taylor@srs.gov and desilva@ind70.industry.net.
 
@@ -220,21 +226,32 @@ Oracle 7.3 on Solaris 2.5 (maybe others):
 
     libc internal error: _rmutex_unlock: rmutex not held.
 
+Try each of these in turn:
+- Try removing -lthread from the list of libraries to link with (edit Makefile).
 - Try passing explicit db sid name to ora_login or connect.
 - Try removing clntsh from the list of libraries to link to (edit Makefile).
-- Try adding -lthread to the list of libraries to link to (edit Makefile).
 
 If any of these work please let me know (include full version info).
 
 -------------------------------------------------------------------------------
 Bad free() warnings:
 
-These are generally cause by problems in oracle own library code.
+These are generally cause by problems in Oracle's own library code.
 You can use this code to hide them:
 
     $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /^Bad free/ }
 
-But please let me know if you have this problem (include full version info) .
+But please let me know if you have this problem (include full version info).
+Rather than simply hiding it it would be much better to help me fix it!
+Follow the instructions in step 5 above (for generating a version of
+DBD::Oracle with debugging enabled) and then use the following code
+to generate a core dump at the point the bad free happens.
+
+    $SIG{__WARN__} = sub { $_[0] =~ /^Bad free/ ? dump : warn $_[0] }
+
+Follow the instructions in step 5 above for getting a stack trace from
+the core file and then send it to me along with the other information
+requested in the 'If you have problems' section.
 
 -------------------------------------------------------------------------------
 HP-UX: Terry Greenlaw <z50816@mip.lasc.lockheed.com>

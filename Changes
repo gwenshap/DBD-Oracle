@@ -1,3 +1,15 @@
+Changes in DBD::Oracle 0.34 (Oraperl 1.28), 21st June 1996
+
+	Workaround Solaris 2 bug #1224467 (_rmutex_unlock).
+	With many thanks to James Taylor.
+
+	Added 'Bad free()' warning suppression to ora_logon and
+	ora_logoff(). Setting the DBD_DUMP environment variable
+	will trigger a (handy for me) core dump if a Bad free
+	warning is detected.
+
+	Further additions to the README about Bad free()'s.
+
 Changes in DBD::Oracle 0.33 (Oraperl 1.27), 19th June 1996
 
 	Added Makefile.PL -g option to enable debugging.

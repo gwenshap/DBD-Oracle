@@ -1,4 +1,4 @@
-#   $Id: Oracle.pm,v 1.31 1996/06/19 00:48:09 timbo Exp $
+#   $Id: Oracle.pm,v 1.32 1996/06/21 18:25:00 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -16,8 +16,8 @@ require 5.002;
     use DynaLoader ();
     @ISA = qw(DynaLoader);
 
-    $VERSION = '0.33';
-    my $Revision = substr(q$Revision: 1.31 $, 10);
+    $VERSION = '0.34';
+    my $Revision = substr(q$Revision: 1.32 $, 10);
 
     require_version DBI 0.69;
 
