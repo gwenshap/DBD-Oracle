@@ -172,8 +172,9 @@ README.
 =head2 The "default" built in compiler 64bit build (/usr/bin/cc)
 
 And now, at long last, we have a recipe for building perl and DBD-Oracle
-using the default bundled C compiler.  Please see Appendix C for his message
-and instructions.
+using the default bundled C compiler.  Please see Appendix C built
+instructions provided by Gram Ludlow, using the default /usr/bin/cc
+bundled compiler.
    
 =head2 Just tell me the recipe...
 
