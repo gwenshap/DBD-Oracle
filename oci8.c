@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.c,v 1.25 2001/06/06 00:49:36 timbo Exp $
+   $Id: oci8.c,v 1.27 2001/08/07 00:25:37 timbo Exp $
 
    Copyright (c) 1998  Tim Bunce
 
@@ -411,54 +411,8 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 }
 
 
-void
-dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
-{
-    /* XXX doesn't check arcode for error, caller is expected to */
-    if (phs->indp == 0) {                       /* is okay      */
-	SvPOK_only(sv);
-	SvCUR_set(sv, phs->alen);
-	*SvEND(sv) = '\0';
-	if (debug >= 2)
-	    fprintf(DBILOGFP, "       out '%s' = %s (arcode %d, ind %d, len %d)\n",
-		phs->name, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen);
-    }
-    else
-    if (phs->indp > 0 || phs->indp == -2) {     /* truncated    */
-	SvPOK_only(sv);
-	SvCUR(sv) = phs->alen;
-	*SvEND(sv) = '\0';
-	if (debug >= 2)
-	    fprintf(DBILOGFP,
-		"       out %s = %s\t(TRUNCATED from %d to %ld, arcode %d)\n",
-		phs->name, neatsvpv(sv,0), phs->indp, (long)phs->alen, phs->arcode);
-    }
-    else
-    if (phs->indp == -1) {                      /* is NULL      */
-	(void)SvOK_off(phs->sv);
-	if (debug >= 2)
-	    fprintf(DBILOGFP,
-		"       out %s = undef (NULL, arcode %d)\n",
-		phs->name, phs->arcode);
-    }
-    else
-	croak("panic dbd_phs_sv_complete: %s bad indp %d, arcode %d", phs->name, phs->indp, phs->arcode);
-}
-
-void
-dbd_phs_avsv_complete(phs_t *phs, I32 index, I32 debug)
-{
-    AV *av = (AV*)SvRV(phs->sv);
-    SV *sv = *av_fetch(av, index, 1);
-    dbd_phs_sv_complete(phs, sv, 0);
-    if (debug >= 2)
-	fprintf(DBILOGFP, "       out '%s'[%ld] = %s (arcode %d, ind %d, len %d)\n",
-		phs->name, (long)index, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen);
-}
-
-
-static int
-fetch_func_varfield(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
+static int	/* LONG and LONG RAW */
+fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 {
     fb_ary_t *fb_ary = fbh->fb_ary;
     char *p = (char*)&fb_ary->abuf[0];
@@ -470,12 +424,12 @@ fetch_func_varfield(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
 
 
 static int
-fetch_func_nty(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
+fetch_func_nty(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 {
     fb_ary_t *fb_ary = fbh->fb_ary;
     char *p = (char*)&fb_ary->abuf[0];
     ub4 datalen = *(ub4*)p;     /* XXX alignment ? */
-    warn("fetch_func_nty unimplemented");
+    warn("fetch_func_nty unimplemented (datalen %d)", datalen);
     SvOK_off(dest_sv);
     return 1;
 }
@@ -675,11 +629,12 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 
 
 static int
-fetch_func_autolob(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
+fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 {
     ub4 loblen = 0;
     ub4 buflen;
     ub4 amtp = 0;
+    imp_sth_t *imp_sth = fbh->imp_sth;
     OCILobLocator *lobloc = (OCILobLocator*)fbh->desc_h;
     sword status;
 
@@ -751,12 +706,25 @@ fetch_func_autolob(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
 
 
 static int
-fetch_func_loblocator(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
+fetch_func_getrefpv(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 {
     /* See the Oracle::OCI module for how to actually use this! */
-    OCILobLocator *lobl = (OCILobLocator*)fbh->desc_h;
-    sv_setref_pv(dest_sv, "OCILobLocatorPtr", (void*)lobl);
+    sv_setref_pv(dest_sv, fbh->bless, (void*)fbh->desc_h);
     return 1;
+}
+
+static void
+fbh_setup_getrefpv(imp_fbh_t *fbh, int desc_t, char *bless)
+{
+    if (DBIS->debug >= 2)
+	fprintf(DBILOGFP,
+	    "    col %d: otype %d, desctype %d, %s", fbh->field_num, fbh->dbtype, desc_t, bless);
+    fbh->ftype  = fbh->dbtype;
+    fbh->disize = fbh->dbsize;
+    fbh->fetch_func = fetch_func_getrefpv;
+    fbh->bless  = bless;
+    fbh->desc_t = desc_t;
+    OCIDescriptorAlloc_ok(fbh->imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
 }
 
 
@@ -893,44 +861,18 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fbh->ftype  = fbh->dbtype;
 		fbh->disize = fbh->dbsize;
 		fbh->fetch_func = (imp_sth->auto_lob)
-				? fetch_func_autolob : fetch_func_loblocator;
+				? fetch_func_autolob : fetch_func_getrefpv;
+		fbh->bless  = "OCILobLocatorPtr";
 		fbh->desc_t = OCI_DTYPE_LOB;
 		OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
 		break;
 
-	case 108:				/* User Defined	*/
-	{
-		OCIParam *parmp = 0;
-		OCIRef  *type_ref = 0;
-		/*OCIType *addr_tdo = 0;*/
-		OCIDescribe *dschp = 0;
-
-		return oci_error(h, NULL, OCI_ERROR,
-			"Named types are not currently supported by DBD::Oracle");
-
-		fbh->ftype  = fbh->dbtype;
-		fbh->disize = fbh->dbsize;
-		fbh->fetch_func = fetch_func_nty;
-		OCIHandleAlloc_ok(imp_sth->envhp, &dschp, OCI_HTYPE_DESCRIBE, status);
-		OCIDescribeAny_log_stat(imp_sth->svchp, imp_sth->errhp, (text *)"MYTYPE", strlen("MYTYPE"),
-			OCI_OTYPE_NAME, OCI_DEFAULT, OCI_PTYPE_TYPE, dschp, status);
-		if (status != OCI_SUCCESS) {
-			sword free_status;
-			OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, free_status);
-			return oci_error(h, imp_sth->errhp, status, "OCIDescribeAny(OCI_PTYPE_TYPE)/prepare NTY fetch");
-		}
-		OCIAttrGet_log_stat(fbh->desc_h, OCI_HTYPE_DESCRIBE,
-			&parmp, 0, (ub4)OCI_ATTR_PARAM, imp_sth->errhp, status);
-		OCIAttrGet_log_stat(parmp, OCI_DTYPE_PARAM,
-			&type_ref, 0, OCI_ATTR_REF_TDO, imp_sth->errhp, status);
-		croak("Named types are not currently supported by DBD::Oracle");
-	}
-
-		break;
-
-
-	case 105:				/* MLSLABEL	*/
+#ifdef OCI_DTYPE_REF
 	case 111:				/* REF		*/
+		fbh_setup_getrefpv(fbh, OCI_DTYPE_REF, "OCIRefPtr");
+		break;
+#endif
+
 	default:
 		/* XXX unhandled type may lead to errors or worse */
 		fbh->disize = fbh->dbsize;
@@ -1114,7 +1056,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 
 	if (rc == 0) {			/* the normal case		*/
 	    if (fbh->fetch_func) {
-		if (!fbh->fetch_func(sth, imp_sth, fbh, sv))
+		if (!fbh->fetch_func(sth, fbh, sv))
 		    ++err;	/* fetch_func already called oci_error */
 	    }
 	    else {

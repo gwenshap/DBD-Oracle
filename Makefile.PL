@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.86 2001/06/06 00:46:39 timbo Exp $
+# $Id: Makefile.PL,v 1.88 2001/08/07 00:25:37 timbo Exp $
 
 ##
 ##  You should not need to edit this file.
@@ -319,6 +319,46 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     $linkwith =~ s/-Y P,/-YP,/g if $Config{'cc'} =~ /gcc/;
     $linkwith =~ s:-R /:-R/:g if $os eq 'solaris';
 
+    #modifications by lbaxter@fleetcc.com
+    if ( ($os eq 'hpux') && ($osvers > 10) && ($Config{'cc'} eq 'cc') )
+    {
+        #these get dragged in from demo_rdbms.mk where Oralce uses 
+        #the linker bitches about them not being valid options
+        #in this context
+        $linkwith =~ s/-Wl,\+[sn]//g;
+
+        #Oracle 8.0.5 drags in these which also cause link errors:
+        #this produces a good link with the 32bit version of oracle
+        #(64bit version of 8.0.5 fails to link)
+        #someone else will have to hack that one out
+        $linkwith =~ s/\+D[AS]2\.0[W]* / /g;
+
+        #A number of folks have had to add this library to resolve
+        #undefined symbol errors reported at runtime by ld.sl (the 
+        #library loader) libqsmashr defines LhrStringInsert()...
+        #other libraries may have to be added (Lincoln Baxter <lbaxter@fleetcc.com>)
+        #we check for the library's existence first... (8.0.5 does not have it)
+        if ( -r "$OH/lib/libqsmashr.sl" )
+        {
+           $linkwith =~ s/$/ -lqsmashr/ if ( $linkwith !~ m/-lqsmshr/ );
+        }
+
+        if (($linkwith !~ m/-lcl/) || ($linkwith !~ m/-lpthread/))
+        {
+            print "Warning: Oracle is built with multi-threading libraries\n"
+                . "         You will most likely need to rebuild perl from sources\n"
+                . "         with the following libraries: -lcl -lpthread\n" ;
+        }
+
+        if ( ($Config{'cc'} eq 'cc') && ($Config{'ccflags'} !~ m/\+z/ ) )
+        {
+            print "Warning: perl was not built with +z in ccflags\n"
+                . "         You may need to rebuild perl from sources\n"
+                . "         See instructions in README.hpux\n" ;
+        }
+    }
+
+
     if ($::opt_b) {	# The simple approach
 	$opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g $linkwith" };
 	$linkwith_msg = "OTHERLDFLAGS = $linkwith [from 'build' rule]";
@@ -379,7 +419,8 @@ if ($os eq 'hpux') {
 	$opts{LINKTYPE} = 'static';
     }
     else {
-	print "*** Warning: You may need to build using static linking. See the README file.\n";
+	print "*** Warning: If you have trouble, see README.hpux...\n"
+	     ."    you may have to build your own perl, or go hunting for libraries\n";
     }
     print "***\a\n";
     sleep 3;
@@ -616,8 +657,9 @@ your 'privlib' and 'archlib' directories and their auto subdirectories.
     local $Data::Dumper::Useqq  = 1;
     print MK_PM Data::Dumper->Dump([\%opts, $self], [qw(dbd_oracle_mm_opts dbd_oracle_mm_self)]);
     close MK_PM or die "Error closing mk.pm: $!\n";
-    $self->{PM}->{$_} = '$(INST_ARCHAUTODIR)/'.$_
-	for (qw(mk.pm Oracle.h dbdimp.h ocitrace.h));
+    foreach (qw(mk.pm Oracle.h dbdimp.h ocitrace.h)) {
+	$self->{PM}->{$_} = '$(INST_ARCHAUTODIR)/'.$_;
+    }
 
     # Add $linkwith to EXTRALIBS for those doing static linking
     $self->{EXTRALIBS} .= " -L\$(LIBHOME) $linkwith";
@@ -761,14 +803,24 @@ sub fetch_oci_macros {
 	    s/\.(\$\(LIB_EXT\))/$1/g;
 	}
 
-	if (m!^([-\w/+.\$()]+)\s*:+\s*([^=]*)!) {	# skip targets
-	    my $tgt = $1;
-	    $mk_target_deps{$tgt} = $2 || '';
-	    push @{ $mk_target_rules{$tgt} ||= [] }, shift @lines
-		    while @lines && $lines[0] =~ m!^\t! && chomp $lines[0];
-	    #print "target $tgt => $mk_target_deps{$tgt} => @{$mk_target_rules{$tgt}}\n";
-	    next;
-	}
+        if (m!^([-\w/+.\$()\s]+)\s*:+\s*([^=]*)!) {     # skip targets
+            my @tgts = split(/ /, $1);  # multiple target names in Oracle9i's demo_rdbms.mk
+	    $mk_target_deps{$_} = $2 || '' for (@tgts);
+	    my @rules;
+            while (@lines && $lines[0] =~ m!^\t! && chomp $lines[0]) {
+                my $tmp_line = shift @lines;
+                while($tmp_line =~ m!\\$!) {	# continuations!
+                    $tmp_line =~ s/\s+\\$/ /;
+                    $tmp_line .= shift @lines;
+                    chomp($tmp_line);
+                }
+		push @rules, $tmp_line;
+		#print "target @tgts => $mk_target_deps{$tgt} => @{$mk_target_rules{$tgt}}\n";
+            }  
+	    push @{ $mk_target_rules{$_} ||= [] }, @rules for (@tgts);
+            next;
+        }
+
 	next if m!^\t!;					# skip target build rules
 	next if m/^\s*\.SUFFIXES/;
 

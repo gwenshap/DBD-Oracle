@@ -103,7 +103,7 @@ ok(0, $csr = $dbh->prepare(q{
 }), 1);
 
 $p1 = 3;
-ok(0, $csr->bind_param_inout(':arg', \$p1, 4), 1);
+ok(0, $csr->bind_param_inout(':arg', \$p1, 50), 1);
 ok(0, $csr->bind_param(':mult', 2), 1);
 ok(0, $csr->execute, 1);
 ok(0, $p1 == 6);

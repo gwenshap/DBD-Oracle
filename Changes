@@ -1,3 +1,13 @@
+Changes in DBD::Oracle 1.08 7th August 2001
+
+  Fix Oracle 7 build broken in previous release.
+  Fix for 64bit builds thanks to Alan Burlison.
+  Fix for 9i Makefile.PL thanks to Dong Wang.
+  Added Oracle.ex/curref.pl thanks to Geoffery Young.
+  REF types are now returned in a form usable with Oracle::OCI module
+    when using Oracle >= 8.1.x (untested at the moment)
+  Updated Makefile.PL and README.hpux thanks to Lincoln Baxter.
+
 Changes in DBD::Oracle 1.07 5th June 2001
 
   This release is mostly targeted at the needs of the new Oracle::OCI module.
