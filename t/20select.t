@@ -31,7 +31,7 @@ unless($dbh) {
 }
 
 my $utf8_test = ($] >= 5.006)
-	&& nls_local_has_utf8()
+	&& client_ochar_is_utf8() # for correct output (utf8 bind vars should be fine regardless)
 	&& ($dbh->ora_can_unicode() & 2);
 print "Including unicode test\n" if $utf8_test;
 
@@ -71,7 +71,7 @@ sub run_select_tests {
   
   my $data0;
   if ($utf8_test) {
-    $data0 = eval q{ "0\x{263A}xyX" }; #this includes the smiley from perlunicode (lab) BTW: it's busted
+    $data0 = eval q{ "0\x{263A}xyX" }; #this includes the smiley from perlunicode (lab) BTW: it is busted
   } else {
     $data0 = "0\177x\0X";
   }
