@@ -5,7 +5,7 @@ use warnings;
 use DBI;
 use Test::More;
 
-my $testcount = 8;
+my $testcount = 9;
 plan tests => $testcount;
 
 $| = 1;
