@@ -11,7 +11,7 @@ use Test::More;
 
 my $utf8_test = ($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i);
 my @test_sets ;
-if ( 0 ) {
+if ( 1 ) {
     if ( ORA_OCI >= 8 )
     {
         push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
