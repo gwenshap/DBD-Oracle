@@ -158,7 +158,7 @@ ok(0, $csr = $dbh->prepare(q{
 my $out;
 ok(0, $csr->bind_param_inout(':out', \$out, 1000), 1);
 
-ok(0, $csr->bind_param(':in', "foo"), 1);
+ok(0, $csr->bind_param(':in', "foo", DBI::SQL_CHAR()), 1);
 ok(0, $csr->execute, 1);
 ok(0, $out eq "FOO");
 

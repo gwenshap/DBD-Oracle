@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.66 1999/03/10 20:42:24 timbo Exp $
+#   $Id: Oracle.pm,v 1.68 1999/04/09 14:07:35 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.60';
+$DBD::Oracle::VERSION = '0.61';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -31,7 +31,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.66 $, 10);
+    my $Revision = substr(q$Revision: 1.68 $, 10);
 
     require_version DBI 1.02;
 
@@ -622,12 +622,11 @@ Thanks to Mark Dedlow for this information.
 
 If 8-bit text is returned as '?' characters or can't be inserted
 make sure the following environment vaiables are set correctly:
-    NLS_LANG, ORA_NLS, ORA_NLS32
+    NLS_LANG, ORA_NLS, ORA_NLS32, ORA_NLS33
 Thanks to Robin Langdon <robin@igis.se> for this information.
 Example:
    $ENV{NLS_LANG}  = "american_america.we8iso8859p1";
-   $ENV{ORA_NLS}   = "/home/oracle/ocommon/nls/admin/data";
-   $ENV{ORA_NLS32} = "/home/oracle/ocommon/nls/admin/data";
+   $ENV{ORA_NLS}   = "$ENV{ORACLE_HOME}/ocommon/nls/admin/data";
 
 Also From: Yngvi Thor Sigurjonsson <yngvi@hagkaup.is>
 If you are using 8-bit characters and "export" for backups make sure
@@ -840,7 +839,10 @@ information about the results (such as $sth->{NAME}). This reduces
 communication with the server and increases performance.
 
 When fetching LOBs, they are treated just like LONGs and are subject to
-$sth->{LongReadLen} and $sth->{LongTruncOk}.
+$sth->{LongReadLen} and $sth->{LongTruncOk}. Note that with OCI 7
+DBD::Oracle pre-allocates the whole amount (LongReadLen) before
+constructing the returned column.  With OCI 8 it grows the buffer to
+the amount needed for the largest LOB to be fetched so far.
 
 When inserting or updating LOBs some *major* magic has to be performed
 behind the scenes to make it transparent.  Basically the driver has to
@@ -886,12 +888,14 @@ To join the oracle-on-linux mailing list, see:
   http://www.eGroups.com/list/oracle-on-linux
   http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
   mailto:oracle-on-linux-subscribe@egroups.com
-
+  ftp://oracle-ftp.oracle.com/server/patch_sets/LINUX
 
 =head1 Commercial Oracle Tools
 
 Assorted tools and references for general information.
 No recommendation implied.
+
+ora_explain supplied and installed with DBD::Oracle.
 
 PL/Vision from RevealNet and Steven Feuerstein.
 

@@ -1,3 +1,5 @@
+wanr when oracle .mk files redefine a macro with a different value.
+
 PRECISION for oci7 on VARCHAR etc
 
 Detect "Error while trying to retrieve text for error ORA-XXXX"

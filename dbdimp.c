@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.48 1999/03/10 20:42:24 timbo Exp $
+   $Id: dbdimp.c,v 1.49 1999/04/08 11:36:36 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -29,7 +29,7 @@ static int set_sigint_handler  = 0;
 
 static int ora2sql_type _((int oratype));
 
-void ora_free_phs_contents(phs_t *phs);
+void ora_free_phs_contents _((phs_t *phs));
 
 void
 dbd_init(dbistate)
@@ -671,7 +671,7 @@ ora_sql_type(imp_sth, name, sql_type)
 	return 1;	/* Oracle VARCHAR2	*/
 
     case SQL_CHAR:
-	return 5;	/* Oracle CHAR		*/
+	return 96;	/* Oracle CHAR		*/
 
     case SQL_BINARY:
     case SQL_VARBINARY:
@@ -772,7 +772,8 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 	phs->alen = value_len + phs->alen_incnull;
 	*alen_ptr_ptr = &phs->alen;
 	if (((IV)phs->alen) > phs->maxlen && phs->indp != -1)
-	    croak("panic: dbd_rebind_ph alen %ld > maxlen %ld", phs->alen,phs->maxlen);
+	    croak("panic: dbd_rebind_ph alen %ld > maxlen %ld (incnul %d)",
+			phs->alen,phs->maxlen, phs->alen_incnull);
     }
     else {
 	phs->alen = 0;
@@ -1166,7 +1167,7 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	    return -2;
 	}
     }
-    row_count = (imp_sth->cda) ? 0 : imp_sth->cda->rpc;
+    row_count = imp_sth->cda->rpc;
 
     if (debug >= 2)
 	fprintf(DBILOGFP,
@@ -1357,7 +1358,8 @@ dbd_st_finish(sth, imp_sth)
 
 
 void
-ora_free_fbh_contents(imp_fbh_t *fbh)
+ora_free_fbh_contents(fbh)
+    imp_fbh_t *fbh;
 {
     if (fbh->fb_ary)
 	fb_ary_free(fbh->fb_ary);
@@ -1369,7 +1371,8 @@ ora_free_fbh_contents(imp_fbh_t *fbh)
 }
 
 void
-ora_free_phs_contents(phs_t *phs)
+ora_free_phs_contents(phs)
+    phs_t *phs;
 {
 #ifdef OCI_V8_SYNTAX
     if (phs->desc_h)

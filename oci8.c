@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.c,v 1.11 1999/03/10 20:42:24 timbo Exp $
+   $Id: oci8.c,v 1.12 1999/04/08 15:50:37 timbo Exp $
 
    Copyright (c) 1998  Tim Bunce
 
@@ -139,6 +139,7 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 {
     D_imp_dbh_from_sth;
     ub4   oparse_lng   = 1;  /* auto v6 or v7 as suits db connected to	*/
+    int   ora_check_sql = 0;	/* to force a describe to check SQL	*/
     sword status = 0;
 
     imp_sth->done_desc = 0;
@@ -158,6 +159,7 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 	SV **svp;
 	DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
 	DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob",   12, svp, imp_sth->auto_lob);
+	DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql",  15, svp, ora_check_sql);
     }
 
     /* scan statement for '?', ':1' and/or ':foo' style placeholders	*/
@@ -192,6 +194,12 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 		oci_stmt_type_name(imp_sth->stmt_type));
 
     DBIc_IMPSET_on(imp_sth);
+
+    if (ora_check_sql) {
+	if (!dbd_describe(sth, imp_sth))
+	    return 0;
+    }
+
     return 1;
 }
 

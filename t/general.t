@@ -57,6 +57,8 @@ my @tmp = @{$tmp->[0]};
 ok(0, $tmp[0] <= 1e-130,    $tmp[0]);
 ok(0, $tmp[1] >= 9.99e+125, $tmp[1]);
 
+# ---
+
 ok(0,  $dbh->ping);
 $dbh->disconnect;
 $dbh->{PrintError} = 0;

@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.73 1999/03/10 20:42:24 timbo Exp $
+# $Id: Makefile.PL,v 1.75 1999/04/09 14:07:35 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -59,6 +59,8 @@ if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
 $opts{LINKTYPE} = 'static' if $Config{dlsrc} =~ /dl_none/;
 
 my(@MK, %MK, $MK, %MK_expanding);	# parsed macros from Oracle's makefiles
+my %mk_target_deps;
+my %mk_target_rules;
 
 # Options (rarely needed)
 $::opt_m = 0;	# path to proc.mk or oracle.mk file to read
@@ -290,9 +292,11 @@ if ($os eq 'hpux') {
 }
 
 if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
-    print "Warning: You may need to rebuild perl using the xlc_r compiler.\a\n";
+	print "\n\n";
+    print "Warning: You will probably need to rebuild perl using the xlc_r compiler.\a\n";
     print "         You may also need do: ORACCENV='cc=xlc_r'; export ORACCENV\n";
-	sleep 4;
+    print "         Also see the README about the -p option\n";
+	sleep 6;
 }
 
 $opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{cc} eq 'gcc';
@@ -326,17 +330,22 @@ print "\n";
 print "System: perl$] @Config{qw(myuname)}\n";
 print "Compiler: @Config{qw(cc optimize ccflags)}\n";
 print "Linker:   ". (find_bin('ld')||"not found") ."\n" unless $os eq 'VMS';
-print "Oracle makefiles would have used these values but we override them:\n"
+print "Oracle makefiles would have used these definitions but we override them:\n"
 	if $MK{CFLAGS} || $MK{LDFLAGS} || $MK{LDSTRING};
-print "  CC:       $MK{CC}\n"	if $MK{CC};
-print "  CFLAGS:   $MK{CFLAGS}\n"                  if $MK{CFLAGS};
-print "           [".mkvar('CFLAGS',0,1,0).  "]\n" if $MK{CFLAGS};
-print "  CLIBS:    $MK{CLIBS}\n"                   if $MK{CLIBS};
-print "           [".mkvar('CLIBS',0,1,0).   "]\n" if $MK{CLIBS};
-print "  LDFLAGS:  $MK{LDFLAGS}\n"                 if $MK{LDFLAGS};
-print "           [".mkvar('LDFLAGS',0,1,0). "]\n" if $MK{LDFLAGS};
-print "  LDSTRING: $MK{LDSTRING}\n"                if $MK{LDSTRING};
-print "           [".mkvar('LDSTRING',0,1,0)."]\n" if $MK{LDSTRING};
+print "  CC:       $MK{CC}\n\n"	if $MK{CC};
+print "  CFLAGS:   $MK{CFLAGS}\n"                    if $MK{CFLAGS};
+print "           [".mkvar('CFLAGS',0,1,0).  "]\n\n" if $MK{CFLAGS};
+print "  CLIBS:    $MK{CLIBS}\n"                     if $MK{CLIBS};
+print "           [".mkvar('CLIBS',0,1,0).   "]\n\n" if $MK{CLIBS};
+if ($mk_target_rules{build}) {
+    my $rules = join "\n", '', @{ $mk_target_rules{build} };
+print "  build:    $rules\n";
+print "           [".expand_mkvars($rules,0,1,0).   "]\n\n";
+}
+print "  LDFLAGS:  $MK{LDFLAGS}\n"                   if $MK{LDFLAGS};
+print "           [".mkvar('LDFLAGS',0,1,0). "]\n\n" if $MK{LDFLAGS};
+print "  LDSTRING: $MK{LDSTRING}\n"                  if $MK{LDSTRING};
+print "           [".mkvar('LDSTRING',0,1,0)."]\n\n" if $MK{LDSTRING};
 print "\nLinking with $linkwith_msg\n" if $linkwith_msg;
 print "\n";
 
@@ -485,12 +494,12 @@ sub fetch_oci_macros {
     );
     my %edit; @edit{@edit} = ('$_ = ""') x @edit;
 
-    $edit{ORA_NLS} = $edit{ORA_NLS33} = q{
+    $edit{ORA_NLS} = $edit{ORA_NLS33} = $edit{ORA_NLS32} = q{
 	print "Deleting $_\n",
 	    "  because it is not already set in the environment\n",
 	    "  and it can cause ORA-01019 errors.\n";
 	$_ = '';
-    } unless $ENV{ORA_NLS} || $ENV{ORA_NLS33};
+    } unless $ENV{ORA_NLS} || $ENV{ORA_NLS33} || $ENV{ORA_NLS32};
 
     $edit{COMPOBJS} = q{
 	# Firstly a Solaris specific edit:
@@ -526,8 +535,15 @@ sub fetch_oci_macros {
 	    s/\.(\$\(LIB_EXT\))/$1/g;
 	}
 
-	next if m!^[-\w/+.\$()]+\s*:+[^=]*!; # skip targets
-	next if m!^\t!;                      # skip target build rules
+	if (m!^([-\w/+.\$()]+)\s*:+\s*([^=]*)!) {	# skip targets
+	    my $tgt = $1;
+	    $mk_target_deps{$tgt} = $2 || '';
+	    push @{ $mk_target_rules{$tgt} ||= [] }, shift @lines
+		    while @lines && $lines[0] =~ m!^\t! && chomp $lines[0];
+	    #print "target $tgt => $mk_target_deps{$tgt} => @{$mk_target_rules{$tgt}}\n";
+	    next;
+	}
+	next if m!^\t!;					# skip target build rules
 	next if m/^\s*\.SUFFIXES/;
 
 	unless($MK{mkver}) {	# still want to get version number
@@ -539,18 +555,23 @@ sub fetch_oci_macros {
 	# We always store values into %MK before checking %edit
 	# %edit can edit this in addition to $_ if needed.
 	my $name;
-	$MK{$1}= $' if m/^\s*(\w+)\s*=\s*/;
-	$name = $1;
+	if (m/^\s*(\w+)\s*=\s*/) {
+	    $name = $1;
+	    if ($MK{$name} && $MK{$name} ne $') {
+		print "$name macro redefined by Oracle\n from $MK{$name}\n   to $'\n"
+			if $::opt_v;
+	    }
+	    $MK{$name} = $';
+	    $MK{$name} =~ s/^([^#]*)#.*/$1/; # remove comments
 
-	$MK{$1} =~ s/^([^#]*)#.*/$1/ if $1 && $MK{$1}; # remove comments
-
-	if ($name and exists $edit{$name}) {
-	    my $pre = $_;
-	    eval $edit{$name};	# execute code to edit $_
-	    print "Edit $name ($edit{$name}) failed: $@\n" if $@;
-	    if ($_ ne $pre and $::opt_v) {
-		$_ ? print "Edited $name definition\n from: $pre\n   to: $_\n"
-		   : print "Deleted $name definition: $pre\n";
+	    if (exists $edit{$name}) {
+		my $pre = $_;
+		eval $edit{$name};	# execute code to edit $_
+		print "Edit $name ($edit{$name}) failed: $@\n" if $@;
+		if ($_ ne $pre and $::opt_v) {
+		    $_ ? print "Edited $name definition\n from: $pre\n   to: $_\n"
+		       : print "Deleted $name definition: $pre\n";
+		}
 	    }
 	}
 
@@ -648,23 +669,27 @@ sub read_inc_file {
 }
 
 
+my %expand_shellescape;
 sub expand_shellescape { 
     my($orig, $level) = @_;
     my $cmd = $orig;
 	my $debug = $::opt_d || 1;
-    print "Evaluating `$orig`\n" if $debug;
+    print "Evaluating `$orig`\n"
+		if $debug && !$expand_shellescape{$orig};
     # ensure we have no $(...) vars left - strip out undefined ones:
     $cmd =~ s/\$\((\w+)\)/mkvar("$1", 1, 0, $level+1)/ge;
     print "  expanded `$cmd`\n" if $debug and $cmd ne $orig;
     my $result = `$cmd`;
 	chop $result;
-    print "  returned '$result'\n" if $debug;
+    print "  returned '$result'\n"
+		if $debug && !$expand_shellescape{$orig};
+	$expand_shellescape{$orig} = $result;
     $result;
 }
 
 sub expand_mkvars { 
     my($string, $strip, $backtick, $level) = @_;
-	$level ||= 1;
+    $level ||= 1;
     local($_) = $string;
     print "$level Expanding $_\n" if $::opt_d;
     # handle whizzo AIX make feature used by Oracle
@@ -677,7 +702,7 @@ sub expand_mkvars {
     /xge; # can recurse
     s/`(.*?[^\\])`/expand_shellescape("$1", $level+1)/esg if $backtick; # can recurse
     s/\s*\\\n\s*/ /g;	# merge continuations
-    s/\s+/ /g;		# shrink whitespace
+    s/\s+/ /g;	# shrink whitespace
     print "$level Expanded $string\n  to       $_\n\n" if $::opt_d and $_ ne $string;
     $_;
 }

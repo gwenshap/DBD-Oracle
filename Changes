@@ -1,3 +1,9 @@
+Changes in DBD::Oracle 0.61, 26th March 1999
+
+  Fixed execute() always returning 0 rows! (with OCI 7).
+  Fixed $sth->bind_param(..., SQL_CHAR);
+  Assorted minor Makefile.PL improvements.
+  Added ora_check_sql attribute to prepare() for OCI8.
 
 Changes in DBD::Oracle 0.60, 10th March 1999
 
@@ -17,7 +23,6 @@ Changes in DBD::Oracle 0.60, 10th March 1999
     Enabled OCI_CRED_EXT login thanks to Alan Burlison & Jeremy Brinkley.
   Modified hints/svr4.pl - SVR4 users please test.
   Updated Alan Burlison's ora_explain Tk tool to version 1.0.
-  Documented dbms_msgpipe_get and dbms_msgpipe_ack methods.
 
 Changes in DBD::Oracle 0.59 (Oraperl 1.37), 27th December 1998
 

@@ -1,7 +1,7 @@
 
 DBD::Oracle  --  an Oracle 7 and Oracle 8 interface for Perl 5.
 
-   Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce, England.
+   Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce, England.
 
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file,
@@ -21,11 +21,6 @@ WARNING:
    versions above 0.54. If the new code causes you problems you can
    build DBD::Oracle for Oracle 8 to use the Oracle 7 OCI by doing:
        perl Makefile.PL -8
-
-|  NOTE:
-|  The only currently supported interface is via Oraperl.pm, the        |
-|  oraperl emulation layer. This is fairly complete and stable.         |
-|  Execute "perldoc Oraperl" after installing for full information.     |
 
 
 *** QUICK START GUIDE:
@@ -58,14 +53,14 @@ WARNING:
     perl Makefile.PL            # use a perl that's in your PATH
     make
 
-If you have problems see the 'IF YOU HAVE PROBLEMS' section below.
-If it's builds without error you can then run the tests. For the
-main test to work it must be able to connect to an Oracle database.
-
 Don't worry about most warnings, specifically "end-of-loop code not
 reached", "ANSI C forbids braced-groups within expressions", "cast
 increases required alignment of target type" and "passing arg 2 of
 `oerhms' with different width due to prototype".
+
+If you have problems see the 'IF YOU HAVE PROBLEMS' section below.
+If it's builds without error you can then run the tests. For the
+main test to work it must be able to connect to an Oracle database.
 
 You will need to set either the TWO_TASK or ORACLE_SID environment
 variables to the correct values for your database. Consult Oracle
