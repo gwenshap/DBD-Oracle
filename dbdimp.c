@@ -470,9 +470,9 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
             }
                 
             /* update the hard-coded csid constants for unicode charsets */
-            utf8_csid      = OCINlsCharSetNameToId(imp_dbh->envhp, "UTF8"); 
-            al32utf8_csid  = OCINlsCharSetNameToId(imp_dbh->envhp, "AL32UTF8");
-            al16utf16_csid = OCINlsCharSetNameToId(imp_dbh->envhp, "AL16UTF16");
+            utf8_csid      = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"UTF8"); 
+            al32utf8_csid  = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"AL32UTF8");
+            al16utf16_csid = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"AL16UTF16");
 
 #else /* (the old init code) NEW_OCI_INIT */
 
@@ -528,6 +528,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 
 #ifndef NEW_OCI_INIT /* have to get charsetid & ncharsetid the old way */
+#ifdef OCI_ATTR_ENV_CHARSET_ID /* its not there in 8.1.7 */
     OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &charsetid, (ub4)0 ,
 			OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
     if (status != OCI_SUCCESS) {
@@ -540,6 +541,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet. Failed to get ncharset id.");
 	return 0;
     }
+#endif 
 #endif
 
     /* At this point we have charsetid & ncharsetid */

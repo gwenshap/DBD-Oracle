@@ -1322,7 +1322,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 #define USE_NLS_NCHAR
 #ifdef USE_NLS_NCHAR
             ub2 csid = ( fbh->csform == 2 ) ? ncharsetid : charsetid; 
-            ub2 csform = fbh->csform;
+            ub1 csform = fbh->csform;
             /* ub2 csform = ((fbh->csform == 2) && cs_is_utf8) ? fbh->csform : 1 ; */
             /* ub2 csform = (fbh->csform == 2) ? fbh->csform : 1 ; */
 #else
@@ -1340,10 +1340,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    }
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csform, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
-	    if (status != OCI_SUCCESS) {
-		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");
-		++num_errors;
-	    }
+            if (status != OCI_SUCCESS) {
+                oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");
+                ++num_errors;
+            }
         }
 #endif
 #endif /* NEW_OCI_INIT */
