@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.80 1999/07/12 03:20:42 timbo Exp $
+# $Id: Makefile.PL,v 1.84 2000/07/13 22:42:02 timbo Exp $
 
 ##
 ##  You should not need to edit this file.
@@ -47,14 +47,14 @@ my %opts = (
     OBJECT => '$(O_FILES)',
     DEFINE => '',
     DIR  => [],
-    clean => {         FILES	=> 'Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def' },
+    clean => {         FILES	=> 'Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def ora_explain' },
     dist  => {	DIST_DEFAULT	=> 'clean distcheck disttest ci tardist',
 		PREOP		=> '$(MAKE) -f Makefile.old distdir',
 		COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
     },
 );
 if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
-    $opts{AUTHOR} = 'Tim Bunce (dbi-users@fugue.com)';
+    $opts{AUTHOR} = 'Tim Bunce (dbi-users@isc.org)';
     $opts{ABSTRACT_FROM} = 'Oracle.pm';
     $opts{PREREQ_PM} = { DBI => 0 };
     $opts{CAPI} = 'TRUE' if $Config{archname} =~ /-object\b/i;
@@ -67,7 +67,7 @@ my %mk_target_deps;
 my %mk_target_rules;
 
 # Options (rarely needed)
-$::opt_b = 0;	# try to use Oracle's own 'build' rule
+$::opt_b = 1;	# try to use Oracle's own 'build' rule
 $::opt_m = 0;	# path to proc.mk or oracle.mk file to read
 $::opt_p = '';	# alter preference for oracle.mk over proc
 $::opt_n = '';	# Oracle .mk macro name to use for library list to link with
@@ -106,24 +106,26 @@ $OH  = win32_oracle_home($OH) if ($os eq 'MSWin32') or ($os =~ /cygwin/i);
 
 die qq{  The $ORACLE_ENV environment variable must be set.
   It must be set to hold the path to an Oracle installation directory
-  on this machine (or a compatible archtecture).
+  on this machine (or a machine with a compatible architecture).
   See the README.clients file for more information.
+  ABORTED!
 } unless $OH;
 
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a compatible archtecture).
   See the README.clients file for more information.
+  ABORTED!
 } unless -d $OH;
 
 print "Using Oracle in $OH\n";
 
-my (@inspdver, %inspdver);
+# We'll try to dig up some Oracle version information. Not essential.
+my (@inspdver, %inspdver); $inspdver{RDBMS} = 0;
 if ($os ne 'VMS' and $os ne 'MSWin32' and -x "$OH/orainst/inspdver") {
     open INST, "$OH/orainst/inspdver |";
     my @inspdver = <INST>;
     close INST;
-    $inspdver{RDBMS} = 0;
     foreach (@inspdver) {
 	chop;
 	$inspdver{$2}    = $1 if m/^(\S+)\s+(.*)/;
@@ -160,14 +162,13 @@ if ($os eq 'VMS') {
 }
 
 elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
-    my $oci_compiler_dir = ($Config{cc} eq 'bcc32' ? "BORLAND" : "MSVC");
-
     my $OCIDIR = "";
     find( sub {
-	print "Found $_ directory\n" if /^OCI\d+/i;
-	$OCIDIR = $_ if /^OCI\d\d+$/i && $OCIDIR lt $_;
+	print "Found $_ directory\n" if /^OCI\d*$/i;
+	$OCIDIR = $_ if /^OCI\d*$/i && $OCIDIR lt $_;
 	$File::Find::prune = 1 if -d $_ && $_ !~ /^\./;
     }, $OH );
+    die "OCI directory not found, please install OCI in $OH" if ! $OCIDIR;
     print "Using OCI directory '$OCIDIR'\n";
 
     if ($Config{cc} =~ /gcc/i) {
@@ -175,12 +176,17 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
       print "Using liboci.a  (did you build it?)\n";
     } else {
       my %OCILIB;
+      my $oci_compiler_dir;
+      my @oci_compiler_dirs =
+	  map { -d "$OH/$OCIDIR/lib/$_" ? "$OH/$OCIDIR/lib/$_": () }
+	  $Config{cc} eq 'bcc32' ? qw(BORLAND BC) : qw(MSVC);
       find( sub {
 	$File::Find::prune = 1 if -d $_ && $_ !~ /^\./;
 	return unless /^(OCI|ORA).*\.LIB$/i;
+	($oci_compiler_dir = $File::Find::dir) =~ s:^.*/::;
 	print "Found $OCIDIR/lib/$oci_compiler_dir/$_ library\n";
 	$OCILIB{uc($_)} = $_;
-      }, "$OH/$OCIDIR/lib/$oci_compiler_dir" ) if $OCIDIR;
+      }, @oci_compiler_dirs );
       # sort the version numbered libs into assending order
       my @OCILIB = sort grep { /(OCI|ORA)\d\d+\./i } keys %OCILIB;
       # prefer the non-versioned library if present
@@ -273,11 +279,14 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	my $prev = '';
 	@cmds = grep { my $skip = $prev eq "echo $_"; $prev=$_; !$skip } @cmds;
 	my @prolog; push @prolog, shift @cmds while @cmds && $cmds[0] !~ /DBD_ORA_EXE/;
-	print "Oracle oci build prolog:\n\t",  join("\n\t", @prolog), "\n";
+	print "Oracle oci build prolog:\n\t",  join("\n\t", @prolog), "\n" if @prolog;
 	print "Oracle oci build command:\n\t", join("\n\t", @cmds), "\n";
+	while ($cmds[0] =~ s/\\$/ /) { # join lines split with \'s
+	    $cmds[0] .= splice(@cmds,1,1);
+	}
 	if (@cmds == 1) {
 	    my $build = $cmds[0];
-	    $build =~ s/^\s*(true\s+)?(\w+)\s*//;	# remove 'true' and compiler/linker
+	    $build =~ s/^\s*(true\s+)?(\S+)\s*//;	# remove 'true' and compiler/linker
 	    $build =~ s/$DBD_ORA_OBJ//;		# remove dummy object file
 	    $build =~ s/\S+\s+DBD_ORA_EXE//;	# remove dummy exe file and preceding flag
 	    $linkwith = $build;
@@ -319,9 +328,11 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	# this kind of stuff should be in a ./hints/* file:
 	$linkwith_s .= " -lc" if $Config{osname} eq 'dynixptx'
 			      or $Config{archname} =~ /-pc-sco3\.2v5/;
-	if ($os eq 'solaris' and $osvers >= 2.3 and $linkwith_s =~ /-lthread/) {
+	if ($os eq 'solaris' and $linkwith_s =~ /-lthread/
+		and $osvers >= 2.3 and $osvers <= 2.6
+	) {
 	    print "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
-	    print "Deleting -lthread from link list as a possible workround.\n";
+	    print "Deleting -lthread from link list as a possible workround ($osvers).\n";
 	    $linkwith_s =~ s/\s*-lthread\b/ /g;
 	}
 
@@ -450,33 +461,82 @@ exit 0;
 sub win32_oracle_home {
   my $oh = shift;
 
+  my ($req_ok, $hkey, $Val, $Keys);
+  if ( ! $oh ) {
+      if ( $Config{osname} eq "MSWin32") {
   # Win32::TieRegistry is prefered, but it requires Win32API::Registry
   # which is not available in mingw or cygwin
-  eval q{
+	  eval {
       require Win32::TieRegistry;
-      $Win32::TieRegistry::Registry->Delimeter("/");
-      my $hkey= $Win32::TieRegistry::Registry->{"LMachine/Software/Oracle/"};
-      $oh= $hkey->{ORACLE_HOME};
-  } unless $oh;
-
-  eval q{ # older name of Win32::TieRegistry
+	      $Win32::TieRegistry::Registry->Delimiter("/");
+	      $req_ok = 1;
+	      $hkey = $Win32::TieRegistry::Registry->
+	      {"LMachine/SOFTWARE/Oracle/"};
+	  };
+	  eval { # older name of Win32::TieRegistry
       require Tie::Registry;
-      $Tie::Registry::Registry->Delimeter("/");
-      my $hkey= $Tie::Registry::Registry->{"LMachine/Software/Oracle/"};
-      $oh= $hkey->{ORACLE_HOME};
-  } unless $oh;
+	      $Tie::Registry::Registry->Delimiter("/");
+	      $req_ok = 1;
+	      $hkey = $Tie::Registry::Registry->{"LMachine/SOFTWARE/Oracle/"};
+	  } unless $req_ok;
+	  eval {
+	      $Val = sub {
+		  # Return value
+		  my ($hkey) = @_;
+		  return $hkey->{ORACLE_HOME} || '';
+	      };
+	      $Keys = sub {
+		  # Return list of sub-folder keys
+		  my ($hkey) = @_;
+		  # MAC: %$hkey and related method calls don't work under
+		  #      perl5db, so don't try single stepping through here
+		  return map {m:/$: ? $hkey->{$_} : ()} keys %$hkey;
+	      };
+	  } if $hkey;
+      }
 
   # Win32::Registry imports some symbols into main::
-  # this is not commonly wanted thing, so try this as a last resort
-  eval q{
+      # this is not commonly wanted, so try this as a last resort
+      # MAC: it is available under mingw and might be available under cygwin
+      #      If cygwin doesn't have it, move the rest inside the other if block
+      eval {
     require Win32::Registry;
-    my($reg_key, $hkey);
-    $main::HKEY_LOCAL_MACHINE->Open('SOFTWARE\\ORACLE', $reg_key);
-    $reg_key->GetValues( $hkey );
-    $oh= $hkey->{ORACLE_HOME}[2];
-  } unless $oh;
+	  $main::HKEY_LOCAL_MACHINE->Open('SOFTWARE\\ORACLE', $hkey);
+	  my $dummy = $main::HKEY_LOCAL_MACHINE; # avoid single use complaint
+	  $Val = sub {
+	      # Return value
+	      my ($hkey) = @_;
+	      my $hval;
+	      $hkey->GetValues($hval);
+	      return $hval->{ORACLE_HOME}[2] || '';
+	  };
+	  $Keys = sub {
+	      # Return list of sub-folder keys
+	      my ($hkey) = @_;
+	      my @hkey;
+	      $hkey->GetKeys(\@hkey);
+	      @hkey = map { $hkey->Open($_, $_); $_ } @hkey;
+	      return @hkey;
+	  };
+      } unless $req_ok;
 
-  $oh =~ s:\\:/:g;
+      # Look for ORACLE_HOME in all ORACLE sub-folders, use last one found
+      #     before 8.1.5, there should be only one
+      eval {
+	  my @hkey = ($hkey);
+	  my ($oh1, %oh);
+	  while (@hkey) {
+	      $hkey = shift @hkey;
+	      $oh   = $oh1, $oh{$oh1} = 1
+		  if ($oh1 = &$Val($hkey)) && -d $oh1;
+	      push @hkey, &$Keys($hkey);
+	  }
+	  print "\nMultiple Oracle homes: ", join(" ", sort keys %oh), "\n\n"
+	      if 1 < keys %oh;
+      } if defined $Keys;
+  }
+
+  $oh =~ s:\\:/:g if $oh;
   return $oh
 }
 
@@ -543,17 +603,17 @@ sub MY::postamble {
 
 sub del_crtobj {
     my $orig = shift;
-	my $verbose = shift || $::opt_v;
-	my $str = $orig;
+    my $verbose = shift || $::opt_v;
+    my $str = $orig;
     # E.g. for changing the COMPOBJS line (and sometimes LDSTRING)
     # old: COMPOBJS=$(COMPOBJ)/crti.o $(COMPOBJ)/crt1.o $(COMPOBJ)/__fstd.o
     # new: COMPOBJS=$(COMPOBJ)/__fstd.o
-	my @del;
+    my @del;
     push @del, $1 while $str =~ s:([^\s=]*\bcrt[1in]\.o)\b::;
-	if ($orig ne $str) {
-		print "Deleted @del from link args.\n" if $verbose;
-		print "del_crtobj: $orig\n          : $str\n@del" if $::opt_v;
-	}
+    if ($orig ne $str) {
+	print "Deleted @del from link args.\n" if $verbose;
+	print "del_crtobj: $orig\n          : $str\n@del\n" if $::opt_v;
+    }
     return $str;
 }
 
@@ -571,6 +631,7 @@ sub find_mkfile {
 	'rdbms/lib/oracle.mk',
 	'rdbms/demo/oracle.mk',
 	'rdbms/demo/demo_rdbms.mk',
+	'otrace/demo/atmoci.mk',
     );
     my @mkplaces = ($::opt_p) ? (@mk_proc,@mk_oci) : (@mk_oci,@mk_proc);
     if ($::opt_m) {
@@ -592,13 +653,14 @@ sub find_mkfile {
 	file in your Oracle installation.  (I looked in
 	@mkplaces)
 
-	The oracle.mk (or similarly named) file is part of the Oracle
-	RDBMS product. The proc.mk (or similarly named) file is part of
+	The oracle.mk (or demo_rdbms.mk) file is part of the Oracle
+	RDBMS product. The proc.mk (or demo_proc.mk) file is part of
 	the Oracle Pro*C product.  You need to build DBD::Oracle on a
-	system which has one of these installed.
+	system which has one of these Oracle components installed.
+	(Other *.mk files such as the env_*.mk files will not work.)
 
-	If a suitable *.mk file is installed somewhere non-standard you
-	can specify where it is using the -m option:
+	In the unlikely event that a suitable *.mk file is installed
+	somewhere non-standard you can specify where it is using the -m option:
 		perl Makefile.PL -m /path/to/your.mk
 
 	See README.clients for more information and some alternatives.
@@ -606,6 +668,10 @@ sub find_mkfile {
     } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile);
 
     print "Using $mkfile\n";
+
+    warn "Note: Attempting to use makefile from otrace component. This may not work.\n"
+	if ($mkfile =~ /atmoci.mk/);
+
     return $mkfile;
 }
 
@@ -620,7 +686,7 @@ sub fetch_oci_macros {
     # makefile (note that %MK stills gets these values).
     my @edit = qw(
 	SHELL CC CPP CFLAGS CCFLAGS OPTIMIZE ASFLAGS RCC LD LDFLAGS
-	AR AS CHMOD ECHO EXE OBJS PERL OBJ_EXT LIB_EXT
+	AR AS CHMOD ECHO EXE OBJS PERL OBJ_EXT LIB_EXT VERSION
     );
     my %edit; @edit{@edit} = ('$_ = ""') x @edit;
 
@@ -741,9 +807,10 @@ sub fetch_oci_macros {
 	}
     }
 
+    $linkvia = '$(LIBCLNTSH)' if !$linkvia && $MK{LIBCLNTSH};
+
     # The oracle.mk file tends to define OCILDLIBS
-    $linkvia = '$(OCILDLIBS)'
-	if !$linkvia && $MK{OCILDLIBS};
+    $linkvia = '$(OCILDLIBS)' if !$linkvia && $MK{OCILDLIBS};
 
     # Now we get into strange land of twisty turny macros
     if (!$linkvia && $MK{PROLDLIBS}) {	# Oracle 7.3.x
@@ -807,7 +874,7 @@ sub expand_shellescape {
     print "Evaluating `$orig`\n"
 		if $debug && !$expand_shellescape{$orig};
     # ensure we have no $(...) vars left - strip out undefined ones:
-    $cmd =~ s/\$\((\w+)\)/mkvar("$1", 1, 0, $level+1)/ge;
+    $cmd =~ s/\$[({](\w+)[})]/mkvar("$1", 1, 0, $level+1)/ge;
     print "  expanded `$cmd`\n" if $debug and $cmd ne $orig;
     my $result = `$cmd`;
 	chop $result;
@@ -823,11 +890,11 @@ sub expand_mkvars {
     local($_) = $string;
     print "$level Expanding $_\n" if $::opt_d;
     # handle whizzo AIX make feature used by Oracle
-    s/\$\( (\w+) \? ([^(]*?) : ([^(]*?) \)/
+    s/\$[({] (\w+) \? ([^(]*?) : ([^(]*?) [})]/
 	my ($vname, $vT, $vF) = ($1,$2,$3);
 	$MK{$vname} = (mkvar($vname, 1, $backtick, $level+1)) ? $vT : $vF
     /xge; # can recurse
-    s/\$\( (\w+) \)/
+    s/\$[({] (\w+) [})]/
 	mkvar("$1", $strip, $backtick, $level+1, $maxlevel)
     /xge; # can recurse
     s/`(.*?[^\\])`/expand_shellescape("$1", $level+1)/esg if $backtick; # can recurse
@@ -904,14 +971,14 @@ sub symbol_search {
     print "Searching for symbol '$::opt_s' in $OH ...\n";
     my $dlext = $Config{dlext};
     system(qq{	cd $OH; for i in lib/*.[ao] lib/*.$dlext */lib/*.[ao];
-	do echo "  searching oracle \$i ..."; nm \$i | grep $::opt_s; done
+	do echo "  searching oracle \$i ..."; PATH=/usr/ccs/bin:\$PATH nm \$i | grep $::opt_s; done
     });
     if ($::opt_S) {
 	my @libpth = split ' ', $Config{libpth};
 	print "Searching for symbol '$::opt_s' in @libpth ...\n";
 	@libpth = map { ("$_/lib*.$dlext", "$_/lib*.a") } @libpth;
 	system(qq{	cd $OH; for i in @libpth;
-	    do echo "  searching \$i ..."; nm \$i | grep $::opt_s; done
+	    do echo "  searching \$i ..."; PATH=/usr/ccs/bin:\$PATH nm \$i | grep $::opt_s; done
 	});
     }
     print "Search done.\n";
@@ -1043,6 +1110,7 @@ sub check_security {
     print "\n";
     warn "WARNING - YOUR ORACLE INSTALLATION HAS A SECURITY PROBLEM.\a\n";
     warn "Read the README.sec file for more information and patch details.\a\n";
+    warn "This is just a warning. It does not affect DBD::Oracle in any way.\n";
     sleep 5;
 }
 

@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.c,v 1.20 1999/07/12 03:20:42 timbo Exp $
+   $Id: oci8.c,v 1.22 2000/07/13 22:42:02 timbo Exp $
 
    Copyright (c) 1998  Tim Bunce
 
@@ -128,7 +128,9 @@ oci_error(SV *h, OCIError *errhp, sword status, char *what)
 	sv_catpv(errstr, " ");
 	sv_catpv(errstr, what);
     }
-    DBIh_EVENT2(h, ERROR_event, DBIc_ERR(imp_xxh), errstr);
+    DBIh_EVENT2(h,
+	(status == OCI_SUCCESS_WITH_INFO) ? WARN_event : ERROR_event,
+	DBIc_ERR(imp_xxh), errstr);
     return 0;	/* always returns 0 */
 }
 
@@ -174,9 +176,13 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
     SV *attribs;
 {
     D_imp_dbh_from_sth;
-    ub4   oparse_lng   = 1;  /* auto v6 or v7 as suits db connected to	*/
-    int   ora_check_sql = 0;	/* to force a describe to check SQL	*/
     sword status = 0;
+    ub4   oparse_lng   = 1;  /* auto v6 or v7 as suits db connected to	*/
+    int   ora_check_sql = 1;	/* to force a describe to check SQL	*/
+	/* XXX we set ora_check_sql on for now to force setup of the	*/
+	/* row cache. Change later to set up row cache using just a	*/
+	/* a memory size, perhaps also default $RowCacheSize to a	*/
+	/* negative value. OCI_ATTR_PREFETCH_MEMORY */
 
     if (!DBIc_ACTIVE(imp_dbh)) {
 	oci_error(sth, NULL, OCI_ERROR, "Database disconnected");
@@ -273,7 +279,7 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
     *piecep = OCI_ONE_PIECE;
     if (DBIS->debug >= 3)
  	fprintf(DBILOGFP, "       dbd_phs_in  '%s' (%ld,%ld): len %2ld, ind %d%s\n",
-		phs->name, iter, index, phs->alen, phs->indp,
+		phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
 		(phs->desc_h) ? " via descriptor" : "");
     if (index > 0 || iter > 0)
 	croak("Arrays and multiple iterations not currently supported by DBD::Oracle");
@@ -299,7 +305,7 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
     *rcodepp= &phs->arcode;
     if (DBIS->debug >= 3)
  	fprintf(DBILOGFP, "       dbd_phs_out '%s' (%ld,%ld): len %2ld, piece %d%s\n",
-		phs->name, iter, index, phs->alen, *piecep,
+		phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), *piecep,
 		(phs->desc_h) ? " via descriptor" : "");
     if (index > 0 || iter > 0)
 	croak("Arrays and multiple iterations not currently supported by DBD::Oracle");
@@ -395,8 +401,19 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 int 
 dbd_rebind_ph_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs) 
 {
+#ifndef MM_CURSOR_FIX
+  /* Only do this part for inout cursor refs because pp_exec_rset only gets called for all the output params */
+  if (phs->is_inout) {
+#endif
     phs->out_prepost_exec = pp_exec_rset;
     return 2;	/* OCI bind done */
+#ifndef MM_CURSOR_FIX
+  }
+  else {
+    /* Call a special rebinder for cursor ref "in" params */
+    return(pp_rebind_ph_rset_in(sth, imp_sth, phs));
+  }
+#endif
 }
 
 
@@ -469,10 +486,11 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 	    &amtp, 1 + offset, bufp, buflen,
 			    0, 0, 0, SQLCS_IMPLICIT, status);
-	if (dbis->debug >= 3)
+	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP,
 		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
-		fbh->field_num+1, oci_status_name(status), loblen, imp_sth->long_readlen, buflen, amtp);
+		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
+		imp_sth->long_readlen, ul_t(buflen), ul_t(amtp));
 	if (status != OCI_SUCCESS) {
 	    oci_error(sth, imp_sth->errhp, status, "OCILobRead");
 	    (void)SvOK_off(dest_sv);	/* signal error */
@@ -481,10 +499,11 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
     }
     else {
 	assert(amtp == 0);
-	if (dbis->debug >= 3)
+	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP,
 		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
-		fbh->field_num+1, "SKIPPED", loblen, imp_sth->long_readlen, buflen, amtp);
+		fbh->field_num+1, "SKIPPED", ul_t(loblen),
+		imp_sth->long_readlen, ul_t(buflen), ul_t(amtp));
     }
 
     /*
@@ -532,7 +551,7 @@ fetch_func_autolob(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
 	else {
 	    char buf[300];
 	    sprintf(buf,"fetching field %d of %d. LOB value truncated from %ld to %ld. %s",
-		    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), amtp, amtp,
+		    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), ul_t(amtp), ul_t(amtp),
 		    "DBI attribute LongReadLen too small and/or LongTruncOk not set");
 	    oci_error(sth, NULL, OCI_ERROR, buf);
 	    sv_setiv(DBIc_ERR(imp_sth), (IV)24345); /* appropriate ORA error number */
@@ -550,7 +569,8 @@ fetch_func_autolob(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
 	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP,
 		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
-		fbh->field_num+1, oci_status_name(status), loblen, imp_sth->long_readlen, buflen, amtp);
+		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
+		imp_sth->long_readlen, ul_t(buflen), ul_t(amtp));
 	if (status != OCI_SUCCESS) {
 	    oci_error(sth, imp_sth->errhp, status, "OCILobRead");
 	    (void)SvOK_off(dest_sv);
@@ -562,7 +582,8 @@ fetch_func_autolob(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
 	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP,
 		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
-		fbh->field_num+1, "SKIPPED", loblen, imp_sth->long_readlen, buflen, amtp);
+		fbh->field_num+1, "SKIPPED", ul_t(loblen),
+		imp_sth->long_readlen, ul_t(buflen), ul_t(amtp));
     }
 
     /* tell perl what we've put in its dest_sv */
@@ -747,11 +768,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	imp_sth->t_dbsize += fbh->dbsize;
 	if (!avg_width)
 	    avg_width = fbh->dbsize;
-	imp_sth->est_width += avg_width;
+	est_width += avg_width;
 
 	if (DBIS->debug >= 2)
 	    dbd_fbh_dump(fbh, i, 0);
     }
+    imp_sth->est_width = est_width;
 
     /* --- Setup the row cache for this query --- */
 
@@ -1210,7 +1232,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     Newz(1, lr, 1, lob_refetch_t);
     unmatched_params = 0;
     lr->num_fields = 0;
-    lr->fbh_ary = alloc_via_sv(sizeof(imp_fbh_t) * HvFILL(lob_cols_hv)+1,
+    lr->fbh_ary = alloc_via_sv(sizeof(imp_fbh_t) * HvKEYS(lob_cols_hv)+1,
 			&lr->fbh_ary_sv, 0);
 
     sql_select = newSVpv("select ",0);
@@ -1387,7 +1409,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP,
 		"       lob refetch %d for '%s' param: ftype %d, len %ld: %s %s\n",
-		i+1,fbh->name, fbh->dbtype, amtp,
+		i+1,fbh->name, fbh->dbtype, ul_t(amtp),
 		(amtp > 0) ? "LobWrite" : "LobTrim", oci_status_name(status));
 	if (status != OCI_SUCCESS) {
 	    return oci_error(sth, errhp, status, "OCILobTrim/OCILobWrite/LOB refetch");

@@ -236,7 +236,6 @@ if (1) {
     my $cur_query = q{
 	SELECT object_name, owner FROM all_objects
 	WHERE object_name LIKE :p1 and ROWNUM <= 3
-	ORDER BY object_name, owner
     };
     my $cur1 = 42;
     #$dbh->trace(4);

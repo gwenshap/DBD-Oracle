@@ -1,4 +1,13 @@
-OCI8 mem leak on connect
+[ In no particular order ]
+
+add docs about OPS$ login
+
+bind type 1 or 5?!
+
+Add hint about SQL*Plus commands if execute gets an ORA-0900 invalid SQL
+statement? Maybe just if common SQL*Plus command word is first word.
+
+Support SERVICE_NAME in new connect syntax (allow inplace of SID)
 
 warn (trace_msg?) if ORACLE_HOME changes after first connect
 relates to Apache::DBI scenario where changing ORACLE_HOME
@@ -11,7 +20,7 @@ PRECISION for oci7 on VARCHAR etc
 Detect "Error while trying to retrieve text for error ORA-XXXX"
 and add "refer to oracle docs or use 'oerr ora XXXX'".
 
-blob_read for oci8
+blob_read for oci8 with LONGs
 
 connect(..., { ora_module_name => $0 });
 
@@ -21,24 +30,17 @@ $sth = $dbh->prepare("select ... for update");
 $dbh->commit;
 $sth->execute; # fails ? auto-re-prepare?
 
-Fetch: If LongReadLen > 64k then automatically call oflng for each long LONG.
-Bind: Automatically do piecewise insert of longs.
-
 ora_bind() failed err = ORA-01026: multiple buffers of size > 4000 in
 the bind list (DBD: oexec error)
 
 http://outside.organic.com/mail-archives/dbi-users/Nov1997/0116.html
 
-Handle binding of values > 32K long.
-
 Handle PL/SQL arrays.
-
-Handle PL/SQL returned cursor variables.
 
 Non-blocking
 
-Tests
-	RAW types at max length
+Tests:
+RAW types at max length
 
 http://www.oracle-users.com/html/freeware.html
 

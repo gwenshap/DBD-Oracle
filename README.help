@@ -94,6 +94,11 @@ when DBD::Oracle was compiled.
 Also try building with oracle.mk if your DBD::Oracle defaulted to proc.mk.
 
 -------------------------------------------------------------------------------
+SCO - For general help enabling dynamic loding under SCO 5
+
+	http://www2.arkansas.net/~jcoy/perl5/
+
+-------------------------------------------------------------------------------
 AIX - warnings like these when building perl are not usually a problem:
 
 ld: 0711-415 WARNING: Symbol Perl_sighandler is already exported.

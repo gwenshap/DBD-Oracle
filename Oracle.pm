@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.77 1999/07/12 03:20:42 timbo Exp $
+#   $Id: Oracle.pm,v 1.79 2000/07/13 22:42:02 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.03';
+$DBD::Oracle::VERSION = '1.05';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -32,7 +32,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.77 $, 10);
+    my $Revision = substr(q$Revision: 1.79 $, 10);
 
     require_version DBI 1.02;
 
@@ -67,6 +67,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# Used to silence 'Bad free() ...' warnings caused by bugs in Oracle's code
 	# being detected by Perl's malloc.
 	$ENV{PERL_BADFREE} = 0;
+    undef $Win32::TieRegistry::Registry if $Win32::TieRegistry::Registry;
     }
 
 	#sub AUTOLOAD {
@@ -93,7 +94,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	if (($^O eq 'MSWin32') or ($^O =~ /cygwin/i)) {
 	  # XXX experimental, will probably change
-	  $drh->log_msg("Fetching ORACLE_SID from Registry.\n") if $debug;
+	  $drh->trace_msg("Trying to fetch ORACLE_HOME and ORACLE_SID from the registry.\n")
+		if $debug;
 	  my($hkey, $sid, $home);
 	  eval q{
 	    require Win32::TieRegistry;
@@ -120,7 +122,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	  };
 	  $home= $ENV{$ORACLE_ENV} unless $home;
 	  $dbnames{$sid} = $home if $sid and $home;
-	  $drh->log_msg("Found $sid \@ $home.\n") if $debug;
+	  $drh->trace_msg("Found $sid \@ $home.\n") if $debug;
 	  $oracle_home =$home unless $oracle_home;
 	};
 
@@ -183,14 +185,12 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    } split /\s*;\s*/, $dbname;
 	    my %dbname = ( PROTOCOL => 'tcp', @dbname );
 	    my $sid = delete $dbname{SID};
-	    my $ora = delete $dbname{ORACLE};
 	    return $drh->DBI::set_err(-1,
 		    "Can't connect using this syntax without specifying a HOST and a SID")
 		unless $sid and $dbname{HOST};
 	    my @addrs;
 	    push @addrs, "$n=$v" while ( ($n,$v) = each %dbname );
 	    my $addrs = "(" . join(")(", @addrs) . ")";
-	    $dbname{PORT} ||= ($ora eq 7) ? 1521 : 1526 if $ora;
 	    if ($dbname{PORT}) {
 		$addrs = "(ADDRESS=$addrs)";
 	    }
@@ -259,7 +259,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	# Call Oracle OCI logon func in Oracle.xs file
 	# and populate internal handle data.
-	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth)
+	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth, $attr)
 	    or return undef;
 
 	if ($attr && $attr->{ora_module_name}) {
@@ -300,13 +300,14 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub ping {
 	my($dbh) = @_;
 	my $ok = 0;
-	local $SIG{__WARN__} = sub { } if $dbh->{PrintError};
 	eval {
+	    local $SIG{__DIE__};
+	    local $SIG{__WARN__};
 	    # we know that Oracle 7 prepare does a describe so this will
 	    # actually talk to the server and is this a valid and cheap test.
 	    my $sth =  $dbh->prepare("select SYSDATE from DUAL /* ping */");
 	    # But Oracle 8 doesn't talk to server unless we describe the query
-	    $ok = $sth && $sth->{NUM_OF_FIELDS};
+	    $ok = $sth && $sth->FETCH('NUM_OF_FIELDS');
 	};
 	return ($@) ? 0 : $ok;
     }
@@ -336,48 +337,51 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub type_info_all {
 	my ($dbh) = @_;
 	my $names = {
-          TYPE_NAME		=> 0,
-          DATA_TYPE		=> 1,
-          COLUMN_SIZE		=> 2,
-          LITERAL_PREFIX	=> 3,
-          LITERAL_SUFFIX	=> 4,
-          CREATE_PARAMS		=> 5,
-          NULLABLE		=> 6,
-          CASE_SENSITIVE	=> 7,
-          SEARCHABLE		=> 8,
-          UNSIGNED_ATTRIBUTE	=> 9,
-          FIXED_PREC_SCALE	=>10,
-          AUTO_UNIQUE_VALUE	=>11,
-          LOCAL_TYPE_NAME	=>12,
-          MINIMUM_SCALE		=>13,
-          MAXIMUM_SCALE		=>14,
-        };
+	    TYPE_NAME		=> 0,
+	    DATA_TYPE		=> 1,
+	    COLUMN_SIZE		=> 2,
+	    LITERAL_PREFIX	=> 3,
+	    LITERAL_SUFFIX	=> 4,
+	    CREATE_PARAMS	=> 5,
+	    NULLABLE		=> 6,
+	    CASE_SENSITIVE	=> 7,
+	    SEARCHABLE		=> 8,
+	    UNSIGNED_ATTRIBUTE	=> 9,
+	    FIXED_PREC_SCALE	=>10,
+	    AUTO_UNIQUE_VALUE	=>11,
+	    LOCAL_TYPE_NAME	=>12,
+	    MINIMUM_SCALE	=>13,
+	    MAXIMUM_SCALE	=>14,
+	    SQL_DATA_TYPE	=>15,
+	    SQL_DATETIME_SUB	=>16,
+	    NUM_PREC_RADIX	=>17,
+	};
 	# Based on the values from Oracle 8.0.4 ODBC driver
 	my $ti = [
 	  $names,
           [ 'LONG RAW', -4, '2147483647', '\'', '\'', undef, 1, '0', '0',
-            undef, '0', undef, undef, undef, undef
+            undef, '0', undef, undef, undef, undef, -4, undef, undef
           ],
           [ 'RAW', -3, 255, '\'', '\'', 'max length', 1, '0', 3,
-            undef, '0', undef, undef, undef, undef
+            undef, '0', undef, undef, undef, undef, -3, undef, undef
           ],
           [ 'LONG', -1, '2147483647', '\'', '\'', undef, 1, 1, '0',
-            undef, '0', undef, undef, undef, undef
+            undef, '0', undef, undef, undef, undef, -1, undef, undef
           ],
           [ 'CHAR', 1, 255, '\'', '\'', 'max length', 1, 1, 3,
-            undef, '0', '0', undef, undef, undef
+            undef, '0', '0', undef, undef, undef, 1, undef, undef
           ],
           [ 'NUMBER', 3, 38, undef, undef, 'precision,scale', 1, '0', 3,
-            '0', '0', '0', undef, '0', 38
+            '0', '0', '0', undef, '0', 38, 3, undef, 10
           ],
           [ 'DOUBLE', 8, 15, undef, undef, undef, 1, '0', 3,
-            '0', '0', '0', undef, undef, undef
+            '0', '0', '0', undef, undef, undef, 8, undef, 10
           ],
           [ 'DATE', 11, 19, '\'', '\'', undef, 1, '0', 3,
-            undef, '0', '0', undef, '0', '0'
+            undef, '0', '0', undef, '0', '0', 11, undef, undef
           ],
           [ 'VARCHAR2', 12, 2000, '\'', '\'', 'max length', 1, 1, 3,
-            undef, '0', '0', undef, undef, undef
+            undef, '0', '0', undef, undef, undef, 12, undef, undef
           ]
         ];
 	return $ti;
@@ -517,8 +521,10 @@ If you use the C<host=$host;sid=$sid> style syntax, for example:
 
 then DBD::Oracle will construct a full connection descriptor string
 for you and Oracle will not need to consult the tnsname.ora file.
-If a C<port> number is not specified then the descriptor try
-both 1526 and 1521 in that order.
+
+If a C<port> number is not specified then the descriptor will try both
+1526 and 1521 in that order (e.g., new then old).  You can check which
+port(s) are in use by typing "$ORACLE_HOME/bin/lsnrctl stat" on the server.
 
 
 =head2 Oracle environment variables
@@ -1108,7 +1114,6 @@ procedure OUT parameters or from direct C<OPEN> statements, as show below:
   $sth1->bind_param(":space", "USERS");
   my $sth2;
   $sth1->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
-  $sth1->execute();
   # $sth2 is now a valid DBI statement handle for the cursor
   while ( @row = $sth2->fetchrow_array ) { ... }
 
@@ -1160,7 +1165,8 @@ The DBD::Oracle module is Copyright (c) 1995,1996,1997,1998,1999 Tim Bunce. Engl
 The DBD::Oracle module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself with the exception that it
 cannot be placed on a CD-ROM or similar media for commercial distribution
-without the prior approval of the author.
+without the prior approval of the author unless the CD-ROM is primarily a
+copy of the majority of the CPAN archive.
 
 =head1 ACKNOWLEDGEMENTS
 

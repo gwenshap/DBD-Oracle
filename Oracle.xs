@@ -54,8 +54,8 @@ ora_fetch(sth)
     D_imp_sth(sth);
     AV *av;
     int debug = DBIc_DEBUGIV(imp_sth);
-    if (dbis->debug > debug)
-	debug = dbis->debug;
+    if (DBIS->debug > debug)
+	debug = DBIS->debug;
     DBIh_CLEAR_ERROR(imp_sth);
     if (GIMME == G_SCALAR) {	/* XXX Oraperl	*/
 	/* This non-standard behaviour added only to increase the	*/

@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.58 1999/07/12 03:20:42 timbo Exp $
+   $Id: dbdimp.c,v 1.60 2000/07/13 22:42:02 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -38,13 +38,14 @@ void
 dbd_init(dbistate)
     dbistate_t *dbistate;
 {
+    char *p;
     DBIS = dbistate;
     dbd_init_oci(dbistate);
 
-    if (getenv("DBD_ORACLE_LOGIN_NOMSG"))
-	ora_login_nomsg = atoi(getenv("DBD_ORACLE_LOGIN_NOMSG"));
-    if (getenv("DBD_ORACLE_SIGCHLD"))
-	ora_sigchld_restart = atoi(getenv("DBD_ORACLE_SIGCHLD"));
+    if ((p=getenv("DBD_ORACLE_LOGIN_NOMSG")))
+	ora_login_nomsg = atoi(p);
+    if ((p=getenv("DBD_ORACLE_SIGCHLD")))
+	ora_sigchld_restart = atoi(p);
 }
 
 
@@ -64,8 +65,6 @@ dbd_discon_all(drh, imp_drh)
 		DBIc_ERR(imp_drh), DBIc_ERRSTR(imp_drh));
 	return FALSE;
     }
-    if (perl_destruct_level)
-	perl_destruct_level = 0;
     return FALSE;
 }
 
@@ -186,9 +185,6 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 
 #ifdef OCI_V8_SYNTAX
     D_imp_drh_from_dbh;
-    ub4 cred_type;
-    ub4 mode_type = OCI_DEFAULT;
-    SV **mode_type_sv;
 
     if (DBIS->debug >= 6 )
 	dump_env_to_trace();
@@ -198,10 +194,11 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	/* you get a core dump (Not doc'd in 8.0.4). Thanks Oracle!	*/
 	ub4 init_mode = OCI_OBJECT;
 	SV **init_mode_sv;
-	DBD_ATTRIB_GET_IV(attr, "ora_init_mode",15, init_mode_sv, mode_type);
+	DBD_ATTRIB_GET_IV(attr, "ora_init_mode",13, init_mode_sv, init_mode);
 	OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
 	if (status != OCI_SUCCESS) {
-	    oci_error(dbh, NULL, status, "OCIInitialize");
+	    oci_error(dbh, NULL, status,
+		"OCIInitialize. Check ORACLE_HOME and NLS settings etc.");
 	    return 0;
 	}
 	OCIEnvInit_log_stat( &imp_drh->envhp, OCI_DEFAULT, 0, 0, status);
@@ -230,10 +227,14 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 
     OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->authp, OCI_HTYPE_SESSION, status);
 
-    cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
-    DBD_ATTRIB_GET_IV(attr, "ora_session_mode",16, mode_type_sv, mode_type);
-    OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,
-		cred_type, mode_type, status);
+    {
+	ub4  cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
+	SV **sess_mode_type_sv;
+	ub4  sess_mode_type = OCI_DEFAULT;
+	DBD_ATTRIB_GET_IV(attr, "ora_session_mode",16, sess_mode_type_sv, sess_mode_type);
+	OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,
+		    cred_type, sess_mode_type, status);
+    }
     if (status != OCI_SUCCESS) {
 	oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
 	OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
@@ -262,7 +263,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	char buf[100];
 	char *msg;
 	switch(rc) {	/* add helpful hints to some errors */
-	case    0: msg = "login failed, check ORACLE_HOME/bin is on your PATH";  break;
+	case    0: msg = "login failed, check your config, e.g. ORACLE_HOME/bin on your PATH etc";  break;
 	case 1019: msg = "login failed, probably a symptom of a deeper problem"; break;
 	default:   msg = "login failed"; break;
 	}
@@ -311,10 +312,10 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	    /* XXX we should also check that act.sa_handler is not the perl handler */
 	    act.sa_flags |= SA_RESTART;
 	    sigaction( SIGCLD, &act, (struct sigaction*)0 );
-	    if (dbis->debug >= 3)
+	    if (DBIS->debug >= 3)
 		warn("dbd_db_login: sigaction errno %d, handler %lx, flags %lx",
 			errno,act.sa_handler,act.sa_flags);
-	    if (dbis->debug >= 2)
+	    if (DBIS->debug >= 2)
 		fprintf(DBILOGFP, "    dbd_db_login: set SA_RESTART on Oracle SIGCLD handler.\n");
 	}
     }  
@@ -324,6 +325,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 
     DBIc_IMPSET_on(imp_dbh);	/* imp_dbh set up now			*/
     DBIc_ACTIVE_on(imp_dbh);	/* call disconnect before freeing	*/
+    imp_dbh->ph_type = 1;
     return 1;
 }
 
@@ -414,6 +416,7 @@ dbd_db_destroy(dbh, imp_dbh)
 	dbd_db_disconnect(dbh, imp_dbh);
 #ifdef OCI_V8_SYNTAX
     {   sword status;
+	OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
 	OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 	OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 	OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
@@ -450,6 +453,11 @@ dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)
     else if (kl==12 && strEQ(key, "RowCacheSize")) {
 	imp_dbh->RowCacheSize = SvIV(valuesv);
     }
+    else if (kl==11 && strEQ(key, "ora_ph_type")) {
+        if (SvIV(valuesv)!=1 && SvIV(valuesv)!=5)
+	    croak("ora_ph_type must be either 1 (VARCHAR2) or 5 (STRING)");
+	imp_dbh->ph_type = SvIV(valuesv);
+    }
     else {
 	return FALSE;
     }
@@ -479,6 +487,9 @@ dbd_db_FETCH_attrib(dbh, imp_dbh, keysv)
     else if (kl==12 && strEQ(key, "RowCacheSize")) {
 	retsv = newSViv(imp_dbh->RowCacheSize);
     }
+    else if (kl==11 && strEQ(key, "ora_ph_type")) {
+	retsv = newSViv(imp_dbh->ph_type);
+    }
     if (!retsv)
 	return Nullsv;
     if (cacheit) {	/* cache for next time (via DBI quick_FETCH)	*/
@@ -503,6 +514,7 @@ dbd_preparse(imp_sth, statement)
     imp_sth_t *imp_sth;
     char *statement;
 {
+    D_imp_dbh_from_sth;
     bool in_literal = FALSE;
     char in_comment = '\0';
     char *src, *start, *dest;
@@ -519,7 +531,7 @@ dbd_preparse(imp_sth, statement)
     /* initialise phs ready to be cloned per placeholder	*/
     memset(&phs_tpl, 0, sizeof(phs_tpl));
     phs_tpl.imp_sth = imp_sth;
-    phs_tpl.ftype = 1;	/* VARCHAR2 */
+    phs_tpl.ftype = imp_dbh->ph_type;
     phs_tpl.maxlen_bound = -1;	/* not yet bound */
 
     src  = statement;
@@ -615,7 +627,7 @@ dbd_preparse(imp_sth, statement)
     *dest = '\0';
     if (imp_sth->all_params_hv) {
 	DBIc_NUM_PARAMS(imp_sth) = (int)HvKEYS(imp_sth->all_params_hv);
-	if (dbis->debug >= 2)
+	if (DBIS->debug >= 2)
 	    fprintf(DBILOGFP, "    dbd_preparse scanned %d distinct placeholders\n",
 		(int)DBIc_NUM_PARAMS(imp_sth));
     }
@@ -699,8 +711,9 @@ ora_sql_type(imp_sth, name, sql_type)
     case SQL_TIME:
     case SQL_TIMESTAMP:
     default:
-	if (DBIc_WARN(imp_sth) && imp_sth && name)
-	    warn("SQL type %d for '%s' is not fully supported, bound as SQL_VARCHAR instead");
+	if (imp_sth && DBIc_WARN(imp_sth) && name)
+	    warn("SQL type %d for '%s' is not fully supported, bound as SQL_VARCHAR instead",
+		sql_type, name);
 	return ora_sql_type(imp_sth, name, SQL_VARCHAR);
     }
 }
@@ -724,7 +737,7 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
     if (!SvPOK(phs->sv) && SvOK(phs->sv))
 	sv_2pv(phs->sv, &na);
 
-    if (dbis->debug >= 2) {
+    if (DBIS->debug >= 2) {
 	char *val = neatsvpv(phs->sv,0);
  	fprintf(DBILOGFP, "       bind %s <== %.1000s (", phs->name, val);
  	if (SvOK(phs->sv)) 
@@ -795,7 +808,7 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
     }
 #endif
 
-    if (dbis->debug >= 3) {
+    if (DBIS->debug >= 3) {
 	fprintf(DBILOGFP, "       bind %s <== '%.*s' (size %ld/%ld, otype %d, indp %d)\n",
  	    phs->name,
 	    (int)(phs->alen>SvIV(DBIS->neatsvpvlen) ? SvIV(DBIS->neatsvpvlen) : phs->alen),
@@ -805,6 +818,47 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 
     return 1;
 }
+
+
+#ifndef MM_CURSOR_FIX
+/*
+ * Rebind an "in" cursor ref to its real statement handle
+ * This allows passing cursor refs as "in" to pl/sql (but only if you got the
+ * cursor from pl/sql to begin with)
+ */
+int 
+pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs) 
+{
+    /*dTHR; -- do we need to do this??? */
+    SV * sth_csr = phs->sv;
+    D_impdata(imp_sth_csr, imp_sth_t, sth_csr);
+    sword status;
+
+    if (dbis->debug >= 3)
+	fprintf(DBILOGFP, "    pp_rebind_ph_rset_in: BEGIN\n    calling OCIBindByName(stmhp=%p, bndhp=%p, errhp=%p, name=%s, csrstmhp=%p, ftype=%d)\n", imp_sth->stmhp, phs->bndhp, imp_sth->errhp, phs->name, imp_sth_csr->stmhp, phs->ftype);
+
+    OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+			   (text*)phs->name, strlen(phs->name),
+			   &imp_sth_csr->stmhp,
+			   0,
+			   phs->ftype, 0,
+			   NULL,
+			   0, 0,
+			   NULL,
+			   OCI_DEFAULT,
+			   status
+			   );
+    if (dbis->debug >= 3)
+	fprintf(DBILOGFP, "    after OCIBindByName, status=%d\n", status);
+    if (status != OCI_SUCCESS) {
+      oci_error(sth, imp_sth->errhp, status, "OCIBindByName SQLT_RSET");
+      return 0;
+    }
+    if (dbis->debug >= 3)
+	fprintf(DBILOGFP, "    pp_rebind_ph_rset_in: END\n");
+    return 2;
+}
+#endif
 
 
 int
@@ -865,6 +919,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
     }
 #endif
 	ENTER;
+	SAVETMPS;
 	PUSHMARK(SP);
 	XPUSHs(sv_2mortal(newRV(DBIc_MY_H(imp_dbh))));
 	XPUSHs(sv_2mortal(newRV((SV*)init_attr)));
@@ -873,9 +928,11 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	SPAGAIN;
 	if (count != 2)
 	    croak("panic: DBI::_new_sth returned %d values instead of 2", count);
-	sth_i = SvREFCNT_inc(POPs);
-	sv_setsv(phs->sv, SvREFCNT_inc(POPs));	/* outer handle */
+	sth_i = POPs;			/* discard inner handle */
+	sv_setsv(phs->sv, POPs); 	/* save outer handle */
+	SvREFCNT_dec(init_attr);
 	PUTBACK;
+	FREETMPS;
 	LEAVE;
 	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP, "       bind %s - allocated %s...\n",
@@ -900,7 +957,6 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 
 	/* assign statement handle from placeholder descriptor	*/
 	imp_sth_csr->stmhp = phs->desc_h;
-	imp_sth_csr->disable_finish = 1;  /* else finish core dumps in kpuccan()! */
 	phs->desc_h = NULL;		  /* tell phs that we own it now	*/
 
 	/* force stmt_type since OCIAttrGet(OCI_ATTR_STMT_TYPE) doesn't work! */
@@ -913,7 +969,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 
 #endif
 
-	DBIc_IMPSET_on(imp_sth);
+	DBIc_IMPSET_on(imp_sth_csr);
 
 	/* set ACTIVE so dbd_describe doesn't do explicit OCI describe */
 	DBIc_ACTIVE_on(imp_sth_csr);
@@ -937,7 +993,7 @@ dbd_rebind_ph_cursor(sth, imp_sth, phs)
 {
     assert(phs->ftype == 102);
     phs->out_prepost_exec = pp_exec_rset;
-    if (dbis->debug >= 3)
+    if (DBIS->debug >= 3)
  	fprintf(DBILOGFP, "       bind %s to cursor (at execute)\n", phs->name);
     return 2;
 }
@@ -974,7 +1030,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
     }
     if (done != 1) {
 	if (done == 2) { /* the rebind did the OCI bind call itself successfully */
-	    if (dbis->debug >= 3)
+	    if (DBIS->debug >= 3)
 		fprintf(DBILOGFP, "       bind %s done for ftype %d\n",
 			phs->name, phs->ftype);
 	    return 1;
@@ -1030,7 +1086,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
     }
 #endif
     phs->maxlen_bound = phs->maxlen ? phs->maxlen : 1;
-    if (dbis->debug >= 3)
+    if (DBIS->debug >= 3)
  	fprintf(DBILOGFP, "       bind %s done\n", phs->name);
     return 1;
 }
@@ -1047,6 +1103,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     int is_inout;
     IV maxlen;
 {
+    D_imp_dbh_from_sth;
     SV **phs_svp;
     STRLEN name_len;
     char *name = Nullch;
@@ -1075,7 +1132,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     if (SvTYPE(newvalue) == SVt_PVLV && is_inout)	/* may allow later */
 	croak("Can't bind ``lvalue'' mode scalar as inout parameter (currently)");
 
-    if (dbis->debug >= 2) {
+    if (DBIS->debug >= 2) {
 	fprintf(DBILOGFP, "       bind %s <== %s (type %ld",
 		name, neatsvpv(newvalue,0), (long)sql_type);
 	if (is_inout)
@@ -1092,7 +1149,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     phs = (phs_t*)(void*)SvPVX(*phs_svp);	/* placeholder struct	*/
 
     if (phs->sv == &sv_undef) {	/* first bind for this placeholder	*/
-	phs->ftype    = 1;		/* our default type: VARCHAR2	*/
+	phs->ftype    = imp_dbh->ph_type;
 	phs->is_inout = is_inout;
 	if (is_inout) {
 	    /* phs->sv assigned in the code below */
@@ -1176,7 +1233,7 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 {
     dTHR;
     ub4 row_count = 0;
-    int debug = dbis->debug;
+    int debug = DBIS->debug;
     int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
 
 #ifdef OCI_V8_SYNTAX
@@ -1272,7 +1329,7 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	    "    dbd_st_execute %s returned (%s, rpc%ld, fn%d, out%d)\n",
 		oci_stmt_type_name(imp_sth->stmt_type),
 		oci_status_name(status),
-		row_count, sqlfncode, imp_sth->has_inout_params);
+		(long)row_count, sqlfncode, imp_sth->has_inout_params);
     }
 
     if (is_select && !imp_sth->done_desc) {
@@ -1298,7 +1355,10 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	/* Specifically an update (5) may change to select (4) after odesc().	*/
 	if (oexfet(imp_sth->cda, (ub4)imp_sth->cache_rows, 0, 0)
 		&& imp_sth->cda->rc != 1403 /* other than no more data */ ) {
-	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oexfet error");
+		char * hint = "oexfet error";
+		if (imp_sth->cda->rc == 932)	/* inconsistent data types */
+			hint = "oexfet error, e.g., can't select LOB fields using DBD::Oracle built for Oracle 7";
+	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, hint);
 	    return -2;
 	}
 	DBIc_ACTIVE_on(imp_sth);
@@ -1426,7 +1486,7 @@ dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
     }
 #endif
 
-    if (dbis->debug >= 3)
+    if (DBIS->debug >= 3)
 	fprintf(DBILOGFP,
 	    "    blob_read field %d+1, ftype %d, offset %ld, len %ld, destoffset %ld, retlen %ld\n",
 	    field, imp_sth->fbh[field].ftype, offset, len, destoffset, retl);
@@ -1485,20 +1545,20 @@ dbd_st_finish(sth, imp_sth)
     /* Turn off ACTIVE here regardless of errors below.		*/
     DBIc_ACTIVE_off(imp_sth);
 
-    if (dirty)			/* don't walk on the wild side	*/
-	return 1;
-
     if (imp_sth->disable_finish)	/* see ref cursors	*/
 	return 1;
 
     if (!DBIc_ACTIVE(imp_dbh))		/* no longer connected	*/
 	return 1;
 
+    if (dirty)			/* don't walk on the wild side	*/
+	return 1;
+
 #ifdef OCI_V8_SYNTAX
 {   sword status;
     OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0, OCI_FETCH_NEXT,
                           OCI_DEFAULT, status);
-    if (status != OCI_SUCCESS) {
+    if (status != OCI_SUCCESS && status != OCI_SUCCESS_WITH_INFO) {
 	oci_error(sth, imp_sth->errhp, status, "Finish OCIStmtFetch");
 	return 0;
     }
@@ -1563,14 +1623,6 @@ dbd_st_destroy(sth, imp_sth)
     int fields;
     int i;
 
-    /* Check if an explicit disconnect() or global destruction has	*/
-    /* disconnected us from the *database* before attempting to close.	*/
-
-    if (DBIc_ACTIVE(imp_dbh)) {
-	/* dbd_st_finish has already been called by .xs code if needed.	*/
-	/* so this should never get called */
-    } 
-
 #ifdef OCI_V8_SYNTAX
     {
 	sword status;
@@ -1581,7 +1633,7 @@ dbd_st_destroy(sth, imp_sth)
 	    oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
     }
 #else
-    oclose(imp_sth->cda);
+    oclose(imp_sth->cda);	/* ignore error ? */
     if (imp_sth->cda != &imp_sth->cdabuf) {
 	/* we assume that the cda was allocated for a ref cursor	*/
 	/* bound to a placeholder on a different statement.		*/

@@ -1,10 +1,45 @@
+Changes in DBD::Oracle 1.05 13th July 2000
+
+  Added $dbh->{ora_ph_type} attribute to define default bind type:
+     1=> VARCHAR2,  does strip trailing spaces, embedded \0 bytes okay
+     5=> STRING, doesn't strip trailing spaces, embedded \0 ends string
+    96=> CHAR,   doesn't strip trailing spaces, embedded \0 okay
+    97=> CHARZ,  doesn't strip trailing spaces, embedded \0 ends string?
+    The two CHAR types force 'blank-padded comparison semantics'.
+    Needs testing and documenting, volunteers most welcome!
+  Added (many) typecasts to avoid compiler warnings thanks to Denis Goddard.
+  Added ability to pass existing DBD::Oracle select statement handle
+    (cursor) back _into_ Oracle as a ref cursor type thanks to Mike Moretti.
+    Note that this enables a workaround for closing ref cursors:
+    $dbh->do("BEGIN CLOSE :cursor; END;", undef, $sth_ref_csr_to_close);
+  Improved Win32 support in Makefile.PL thanks to Michael A. Chase.
+  Workaround Win32::TieRegistry FETCH error during global destruction.
+  Re-enable row cache by default for OCI8 (can give big speed increase).
+  Fixed bug in OCI8 row cache calculation thanks to Greg Stark.
+
+Changes in DBD::Oracle 1.04 11th July 2000
+
+  Added info on workarounds for Java thread related linker errors
+    on Solaris with Oracle 8.1.6. Thanks to Andi Lamprecht.
+  Fixed memory leak on connect. Thanks to Jeffrey W. Baker.
+  Fixed memory and ref cursor leaks. Thanks to Mike Moretti and John Tobey.
+  Fixed SEGV on insert/update or many LOBS. Thanks to Honza Pazdziora.
+  Fixed treating SUCCESS_WITH_INFO from finish() as an error.
+  Fixed passing of attribs to connect thanks to K.Takaoka.
+  Fixed cursor binding example in docs thanks to Michael Chase.
+  Build using otrace/demo/atmoci.mk as last resort thanks to Chris Sylvain.
+  Improved reliability of "perl Makefile.PL -b" configure option.
+  Improved reliability of t/plsql.t cursor tests. Hopefully.
+  Improved reliability of ping method.
+  Fixed broken SQL type warning in bind_param.
+
 Changes in DBD::Oracle 1.03 12th July 1999
 
   Added "perl Makefile.PL -b" configure option. Links DBD::Oracle
     using same linker args as Oracle's own OCI demo applications.
   Added connect("dbi:Oracle:host=foo;sid=bar", ...) syntax.
   Added OCI8 function trace at level 6, useful for Oracle support.
-  Added ora_session_mode attribute to connect.
+  Added ora_session_mode attribute to connect (eg SYSDBA/SYSOPER).
   Added test for Oracle security problem. See README.sec.
   Updated ora_explain tool to v1.1 thanks to Alan Burlison.
   Contributions from Michael Chase (plus docs from Andy Duncan):

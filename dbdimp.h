@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.36 1999/07/12 03:20:42 timbo Exp $
+   $Id: dbdimp.h,v 1.37 2000/07/11 22:14:20 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -104,6 +104,7 @@ struct imp_dbh_st {
 #endif
 
     int RowCacheSize;
+    int ph_type;		/* default oratype for placeholders */
 };
 
 
