@@ -222,7 +222,7 @@ sub insert_rows #1 + rows*2 +rows*ncols tests
             if ( $type =~ m/^nchar|^nvar|^nclob/i ) 
             {
                 $attr = $attrR;
-                $note = $attr && $csform ? "with attribute { ora_csfrom => $csform }" : "";
+                $note = $attr && $csform ? "with attribute { ora_csform => $csform }" : "";
             } 
             ok( $sth->bind_param( $colnum++ ,$val ,$attr ) ,"bind_param " . $$tcols[$i][0] ." $note" );
         }
