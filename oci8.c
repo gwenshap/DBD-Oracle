@@ -360,7 +360,7 @@ sb4
 dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 	      dvoid **bufpp, ub4 *alenp, ub1 *piecep, dvoid **indpp)
 {
-    phs_t *phs = octxp;
+    phs_t *phs = (phs_t*)octxp;
     STRLEN phs_len;
     if (phs->desc_h) {
 	*bufpp  = phs->desc_h;
@@ -441,7 +441,7 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 			/* value or a pointer to an indicator structure for named data types.	*/
 	ub2 **rcodepp)	/* Returns a pointer to contains the return code.	*/
 {
-    phs_t *phs = octxp;	/* context */
+    phs_t *phs = (phs_t*)octxp;	/* context */
     /*imp_sth_t *imp_sth = phs->imp_sth;*/
 
     if (phs->desc_h) {
@@ -632,7 +632,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	}
     }
     phs->indp   = (SvOK(phs->sv)) ? 0 : -1;
-    phs->progv  = (void*)&phs->desc_h;
+    phs->progv  = (char*)&phs->desc_h;
     phs->maxlen = sizeof(OCILobLocator*);
     if (phs->is_inout)
 	phs->out_prepost_exec = lob_phs_post_execute;
@@ -1089,7 +1089,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	fbh->field_num = i;
 
 	OCIParamGet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, imp_sth->errhp,
-			(dvoid*)&fbh->parmdp, (ub4)i, status);
+			(dvoid**)&fbh->parmdp, (ub4)i, status);
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status, "OCIParamGet");
 	    return 0;
@@ -1578,7 +1578,7 @@ find_ident_after(char *src, char *after, STRLEN *len, int copy)
 		    ++src;
 		*len = src - start;
 		if (copy) {
-		    p = alloc_via_sv(*len, 0, 1);
+		    p = (char*)alloc_via_sv(*len, 0, 1);
 		    strncpy(p, start, *len);
 		    p[*len] = '\0';
 		    return p;
@@ -1753,7 +1753,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     Newz(1, lr, 1, lob_refetch_t);
     unmatched_params = 0;
     lr->num_fields = 0;
-    lr->fbh_ary = alloc_via_sv(sizeof(imp_fbh_t) * HvKEYS(lob_cols_hv)+1,
+    lr->fbh_ary = (imp_fbh_t*)alloc_via_sv(sizeof(imp_fbh_t) * HvKEYS(lob_cols_hv)+1,
 			&lr->fbh_ary_sv, 0);
 
     sql_select = sv_2mortal(newSVpv("select ",0));
@@ -1952,12 +1952,12 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	}
 	else if (amtp > 0) {	/* since amtp==0 & OCI_ONE_PIECE fail (OCI 8.0.4) */
             if( ! fbh->csid ) {
-                OCILobCharSetForm_log_stat( imp_sth->envhp, errhp, fbh->desc_h, &csform, status );
+                OCILobCharSetForm_log_stat( imp_sth->envhp, errhp, (OCILobLocator*)fbh->desc_h, &csform, status );
                 if (status != OCI_SUCCESS) {
                     return oci_error(sth, errhp, status, "OCILobCharSetForm");
                 }
 #ifdef OCI_ATTR_CHARSET_ID
-                OCILobCharSetId_log_stat( imp_sth->envhp, errhp, fbh->desc_h, &csid, status );
+                OCILobCharSetId_log_stat( imp_sth->envhp, errhp, (OCILobLocator*)fbh->desc_h, &csid, status );
                 if (status != OCI_SUCCESS) {
                     return oci_error(sth, errhp, status, "OCILobCharSetId");
                 }
@@ -1978,14 +1978,14 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
                 PerlIO_printf(DBILOGFP, "      calling OCILobWrite fbh->csid=%d fbh->csform=%d amtp=%d\n",
                     fbh->csid, fbh->csform, amtp );
 	    OCILobWrite_log_stat(imp_sth->svchp, errhp,
-		    fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
+		    (OCILobLocator*)fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
 		    0,0, fbh->csid ,fbh->csform, status);
             if (status != OCI_SUCCESS) {
                 return oci_error(sth, errhp, status, "OCILobWrite in post_execute_lobs");
             }
 	}
 	else {			/* amtp==0 so truncate LOB to zero length */
-	    OCILobTrim_log_stat(imp_sth->svchp, errhp, fbh->desc_h, 0, status);
+	    OCILobTrim_log_stat(imp_sth->svchp, errhp, (OCILobLocator*)fbh->desc_h, 0, status);
             if (status != OCI_SUCCESS) {
                 return oci_error(sth, errhp, status, "OCILobTrim in post_execute_lobs");
             }

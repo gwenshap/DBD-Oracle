@@ -1226,7 +1226,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	    phs->desc_t = OCI_HTYPE_STMT;
 	    OCIHandleAlloc_ok(imp_sth->envhp, &phs->desc_h, phs->desc_t, status);
 	}
-	phs->progv = (void*)&phs->desc_h;
+	phs->progv = (char*)&phs->desc_h;
 	phs->maxlen = 0;
 	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 		(text*)phs->name, (sb4)strlen(phs->name),
@@ -1274,7 +1274,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	imp_sth_csr->svchp = imp_sth->svchp;
 
 	/* assign statement handle from placeholder descriptor	*/
-	imp_sth_csr->stmhp = phs->desc_h;
+	imp_sth_csr->stmhp = (OCIStmt*)phs->desc_h;
 	phs->desc_h = NULL;		  /* tell phs that we own it now	*/
 
 	/* force stmt_type since OCIAttrGet(OCI_ATTR_STMT_TYPE) doesn't work! */
