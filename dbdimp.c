@@ -46,7 +46,6 @@ ub2 al32utf8_csid = 873;
 ub2 al16utf16_csid = 2000;
 
 static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
-static int ora_sigchld_restart = 1;
 
 typedef struct sql_fbh_st sql_fbh_t;
 struct sql_fbh_st {
@@ -110,8 +109,6 @@ dbd_init(dbistate_t *dbistate)
 
     if ((p=getenv("DBD_ORACLE_LOGIN_NOMSG")))
 	ora_login_nomsg = atoi(p);
-    if ((p=getenv("DBD_ORACLE_SIGCHLD")))
-	ora_sigchld_restart = atoi(p);
 }
 
 
@@ -1326,12 +1323,15 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
     csform = phs->csform;
 
-    if (SvUTF8(phs->sv) && !csform) {
-    	/* try to default the csform to avoid translation through non-unicode */
-	/* given Oracle policy that NCHAR==Unicode this should be fine */
-	csform = SQLCS_NCHAR;
-    	/* in some cases this isn't right for LOBs but those are rare and */
-	/* the application can use an explicit ora_csform bind attribute. */
+    if (!csform && SvUTF8(phs->sv)) {
+    	/* try to default csform to avoid translation through non-unicode */
+	if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT))	/* prefer implicit */
+	    csform = SQLCS_IMPLICIT;
+	else if (CSFORM_IMPLIES_UTF8(SQLCS_NCHAR))
+	    csform = SQLCS_NCHAR;
+	else if (trace_level)				/* leave csform == 0 */
+	    PerlIO_printf(DBILOGFP, "       rebinding %s with UTF8 value but neither CHAR nor NCHAR are unicode\n",
+		    phs->name);
     }
 
     if (csform) {

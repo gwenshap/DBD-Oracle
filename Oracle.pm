@@ -1353,6 +1353,29 @@ causes the data to use more space and so fail with a truncation error.
 
 =back
 
+=head2 Trailing Spaces
+
+The Oracle strips trailing spaces from VARCHAR placeholder
+values and uses Nonpadded Comparison Semantics with the result.
+This causes trouble if the spaces are needed for
+comparison with a CHAR value or to prevent the value from
+becoming '' which Oracle treats as NULL.
+Look for Blank-padded Comparison Semantics and Nonpadded
+Comparison Semantics in Oracle's SQL Reference or Server
+SQL Reference for more details.
+
+Please remember that using spaces as a value or at the end of
+a value makes visually distinguishing values with different
+numbers of spaces difficult and should be avoided.
+
+To preserve trailing spaces in placeholder values, either change
+the default placeholder type with L</ora_ph_type> or the placeholder
+type for a particular call to L<DBI/bind> or L<DBI/bind_param_inout>
+with L</ora_type> or C<TYPE>.
+Using L<ORA_CHAR> with L<ora_type> or C<SQL_CHAR> with C<TYPE>
+allows the placeholder to be used with Padded Comparison Semantics
+if the value it is being compared to is a CHAR, NCHAR, or literal.
+
 =head1 Metadata
 
 =head2 C<get_info()>

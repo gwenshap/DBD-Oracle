@@ -1,12 +1,15 @@
 =head1 Changes in DBD-Oracle 1.17 (svn rev NNN)
 
   Fixed csform setting for Oracle 8.0.
+  Fixed csform setting for some UTF8 cases.
 
   Changed Makefile.PL to avoid risk of sqlplus hanging thanks to Mark Dedlow.
   Changed Makefile.PL to prefer ~/rdbms/public over other ~/rdbms/* for .h files.
+  Changed Makefile.PL to improve build rule detection.
   Changed README.vms re logical name tables thanks to Jakob Snoer.
 
   Added VMS logical name checks to Makefile.PL thanks to Jakob Snoer.
+  Added "Trailing Spaces" section to docs thanks to Michael A Chase.
 
 =head1 Changes in DBD-Oracle 1.16 (svn rev 515)   22nd October 2004
 

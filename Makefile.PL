@@ -362,6 +362,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	    # remove any echo's as the following line should be the result of the echo
 	    next if $line =~ /^\s*\S*echo\s+/;
 	    next if $line =~ /^\s*\S*make\s+/; # remove recursive calls to make
+	    next if $line =~ /^\s*\S*make:/;   # remove message from make
 	    next if $line =~ /^\s*$/; # remove any blank lines
 	    push @filtered_cmds, $line;
 	}
@@ -560,7 +561,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     }
 
     my $OCIINCLUDE = expand_mkvars($MK{INCLUDE} || '', 0, 0);
-    $OCIINCLUDE .= " -I$OH/rdbms/demo";
+    # $OCIINCLUDE .= " -I$OH/rdbms/demo";
     my @h_dirs = find_headers();
     my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
     $opts{INC}  = "$inc $OCIINCLUDE -I$dbi_arch_dir";
