@@ -2,7 +2,8 @@
 
   NOTE:
   This release has major changes to Unicode support. See below.
-  This release no longer supports the old Oracle 7 OCI interface.
+  It no longer supports the old Oracle 7 OCI interface.
+  With perl 5.6.x it requires DBI >= 1.38 for some of the tests.
 
   Fixed placeholder names to be case insensitive thanks to Charles Jardine.
   Fixed some LOB test problems with Oracle 8.1.7 by implementing ora_lob_append

@@ -9,7 +9,7 @@ require utf8;
 
 # perl 5.6 doesn't define utf8::is_utf8()
 unless (defined &{"utf8::is_utf8"}) {
-    die "Can't run tests using Perl $] without DBI >= 1.38"
+    die "Can't run this test using Perl $] without DBI >= 1.38"
 	unless $DBI::VERSION >= 1.38;
     *utf8::is_utf8 = sub {
 	my $raw = shift;
