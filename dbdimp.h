@@ -1,10 +1,12 @@
 /*
-   $Id: dbdimp.h,v 1.17 1997/01/14 21:48:19 timbo Exp $
+   $Id: dbdimp.h,v 1.18 1997/06/14 17:42:12 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
    You may distribute under the terms of either the GNU General Public
-   License or the Artistic License, as specified in the Perl README file.
+   License or the Artistic License, as specified in the Perl README file,
+   with the exception that it cannot be placed on a CD-ROM or similar media
+   for commercial distribution without the prior approval of the author.
 
 */
 
@@ -45,6 +47,7 @@ struct imp_sth_st {
     char      *statement;	/* sql (see sth_scan)		*/
     HV        *all_params_hv;	/* all params, keyed by name	*/
     AV        *out_params_av;	/* quick access to inout params	*/
+    int        ora_pad_empty;	/* convert ""->" " when binding	*/
 
     /* Select Column Output Details	*/
     int        done_desc;   /* have we described this sth yet ?	*/
@@ -80,9 +83,9 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
 
     /* Oracle's description of the field	*/
     sb4  dbsize;
-    sb2  dbtype;
-    sb1  *cbuf;		/* ptr to name of select-list item */
-    sb4  cbufl;		/* length of select-list item name */
+    sb2  dbtype;	/* actual type of field (see ftype)	*/
+    sb1  *cbuf;		/* ptr to name of select-list item	*/
+    sb4  cbufl;		/* length of select-list item name	*/
     sb4  dsize;		/* max display size if field is a char */
     sb2  prec;
     sb2  scale;
@@ -100,14 +103,17 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     sword ftype;	/* external OCI field type		*/
 
     SV	*sv;		/* the scalar holding the value		*/
+    int sv_type;	/* original sv type at time of bind	*/
+    bool is_inout;
 
+    IV  maxlen;		/* max possible len (=allocated buffer)	*/
+
+    /* these will become an array */
     sb2 indp;		/* null indicator			*/
     char *progv;
     ub2 arcode;
     ub2 alen;		/* effective length ( <= maxlen )	*/
-    ub2 maxlen;		/* max possible len (=allocated buffer)	*/
 
-    bool is_inout;
     int alen_incnull;	/* 0 or 1 if alen should include null	*/
     char name[1];	/* struct is malloc'd bigger as needed	*/
 };
@@ -121,8 +127,10 @@ void	dbd_preparse _((imp_sth_t *imp_sth, char *statement));
 int 	dbd_describe _((SV *h, imp_sth_t *imp_sth));
 int 	dbd_st_blob_read _((SV *sth, int field, long offset, long len,
 			SV *destrv, long destoffset));
-SV		*dbd_st_FETCH _((SV *sth, SV *keysv));
-SV		*dbd_db_FETCH _((SV *dbh, SV *keysv));
+int		 dbd_db_STORE_attrib _((SV *dbh, SV *keysv, SV *valuesv));
+SV    	*dbd_db_FETCH_attrib _((SV *dbh, SV *keysv));
+int		 dbd_st_STORE_attrib _((SV *dbh, SV *keysv, SV *valuesv));
+SV    	*dbd_st_FETCH_attrib _((SV *sth, SV *keysv));
 
 
 /* end */

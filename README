@@ -1,17 +1,21 @@
+
 DBD::Oracle  --  an Oracle 7 interface for Perl 5.
 
-   Copyright (c) 1994,1995,1996  Tim Bunce
+   Copyright (c) 1994,1995,1996,1997  Tim Bunce
 
    You may distribute under the terms of either the GNU General Public
-   License or the Artistic License, as specified in the Perl README file.
+   License or the Artistic License, as specified in the Perl README file,
+   with the exception that it cannot be placed on a CD-ROM or similar media
+   for commercial distribution without the prior approval of the author.
 
    PLEASE READ THE ENTIRE README FILE CAREFULLY !
 
 
-*  WARNING: THIS IS MOSTLY ALPHA SOFTWARE. Your mileage may vary.       *
+WARNING:
 
-*  THE ORAPERL EMULATION IS NO LONGER ALPHA. IT IS NOW FULLY RELEASED.  *
-
+   THE DBD::Oracle MODULE IS ALPHA SOFTWARE. It is *only* 'Alpha'
+   because the interface (api) is not finalised. The Alpha status does
+   not reflect code quality or stability.
 
 |  NOTE:
 |  The only currently supported interface is via Oraperl.pm, the        |
@@ -19,16 +23,25 @@ DBD::Oracle  --  an Oracle 7 interface for Perl 5.
 |  Execute "perldoc Oraperl" after installing for full information.     |
 
 
+QUICK START GUIDE:
+
+    The DBI requires one or more 'driver' modules to talk to databases.
+    Fetch, build and install the DBI module as per it's README file.
+    Then delete its source directory tree since it's no longer needed.
+    Use the 'perldoc DBI' command to read the DBI documentation.
+    Fetch the DBD::Oracle driver module and unpack it.
+    Follow the guidelines in this README file caefully.
+
 
 *BEFORE* BUILDING, TESTING AND INSTALLING this you will need to:
 
-    Build, test and install Perl 5 (at least 5.002beta2).
+    Build, test and install Perl 5 (at least 5.003).
     It is very important to TEST it and INSTALL it!
 
     Build, test and install the DBI module (at least DBI 0.71).
     It is very important to TEST it and INSTALL it!
 
-    Remember to *read* the DBI README file!
+    Remember to *read* the DBI README file and this one fully!
 
     Install enough Oracle software to enable DBD::Oracle to build.
     That includes Pro*C.
@@ -36,8 +49,8 @@ DBD::Oracle  --  an Oracle 7 interface for Perl 5.
 
 BUILDING:
 
-	perl Makefile.PL
-	make
+    perl Makefile.PL            # use a perl that's in your PATH
+    make
 
 If you have problems see the 'IF YOU HAVE PROBLEMS' section below.
 If it's builds without error you can then run the tests. For the
@@ -58,12 +71,16 @@ The supplied test will connect to the database using the value of the
 ORACLE_USER environment variable so you should set that to the correct
 value before starting the test. Please read README.login.
 
-	make test
+    make test
 
-	make install (if the tests look okay)
+    make install (if the tests look okay)
 
 
 IF YOU HAVE PROBLEMS:
+
+Make sure you are using a recent perl 5.003 or preferably 5.004 and
+make sure it's on your path so you can say 'perl Makefile.PL' and
+not '/path/to/perl Makefile.PL'.
 
 Do not hand edit the generated Makefile unless you are completely sure
 you understand the implications! Always try to make changes via the
@@ -80,12 +97,18 @@ then read README.client, it might help but basically I can't help much.
 Others on the dbi-users mailing list probably can.
 
 If you have linking problems (errors related to libraries or functions)
-then you could try foring a 'static' build using:
+then you could try forcing a 'static' build using:
 
 	make clean
 	perl Makefile.PL LINKTYPE=static
 	make
 	make perl (you'll need to use and install _this_ new perl binary)
+	make test
+	make -f Makefile.aperl inst_perl MAP_TARGET=perl
+	make install
+
+Also read the README.help file which is full of useful tips and
+workarounds for various problems of various systems.
 
 Please don't post problems to comp.lang.perl.misc or perl5-porters.
 This software is supported via the dbi-users mailing list.  For more
@@ -106,7 +129,7 @@ dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk. But note...
 	make test
 	make test TEST_VERBOSE=1   (only if any of the t/* tests fail)
 
-2. Full details of which version of Oracle and Perl you're using.
+2. Full details of which version of Oracle you're using.
 
 3. The output of perl -V
 
@@ -142,6 +165,7 @@ Tim.
 ===============================================================================
 Examples and other info:
 
+README.help     -- Read it first if you have any problems at all
 README.clients  -- building/using DBD::Oracle on minimally configured systems
 README.login    -- help for login problems
 README.longs    -- examples dealing with LONG types (blobs)
@@ -188,308 +212,26 @@ ftp://ftp.bf.rmit.edu.au/pub/Oracle/OS/MS/NT/ntoraperl.zip
 
 
 ===============================================================================
-Some users of DBD::Oracle on non-sun platforms:
-(this is VERY out of date now, there are MANY users on many platforms)
+Some platforms on which the DBI and DBD::Oracle modules run:
 
-HP-UX 9:
-    Terry Greenlaw <z50816@mip.lasc.lockheed.com>
-    Les Troyer <t2078@dcs2.nfuel.com>
-    Norbert Kiesel <nk@ipgate.col.sw-ley.de>
-    Greg Anderson <greg@ftp.netgate.net>
-    Johann Griessler <griess@atc.co.at>
-    Dave Venus <DVENUS@delphi.com>
+	Solaris 1 and 2
+	Windows NT (using Perl5.004)
+	HP-UX 9 and 10
+	Unisys U6000/300
+	SCO 3
+	Sequent DYNIX/ptx 2
+	Motorola M88100 (SVR3.2)
+	DEC UNIX 3.2
+	DEC Alpha
+	OSF/1 v2
+	SGI IRIX 5 & 6
+	AIX 3 & 4 and others
 
-Unisys U6000/300:
-    Alan Burlison <aburlison@cix.compulink.co.uk>
-
-SCO 3:
-    Greg Gerber <ggerber@grctechs.va.grci.com>
-
-Sequent DYNIX/ptx 2:
-    Alligator Descartes <descarte@mcqueen.com>
-    Jonathan Lemon <jlemon@americantv.com>
-
-Motorola M88100 (SVR3.2):
-    Christian Murphy <r1938c@ismuc.sps.mot.com>
-
-DEC UNIX 3.2:
-    David J. DeWolfe <SXDJD@orca.alaska.edu>
-
-
-DEC Alpha, OSF/1 v2:
-    Royal Hansen <rivory@minerva.cis.yale.edu>
-    Jonathan Olson <jbolson@peruvian.cs.utah.edu>
-    Greg Gerber <ggerber@grctechs.va.grci.com>
-    Davide Migliavacca <davide.migliavacca@relay.inferentia.it>
-
-SGI Iris Indigo R4000 Irix 5.3:
-    Andrew G Wood <agw@mail.nerc-bas.ac.uk>
-
-AIX 3.2
-    Davide Migliavacca <davide.migliavacca@relay.inferentia.it>
-    Joerg Senekowitsch <joerg@pharmacy.isu.edu>
-
-AIX 4.1
-    Ken P. Nikolai <nikolai@facstaff.wisc.edu>
-
-NT:
-    Jim Fox <fox@austin.asc.slb.com>
-
+(please let me know if you system is not listed).
 
 ===============================================================================
-Platform or Oracle Version specific notes:
 
-Note that although some of these refer to specific systems and versions the
-same or similar problems may exist on other systems or versions.
-
--------------------------------------------------------------------------------
-Can't find libclntsh.so at run time:
-
-Dave Moellenhoff <dmoellen@clarify.com>:  libclntsh.so is the shared
-library composed of all the other Oracle libs you used to have to
-statically link.  Oracle didn't start providing it until 7.2 and later.
-libclntsh.so should be in $ORACLE_HOME/lib.  If it's missing, try
-running $ORACLE_HOME/rdbms/lib/genclntsh.sh and it should create it.
-
-Also: Never copy libclntsh.so to a different machine or Oracle version.
-If DBD::Oracle was built on a machine with a different path to libclntsh.so
-then you'll need to set set an environment variable, typically
-LD_LIBRARY_PATH, to include the directory containing libclntsh.so.
-
-But: LD_LIBRARY_PATH is typically ignored if the script is running set-uid
-(which is common in some httpd/CGI configurations).  In this case
-either rebuild with LD_RUN_PATH set to include the path to libclntsh
-or create a symbolic link so that libclntsh is available via the same
-path as it was when the module was built. (On Solaris the command
-"ldd -s Oracle.so" can be used to see how the linker is searching for it.)
-
-
--------------------------------------------------------------------------------
-Error while trying to retrieve text for error ...:
-
-From Lou Henefeld <LHenefeld@gnn.com>: We discovered that we needed
-some files from the $ORACLE_HOME/ocommon/nls/admin/data directory:
-    lx00001.nlb, lx10001.nlb, lx1boot.nlb, lx20001.nlb
-If your national language is different from ours (American English), 
-you will probably need different nls data files.
-
-
--------------------------------------------------------------------------------
-Login takes a long time
-
-Use connect('', 'user/passwd@tnsname', '').  See README.login.
-
--------------------------------------------------------------------------------
-Oracle 7.3 on Solaris 2.5 (maybe others):
-
-    libc internal error: _rmutex_unlock: rmutex not held.
-
-Try each of these in turn:
-- Try removing -lthread from the list of libraries to link with (edit Makefile).
-- Try passing explicit db sid name to ora_login or connect.
-- Try removing clntsh from the list of libraries to link to (edit Makefile).
-
-If any of these work please let me know (include full version info).
-
--------------------------------------------------------------------------------
-Bad free() warnings:
-
-These are generally caused by problems in Oracle's own library code.
-You can use this code to hide them:
-
-    $SIG{__WARN__} = sub { warn $_[0] unless $_[0] =~ /^Bad free/ }
-
-But please let me know if you have this problem (include full version info).
-Rather than simply hiding it it would be much better to help me fix it!
-Follow the instructions in step 5 above (for generating a version of
-DBD::Oracle with debugging enabled) and then use the following code
-to generate a core dump at the point the bad free happens.
-
-    $SIG{__WARN__} = sub { $_[0] =~ /^Bad free/ ? dump : warn $_[0] }
-
-Follow the instructions in step 5 above for getting a stack trace from
-the core file and then send it to me along with the other information
-requested in the 'If you have problems' section.
-
--------------------------------------------------------------------------------
-8-bit text is returned as '?' characters or can't be inserted.
-
-Make sure the following environment vaiables are set:
-	NLS_LANG, ORA_NLS, ORA_NLS32 
-Thanks to Robin Langdon <robin@igis.se> for this information.
-Example:
-   $ENV{NLS_LANG}  = "american_america.we8iso8859p1";
-   $ENV{ORA_NLS}   = "/home/oracle/ocommon/nls/admin/data";
-   $ENV{ORA_NLS32} = "/home/oracle/ocommon/nls/admin/data";
-
-Also From: Yngvi Thor Sigurjonsson <yngvi@hagkaup.is>
-I would like all of you who are using 8-bit characters and "export" for
-backups to make sure that you have NLS_LANG set when export is run. 
-Otherwise you might get unusable backups with ? replacing all your
-beloved characters. We were lucky once when we noticed that our exports
-were damaged before disaster struck.
-
-Remember that the database has to be created with an 8-bit character set.
-
-Also note that the NLS files $ORACLE_HOME/ocommon/nls/admin/data
-changed extension (from .d to .nlb) between 7.2.3 and 7.3.2.
-
--------------------------------------------------------------------------------
-AIX - warnings like these when building perl are not usually a problem:
-
-ld: 0711-415 WARNING: Symbol Perl_sighandler is already exported.
-ld: 0711-319 WARNING: Exported symbol not defined: Perl_abs_amg
-
-When building on AIX check to make sure that all of bos.adt (13 pieces)
-and all of bos.compat (11 pieces) are installed.
-
-Thanks to Mike Moran <mhm@austin.ibm.com> for this information.
-
--------------------------------------------------------------------------------
-HP-UX 9.x: Terry Greenlaw <z50816@mip.lasc.lockheed.com>
-
-I traced a problem with "ld: Invalid loader fixup needed" to the file
-libocic.a. On HP-UX it contains position-dependant code and cannot be
-used to generate dynamic load libraries. The only shared library that
-Oracle ships under HP-UX is liboracle.sl which replaces libxa.a,
-libsql.a, libora.a, libcvg.a, and libnlsrtl.a. The OCI stuff still
-appears to only link statically under HU-UX 9.x [10.x is okay].
-
-You'll need to build DBD::Oracle statically linked into the perl binary.
-See the static linking notes below.
-
-HP-UX 10 and Oracle 7.2.x do work together when creating dynamic libraries.
-The problem was older Oracle libraries were built without the +z flag to cc,
-and were therefore position-dependent libraries that can't be linked
-dynamically. Newer Oracle releases don't have this problem and it may be
-possible to even use the newer Oracle libraries under HP-UX 9. Oracle 7.3
-will ONLY work under HP-UX 10, however.
-
--------------------------------------------------------------------------------
-For platforms which require static linking.
-
-If you get an error like:
-
-/usr/lib/dld.sl: Bad magic number for shared library:
-/usr/local/lib/perl5/hpux/auto/DBD/Oracle/Oracle.a
-
-You'll need to build DBD::Oracle statically linked and then link it
-into a perl binary:
-
-	perl Makefile.PL LINKTYPE=static
-	make
-	make perl             (makes a perl binary in current directory)
-	make test FULLPERL=./perl  (run tests using the new perl binary)
-    make install
-
-You will probably need to have already built and installed a static
-version of the DBI in order that it be automatically included when
-you do the 'make perl' above.
-
--------------------------------------------------------------------------------
-Error: Syntax error in oratypes.h
-
-Try uncommenting the '#define signed' line in Oracle.h
-
--------------------------------------------------------------------------------
-Oracle 7.1 and 7.2: Connection takes a long time and may coredump
-
-Oracle bug number: 227321 related to changing the environment before
-connecting to oracle.
-
-To work around this bug, do not set any environment variables in your
-oraperl script before you call ora_login, and when you do call
-ora_login, the first argument must be the empty string.  This means
-that you have to be sure that your environment variables ORACLE_SID
-and ORACLE_HOME are set properly before you execute any oraperl
-script.  It is probably also possible to pass the SID to ora_login as
-part of the username (for example, ora_login("", "SCOTT/TIGER@PROD",
-"")), although I have not tested this.
-This workaround is based on information from Kevin Stock.
-
--------------------------------------------------------------------------------
-Oracle 7.1.4/5: ORA-01002: fetch out of sequence
-
-Edited from Message-ID: <3qaui9$ae@usenet.rpi.edu> and
-<3qb5dp$2nc@usenet.rpi.edu> in comp.databases.oracle
-From: finkej@ts.its.rpi.edu (Jon Finke)
-
-Every test run results in an "ORA-01002: fetch out of sequence" error.
-
-The manual claims that this is the result of calling "ofetch" before
-oparse/oexec, or running out of things to fetch.   Yet, I am calling
-oopen, oparse, oexec, (odesc, odefin) all without error.  As a control
-case, I also built the cdemo2 program, and it appears to be calling
-the same routines, yet it is successful.  
-
-Note: In the "broken" program, I am currently calling odsc in a loop
-      for each column in the query, and then calling odefin, while in the 
-      "working" program, I call odescr/odefin, odesc/odefin for each column.
-      In both cases, the calls to odefin seem reasonable.
-
-Both programs are attempting the query "select user,uid from dual".
-
-This is a known problem in version 7.1.4, and it will be fixed in 7.1.6.
-The bug report is #239128.
--- 
-Jon Finke                           finkej@rpi.edu
-Senior Network Systems Engineer     http://www.rpi.edu/~finkej
-Information Technology Services     518 276 8185 (voice) | 518 276 2809 (fax)
-Rensselaer Polytechnic Institute    110 8th Street, Troy NY, 12180
-
--------------------------------------------------------------------------------
-Error: ORA-00604: error occurred at recursive SQL level  (DBD: login failed)
-
-This can happen if TWO_TASK is defined but you connect using ORACLE_SID.
-
--------------------------------------------------------------------------------
-Error: ld: Undefined symbols _environ _dlopen _dlclose ...
-Environment:  SunOS 4.1.3, Oracle 7.1.6  Steve Livingston <mouche@hometown.com>
-
-If you get link errors like: ld: Undefined symbols _environ _dlopen _dlclose ...
-and the link command line includes '-L/usr/5lib -lc' then comment out the
-'CLIBS= $(OTHERLIBS) -L/usr/5lib -lc' line in the Makefile.
-
--------------------------------------------------------------------------------
-Environment:  SVR4, stephen.zander@mckesson.com
-
-Error: can't load ./blib/arch/auto/DBD/Oracle/Oracle.so for module DBD::Oracle:
-DynamicLinker:/usr/local/bin/perl:relocation error:symbol not found:setitimer
-Fix: Try adding the '-lc' to $ORACLE_HOME/rdbms/lib/sysliblist (just
-make sure it's not on a new line).
-
--------------------------------------------------------------------------------
-Error: Undefined symbols __cg92_used at link time.
-Environment:  Solaris, GCC
-
-Fix: If you're compiling Oracle applications with gcc on Solaris you need to
-link with a file called $ORACLE_HOME/lib/__fstd.o. If you compile with the
-SparcWorks compiler you need to add the command line option on -xcg92
-to resolve these symbol problems cleanly.
-
-Alligator Descartes <descarte@hermetica.com>
-
--------------------------------------------------------------------------------
-Environment:  SunOS 4.1.3, Oracle 7.1.3  John Carlson <carlson@tis.llnl.gov>
-
-Problem:  oraperl and DBD::Oracle fail to link.  Some messing around with
-the library order makes the link succeed.  Now I get a "Bad free()" when
-ora_logoff is called.
-
-Solution:
-In my case, this was caused by a faulty oracle install.  The install grabbed
-the wrong version of mergelib (The X11R6 one) instead of the one in
-$ORACLE_HOME/bin.  Try a more limited path and reinstall Oracle again.
-
--------------------------------------------------------------------------------
-Environment:  DEC Alpha, OSF, Jonathan Olson <jbolson@peruvian.cs.utah.edu>
-
-Problem: ERROR EVENT: DBI::dr=HASH(0x14011fee8)->DBI::default_handler:
-        0 ORA-00000: normal, successful completion (DBD: login failed)
-
-Solution: Add '#define A_OSF' to Oracle.h above '#include <oratypes.h>' and
-complain to Oracle about bugs in their header files on 64 bit systems.
-
-===============================================================================
+See the large README.help file for lots of hints and advice about build and
+runtime issues.
 
 End.

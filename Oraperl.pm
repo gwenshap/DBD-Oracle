@@ -1,11 +1,13 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.31 1996/10/29 18:17:23 timbo Exp $
+# $Id: Oraperl.pm,v 1.33 1997/06/14 17:42:12 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
 #   You may distribute under the terms of either the GNU General Public
-#   License or the Artistic License, as specified in the Perl README file.
+#   License or the Artistic License, as specified in the Perl README file,
+#   with the exception that it cannot be placed on a CD-ROM or similar media
+#   for commercial distribution without the prior approval of the author.
 #
 # To use this interface use one of the following invocations:
 #
@@ -23,7 +25,7 @@ require 5.002;
 use DBI 0.70;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.31 $, 10);
+$VERSION = substr(q$Revision: 1.33 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -38,7 +40,6 @@ $VERSION = substr(q$Revision: 1.31 $, 10);
 
 $debug    = 0 unless defined $debug;
 $debugdbi = 0;
-my $bad_free_dump = $ENV{DBD_DUMP};
 # $safe		# set true/false before 'use Oraperl' if needed.
 $safe = 1 unless defined $safe;
 
@@ -73,8 +74,11 @@ sub _func_ref {
 
 sub _warn {
 	my $prev_warn = shift;
-	if ($_[0] =~ /free\(\) ignored/) {
-		dump if $bad_free_dump;
+	if ($_[0] =~ /^(Bad|Duplicate) free/) {
+		if ($ENV{PERL_DBD_DUMP} eq 'dump') {
+			print STDERR "Aborting with a core dump for diagnostics (PERL_DBD_DUMP)\n";
+			dump;
+		}
 		return;
 	}
 	$prev_warn ? &$prev_warn(@_) : warn @_;
@@ -90,7 +94,7 @@ sub ora_login {
     my($system_id, $name, $password) = @_;
 	local($Oraperl::prev_warn) = $SIG{'__WARN__'} || 0; # must be local
 	local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
-    $Oraperl::drh->connect($system_id, $name, $password);
+    DBI->connect($system_id, $name, $password, 'Oracle');
 }
 sub ora_logoff {
     my($dbh) = @_;
@@ -386,8 +390,12 @@ Example:
 
  $nfields = &ora_fetch($csr);
 
-Used in an array context, the value returned is an array
-containing the data, one element per field.
+Used in an array context, the value returned is an array containing the
+data, one element per field. Note that this will not work as expected:
+
+ @data = &ora_fetch($csr) || die "...";    # WRONG
+
+The || forces a scalar context so ora_fetch returns the number of fields.
 
 An optional second parameter may be supplied to indicate whether the
 truncation of a LONG or LONG RAW field is to be permitted (non-zero) or
@@ -644,6 +652,8 @@ Therefore, when &ora_open() determines that a field is a LONG type, it
 allocates the amount of space indicated by the $ora_long variable. This
 is initially set to 80 (for compatibility with Oracle products) but may
 be set within a program to whatever size is required.
+
+$ora_long is only used when fetching data, not when inserting it.
 
 
 =item * $ora_trunc

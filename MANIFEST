@@ -1,7 +1,10 @@
 MANIFEST
 README
 README.login
+README.win32
+README.plsql
 README.clients
+README.help
 README.longs
 Changes
 Todo
@@ -14,6 +17,7 @@ dbdimp.h
 dbdimp.c
 test.pl
 t/base.t
+t/plsql.t
 hints/svr4.pl
 .purify	Ignore most of the (many) problems in Oracle's libraries. Very sad.
 oraperl.ph	Old oraperl file included for completeness of emulation

@@ -1,0 +1,25 @@
+4/8/97 -- Jeff Urlwin
+
+This version requires Perl 5.003_94 or later.  (It was tested with
+5.003_94 and will be with 5.004). It does *NOT* work with the
+(non-standard) ActiveWare port.
+
+Even though the Oracle libraries under Win32 (NT) do not require the
+environment variable ORACLE_HOME be set for proper operation, the
+Makefile.PL does.  Please set the ORACLE_HOME variable to your oracle
+home directory.  Mine, for example, is H:\ORANT.
+
+This version was created and tested with the 7.3 client libraries (see
+if you have an OCI73 directory).  This version of the Oracle clients
+have a convenient organization, including OCI73\INCLUDE, OCI73\LIB,
+etc.  It also has a nice samples directory to test with.  Older
+versions had the OCI samples under RDMBS72.  This version has not been
+tested (and will not currently work) with anything other than the 7.3
+versions.
+
+Questions should be directed towards the dbi-users mailing list. I will
+try to answer them quickly there.  Please put something about Win32 or
+95 or NT in the subject, as I get TONS of other email and spend a fair
+amount of time weeding out messages that are not relevant to what I
+do.  I may miss something if the subject is not clear.
+

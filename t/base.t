@@ -13,6 +13,7 @@ print "ok 2\n";
 $switch = DBI->internal;
 (ref $switch eq 'DBI::dr') ? print "ok 3\n" : print "not ok 3\n";
 
+# This is a special case. install_driver should not normally be used.
 $drh = DBI->install_driver('Oracle');
 (ref $drh eq 'DBI::dr') ? print "ok 4\n" : print "not ok 4\n";
 

@@ -1,15 +1,17 @@
 /*
-   $Id: Oracle.h,v 1.9 1996/10/15 02:19:14 timbo Exp $
+   $Id: Oracle.h,v 1.10 1997/06/14 17:42:12 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
    You may distribute under the terms of either the GNU General Public
-   License or the Artistic License, as specified in the Perl README file.
+   License or the Artistic License, as specified in the Perl README file,
+   with the exception that it cannot be placed on a CD-ROM or similar media 
+   for commercial distribution without the prior approval of the author.
 
 */
 
 
-#define NEED_DBIXS_VERSION 7
+#define NEED_DBIXS_VERSION 8
 
 #include <DBIXS.h>		/* installed by the DBI module	*/
 

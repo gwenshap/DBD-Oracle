@@ -1,3 +1,9 @@
+Handle binding of values > 32K long.
+
+Handle PL/SQL arrays.
+
+Handle PL/SQL returned cursor variables.
+
 ===============================================================================
 General Outstanding Issues
 

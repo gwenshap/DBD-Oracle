@@ -1,6 +1,27 @@
 Some examples related to the use of LONG types.
 
 ----------------------------------------------------------------------
+
+You must fetch the row before you can fetch the longs associated with
+that row.  In other words, use the following alorithm...
+
+   1) login
+   2) prepare( select ... )
+   3) execute
+   4) while rows to fetch do
+   5)    fetch row
+   6)    repeat
+   7)        fetch chunk of long
+   8)    until have all of it
+   9) done
+
+If your select selects more than one row the need for step 4 may
+become a bit clearer... the blob_read always applies to the row
+that was last fetched.
+
+Thanks to Jurgen Botz <jbotz@reference.com>
+
+----------------------------------------------------------------------
 Example for reading LONG fields via blob_read:
  
     my $sql = "SELECT long_field FROM table_name WHERE id = :1";
@@ -8,12 +29,14 @@ Example for reading LONG fields via blob_read:
     ora_bind($csr, $id) or die $ora_errstr;
     # ora_fetch() needs to be called in an array context
     my (@data) = ora_fetch($csr);
+	die $ora_errstr if $ora_errno;
     my $blob = '';
     my $lump = 4096; # use benchmarks to get best value for you
     my $offset = 0;
     while (1)
     {
         my $frag = $csr->blob_read(0, $offset, $lump);
+		die $ora_errstr if $ora_errno;
         last unless defined $frag;
         my $ll = length $frag;
         last unless $ll;

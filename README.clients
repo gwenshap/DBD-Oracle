@@ -25,6 +25,10 @@ ORACLE_HOME/lib. You'll also need the header files from
 ORACLE_HOME/sqllib/public/*.h and ORACLE_HOME/rdbms/demo/*.h (you won't
 need them all, but you can get rid of them after DBD::Oracle compiles).
 
+[You'll probably need at least ocommon in addition to network. But if you
+use the Oracle installer (as you always should) it'll probably install
+ocommon for you.]
+
 So just put that stuff on your client box and install DBI and DBD::Oracle
 there.  Once DBD::Oracle is installed you can remove the OCI libraries and
 headers (make sure to keep SQL*Net!)
@@ -71,4 +75,120 @@ drwxr-xr-x   2 oracle   apbr         512 May 15 17:38 public/
 Jon
 
 -------------------------------------------------------------------------------
+Jon Meek <meekj@pt.Cyanamid.COM> Tue, 18 Feb 1997
 
+This was for Oracle 7.2.2.3.0 (client side for DBD:Oracle build) and
+SQL*net v2. I have heard that sqlnet.ora might not be needed.
+
+ls -lR oracle
+oracle:
+total 2
+drwxr-xr-x   3 meekj    apbr         512 Nov  3 11:46 network/
+
+oracle/network:
+total 2
+drwxr-xr-x   2 meekj    apbr         512 Nov  3 11:46 admin/
+
+oracle/network/admin:
+total 6
+-rw-r--r--   1 meekj    apbr         309 Nov  3 11:46 sqlnet.ora
+-rw-r--r--   1 meekj    apbr        1989 Nov  3 11:46 tnsnames.ora
+
+-------------------------------------------------------------------------------
+
+From: Lack Mr G M <gml4410@ggr.co.uk>
+Date: Thu, 23 Jan 1997 18:24:03 +0000
+
+   I  noticed  the appended in the README.clients file of the DBD-Oracle
+distribution.  My experience is somewhat different (and simpler).
+
+   On Irix5.3 (ie.  what this user was using) I built DBI and DBD-Oracle
+on a system with Oracle and Pro*C installed.  I  tested  it  on  another
+system  (where I knew an oracle id).  I installed it from a third (which
+had write rights to the master copies of the NFS  mounted  directories),
+but this didn't have Oracle installed.
+
+   Having  done  this  all  of  my systems (even those without a hint of
+oracle on them) could access remote Oracle servers by  setting  TWO_TASK
+appropriately.  SQL*Net didn't seem to come into it.
+
+   The  dynamically-loadable library created (auto/DBD/Oracle/Oracle.so)
+contains no reference to any dynamic Oracle library.
+
+   Exactly the same happened for my Solaris systems.
+
+ From: James Cooper <pixel@coe.missouri.edu>
+ >      [...], what do I need in addition to perl5 to access an Oracle database
+ >      on another system from a unix box (Solaris 2.5) that doesn't have an
+ >      oracle database running on it ?
+ >
+ >      In other words are their some oracle shared objects, etc. I need ?
+
+I don't have experience with Solaris, but on IRIX 5.3, I simply installed
+SQL*Net (ORACLE_HOME/network/admin/*) and the OCI libraries which are in
+ORACLE_HOME/lib. You'll also need the header files from
+ORACLE_HOME/sqllib/public/*.h and ORACLE_HOME/rdbms/demo/*.h (you won't
+need them all, but you can get rid of them after DBD::Oracle compiles).
+
+So just put that stuff on your client box and install DBI and DBD::Oracle
+there.  Once DBD::Oracle is installed you can remove the OCI libraries and
+headers (make sure to keep SQL*Net!)
+
+-------------------------------------------------------------------------------
+OS/Oracle version: Solaris 2 and Oracle 7.3
+
+Problem: DBD::Oracle works on the database machine, but not from remote
+machines (via TCP).  SQL*Plus, however, does work from the remote machines.
+
+Cause: $ORACLE_HOME/ocommon/nls/admin/data/lx1boot.nlb is missing
+
+Solution: Make sure $ORACLE_HOME/ocommon is available on the remote machine.
+
+This was the first time I had used DBD::Oracle with Oracle 7.3.2.  Oracle
+7.1 has a somewhat different directory structure, and seems to store files
+in different places relative to $ORACLE_HOME.  So I just hadn't NFS
+exported all the files I needed to.  I figured that as long as SQL*Plus
+was happy, I had all the necessary files to run DBD::Oracle (since that
+was always the case with 7.1).  But I was wrong.
+
+James Cooper <pixel@organic.com>
+
+-------------------------------------------------------------------------------
+To: dbi-users@fugue.com
+Subject: Re: Oracle Licencing...
+Date: Thu, 15 May 1997 11:54:09 -0700
+From: Mark Dedlow <dedlow@voro.lbl.gov>
+
+Please forgive the continuation of this somewhat off-topic issue,
+but I wanted to correct/update my previous statement, and it's
+probably of interest to many DBD-Oracle users.
+
+> > In general, as I understand it, Oracle doesn't license the client runtime
+> > libraries directly, rather they get you for SQL*NET.  It is typically
+> > about $100 per node.  You have to have that licensed on any machine
+> > that runs DBD-Oracle.
+
+Oracle recently changed policy.  sqlnet now comes with RDBMS licenses.
+If you have named RDBMS licenses, you can install sqlnet on as many
+client machines as you have named licenses for the server.  If you
+have concurrent RDBMS licenses, you can install sqlnet on as many
+client machines as you like, and only use concurrently as many
+as you have concurrent server RDBMS licenses.
+
+OCI, Pro*C, et. al. only requires you to have a development license,
+per developer.  The compiled apps can be distributed unlimited.
+The client where the client app resides must be licensed to use
+sqlnet, by the above terms, i.e. by virtue of what the licenses on
+the server are that the client is connecting to.
+
+This means one could legitimately distribute DBD-Oracle in compiled form.
+Probably not recommended :-)
+
+But is does mean one can compile DBD-Oracle and distribute it internally
+to your org without more licensing, as long as the targets have sqlnet.
+
+Obviously, this is not a legal ruling.  I don't work for Oracle.
+But this is what my sales rep tells me as of today.
+
+Mark
+-------------------------------------------------------------------------------

@@ -1,3 +1,44 @@
+Changes in DBD::Oracle 0.45 (Oraperl 1.32), 16th June 1997
+
+	A $dbh DESTROY without an explicit disconnect does a rollback.
+	Note that this may 'break' existing 'lazy' code but is completely
+	essential for robust applications. See comments in Oracle.xs.
+
+	Added Makefile.PL changes from Eric Bartley and others.
+	The changes should fix build problems for Oracle 7.3.x.
+
+	Requires DBI 0.83.
+
+	Oraperl now uses DBI->connect and thus works with DBI 0.81 to
+	automatically support Apache without requiring script changes.
+
+	Reworked parameter binding in preparation for future changes.
+	- mutated placeholder values are now automatically rebound.
+	- in/out vars that become undef/null after binding now work.
+	- transparent support for longs should be easier to implement.
+
+	Added Win32 support from Jeff Urlwin.
+
+	Added some documentation to DBD::Oracle for 'perldoc DBD::Oracle'.
+
+	Added $sth->{NULLABLE}->[$field].
+	Added private plsql_errstr method: $txt=$dbh->func('plsql_errstr')
+	to fetch PL/SQL error messages. Thanks to Bob Menteer.
+	Added $sth->{ora_pad_empty} and ORAPERL_PAD_EMPTY env var
+	for better compatibility with old oraperl.
+	Added $sth->{AutoCommit} FETCH.
+	Added $sth->{ChopBlanks} (but not yet tested).
+	No longer asks Oracle for text of login failure message since
+	that can cause oracle's code to hang (sigh). We provide fake text
+	for the most common errors and a useful default for the rest.
+	You can set DBD_ORACLE_LOGIN_ERR env var to revert to old behaviour.
+
+    The Copyright terms for DBD::Oracle have changed and now read as follows:
+	You may distribute under the terms of either the GNU General Public
+	License or the Artistic License, as specified in the Perl README file,
+	with the exception that it cannot be placed on a CD-ROM or similar media
+	for commercial distribution without the prior approval of the author.
+
 Changes in DBD::Oracle 0.44 (Oraperl 1.30), 14th Jan 1997
 
 	Fixed leak in read_blob (thanks to Jurgen Botz for the patch).

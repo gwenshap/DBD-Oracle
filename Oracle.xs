@@ -1,10 +1,12 @@
 /*
-   $Id: Oracle.xs,v 1.43 1997/01/14 21:48:19 timbo Exp $
+   $Id: Oracle.xs,v 1.44 1997/06/14 17:42:12 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
    You may distribute under the terms of either the GNU General Public
-   License or the Artistic License, as specified in the Perl README file.
+   License or the Artistic License, as specified in the Perl README file,
+   with the exception that it cannot be placed on a CD-ROM or similar media
+   for commercial distribution without the prior approval of the author.
 
 */
 
@@ -30,15 +32,6 @@ BOOT:
     DBI_IMP_SIZE("DBD::Oracle::db::imp_data_size", sizeof(imp_dbh_t));
     DBI_IMP_SIZE("DBD::Oracle::st::imp_data_size", sizeof(imp_sth_t));
     dbd_init(DBIS);
-
-
-void
-errstr(h)
-    SV *	h
-    CODE:
-    /* called from DBI::var TIESCALAR code for $DBI::errstr	*/
-    D_imp_xxh(h);
-    ST(0) = sv_mortalcopy(DBIc_ERRSTR(imp_xxh));
 
 
 MODULE = DBD::Oracle	PACKAGE = DBD::Oracle::dr
@@ -99,7 +92,7 @@ STORE(dbh, keysv, valuesv)
     SV *	valuesv
     CODE:
     ST(0) = &sv_yes;
-    if (!dbd_db_STORE(dbh, keysv, valuesv))
+    if (!dbd_db_STORE_attrib(dbh, keysv, valuesv))
 	if (!DBIS->set_attr(dbh, keysv, valuesv))
 	    ST(0) = &sv_no;
 
@@ -108,10 +101,10 @@ FETCH(dbh, keysv)
     SV *	dbh
     SV *	keysv
     CODE:
-    SV *valuesv = dbd_db_FETCH(dbh, keysv);
+    SV *valuesv = dbd_db_FETCH_attrib(dbh, keysv);
     if (!valuesv)
 	valuesv = DBIS->get_attr(dbh, keysv);
-    ST(0) = valuesv;	/* dbd_db_FETCH did sv_2mortal	*/
+    ST(0) = valuesv;	/* dbd_db_FETCH_attrib did sv_2mortal	*/
 
 
 void
@@ -123,7 +116,7 @@ disconnect(dbh)
 	XSRETURN_YES;
     }
     /* Check for disconnect() being called whilst refs to cursors	*/
-    /* still exists. This needs some more thought.			*/
+    /* still exists. This possibly needs some more thought.		*/
     if (DBIc_ACTIVE_KIDS(imp_dbh) && DBIc_WARN(imp_dbh) && !dirty) {
 	warn("disconnect(%s) invalidates %d active cursor(s)",
 	    SvPV(dbh,na), (int)DBIc_ACTIVE_KIDS(imp_dbh));
@@ -144,8 +137,24 @@ DESTROY(dbh)
     }
     else {
 	if (DBIc_ACTIVE(imp_dbh)) {
-	    if (DBIc_WARN(imp_dbh) && !dirty)
+	    static int auto_rollback = -1;
+	    if (DBIc_WARN(imp_dbh) && (!dirty || dbis->debug >= 3))
 		 warn("Database handle destroyed without explicit disconnect");
+	    /* The application has not explicitly disconnected. That's bad.	*/
+	    /* To ensure integrity we *must* issue a rollback. This will be	*/
+	    /* harmless	if the application has issued a commit. If it hasn't	*/
+	    /* then it'll ensure integrity. Consider a Ctrl-C killing perl	*/
+	    /* between two statements that must be executed as a transaction.	*/
+	    /* Perl will call DESTROY on the dbh and, if we don't rollback,	*/
+	    /* the server will automatically commit! Bham! Corrupt database!	*/ 
+	    if (auto_rollback == -1) {		/* need to determine behaviour	*/
+		/* DBD_ORACLE_AUTO_ROLLBACK is offered as a _temporary_ sop to	*/
+		/* those who can't fix their code in a short timescale.		*/
+		char *p = getenv("DBD_ORACLE_AUTO_ROLLBACK");
+		auto_rollback = (p) ? atoi(p) : 1;
+	    }
+	    if (auto_rollback)
+		dbd_db_rollback(dbh);	/* ROLLBACK! */
 	    dbd_db_disconnect(dbh);
 	}
 	dbd_db_destroy(dbh);
@@ -288,23 +297,23 @@ STORE(sth, keysv, valuesv)
     SV *	valuesv
     CODE:
     ST(0) = &sv_yes;
-    if (!dbd_st_STORE(sth, keysv, valuesv))
+    if (!dbd_st_STORE_attrib(sth, keysv, valuesv))
 	if (!DBIS->set_attr(sth, keysv, valuesv))
 	    ST(0) = &sv_no;
 
 
 # FETCH renamed and ALIAS'd to avoid case clash on VMS :-(
 void
-FETCH_attrib_(sth, keysv)
+FETCH_attrib(sth, keysv)
     SV *	sth
     SV *	keysv
 	ALIAS:
 	FETCH = 1
     CODE:
-    SV *valuesv = dbd_st_FETCH(sth, keysv);
+    SV *valuesv = dbd_st_FETCH_attrib(sth, keysv);
     if (!valuesv)
 	valuesv = DBIS->get_attr(sth, keysv);
-    ST(0) = valuesv;	/* dbd_st_FETCH did sv_2mortal	*/
+    ST(0) = valuesv;	/* dbd_st_FETCH_attrib did sv_2mortal	*/
 
 
 void
