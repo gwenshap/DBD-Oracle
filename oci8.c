@@ -655,7 +655,6 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
      * equivalent of the following:
      *		(void)SvUPGRADE(dest_sv, SVt_PV);
      */
-    ub2 csid = 0;
     ub1 csform = SQLCS_IMPLICIT;
 
     OCILobCharSetForm_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csform, status );
@@ -664,15 +663,6 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 	sv_set_undef(dest_sv);	/* signal error */
 	return 0;
     }
-#ifdef OCI_ATTR_CHARSET_ID
-    OCILobCharSetId_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csid, status );
-    if (status != OCI_SUCCESS) {
-        oci_error(sth, imp_sth->errhp, status, "OCILobCharSetId");
-	sv_set_undef(dest_sv);	/* signal error */
-	return 0;
-    }
-    UTF8_FIXUP_CSID( csid ,csform ,"ora_blob_read_bm_peice" );
-#endif
     if (ftype != 112) {
 	oci_error(sth, imp_sth->errhp, OCI_ERROR,
 	"blob_read not currently supported for non-CLOB types with OCI 8 "
@@ -743,7 +733,8 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
     SvCUR_set(dest_sv, byte_destoffset+amtp);
     *SvEND(dest_sv) = '\0'; /* consistent with perl sv_setpvn etc	*/
     SvPOK_on(dest_sv);
-    DBD_SET_UTF8_FORM(dest_sv,csform);
+    if (ftype == 112)
+	DBD_SET_UTF8_FORM(dest_sv,csform);
 
     return 1;
 }
@@ -788,7 +779,6 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 
     if (loblen > 0) {
         ub1 csform = 0;
-        ub2 csid = 0;
         ub1 * bufp = (ub1 *)(SvPVX(dest_sv));
 	bufp += destoffset;
 
@@ -798,29 +788,22 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
             sv_set_undef(dest_sv);	/* signal error */
             return 0;
         }
-#ifdef OCI_ATTR_CHARSET_ID
-        OCILobCharSetId_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csid, status );
-        if (status != OCI_SUCCESS) {
-            oci_error(sth, imp_sth->errhp, status, "OCILobCharSetId");
-            sv_set_undef(dest_sv);	/* signal error */
-            return 0;
-        }
-        UTF8_FIXUP_CSID( csid ,csform ,"ora_blob_read_piece" );
-#endif /* OCI_ATTR_CHARSET_ID */
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
 	    &amtp, (ub4)1 + offset, bufp, buflen,
 		0, 0, (ub2)0 , csform, status);
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
-		"       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu (cs form=%d, id=%d)\n",
+		"        OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu (csform=%d)\n",
 		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
-		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp), csform, csid);
+		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp), csform);
 	if (status != OCI_SUCCESS) {
 	    oci_error(sth, imp_sth->errhp, status, "OCILobRead");
 	    sv_set_undef(dest_sv);	/* signal error */
 	    return 0;
 	}
+	if (ftype == 112)
+	    DBD_SET_UTF8_FORM(dest_sv,csform);
     }
     else {
 	assert(amtp == 0);
@@ -947,7 +930,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	    0, 0, (ub2)0, csform, status);
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
-		"       OCILobRead field %d %s: csform %d, LOBlen %luc, LongReadLen %luc, BufLen %lub, Got %luc\n",
+		"        OCILobRead field %d %s: csform %d, LOBlen %luc, LongReadLen %luc, BufLen %lub, Got %luc\n",
 		fbh->field_num+1, oci_status_name(status), csform, ul_t(loblen),
 		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
 
@@ -975,7 +958,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	*SvEND(dest_sv) = '\0';
 	if (DBIS->debug >= 3)
 	    PerlIO_printf(DBILOGFP,
-		"       OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
+		"        OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
 		fbh->field_num+1, "SKIPPED", ul_t(loblen),
 		ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
     }
@@ -1950,12 +1933,9 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
                 if (status != OCI_SUCCESS) {
                     return oci_error(sth, errhp, status, "OCILobCharSetId");
                 }
-                if ( SvUTF8(phs->sv) && ! (csid == ncharsetid) )
-                {
-                   if ( (DBIS->debug >= 3) )
-                       PerlIO_printf(DBILOGFP, "     sv is utf8 but csid=%d and ncharsetid=%d (fixing csid)\n",csid,ncharsetid);
-                   csid = ncharsetid;
-                }
+		/* if data is utf8 but charset isn't then switch to utf8 csid */
+		if (SvUTF8(phs->sv) && !CS_IS_UTF8(csid))
+		    csid = utf8_csid; /* not al32utf8_csid here on purpose */
                 UTF8_FIXUP_CSID( csid, csform, "post_execute_lobs" );
 #endif /* OCI_ATTR_CHARSET_ID */
 

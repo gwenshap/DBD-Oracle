@@ -247,7 +247,7 @@ int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
            if (DBIS->debug >= 2) \
                PerlIO_printf(DBILOGFP, \
                   "    csid is UTF (%d) and csform!=SQLCS_NCHAR setting csid to charsetid=%d for LobWrite (in %s)\n", \
-                       csid ,ncharsetid, where );  \
+                       csid ,charsetid, where );  \
            csid = charsetid; \
         } \
     }
