@@ -14,7 +14,7 @@ sub ok ($$;$) {
 }
 
 use strict;
-use DBI;
+use DBI qw(:sql_types);
 use Data::Dumper;
 
 $| = 1;
@@ -28,8 +28,14 @@ unless ($dbh) {
 	exit 0;
 }
 
-print "1..10\n";
+print "1..11\n";
 
+print "type_info_all\n";
+my @types = $dbh->type_info(SQL_ALL_TYPES);
+ok(0, @types >= 8);
+print Dumper( @types );
+
+print "tables():\n";
 my @tables = $dbh->tables;
 print @tables." tables\n";
 ok(0, scalar @tables);

@@ -1,5 +1,5 @@
-#!/usr/bin/perl
-# 
+#!/usr/bin/perl -w
+#
 # curref.pl          - by Geoffrey Young
 #
 # for this example, we create a package that contains
@@ -83,11 +83,25 @@ print "The cursor is now closed\n";
 print "just to prove it...\n";
 open_cursors();
 
+$sql = "DROP PACKAGE curref_test"; # Also drops PACKAGE BODY
+$rv = $dbh->do($sql);
+print "The package has been dropped...\n";
+
 $dbh->disconnect;
 
 sub open_cursors {
-  print "Here are the open cursors:\n";
-  $sth = $dbh->prepare('select user, sql_text from V$OPEN_CURSOR');
-  $sth->execute;
-  $sth->dump_results;
+  eval {
+    $sth = $dbh->prepare(
+      'SELECT user, sql_text FROM sys.v_$open_cursor ORDER BY user, sql_text');
+    $sth->execute;
+    print "Here are the open cursors:\n";
+    $sth->dump_results;
+  };
+  if ( $@ ) {
+      print "Unable to SELECT from SYS.V_\$OPEN_CURSOR:\n";
+      if ( 942 == $DBI::err ) {
+         print "   User $user needs SELECT permission.\n";
+      }
+      else { print "$@\n"; }
+  }
 }

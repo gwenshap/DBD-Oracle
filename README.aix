@@ -1,0 +1,97 @@
+From: Rafael Caceres <rcaceres@m1.aasa.com.pe>
+Date: 22 Jul 2003 10:05:20 -0500
+Message-Id: <1058886321.1066.13.camel@rcaceres.aasa.com.pe>
+
+The following sequence worked for me on AIX 5.1:
+
+-use Perl 5.8.0 (the latest stable from CPAN)
+
+-use the xlc_r version of IBM's compiler and build a 32 bit Perl
+ (which xlc_r will do by default). All tests should be successful.
+
+-get and install DBI 
+
+-get DBD::Oracle. Edit the Makefile.PL or Makefile for DBD::Oracle,
+changing references to Oracle's ../lib to ../lib32. and change crt0_64.o
+to crt0_r.o. Remove the -q32 and/or -q64 options from the list of
+libraries to link with. Do the make and make test. 
+
+-Set up the environment for making DBD::Oracle:
+	ORACLE_HOME="your oracle home"
+	ORACCENV = "xlc_r"
+	ORACLE_USERID..
+	ORACLE_SID ..
+
+-Run make, all tests should be successfull -against Oracle 9.x at least.
+
+You should have no problems with Oracle 8.1.7, but accessing Oracle 7.x
+or previous is not possible (you'll core dump, or simply hang). The same
+goes for a Linux build or a Digital build, regarding access of different
+Oracle versions.
+
+Rafael Caceres
+
+On Tue, 2003-07-22 at 08:12, mpaladino@invacare.com wrote:
+> 
+> I dont believe I compiled Oracle.  During the installation it was linked
+> but I am not sure it was compiled
+> 
+> I used a xlc compiler to compile PERL.
+> Got this message in the Perl Makefile.PL output
+> 
+> Warning: You will may need to rebuild perl using the xlc_r compiler.
+>          You may also need do: ORACCENV='cc=xlc_r'; export ORACCENV
+>          Also see the README about the -p option
+> 
+> this probobly means I need to rebuild PERL with xlc_r??
+> 
+> thanx
+> 
+> Mike Paladino
+> Database Administrator
+
+
+From: Rafael Caceres                                                                                  
+> 
+> Make sure you use the same compiler to build Oracle and Perl. We have
+> used xlc_r on Aix 5.1 with no problems. Your Perl build is 32 bit, so
+> when building DBD::Oracle, you should use the 32bit libraries (change
+> references to .../oracle/lib to .../oracle/lib32 in your Makefile).
+> Remove the references to the -q64 or -q32 parameters for ld in Makefile,
+> as they shouldn't be there.
+> 
+> Rafael Caceres
+
+
+From: "cartman ltd" <cartmanltd@hotmail.com>
+Subject: Tip for DBI and DBD::Oracle on AIX 5.1 and Oracle 9.2
+Date: Mon, 11 Aug 2003 18:15:38 +0000
+Message-ID: <BAY1-F58Temqpg2ItZe00032a0f@hotmail.com>
+
+Here is a tip for compiling DBD::Oracle as a 32 bit application on AIX 5.1 
+64 bit and Oracle 9.2 64 bit without editting any makefiles. I hope people 
+find this useful:
+
+First, the versions of products I used:
+   DBI version 1.32
+   DBD::Oracle version 1.14
+   Oracle 9.2.0.2 - default 64 bit application with 32 bit libraries
+   AIX 5.1 ML03 - 64 bit kernel - ships with Perl as a 32 bit application.
+   VisualAge C/C++ 5.0.2
+
+Basically DBD must be compiled as 32 bit to link with Perl's 32 bit 
+libraries.
+   gunzip -c DBD-Oracle-1.14.tar.gz | tar xvf 
+   cd DBD-Oracle-1.14
+   perl Makefile.PL -m $ORACLE_HOME/rdbms/demo/demo_rdbms32.mk
+   make
+
+NB: I think there is a bug in the Oracle 9.2.0.3 file 
+$ORACLE_HOME/rdbms/lib/env_rdbms.mk
+I corrected this (before running the above commands) by replacing the 
+invalid linker option
+   LDFLAGS32=-q32
+with
+   LDFLAGS32=-b32
+
+Have fun: KC.

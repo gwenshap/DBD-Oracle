@@ -102,7 +102,8 @@ sub run_select_tests {
   
 } # end of run_select_tests
 
-my @pk = $dbh->primary_key(undef, $dbh->{USER}, uc $table);
+# $dbh->{USER} is just there so it works for old DBI's before Username was added
+my @pk = $dbh->primary_key(undef, $dbh->{USER}||$dbh->{Username}, uc $table);
 print "primary_key($table): ".Dumper(\@pk);
 ok(0, @pk);
 ok(0, join(",",@pk) eq 'DT,IDX');

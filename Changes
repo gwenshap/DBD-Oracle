@@ -1,3 +1,69 @@
+=head1 Changes in DBD-Oracle 1.15   27th January 2004
+
+  NOTE: DBD::Oracle now requires DBI version 1.28 (June 2002) or later.
+
+  NOTE: This is probably the last release that will support being
+  built with the old Oracle 7 OCI interface.
+
+  NOTE: This release will build for perl 5.5 only after some manual edits
+  which are detailed in README.help.  Future releases may not build for 5.5.
+  Perl 5.5.3 is very old and and upgrading to at least 5.6.1 is recommended.
+  The DBI itself has required perl >= 5.6.0 since DBI 1.38, August 2003.
+
+  Fixed Makefile.PL for HPUX thanks to H.Merijn Brand & Sweth Chandramouli.
+  Fixed Makefile.PL for handling 32/64bit libs thanks to Lincoln Baxter,
+    Sean Kelly, Joel Van Boeckel and others. Oh the fun we've had.
+  Fixed Makefile.PL error typo thanks to Martijn Koster.
+  Fixed to build okay for Oracle 8.0.x and for older C compilers.
+  Fixed minor omission in t/ph_test.t thanks to Tom Malaher.
+  Fixed for extproc_perl (http://search.cpan.org/author/JHORWITZ/extproc_perl/)
+  Fixed Oraperl handling of ora_errno and ora_errstr thanks to Martin Busik.
+  Fixed PRECISION for "NUMBER" to be 126 not 0 thanks to Steffen Goeldner.
+  Fixed bind_param_inout() for placeholders not assigned to in PL/SQL.
+
+  Changed bind_param_inout for CHAR types to no longer use a minimum
+    length of 28 characters. Warning: this change may break code that
+    doesn't pass bind_param_inout() a length value large enough for the
+    returned string. (The minimum length was not documented and should
+    not have been relied upon. This change currently only applies to the
+    CHAR type but may extended to all string types in a later release.)
+  Changed type_info_all() to return the same type info as Oracle's own
+    ODBC driver does, thanks to Andy Hassall for the data.
+    The types include LOBs but not the new TIMESTAMP and INTERVAL types.
+
+  Added direct access to LOB Locators and major LOB Locator functions
+    such as $sth->ora_lob_read(...), $sth->ora_lob_write(...) etc.
+    This work was sponsored by Geospiza Inc.
+  Added LOB Locator example docs thanks to Mark Dilger at Geospiza.
+  Added TIMESTAMP [WITH [LOCAL] TIME ZONE]] support
+    thanks to Stephen Clouse and Robert Wyrick.
+  Added INTERVAL YEAR TO MONTH, INTERVAL DAY TO SECOND support.
+  Added warning for bad DSN string format thanks to Michael A Chase.
+  Added /*+RULE*/ hint to metadata method SQL thanks to Andy Hassall.
+  Added README.linux thanks to William Fishburne, Stephen Clouse and Brent LaVelle.
+  Added README.aix thanks to KC, Mike Paladino and Rafael Caceres.
+  Added connect example using OS authentication thanks to Bob Thomson.
+  Added prepare("...", { ora_placeholders => 0 }) to disable placeholders.
+  Added docs for returning a recordset (table/array) using Oracle >=9.0.1
+    via "FUNCTION foo RETURN type PIPELINED" thanks to Steve Baldwin.
+  Added docs on ora_check_sql=>0 in prepare() to avoid server-side parses.
+  Added support for sharing database connections with ProC/SQLLIB code
+    via ora_use_proc_connection attribute, thanks to Kristian Nielsen
+    needs build time option thanks to Steffen Goeldner
+  Added (restored) the error "possibly near <*> indicator" marker for
+    syntax errors thanks to Jason Hitt and Andy Hassall.
+  Added $dbh->{ora_parse_error_offset} attribute thanks to Andy Hassall.
+  Added auto setting of $dbh->{Username} if not given to connect
+    i.e. using Oracle OS authentication and connecting as "/"
+    by selecting SYS_CONTEXT('userenv','session_user') from the db
+    thanks to Eric Lenio and Andy Hassall.
+
+  Updated README.macosx thanks to Danial Pearce and William Goedicke.
+  Updated README.help for UnixWare thanks to Earle Nietzel.
+  Updated PL/SQL cursor examples, plus Oracle.ex/README and curref.pl
+    examples thanks to Michael A Chase.
+  Updated PL/SQL example setup thanks to Bob Kline.
+
 =head1 Changes in DBD-Oracle 1.14    27th March 2003  
 
   NOTE: OCI 7 and Oraperl will not be supported in future releases.

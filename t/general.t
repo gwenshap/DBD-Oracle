@@ -14,6 +14,7 @@ sub ok ($$;$) {
 }
 
 use DBI;
+use Oraperl;
 $| = 1;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
@@ -72,17 +73,23 @@ eval {
 ok(0, $@    =~ /DBD::Oracle::db do failed:/, "eval error: ``$@'' expected 'do failed:'");
 #print "''$warn''";
 ok(0, $warn =~ /DBD::Oracle::db do failed:/, "warn error: ``$warn'' expected 'do failed:'");
+ok(0, $DBI::err);
+ok(0, $ora_errno);
+ok(0, $ora_errno == $DBI::err);
 $dbh->{RaiseError} = 0;
 
 # ---
 
 ok(0,  $dbh->ping);
+ok(0, !$ora_errno);	# ora_errno reset ok
+ok(0, !$DBI::err);	# DBI::err  reset ok
+
 $dbh->disconnect;
 $dbh->{PrintError} = 0;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 19 }
+BEGIN { $tests = 24 }
 # end.
 
 __END__

@@ -12,14 +12,17 @@ for Perl 5.8.0 installation instructions.
 1) Install Oracle exactly per Oracle documentation. If you change 
 install locations, then you'll need to modify paths accordingly.
 
-2) As oracle user execute the following commands to fix namespace 
+2) Make a backup copy of the $ORACLE_HOME/lib/libclntsh.dylib.9.0 file
+since we're about to modify that library.  Note that the ".9.0" suffix
+of the file name is version dependent, and that you want to work with
+the file itself rather than the symbolic link called libclntsh.dylib.
+
+As user 'oracle' execute the following command to fix namespace
 collisions in Oracle's dynamic libraries.
 
-   nmedit -R ./hints/macos_lib.syms $ORACLE_HOME/lib/libclntsh.dylib
+   nmedit -R ./hints/macos_lib.syms $ORACLE_HOME/lib/libclntsh.dylib.9.0
 
-   *** Please make a backup copy of the libclntsh.dylib file before
-       executing the command (which edits the file) and make sure that 
-       sqlplus still operates as expected afterwards.
+   *** Recall the above caveats regarding the file name.
 
 3) Install the module DBI as per its instructions.
 
@@ -41,3 +44,52 @@ Original instructions thanks to:
 	Tom Mornini <tmornini@infomania.com>
 
 -Brook Schofield <brooksch@mac.com>
+
+
+Date: Tue, 15 Apr 2003 16:02:17 +1000
+Subject: Compilation bug in DBI on OSX with threaded Perl 5.8.0
+From: Danial Pearce <danial@infoxchange.net.au>
+To: <dbi-users@perl.org>
+Message-ID: <BAC1DD89.E5E1%danial@infoxchange.net.au>
+
+In regards to a previous message on this list:
+
+http://archive.develooper.com/dbi-users@perl.org/msg16365.html
+
+I have some more info:
+
+I have compiled and installed Perl just fine with threads enabled:
+
+./Configure -de -Dusethreads -Dprefix=/usr
+make
+make test
+sudo make install
+
+I have then successfully installed Apache and mod_perl as well.
+
+When I try to compile and install DBI, I get a bus error, just like the
+people on this list have previously discussed on the thread above.
+
+If I unpack the DBI, and run perl Makefile.pl, then alter the created
+Makefile so that it uses gcc2 rather than just "cc" then it compiles,
+installs and runs just fine.
+
+The issue here is that Apple have just recently release 10.2.4, which
+updates /usr/bin/{gcc3,gcc2,g++3,g++2} and /usr/bin/cc is a symlink to
+/usr/bin/gcc3, so compilation of DBI under Apple's gcc3 does not work. It
+works find with gcc2 however.
+
+I had the same problem with DBD::Pg, and was able to compile and install
+that using the same fix.
+
+I am unsure if this is a problem with Apple's version of gcc, or a problem
+with the DBI/DBD code itself. Given that all my other open source
+applications are compiling and installing fine, I am thinking there isn't
+anything Apple are going to do about it.
+
+cheers
+Danial
+
+PS: Personal replies please, I have not subscribed to this list.
+
+

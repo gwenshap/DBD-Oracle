@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.45 2003/03/21 17:27:44 timbo Exp $
+   $Id: dbdimp.h,v 1.47 2004/01/10 08:52:28 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -78,6 +78,8 @@ struct imp_drh_st {
     dbih_drc_t com;		/* MUST be first element in structure	*/
 #ifdef OCI_V8_SYNTAX
     OCIEnv *envhp;
+    int proc_handles;           /* If true, the envhp handle is owned by ProC
+                                   and must not be freed. */
 #endif
     SV *ora_long;
     SV *ora_trunc;
@@ -103,6 +105,8 @@ struct imp_dbh_st {
     OCIServer *srvhp;
     OCISvcCtx *svchp;
     OCISession *authp;
+    int proc_handles;           /* If true, srvhp, svchp, and authp handles
+                                   are owned by ProC and must not be freed. */
 #else
     Lda_Def ldabuf;
     Lda_Def *lda;		/* points to ldabuf	*/
@@ -112,7 +116,7 @@ struct imp_dbh_st {
 
     int RowCacheSize;
     int ph_type;		/* default oratype for placeholders */
-
+    int parse_error_offset;	/* position in statement of last error */
 };
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
@@ -153,7 +157,7 @@ struct imp_sth_st {
     imp_fbh_t *fbh;	    /* array of imp_fbh_t structs	*/
     char      *fbh_cbuf;    /* memory for all field names       */
     int       t_dbsize;     /* raw data width of a row		*/
-    IV        long_readlen; /* local copy to handle oraperl	*/
+    UV        long_readlen; /* local copy to handle oraperl	*/
 
     /* Select Row Cache Details */
     int       cache_rows;
@@ -265,6 +269,9 @@ int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd))
 
 void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
 void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));
+
+int pp_exec_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec));
+int pp_rebind_ph_rset_in _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 #define OTYPE_IS_LONG(t)  ((t)==8 || (t)==24 || (t)==94 || (t)==95)
 

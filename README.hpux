@@ -283,7 +283,7 @@ The standard mantra now works out of the box on HP-UX:
 And with DBD-1.14 and later the following can be used:
 
     cd DBD-1.14 / #or more recent version
-    perl Makefile.PL -l #-l uses the "new modern method" of constructing the Makefile
+    perl Makefile.PL -l # uses a simple link to oracle's main library
     make 
     make test
     make install # if all went smoothly
@@ -953,27 +953,10 @@ Here is the output of perl -V:
        /usr/local/lib/perl5/site_perl
        .
 
+=head2 http://www.mail-archive.com/dbi-users@perl.org/msg18687.html
 
-=head1 Appendix D (Miscellaneous links which might be useful)
-
-=head2 https://www.beepz.com/personal/merijn/ or http://www.cmve.net/~merijn/
-
-H.Merijn Brand has placed reasonably recent Perl binary distributions
-here that already include the DBI that was current when the build was
-created. These builds are created using the most recent version of gcc
-available at that time. The gcc used to create the build, including the
-matching binutils and gdb are available from the same page. These Perl
-binaries are I<Oracle prepared>, meaning that the libraries that Oracle
-requires are linked in.
-
-Thanks to Tony Foiani for these references:
-
-=head2 http://marc.theaimsgroup.com/?l=perl-dbi&m=96040350416305&w=2 
-
-This link discusses older version of the DBI/DBD interface, so most of
-the code examples are probably no longer relevant.  This was written 
-by Jeff Okamoto at HP (the author of the README.hpux in the Perl
-sources).  And has some useful insights.
+Garry Ferguson's notes on a successful build using perl 5.8.0, DBI-1.38 and
+DBD-Oracle-1.14 on HPUX 11.0 ( an L2000 machine ) with Oracle 9.0.1
 
 =head2 http://www.sas.com/service/techsup/unotes/SN/001/001875.html 
 
@@ -981,13 +964,7 @@ This is a not from from the SAS support people documenting the LhtStrInsert()
 and LhtStrCreate() undefined symbols errors, and how to fix them in the
 Oracle makefiles.
 
-=head2 http://www.mail-archive.com/dbi-users%40isc.org/msg13967.html 
-
-My employer's web sniffer does not allow me browse this link (www.mail) in the
-URL.  So I have no idea how helpful this might be.  It might even be a link
-to my own posts.
-
-=head1 Appendix E (Perl Configuration Dumps)
+=head1 Appendix D (Perl Configuration Dumps)
 
 The following to sections provide full dumps of perl -V for three
 versions of Perl that were successfully built and linked on
@@ -1130,7 +1107,7 @@ DBD-Oracle and HP-UX 11 trials...
 L<http://www.geocrawler.com/search/?config=183&words=Roger+Foskett>
 
 
-=head1 Appendix F (Why Dynamic Linking)
+=head1 Appendix E (Why Dynamic Linking)
 
 Some one posted to the DBI email list the following question:
 
@@ -1170,7 +1147,7 @@ tested.
 
 =back
 
-=head1 Appendix G (RE problem with libjava.sl)
+=head1 Appendix F (RE problem with libjava.sl)
 
 The following is a message I received from Jon Stevenson concerning a 
 problem with the libjava.sl.  Note that the gcc build described in
@@ -1296,3 +1273,5 @@ probably a preferable solution.
    John Schaefer
 
    BAESystems, San Diego
+
+=cut

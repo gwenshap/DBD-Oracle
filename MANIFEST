@@ -1,7 +1,7 @@
 Changes
 MANIFEST
 Makefile.PL
-Oracle.ex/Readme
+Oracle.ex/README
 Oracle.ex/bind.pl
 Oracle.ex/commit.pl
 Oracle.ex/curref.pl
@@ -17,12 +17,14 @@ Oracle.pm
 Oracle.xs
 Oraperl.pm
 README
+README.aix
 README.clients
 README.explain
 README.help
 README.hpux
 README.java
 README.login
+README.linux
 README.longs
 README.macosx
 README.sec
@@ -32,11 +34,11 @@ README.wingcc	Notes about building with mingw32 and cygwin32
 Todo
 dbdimp.c
 dbdimp.h
-hints/svr4.pl
+hints/dgux.pl
 hints/macos_bundle.syms
 hints/macos_lib.syms
 hints/macos_syms.pl
-hints/dgux.pl
+hints/svr4.pl
 lib/DBD/Oracle/GetInfo.pm
 oci.def		OCI.DLL export declarations
 oci7.c
@@ -54,3 +56,4 @@ t/plsql.t
 t/reauth.t
 t/select.t
 test.pl
+typemap

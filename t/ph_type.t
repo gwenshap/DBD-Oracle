@@ -95,7 +95,7 @@ for my $test_info (@tests) {
 
   $dbh->trace($test_info->{ts}) if $test_info->{ts};
   $tmp = $dbh->selectall_hashref(qq{
-	SELECT name, vc, length(vc) as len, nvl(vc,'ISNULL') as isnull
+	SELECT name, vc, length(vc) as len, nvl(vc,'ISNULL') as isnull, c
 	FROM $table
   }, "name");
   ok(0, keys(%$tmp) == 3);
@@ -109,12 +109,14 @@ for my $test_info (@tests) {
   my $expect = $val_with_trailing_space;
   $expect =~ s/\s+$// if $test_info->{chops_space};
   my $ok = ($tmp->{ts}->{vc} eq $expect);
-  if (!$ok && ORA_OCI==7 && $name eq 'VARCHAR2') {
-    warn " OCI7 ora_type=1 placeholder doesn't strip trailing spaces, OCI8 currently does\n";
+  if (!$ok && $ph_type==1 && $name eq 'VARCHAR2') {
+    warn " Placeholder behaviour for ora_type=1 (the default) varies with Oracle version.\n";
+    warn " Oracle 7 didn't strip trailing spaces, Oracle 8 did, until 9.2.x\n";
+    warn " Your system doesn't. If that seems odd, let us know.\n";
     $ok = 1;
   }
-  ok(0, $ok, sprintf(" expected %s but got %s for $name",
-			neat($expect),neat($tmp->{ts}->{vc})) );
+  ok(0, $ok, sprintf(" using ora_type %d expected %s but got %s for $name",
+		$ph_type, neat($expect), neat($tmp->{ts}->{vc})) );
 
   # check embedded nul char behaviour
   $expect = $val_with_embedded_nul;

@@ -272,6 +272,31 @@ if (1) {
     ok(0, "@r" eq "@s2", "\nref=(@r),\nsql=(@s2)");
 }
 
+# --- test ping
+print "test bind_param_inout of param that's not assigned to in executed statement\n";
+# See http://www.mail-archive.com/dbi-users@perl.org/msg18835.html
+if (1) {
+my $sth = $dbh->prepare (q(
+    BEGIN
+ --     :p1 := :p1 ;
+ --     :p2 := :p2 ;
+        IF  :p2 != :p3 THEN
+            :p1 := 'AAA' ;
+            :p2 := 'Z' ;
+        END IF ;
+    END ;
+)) ;
+my ($p1, $p2, $p3) = ('Hello', 'Y', 'Y') ;
+$sth->bind_param_inout(':p1', \$p1, 30) ;
+$sth->bind_param_inout(':p2', \$p2, 1) ;
+$sth->bind_param_inout(':p3', \$p3, 1) ;
+print "Before p1=[$p1] p2=[$p2] p3=[$p3]\n" ;
+ok(0, $sth->execute);
+ok(0, $p1 eq 'Hello');
+ok(0, $p2 eq 'Y');
+ok(0, $p3 eq 'Y');
+print "After p1=[$p1] p2=[$p2] p3=[$p3]\n" ;
+}
 
 
 # --- To do
@@ -286,7 +311,7 @@ $dbh->disconnect;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 63 }
+BEGIN { $tests = 67 }
 # end.
 
 __END__
