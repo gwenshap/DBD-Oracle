@@ -4,6 +4,7 @@ TODO:
 Add to "Unable to find required Oracle OCI files" message some
 extra text for Windows users pointing them to PPM and Jeff's PPM repository.
 Add DBI dbivport.h etc
+Add column_info test
 
   NOTES:
   This release has major changes to Unicode support. See below.
@@ -24,6 +25,8 @@ Add DBI dbivport.h etc
   Fixed STORE to cache attribute value in handle cache.
   Fixed compiler warnings thanks to Robert Baron.
   Fixed seg fault returning LOB Locators reported by Raj Chandran.
+  Fixed oci.def for Cygwin by adding OCILobWriteAppend thanks to Gert-Jan Paulissen.
+  Fixed binding to allow overloaded scalars.
 
   Changed some utf8 internals for LOBs.
   Changed to not warn if ORACLE_HOME env var is not defined
@@ -45,6 +48,7 @@ Add DBI dbivport.h etc
   Added $dbh->ora_can_unicode and $dbh->ora_nls_parameters thanks to Andy Hassall.
   Added gcc example to README.aix thanks to Adrian Terranova.
   Corrected typo in ora_lob_read() example thanks to Johannes Wierny.
+  Corrected LOB example thanks to Sascha Pfalz.
 
 =head1 Changes in DBD-Oracle 1.15   27th January 2004
 

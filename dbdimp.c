@@ -140,8 +140,6 @@ dbd_discon_all(drh, imp_drh)
 	sv_setiv(DBIc_ERR(imp_drh), (IV)1);
 	sv_setpv(DBIc_ERRSTR(imp_drh),
 		(char*)"disconnect_all not implemented");
-	DBIh_EVENT2(drh, ERROR_event,
-		DBIc_ERR(imp_drh), DBIc_ERRSTR(imp_drh));
 	return FALSE;
     }
     return FALSE;
@@ -1454,8 +1452,10 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     }
     assert(name != Nullch);
 
-    if (SvROK(newvalue) && !IS_DBI_HANDLE(newvalue))
-	/* dbi handle allowed for cursor variables */
+    if (SvROK(newvalue)
+	&& !IS_DBI_HANDLE(newvalue)	/* dbi handle allowed for cursor variables */
+	&& !SvAMAGIC(newvalue)		/* overload magic allowed (untested) */
+    )
 	croak("Can't bind a reference (%s)", neatsvpv(newvalue,0));
     if (SvTYPE(newvalue) > SVt_PVLV) /* hook for later array logic?	*/
 	croak("Can't bind a non-scalar value (%s)", neatsvpv(newvalue,0));

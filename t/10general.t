@@ -30,7 +30,10 @@ is($sth->{NUM_OF_PARAMS}, 1);
 ok($sth->bind_param(':a', 'a value'));
 ok($sth->execute);
 ok($sth->{NUM_OF_FIELDS});
-eval { $p1=$sth->{NUM_OFFIELDS_typo} };
+eval {
+  local $SIG{__WARN__} = sub { die @_ }; # since DBI 1.43
+  $p1=$sth->{NUM_OFFIELDS_typo};
+};
 ok($@ =~ /attribute/);
 ok($sth->{Active});
 ok($sth->finish);
