@@ -41,5 +41,6 @@ t/base.t
 t/general.t
 t/long.t
 t/plsql.t
+t/ph_type.t
 t/reauth.t
 test.pl

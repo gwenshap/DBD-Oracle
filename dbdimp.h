@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.40 2001/08/07 00:25:37 timbo Exp $
+   $Id: dbdimp.h,v 1.42 2001/08/29 11:32:51 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -10,10 +10,6 @@
 
 */
 
-
-#if defined(get_no_modify) && !defined(no_modify)
-#define no_modify PL_no_modify
-#endif
 
 
 /* ====== Include Oracle Header Files ====== */
@@ -295,6 +291,7 @@ void ora_error _((SV *h, Lda_Def *lda, int rc, char *what));
 #define dbd_db_do		ora_db_do
 #define dbd_db_commit		ora_db_commit
 #define dbd_db_rollback		ora_db_rollback
+#define dbd_db_cancel		ora_db_cancel
 #define dbd_db_disconnect	ora_db_disconnect
 #define dbd_db_destroy		ora_db_destroy
 #define dbd_db_STORE_attrib	ora_db_STORE_attrib

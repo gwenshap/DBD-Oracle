@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.66 2001/08/07 00:25:37 timbo Exp $
+   $Id: dbdimp.c,v 1.71 2001/08/29 19:38:31 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -271,7 +271,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	char buf[100];
 	char *msg;
 	switch(rc) {	/* add helpful hints to some errors */
-	case    0: msg = "login failed, check your config, e.g. ORACLE_HOME/bin on your PATH etc";  break;
+	case    0: msg = "login failed, check your config, e.g. ORACLE_HOME/bin in your PATH/Registry etc";  break;
 	case 1019: msg = "login failed, probably a symptom of a deeper problem"; break;
 	default:   msg = "login failed"; break;
 	}
@@ -356,6 +356,33 @@ dbd_db_commit(dbh, imp_dbh)
     }
     return 1;
 }
+
+
+
+
+int
+dbd_st_cancel(sth, imp_sth)
+    SV *sth;
+    imp_sth_t *imp_sth;
+{
+#ifdef OCI_V8_SYNTAX
+    sword status;
+    status = OCIBreak(imp_sth->svchp, imp_sth->errhp);
+    if (status != OCI_SUCCESS) {
+	oci_error(sth, imp_sth->errhp, status, "OCIBreak");
+	return 0;
+    }
+#else
+    D_imp_dbh_from_sth;
+    if (obreak(imp_dbh->lda)) {
+	ora_error(sth, imp_dbh->lda, imp_dbh->lda->rc, "obreak");
+	return 0;
+    }
+#endif
+    return 1;
+}
+
+
 
 int
 dbd_db_rollback(dbh, imp_dbh)
@@ -769,7 +796,7 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 
     if (phs->is_inout) {	/* XXX */
 	if (SvREADONLY(phs->sv))
-	    croak(no_modify);
+	    croak("Modification of a read-only value attempted");
 	if (imp_sth->ora_pad_empty)
 	    croak("Can't use ora_pad_empty with bind_param_inout");
 	if (1 || !at_exec) {
@@ -833,7 +860,6 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 
 
 #ifdef OCI_V8_SYNTAX
-#ifndef MM_CURSOR_FIX
 /*
  * Rebind an "in" cursor ref to its real statement handle
  * This allows passing cursor refs as "in" to pl/sql (but only if you got the
@@ -861,8 +887,6 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 			   OCI_DEFAULT,
 			   status
 			   );
-    if (dbis->debug >= 3)
-	fprintf(DBILOGFP, "    after OCIBindByName, status=%d\n", status);
     if (status != OCI_SUCCESS) {
       oci_error(sth, imp_sth->errhp, status, "OCIBindByName SQLT_RSET");
       return 0;
@@ -871,7 +895,6 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	fprintf(DBILOGFP, "    pp_rebind_ph_rset_in: END\n");
     return 2;
 }
-#endif
 #endif
 
 
@@ -1045,7 +1068,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
     if (done != 1) {
 	if (done == 2) { /* the rebind did the OCI bind call itself successfully */
 	    if (DBIS->debug >= 3)
-		fprintf(DBILOGFP, "       bind %s done for ftype %d\n",
+		fprintf(DBILOGFP, "       bind %s done with ftype %d\n",
 			phs->name, phs->ftype);
 	    return 1;
 	}
@@ -1090,9 +1113,10 @@ dbd_rebind_ph(sth, imp_sth, phs)
 	croak("Can't bind %s, value is too long (%ld bytes, max %d)",
 		    phs->name, phs->maxlen, MINSWORDMAXVAL);
 
+    {
+    sword progvl = (alen_ptr) ? phs->maxlen : SvCUR(phs->sv);
     if (obndra(imp_sth->cda, (text *)phs->name, -1,
-	    (ub1*)phs->progv,
-	    phs->maxlen ? (sword)phs->maxlen : (sword)1, /* else bind "" fails   */
+	    (ub1*)phs->progv, (progvl) ? progvl : 1,
 	    (sword)phs->ftype, -1,
 	    &phs->indp, alen_ptr, &phs->arcode,
 	    0, (ub4 *)0,
@@ -1101,10 +1125,12 @@ dbd_rebind_ph(sth, imp_sth, phs)
 	ora_error(sth, imp_dbh->lda, imp_sth->cda->rc, "obndra failed");
 	return 0;
     }
+    }
 #endif
     phs->maxlen_bound = phs->maxlen ? phs->maxlen : 1;
     if (DBIS->debug >= 3)
- 	fprintf(DBILOGFP, "       bind %s done\n", phs->name);
+	fprintf(DBILOGFP, "       bind %s done with ftype %d\n",
+		phs->name, phs->ftype);
     return 1;
 }
 
@@ -1389,10 +1415,12 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		(DBIc_has(imp_dbh,DBIcf_AutoCommit) && !is_select)
 			? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT,
 		status);
-    if (status != OCI_SUCCESS && status != OCI_SUCCESS_WITH_INFO) {
-	oci_error(sth, imp_sth->errhp, status,
-		ora_sql_error(imp_sth,"OCIStmtExecute"));
-	return -2;
+    if (status != OCI_SUCCESS) { /* may be OCI_ERROR or OCI_SUCCESS_WITH_INFO etc */
+	/* we record the error even for OCI_SUCCESS_WITH_INFO */
+	oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIStmtExecute"));
+	/* but only bail out here if not OCI_SUCCESS_WITH_INFO */
+	if (status != OCI_SUCCESS_WITH_INFO)
+	    return -2;
     }
     if (is_select) {
 	DBIc_ACTIVE_on(imp_sth);
@@ -1713,6 +1741,8 @@ dbd_st_destroy(sth, imp_sth)
 	ora_free_fbh_contents(fbh);
     }
     Safefree(imp_sth->fbh);
+    if (imp_sth->fbh_cbuf)
+	Safefree(imp_sth->fbh_cbuf);
     Safefree(imp_sth->statement);
 
     if (imp_sth->out_params_av)
@@ -1884,18 +1914,18 @@ ora2sql_type(imp_fbh_t* fbh) {
             else { /* INTEGER, NUMBER(p,0) */
                 sql_fbh.dbtype = SQL_DECIMAL; /* better: SQL_INTEGER */
             }
-    }
+	}
         else { /* NUMBER(p,s) */
             sql_fbh.dbtype = SQL_DECIMAL; /* better: SQL_NUMERIC */
         }
         break;
     case SQLT_CHR:  sql_fbh.dbtype = SQL_VARCHAR;       break;
     case SQLT_LNG:  sql_fbh.dbtype = SQL_LONGVARCHAR;   break; /* long */
-    case SQLT_DAT:  sql_fbh.dbtype = SQL_DATE;          break;
+    case SQLT_DAT:  sql_fbh.dbtype = SQL_DATE;		break;
     case SQLT_BIN:  sql_fbh.dbtype = SQL_BINARY;        break; /* raw */
     case SQLT_LBI:  sql_fbh.dbtype = SQL_LONGVARBINARY; break; /* long raw */
     case SQLT_AFC:  sql_fbh.dbtype = SQL_CHAR;          break; /* Ansi fixed char */
-    default:        sql_fbh.dbtype = -9000 - fbh->dbtype;      /* else map type into DBI reserved standard range */
+    default:        sql_fbh.dbtype = -9000 - fbh->dbtype; /* else map type into DBI reserved standard range */
     }
     return sql_fbh;
 }

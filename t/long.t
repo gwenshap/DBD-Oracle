@@ -88,7 +88,7 @@ if (ORA_OCI >= 8) {
     ok(0, $$lob_locator, "lob_locator deref ptr false");
 }
 else {
-    ok(0, 1) for (1..3);
+    for (1..3) { ok(0, 1) }
 }
 
 

@@ -1,11 +1,18 @@
 #include "Oracle.h"
 
 DBISTATE_DECLARE;
+
+#ifdef OCI_V8_SYNTAX
+# define DBD_ORA_OCI 8
+#else
+# define DBD_ORA_OCI 7
+#endif
  
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle
 
 I32
-constant()
+constant(name=Nullch)
+    char *name
     PROTOTYPE:
     ALIAS:
     ORA_VARCHAR2 =   1
@@ -21,17 +28,11 @@ constant()
     ORA_CLOB	 = 112
     ORA_BLOB	 = 113
     ORA_RSET	 = 116
-    ORA_OCI = 0
+    ORA_OCI      = DBD_ORA_OCI
     CODE:
     if (!ix) {
-	char *what = GvNAME(CvGV(cv));
-	if (strEQ(what,"ORA_OCI"))
-#ifdef OCI_V8_SYNTAX
-	    RETVAL = 8;
-#else
-	    RETVAL = 7;
-#endif
-	else croak("Unknown DBD::Oracle constant '%s'", what);
+	if (!name) name = GvNAME(CvGV(cv));
+	croak("Unknown DBD::Oracle constant '%s'", name);
     }
     else RETVAL = ix;
     OUTPUT:
@@ -84,6 +85,14 @@ ora_fetch(sth)
     if (debug >= 2 && SvTRUE(DBIc_ERR(imp_sth)))
 	fprintf(DBILOGFP, "    !! ERROR: %s %s",
 	    neatsvpv(DBIc_ERR(imp_sth),0), neatsvpv(DBIc_ERRSTR(imp_sth),0));
+
+
+void
+cancel(sth)
+    SV *        sth
+    CODE:
+    D_imp_sth(sth);
+    ST(0) = dbd_st_cancel(sth, imp_sth) ? &sv_yes : &sv_no;
 
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::db

@@ -48,8 +48,8 @@ increases required alignment of target type" and "passing arg 2 of
 `oerhms' with different width due to prototype".
 
 If you have problems see the 'IF YOU HAVE PROBLEMS' section below.
-If it's builds without error you can then run the tests. For the
-main test to work it must be able to connect to an Oracle database.
+If it's builds without error you should then run the tests. For the
+main tests to work they must be able to connect to an Oracle database.
 
 You will need to set either the TWO_TASK or ORACLE_SID environment
 variables to the correct values for your database. Consult Oracle
@@ -57,9 +57,9 @@ documentation for more details. Test your setting by connecting to
 the database using an Oracle tool such as sqlplus. Once you can do
 that then you can test DBD::Oracle knowing that it should work.
 
-The supplied test will connect to the database using the value of the
+The supplied tests will connect to the database using the value of the
 ORACLE_USERID environment variable so you should set that to the correct
-value before starting the test. Please read README.login.
+value (like 'scott/tiger') before starting the test. Please read README.login.
 
     make test
 
@@ -80,6 +80,8 @@ build the Perl you are using.
 
 If you have build/link or core dump problems try:
 	perl Makefile.PL -p
+or
+	perl Makefile.PL -nob
 If it helps then please let me know (and please include a copy
 of the log from the failed default build, the log from the build that
 worked, plus the output of the "perl -V" command).
@@ -169,6 +171,12 @@ dbi-users@perl.org and CC them to me at Tim.Bunce@pobox.com. But note...
 6. If the stack trace mentions XS_DynaLoader_dl_load_file then rerun
    make test after setting the environment variable PERL_DL_DEBUG to 2.
 
+7. If your installation succeeds, but your script does not behave
+   as you expect, the problem is most likely on your end. Before
+   sending to dbi-users, try writing a small, easy to use test case
+   to reproduce your problem. Also, use the DBI->trace method to
+   trace your database calls.
+
 It is important to check that you are using the latest version before
 posting. If you're not then I'm *very* likely to simply say "upgrade to
 the latest". You would do yourself a favour by upgrading beforehand.
@@ -189,18 +197,12 @@ README.clients  -- building/using DBD::Oracle on minimally configured systems
 README.login    -- help for login problems
 README.longs    -- examples dealing with LONG types (blobs)
 
-DBI 'home page': http://www.arcana.co.uk/technologia/DBI
+DBI 'home page': http://dbi.perl.org
 
-Master archive site for Perl DB information:
+Old archive site for Perl DB information:
     ftp://ftp.demon.co.uk/pub/perl/db/
 Mailing list archive:                /DBI/perldb-interest/
 Perl 4 Oraperl (v2.4)                /perl4/oraperl/
-
-Searchable index of the dbi-users mailing list:
-http://www.coe.missouri.edu/~faq/lists/dbiusers/
-
-IOUW 1996 Paper on connecting Oracle to the Web:
-http://www.cse.psu.edu/~groenvel/IOUW96/paper/.
 
 ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources/...
 
@@ -228,8 +230,6 @@ ftp://ftp.bf.rmit.edu.au/pub/perl/db
 ftp://ftp.bf.rmit.edu.au/pub/Oracle
 ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources
 ftp://ftp.bf.rmit.edu.au/pub/Oracle/OS/MS/NT/ntoraperl.zip
-
-http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
 
 DBI and DBD::Oracle are very portable. If Perl and Oracle run on a platform
 then the chances are that DBD::Oracle will as well.
