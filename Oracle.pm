@@ -1639,23 +1639,6 @@ information to Oracle to ensure the string is correctly passed.
 is AL32UTF8, but if NLS_LANG isn't but the statement string is, then
 Oracle needs to be told.
 
-B<When NLS_LANG Is Not Set>
-
-If NLS_LANG is not set I<and> NLS_NCHAR is not set, then DBD::Oracle
-will initialize the OCI environment with AL32UTF8 (csid=873) as the
-default national character set. Just as if NLS_NCHAR=AL32UTF8.
-For Oracle versions before 9.2, that don't support AL32UTF8, UTF8
-(csid=871) will be used instead.
-
-This may possibly get you what you want, but it is strongly recomended
-that you always explicitly set NLS_LANG to the required value. That way all
-Oracle tools you may use will be in sync.
-
-XXX TIM: I'm worried that this may break existing applications.
-We could argue that such users should just set NLS_LANG/NLS_NCHAR.
-But then we might as well not have this "magic" and rely on people
-to set NLS_LANG/NLS_NCHAR as needed.
-
 =head1 Other Data Types
 
 DBD::Oracle does not I<explicitly> support most Oracle data types.
