@@ -552,7 +552,7 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	    }
 	}
 	sv_setpvn(dest_sv, p, (STRLEN)datalen);
-	DBD_SET_UTF8(dest_sv,fbh->csid);
+	DBD_SET_UTF8_FORM(dest_sv,fbh->csform);
     } else {
 #else
     {
@@ -735,7 +735,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
     SvCUR_set(dest_sv, byte_destoffset+amtp);
     *SvEND(dest_sv) = '\0'; /* consistent with perl sv_setpvn etc	*/
     SvPOK_on(dest_sv);
-    DBD_SET_UTF8(dest_sv,csid);
+    DBD_SET_UTF8_FORM(dest_sv,csform);
 
     return 1;
 }
@@ -959,7 +959,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	SvCUR(dest_sv) = amtp;
 	*SvEND(dest_sv) = '\0';
 	if (fbh->ftype != 113) /* Don't set UTF8 on BLOBs */
-	    DBD_SET_UTF8(dest_sv,csid);
+	    DBD_SET_UTF8_FORM(dest_sv,csform);
 	ora_free_templob(sth, imp_sth, lobloc);
     }
     else {			/* LOB length is 0 */
@@ -1298,10 +1298,9 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
                and this currently effectively just sets Attrs to the values in fhb ignoring ncharsetid altogether 
                probably wrong
              */
-            ub2 csid = ( fbh->csform == SQLCS_NCHAR ) ? ncharsetid : charsetid; /* fbh->csid; */  
             ub1 csform = fbh->csform;
             if (DBIS->debug >= 3)
-               PerlIO_printf(DBILOGFP, "     calling OCIAttrSet with csid=%d and csform=%d\n", csid ,csform );
+               PerlIO_printf(DBILOGFP, "     calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d\n", csform );
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csform, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
             if (status != OCI_SUCCESS) {
@@ -1311,6 +1310,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
         }
 #endif /* OCI_ATTR_CHARSET_FORM */
 
+if (fbh->csform == SQLCS_NCHAR) {
+PerlIO_printf(DBILOGFP, "     NCHAR: %s type %d, char size %d, char used %d\n",
+	fbh->name, fbh->dbtype, fbh->len_char_size, fbh->len_char_used);
+}
 	if (fbh->ftype == 108) {
 	    oci_error(h, NULL, OCI_ERROR, "OCIDefineObject call needed but not implemented yet");
 	    ++num_errors;
@@ -1423,7 +1426,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 			--datalen;
 		}
 		sv_setpvn(sv, p, (STRLEN)datalen);
-		DBD_SET_UTF8(sv,fbh->csid);
+		DBD_SET_UTF8_FORM(sv, fbh->csform); /* XXX */
 	    }
 
 	} else if (rc == 1405) {	/* field is null - return undef	*/
@@ -1439,7 +1442,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 		    /* but it'll only be accessible via prior bind_column()	*/
 		    sv_setpvn(sv, (char*)&fb_ary->abuf[0],
 			  fb_ary->arlen[0]);
-		    DBD_SET_UTF8(sv,fbh->csid);
+		    DBD_SET_UTF8_FORM(sv,fbh->csform);
 		}
 		if (ora_dbtype_is_long(fbh->dbtype))	/* double check */
 		    hint = ", LongReadLen too small and/or LongTruncOk not set";
@@ -1721,7 +1724,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	sv = newSViv(col_dbtype);
 	(void)sv_setpvn(sv, col_name, col_name_len);
 	/* PerlIO_printf(DBILOGFP, "lab   fbh->csid=%d\n", fbh->csid ); */
-	DBD_SET_UTF8(sv,fbh->csid); 
+	DBD_SET_UTF8_FORM(sv,fbh->csform); 
 	(void)SvIOK_on(sv);   /* what a wonderful hack! */
 	hv_store(lob_cols_hv, col_name,col_name_len, sv,0);
     }

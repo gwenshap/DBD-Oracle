@@ -165,7 +165,8 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     ub1  nullok;
     char *name;
     SV   *name_sv;	/* only set for OCI8			*/
-    ub4  len_char_used;	/* OCI_ATTR_CHAR_USED			*/
+    /* OCI docs say OCI_ATTR_CHAR_USED is ub4, they're wrong	*/
+    ub1  len_char_used;	/* OCI_ATTR_CHAR_USED			*/
     ub2  len_char_size;	/* OCI_ATTR_CHAR_SIZE			*/
     ub2  csid;		/* OCI_ATTR_CHARSET_ID			*/
     ub1  csform;	/* OCI_ATTR_CHARSET_FORM		*/
@@ -258,10 +259,14 @@ and turned it back on... it _IS_ necessary (atleast in 9.2)
 /* XXX DBD_SET_UTF8 should be passed and use the *relevant* csid,
    which means either ncharsetid or charsetid (NLS_NCHAR/NLS_LANG) */
 #define DBD_SET_UTF8(sv,csid)   ( CS_IS_UTF8(ncharsetid) ? SvUTF8_on(sv) : 0 )
+#define DBD_SET_UTF8_FORM(sv,csform)	\
+  ( ( (csform==SQLCS_IMPLICIT && CS_IS_UTF8( charsetid)) \
+    ||(csform==SQLCS_NCHAR    && CS_IS_UTF8(ncharsetid)) ) ? SvUTF8_on(sv) : 0 )
 
 #else /* UTF8_SUPPORT */
 #define DBD_SET_UTF8(sv,csid)   0
-#define UTF8_FIXUP_CSID(csid,where)   0
+#define DBD_SET_UTF8_FORM(sv,csform)   0
+#define UTF8_FIXUP_CSID(csid,csform,where)   0
 #endif /* UTF8_SUPPORT */
 
 

@@ -5,13 +5,15 @@ Add to "Unable to find required Oracle OCI files" message some
 extra text for Windows users pointing them to PPM and Jeff's PPM repository.
 Add DBI dbivport.h etc
 
-  NOTE: This release no longer supports the old Oracle 7 OCI interface.
+  NOTES:
+  This release has major changes to Unicode support. See below.
+  This release no longer supports the old Oracle 7 OCI interface.
 
-  Added NCHAR/UFT8 and extended 8bit character set processing support
-    Thanks to Lincoln Baxter (with a little help from Jeff Urlwin)
-       $dbh->{ora_ph_csform} = SQLCS_NCHAR;
-       $sth->bind_param(..., { ora_csform => SQLCS_NCHAR });
-    See POD for more information and documentation
+  Added automatic support for UTF-8 for both NLS_LANG and NLS_NCHAR
+    Many thanks to Lincoln Baxter who did most of the hard work and testing
+    and to Jeff Urlwin and others who also helped out.
+    Perl 5.8.x highly recommended if you want to use Unicode.
+    See POD for more information and documentation.
   Fixed build32/build64 Makefile.PL bug spotted by Sean Kelly.
   Fixed Oracle version detection on clients thanks to Marko Asplund.
   Fixed Oracle 10 version detection on clients thanks to Andy Hassall.
@@ -24,6 +26,7 @@ Add DBI dbivport.h etc
   Fixed column_info() to handle TIMESTAMP and INTERVAL datatypes
     for Oracle >= 8 thanks to Stephen Clouse.
   Fixed handling of temporary LOBs thanks to Chris Donnelly.
+  Fixed STORE to cache attribute value in handle cache.
 
   Changed some utf8 internals for LOBs.
   Changed to not warn if ORACLE_HOME env var is not defined
@@ -32,13 +35,14 @@ Add DBI dbivport.h etc
     in numeric context returns the major version number (8, 9, 10 etc)
     in string context returns "major.minor" version string.
 
+  Added many Unicode related tests thanks to Lincoln Baxter.
   Added Test::More as a prerequisite module.
   Added bind_param() support for SQL_BLOB & SQL_CLOB thanks to Stephen Clouse.
   Added $dbh->{ora_parse_error_offset} docs thanks to Andy Hassall.
   Added $dbh->reauthenticate($user,$pass) docs thanks to Andy Hassall.
-  Corrected typo in ora_lob_read() example thanks to Johannes Wierny.
   Added $dbh->ora_can_unicode and $dbh->ora_nls_parameters thanks to Andy Hassall.
   Added gcc example to README.aix thanks to Adrian Terranova.
+  Corrected typo in ora_lob_read() example thanks to Johannes Wierny.
 
 =head1 Changes in DBD-Oracle 1.15   27th January 2004
 

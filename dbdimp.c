@@ -801,8 +801,8 @@ dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)
 {
     STRLEN kl;
     char *key = SvPV(keysv,kl);
-    SV *cachesv = NULL;
     int on = SvTRUE(valuesv);
+    int cacheit = 1;
 
     if (kl==10 && strEQ(key, "AutoCommit")) {
 	DBIc_set(imp_dbh,DBIcf_AutoCommit, on);
@@ -823,8 +823,8 @@ dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)
     else {
 	return FALSE;
     }
-    if (cachesv) /* cache value for later DBI 'quick' fetch? */
-	hv_store((HV*)SvRV(dbh), key, kl, cachesv, 0);
+    if (cacheit) /* cache value for later DBI 'quick' fetch? */
+	hv_store((HV*)SvRV(dbh), key, kl, newSVsv(valuesv), 0);
     return TRUE;
 }
 
