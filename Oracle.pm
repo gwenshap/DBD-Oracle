@@ -1556,16 +1556,8 @@ DBD::Oracle unicode support has been implemented for Oracle versions 9
 or greater, and perl version 5.6 or greater (though we I<strongly>
 suggest that you use perl 5.8.2 or later).
 
-When DBD::Oracle is built in this environment the -DNEW_OCI_INIT will be
-seen on the compiler command line.  If you do not see this you have not
-got the requisite environment.
-
-XXX need a run-time way to check that. 
-
-LAB: yes we do! it would solve some of the problems I saw in my testing
-today.  I was wondering if we could #define something, and store it maybe as
-a static float in dbdimp.c. We may also want a way to understand the server
-version number, so we can turn things off, it it is not high enough.
+You can check which Oracle version your DBD::Oracle was built with by
+importing the C<ORA_OCI> constant from DBD::Oracle.
 
 B<Fetching Data>
 
@@ -1576,11 +1568,15 @@ For Oracle to return data in the UTF8 or AL32UTF8 character set the
 NLS_LANG or NLS_NCHAR environment variable must be set as described
 in the previous section.
 
-When pulling data from Oracle, DBD::Oracle is conservative about setting
-the UTF8 flag on the returned string.  If the string does not look like it
-contains UTF8 data, the utf8 attribute will not be set.
+When fetching data from Oracle, DBD::Oracle will set the perl UTF8
+flag on the returned data if Oracle indicates that the character
+set is UTF8 or AL32UTF8. XXX This should apply to all types
+and be regardless of how/why the csid is a unicode one.
 
-XXX "look like"? 
+[In other words cs_is_utf8 should be avoided. I think all uses of
+cs_is_utf8 are suspicious. Consider the case where NLS_LANG isn't
+unicode but NLS_NCHAR is (or we support bind_col(...,{ora_csid=>...})
+then a single global has to be wrong.]
 
 LAB: well thats a good point.  Look at line 487 and following
 in oci8.c.  What this means is, if it discovers a byte in the byte string which 
@@ -1591,6 +1587,9 @@ harm... EXCEPT possibly in the case of 8bit characters, although the
 21nhars.t test tests this with an 8bit charset successfully. So I am 
 not very worried about this case.
 
+TIM: I am. We know what the charset is and so there's no excuse for
+rummaging around in the data seeing if it "looks like" utf8.
+
 XXX should we always and only set SvUTF8_on if the csid is a UTF8 csid,
 and ignore all other issues?  
 
@@ -1599,6 +1598,10 @@ performance issues related to this.  And the code works as it is.
 I think we should just describe (as I did above) what "looks like" means,
 perhaps as for feedback on any issues that users think might be arising.
 
+TIM: I don't see any performance issue. We get csid anyway.
+Checking fbh->csid has to be faster than rummaging around in the data.
+Using the csid is the "correct" thing to do, anything else is a
+hack that'll cause bugs for someone somewhere.
 
 B<Sending Data using Placeholders>
 
@@ -1623,16 +1626,11 @@ DBD::Oracle will implicitly set SQLCS_NCHAR for you on insert.
 
 B<Sending Data using SQL>
 
-XXX if the $statement is SvUTF8(sv) then we should set SQLCS_NCHAR
-on the relevant calls?  
-
-LAB: By $statement are you referring what is prepared,
-or are you refering to the values passed to execute().  The former
-is probably not very useful, and I think I did the latter.
-Look at line 1533 of dbdimp.c  AND t/24implicit_utf8.t which tests this.
-
-end XXX
-
+If the prepared statement string is Unicode then we pass on that
+information to Oracle to ensure the string is correctly passed.
+[I think] Oracle will assume the statement is Unicode if NLS_LANG
+is UTF8, but if NLS_LANG isn't but the statement string is, then
+Oracle needs to be told.
 
 B<When NLS_LANG Is Not Set>
 
@@ -1650,6 +1648,8 @@ but it is broken with my a7u16 (AL16utf16 NCHAR set).  (not that
 this is the default oracle setup). Need to do some more digging here. 
 No time tonight.  I could be that my patch this afternoon broke it.
 DAMN!!!!
+
+TIM: Good luck. I probably won't be working on it again for a day or three.
 
 XXX
 
