@@ -119,13 +119,15 @@ undef $p1;
 ok(0, $csr->execute, 1);
 ok(0, $p1 eq 'null!');
 
+$csr->finish;
 
 # --- test plsql_errstr
-ok(0, $csr = $dbh->prepare(q{
-    create or replace package doit as
+ok(0, ! $dbh->prepare(q{
+    begin
 	  procedure filltab( stuff out tab ); asdf
-    end doit;
+    end;
 }), 1);
+ok(0, $dbh->err == 6550);	# PL/SQL error
 my $msg = $dbh->func('plsql_errstr');
 ok(0, $msg =~ /Encountered the symbol/, $msg);
 
@@ -137,9 +139,8 @@ ok(0, $msg =~ /Encountered the symbol/, $msg);
     #   multiple params, mixed types and in only vs inout
 
 
-$csr->finish;
 $dbh->disconnect;
 exit 0;
-BEGIN { $tests = 28 }
+BEGIN { $tests = 29 }
 # end.
 

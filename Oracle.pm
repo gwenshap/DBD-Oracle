@@ -1,4 +1,4 @@
-#   $Id: Oracle.pm,v 1.44 1997/06/14 17:42:12 timbo Exp $
+#   $Id: Oracle.pm,v 1.45 1997/06/20 21:18:11 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997 Tim Bunce
 #
@@ -7,9 +7,10 @@
 #   with the exception that it cannot be placed on a CD-ROM or similar media
 #   for commercial distribution without the prior approval of the author.
 
-my $oracle_home;
-
 require 5.002;
+
+my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORACLE_ROOT' : 'ORACLE_HOME';
+my $oracle_home = $ENV{$ORACLE_ENV};
 
 {
     package DBD::Oracle;
@@ -18,10 +19,10 @@ require 5.002;
     use DynaLoader ();
     @ISA = qw(DynaLoader);
 
-    $VERSION = '0.45';
-    my $Revision = substr(q$Revision: 1.44 $, 10);
+    $VERSION = '0.46';
+    my $Revision = substr(q$Revision: 1.45 $, 10);
 
-    require_version DBI 0.83;
+    require_version DBI 0.84;
 
     bootstrap DBD::Oracle $VERSION;
 
@@ -33,12 +34,6 @@ require 5.002;
     sub driver{
 	return $drh if $drh;
 	my($class, $attr) = @_;
-
-	unless ($ENV{'ORACLE_HOME'}){
-	    foreach(qw(/usr/oracle /opt/oracle /home/oracle /usr/soft/oracle)){
-		$oracle_home = $_,last if -d "$_/rdbms/lib";
-	    }
-	}
 
 	$class .= "::dr";
 
@@ -120,9 +115,9 @@ require 5.002;
 
 		my $orahome = $DBD::Oracle::oratab{$dbname};
 		if ($orahome) { # is in oratab == is local
-		    warn "Changing ORACLE_HOME for $dbname"
-			if ($ENV{ORACLE_HOME} and $orahome ne $ENV{ORACLE_HOME});
-		    $ENV{ORACLE_HOME} = $orahome;
+		    warn "Changing $ORACLE_ENV for $dbname"
+			if ($ENV{$ORACLE_ENV} and $orahome ne $ENV{$ORACLE_ENV});
+		    $ENV{$ORACLE_ENV} = $orahome;
 		    $ENV{ORACLE_SID}  = $dbname;
 		    delete $ENV{TWO_TASK};
 		}
@@ -132,10 +127,10 @@ require 5.002;
 	    }
 	}
 
-	unless($ENV{ORACLE_HOME}) {	# last chance...
-	    $ENV{ORACLE_HOME} = $oracle_home if $oracle_home;
+	unless($ENV{$ORACLE_ENV}) {	# last chance...
+	    $ENV{$ORACLE_ENV} = $oracle_home if $oracle_home;
 	    my $msg = ($oracle_home) ? "set to $oracle_home" : "not set!";
-	    warn "ORACLE_HOME $msg\n";
+	    warn "$ORACLE_ENV $msg\n";
 	}
 
 	# create a 'blank' dbh

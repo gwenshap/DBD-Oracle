@@ -65,6 +65,7 @@ printf("(ORACLE_SID='%s', TWO_TASK='%s')\n", $ENV{ORACLE_SID}||'', $ENV{TWO_TASK
         warn "Try leaving dbname value empty and set dbuser to name/passwd\@dbname.\n";
 		die "\nTest aborted.\n";
     }
+	# test_other($l);
 	&ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
 }
 $start = time;
@@ -240,5 +241,25 @@ sub count_fetch {
     return $rows;
 }
 
+
+sub test_other {
+	local($lda) = @_;
+	#$lda->debug(2);
+	$lda->{RaiseError} = 1;
+	local($c) = $lda->prepare(q{
+		begin
+			:a2 := :a1 + 10;
+		end;
+	});
+	local($p,$q) = (42,43);
+	$p += 1; $q += 1;
+	$c->bind_param_inout(':a1', \$p, 100);
+	$c->bind_param_inout(':a2', \$q, 100);
+	foreach (1..1000) {
+		$c->execute || die $c->errstr;
+		$p += 1;
+	}
+	exit 1;
+}
 
 # end.

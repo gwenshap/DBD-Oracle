@@ -82,6 +82,9 @@ Make sure you are using a recent perl 5.003 or preferably 5.004 and
 make sure it's on your path so you can say 'perl Makefile.PL' and
 not '/path/to/perl Makefile.PL'.
 
+If you have build/link problems try using "perl Makefile.PL -p".
+If that helps then *please* let me know.
+
 Do not hand edit the generated Makefile unless you are completely sure
 you understand the implications! Always try to make changes via the
 Makefile.PL command line and/or editing the Makefile.PL.
@@ -99,7 +102,7 @@ Others on the dbi-users mailing list probably can.
 If you have linking problems (errors related to libraries or functions)
 then you could try forcing a 'static' build using:
 
-	make clean
+	make realclean
 	perl Makefile.PL LINKTYPE=static
 	make
 	make perl (you'll need to use and install _this_ new perl binary)
@@ -120,11 +123,12 @@ may take a few days to be processed).
 Please post details of any problems (or changes you needed to make) to
 dbi-users@fugue.com and CC them to me at Tim.Bunce@ig.co.uk. But note...
 
-** IT IS IMPORTANT TO INCLUDE THE FOLLOWING INFORMATION:
+** IT IS IMPORTANT TO INCLUDE *ALL* THE FOLLOWING INFORMATION:
 
 1. A complete log of a all steps of the build, e.g.:
 
-	perl Makefile.PL           (do a make realclean first)
+    (do a make realclean first)
+	perl Makefile.PL -v        (note the -v for verbose)
 	make
 	make test
 	make test TEST_VERBOSE=1   (only if any of the t/* tests fail)

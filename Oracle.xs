@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.xs,v 1.44 1997/06/14 17:42:12 timbo Exp $
+   $Id: Oracle.xs,v 1.45 1997/06/20 21:18:11 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -202,8 +202,10 @@ bind_param_inout(sth, param, value_ref, maxlen, attribs=Nullsv)
     SV *	attribs
     CODE:
     DBD_ATTRIBS_CHECK("bind_param_inout", sth, attribs);
-	if (!SvROK(value_ref))	/* XXX needs better message */
-		croak("bind_param_inout needs a reference to the value");
+    if (!SvROK(value_ref) || SvTYPE(SvRV(value_ref)) > SVt_PVMG)
+	croak("bind_param_inout needs a reference to a scalar value");
+    if (SvREADONLY(SvRV(value_ref)))
+	croak(no_modify);
     ST(0) = dbd_bind_ph(sth, param, SvRV(value_ref), attribs, TRUE, maxlen) ? &sv_yes : &sv_no;
 
 
@@ -233,12 +235,13 @@ execute(sth, ...)
 	}
     }
     retval = dbd_st_execute(sth);
-    if (retval < 0)
-	XST_mUNDEF(0);		/* error        		*/
-    else if (retval == 0)
-	XST_mPV(0, "0E0");	/* true but zero		*/
+    /* remember that dbd_st_execute must return <= -2 for error	*/
+    if (retval == 0)		/* ok with no rows affected	*/
+	XST_mPV(0, "0E0");	/* (true but zero)		*/
+    else if (retval < -1)	/* -1 == unknown number of rows	*/
+	XST_mUNDEF(0);		/* <= -2 means error   		*/
     else
-	XST_mIV(0, retval);	/* typically 1 or rowcount	*/
+	XST_mIV(0, retval);	/* typically 1, rowcount or -1	*/
 
 
 void

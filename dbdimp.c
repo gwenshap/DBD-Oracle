@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.31 1997/06/14 17:42:12 timbo Exp $
+   $Id: dbdimp.c,v 1.32 1997/06/20 21:18:11 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -167,18 +167,6 @@ fb_ary_t *fb_ary;
     Safefree(fb_ary);
 }
 
-
-
-static void
-dump_error_status(cda)
-    struct cda_def *cda;
-{
-    fprintf(DBILOGFP,
-	"(rc %ld, v2 %ld, ft %ld, rpc %ld, peo %ld, fc %ld, ose %ld)\n",
-	(long)cda->rc, (long)cda->v2_rc, (long)cda->ft, (long)cda->rpc,
-	(long)cda->peo, (long)cda->fc, (long)cda->ose
-    );
-}
 
 
 /* ================================================================== */
@@ -711,6 +699,8 @@ _dbd_rebind_ph(sth, imp_sth, phs)
     /* just copy the value & length over and not rebind.	*/
 
     if (phs->is_inout) {	/* XXX */
+	if (SvREADONLY(phs->sv))
+	    croak(no_modify);
 	/* phs->sv _is_ the real live variable, it may 'mutate' later	*/
 	/* pre-upgrade high to reduce risk of SvPVX realloc/move	*/
 	(void)SvUPGRADE(phs->sv, SVt_PVNV);
@@ -748,7 +738,7 @@ _dbd_rebind_ph(sth, imp_sth, phs)
 
     /* Since we don't support LONG VAR types we must check	*/
     /* for lengths too big to pass to obndrv as an sword.	*/
-    if (phs->maxlen > MINSWORDMAXVAL)	/* generally 32K	*/
+    if (sizeof(sword) < 4 && phs->maxlen > MINSWORDMAXVAL)	/* generally 32K	*/
 	croak("Can't bind %s, value is too long (%ld bytes, max %d)",
 		    phs->name, phs->maxlen, MINSWORDMAXVAL);
 
@@ -761,7 +751,7 @@ _dbd_rebind_ph(sth, imp_sth, phs)
     }
 
     if (obndra(imp_sth->cda, (text *)phs->name, -1,
-	    (ub1*)phs->progv, (ub2)phs->maxlen, /* cast reduces max size */
+	    (ub1*)phs->progv, (sword)phs->maxlen, /* cast reduces max size */
 	    (sword)phs->ftype, -1,
 	    &phs->indp, &phs->alen, &phs->arcode, 0, (ub4 *)0,
 	    (text *)0, -1, -1)) {
@@ -862,7 +852,7 @@ dbd_bind_ph(sth, ph_namesv, newvalue, attribs, is_inout, maxlen)
 
 
 int
-dbd_st_execute(sth)	/* <0 is error, >=0 is ok (row count) */
+dbd_st_execute(sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count) */
     SV *sth;
 {
     D_imp_sth(sth);
@@ -872,7 +862,7 @@ dbd_st_execute(sth)	/* <0 is error, >=0 is ok (row count) */
     if (!imp_sth->done_desc) {
 	/* describe and allocate storage for results (if any needed)	*/
 	if (!dbd_describe(sth, imp_sth))
-	    return -1; /* dbd_describe already called ora_error()	*/
+	    return -2; /* dbd_describe already called ora_error()	*/
     }
 
     if (debug >= 2)
@@ -910,7 +900,9 @@ consider also case of undef and bind time and not undef at execute
 		    croak("Can't rebind placeholder %s", phs->name);
 	    }
 	    if (debug >= 2)
-		warn("pre %s = '%s' (len %d)\n", phs->name, SvPVX(phs->sv), phs->alen);
+		warn("      with %s = '%.100s' (len %d/%d, indp %d, ptype %ld, otype %d)\n",
+		    phs->name, SvPVX(phs->sv), phs->alen, phs->maxlen,
+		    phs->indp, SvTYPE(phs->sv), phs->ftype);
 	}
     }
 
@@ -926,7 +918,7 @@ consider also case of undef and bind time and not undef at execute
 	if (oexfet(imp_sth->cda, (ub4)imp_sth->cache_size, 0, 0)
 		&& imp_sth->cda->rc != 1403 /* other than no more data */ ) {
 	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oexfet error");
-	    return -1;
+	    return -2;
 	}
 	imp_sth->in_cache = imp_sth->cda->rpc;	/* cache loaded */
 	if (imp_sth->cda->rc == 1403)
@@ -935,7 +927,7 @@ consider also case of undef and bind time and not undef at execute
     else {					/* NOT a select */
 	if (oexec(imp_sth->cda)) {
 	    ora_error(sth, imp_sth->cda, imp_sth->cda->rc, "oexec error");
-	    return -1;
+	    return -2;
 	}
     }
 

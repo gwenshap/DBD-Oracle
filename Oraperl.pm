@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.33 1997/06/14 17:42:12 timbo Exp $
+# $Id: Oraperl.pm,v 1.34 1997/06/20 21:03:56 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -22,10 +22,10 @@ package Oraperl;
 
 require 5.002;
 
-use DBI 0.70;
+use DBI 0.84;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.33 $, 10);
+$VERSION = substr(q$Revision: 1.34 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -92,14 +92,16 @@ sub _warn {
 
 sub ora_login {
     my($system_id, $name, $password) = @_;
-	local($Oraperl::prev_warn) = $SIG{'__WARN__'} || 0; # must be local
-	local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
-    DBI->connect($system_id, $name, $password, 'Oracle');
+    local($Oraperl::prev_warn) = $SIG{'__WARN__'} || 0; # must be local
+    local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
+    # we still use the old style connect call with an explicit driver
+    my $dbh = DBI->connect($system_id, $name, $password, 'Oracle');
+    return $dbh;
 }
 sub ora_logoff {
     my($dbh) = @_;
-	local($Oraperl::prev_warn) = $SIG{'__WARN__'} || 0; # must be local
-	local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
+    local($Oraperl::prev_warn) = $SIG{'__WARN__'} || 0; # must be local
+    local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
     $dbh->disconnect();
 }
 
