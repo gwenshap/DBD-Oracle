@@ -1480,21 +1480,118 @@ See L</table_info()> for more detailed information.
 
 =head1 Unicode
 
-DBD-Oracle now supports Unicode. (UTF8)
+DBD::Oracle now supports Unicode UTF8.
 
-=head2 DBD-Oracle and Unicode
+In this section we'll discuss "Perl and Unicode", then "Oracle and
+Unicode", and finally "DBD::Oracle and Unicode".
 
-DBD-Oracle Unicode support has been implemented for Oracle versions 9.2 or greater, 
-and perl version 5.6 or greater.  We strongly suggest that you use perl 5.8.2 
-or later to avoid problems that have subsequently been fixed. 
+Information about Unicode in general can be found at:
+L<http://www.unicode.org/>. It is well worth reading because there are
+many misconceptions about Unicode and you may be holding some of them.
 
-When DBD-Oracle is built in this environment the -DNEW_OCI_INIT will be seen on the
-compiler command line.  If you do not see this you have not got the requisite 
-environment.  DBD-Oracle not allows for the insertion of any national character set
-character (determined by NLS_LANG), into NCHAR columns, and CHAR columns where 
-the database character set is a wide character set -- such as AL32UTF8.  DBD-Oracle
-will also insert 8 bit characters into any of these columns when NLS_LANG contains
-a character set that permits it. To do this either:
+=head2 Perl and Unicode
+
+Perl began implementing Unicode with version 5.6, but the implementaion
+was not finalized until version 5.8 and later. If you plan to use Unicode
+you are strong urged to use perl 5.8.2 or later and to I<carefully> read
+the perl documention on Unicode:
+
+   perldoc perluniintro    # in perl 5.8 or later
+   perldoc perlunicode
+
+And then read it again.
+
+Perl's internal unicode format is UTF8 (without surrogates),
+which corresponds to the Oracle character set called AL32UTF8.
+
+=head2 Oracle and Unicode
+
+Oracle supports many characters sets, including several different forms
+of Unicode.  These include:
+
+  AL16UTF16  =>  valid for NCHAR columns (CSID=873)
+  UTF8       =>  valid for NCHAR columns (CSID=871)
+  AL32UTF8   =>  valid for NCHAR and CHAR columns  (CSID=2000)
+
+When you create an Oracle database, you must specify the DATABASE 
+character set (used for DDL, DML and CHAR datatypes) and the NATIONAL 
+character set (used for NCHAR and NCLOB types).
+The character sets used in your database can be found using:
+
+  $hash_ref = $dbh->ora_nls_parameters()
+  $database_charset = $hash_ref->{NLS_CHARACTERSET};
+  $national_charset = $hash_ref->{NLS_NCHAR_CHARACTERSET};
+
+The Oracle 9.2 and later default for the national character set is AL16UTF16.
+The default for the database character set is often US7ASCII.
+Although many experienced DBAs will consider an 8bit character set like
+WE8ISO8859P1 or WE8MSWIN1252.  To use any character set with Oracle
+other than US7ASCII, requires that NLS_LANG be set.
+See the L<International NLS / 8-bit text issues> section below.
+
+You are strongly urged to read the Oracle Internationalization documentation
+specifically with respect the choices and trade offs for creating
+a databases for use with international character sets.
+
+Oracle uses the NLS_LANG environment variable to indicate what
+character set is being used on the client.  When fetching data Oracle
+will convert from whatever the database character set is to the client
+character set specified by NLS_LANG. Similarly, when sending data to
+the database Oracle will convert from the character set specified by
+NLS_LANG to the database character set.
+
+The NLS_NCHAR environment variable can be used to define a different
+character set for 'national' (NCHAR) character types.
+
+Both UTF8 and AL32UTF32 can be used in NLS_LANG and NLS_NCHAR.
+For example:
+
+   NLS_LANG=AMERICAN_AMERICA.UTF8
+   NLS_LANG=AMERICAN_AMERICA.AL32UTF8 # preferred
+
+AL32UTF8 should be used in preference to UTF8 if it works for you,
+which it should for Oracle 9.2 or later. If you're using an old
+version of Oracle that doesn't support AL32UTF8 then you should
+avoid using any unicode characters that require surrogates.
+
+=head2 DBD::Oracle and Unicode
+
+DBD::Oracle unicode support has been implemented for Oracle versions 9
+or greater, and perl version 5.6 or greater (though we I<strongly>
+suggest that you use perl 5.8.2 or later).
+
+When DBD::Oracle is built in this environment the -DNEW_OCI_INIT will be
+seen on the compiler command line.  If you do not see this you have not
+got the requisite environment.
+
+XXX need a run-time way to check that.
+
+B<Fetching Data>
+
+Any data returned from Oracle to DBD::Oracle in the UTF8 or AL32UTF8
+character set will be marked as UTF8 to ensure correct handling by perl.
+
+For Oracle to return data in the UTF8 or AL32UTF8 character set the
+NLS_LANG or NLS_NCHAR environment variable must be set as described
+in the previous section.
+
+When pulling data from Oracle, DBD::Oracle is conservative about setting
+the UTF8 flag on the returned string.  If the string does not look like it
+contains UTF8 data, the utf8 attribute will not be set.
+XXX "look like"?
+
+XXX should we always and only set SvUTF8_on if the csid is a UTF8 csid,
+and ignore all other issues?
+
+
+B<Sending Data using Placeholders>
+
+DBD::Oracle allows for the insertion of any national character set
+character (determined by NLS_LANG), into NCHAR columns, and CHAR
+columns where the database character set is a wide character set --
+such as AL32UTF8.  DBD::Oracle will also insert 8 bit characters into
+any of these columns when NLS_LANG contains a character set that
+permits it. To do this either:
 
    use DBD::Oracle qw( SQLCS_NCHAR );
    ...
@@ -1502,128 +1599,26 @@ a character set that permits it. To do this either:
 
 or
 
-   use DBD::Oracle qw( SQLCS_NCHAR );
-   ...
    $dbh->{ora_ph_csform} = 2;   # default all future ph to SQLCS_NCHAR
 
 If the string passed to bind_param() is considered by perl to be
 a valid utf8 string ( utf8::is_utf8($string) returns true ), then
-DBD-Oracle will implicitly set SQLCS_NCHAR for you on insert.  On
-select, the OCI interface appears to report the character set id 
-of the inserted data, and not action by the user (other than setting
-NLS_LANG) appears to be required.
+DBD::Oracle will implicitly set SQLCS_NCHAR for you on insert.
 
-Any characters inserted into Oracle with DBD-Oracle should be retrievable
-byte for byte.  However, to get valid UTF8 back to perl, NLS_LANG
-should contain one of the two UTF8 character set names.  If NLS_LANG
-is not set, then DBD-Oracle will initialize the OCI environment with 
-UTF8 (csid=871) as the default national character set.  Generally this will 
-get you what you want.  The problem is, when backups are made
-or data is exported or imported, the same NLS settings should be used 
-as were used to insert the data, or atleast a super set, NLS value should be 
-used. (Hint UTF8 or AL32UTF8 would be good choices).  Given
-this, it would be recommended that you always explicitly set NLS_LANG, 
-when working with UTF8 data.
+B<Sending Data using SQL>
 
-When pulling data from Oracle, DBD-Oracle is conservative about setting
-the UTF8 flag on the returned string.  If the string does not look like it
-contains UTF8 data, the utf8 attribute will not be set.
+XXX if the $statement is SvUTF8(sv) then we should set SQLCS_NCHAR
+on the relevant calls?
 
-The following sections discuss some of what we have learned about Oracle's 
-suuport of Unicode, as well as Perl's Unicode support.
+B<When NLS_LANG Is Not Set>
 
-=head2 Oracle and Unicode
+If NLS_LANG is not set, then DBD::Oracle will initialize the OCI
+environment with UTF8 (csid=871) as the default national character set.
+XXX should use AL32UTF8 if available.
 
-To get a sense of Oracle's support of Unicode, you might want to 
-take a look at the Oracle documentation of the subject.  We will
-not try to reproduce it all here,  We will present a little bit 
-of what we know of it, and what we have proven to work, at least 
-in Oracle 9.2 or later.
-
-Oracle implements at least three slightly different flavors of Unicode 
-character sets.  These are:
-
-   UTF8       =>  valid for NCHAR columns (CSID=871)
-   AL16UTF16  =>  valid for NCHAR columns (CSID=873)
-   AL32UTF8   =>  valid for CHAR columns  (CSID=2000)
-
-Of these, UTF8 and AL32UTF32 can be used in NLS_LANG. For example:
-
-   NLS_LANG=AMERICAN_AMERICA.UTF8 or
-   NLS_LANG=AMERICAN_AMERICA.AL32UTF8
-
-When you create an Oracle database, you must specify the database 
-character set (used for DDL, DML and CHAR datatypes) and the national 
-character set.  These database NLS paramters can be accessed using:
-
-   $dbh->ora_nls_parameters()
-
-which returns a hash reference. The Oracle default for the national
-character set appears to be AL16UTF16.  The default for the database
-character set us usually US7ASCII.  Although many experienced DBAs will
-consider an 8bit character set like WE8ISO8859P1 or WE8MSWIN1252
-(which are also usable in NLS_LANG).  To use any character set with 
-Oracle other than US7ASCII, requires that NLS_LANG be set.  See the 
-L<International NLS / 8-bit text issues> section below.
-
-You are strongly urged to read the Oracle Internationalization documentation
-specifically with respect the choices and trade offs for creating
-a databases for use with international character sets.
-
-=head2 Perl and Unicode
-
-Perl began implementing Unicode with version 5.6, but the implementaion
-was not finalized until version 5.8 and later.  You are strong urged to
-return the perl documention on Unicode:
-
-   perldoc perlunicode
-
-and
-
-   perldoc utf8
-
-Note that when it comes to wide character strings, perl B<only> supports utf8.
-Utf8, is that only multibyte character set  perl supports.  We have focused on 
-getting utf8 to work.
-
-It is possible however, to create invalid "Unicode" characters in perl. 
-This is a direct result of the flexibility provided with the \x{XXXX} notation 
-for interpolating wide characters into strings. ( XXXX is an hexidecimal litteral).
-It is also possible to create extended 8 bit characters with this notation as well.
-For instance, \x{83} is the WE8ISO8859P1 and WE8MSWIN1252 8 bit character for
-the Brittish Pound.  This character is expressed in Unicode as \x{08A3}. Perl 
-will likely complain when asked to handle in valid Unicode character. 
-
-Not using NLS_LANG properly with Oracle can result character set conversions which result
-in invalid Unicode.  In implementing Unicode support in DBD-Oracle we learned this
-lesson the hard way. More information about Unicode in general can be found
-at:  http://www.Unicode.org/.  It wasn't until I had read this site that I 
-fully realized some of the mistakes I was makeing, which cost me quite a bit
-of time.  A common mistake is to assume that a character with the 8th bit set 
-is a Unicode character.  The fact is, B<these characters are not Unicode>!
-
-=head1 International NLS / 8-bit text issues
-
-If 8-bit text is returned as '?' characters or can't be inserted
-make sure the following environment vaiables are set correctly:
-    NLS_LANG, ORA_NLS, ORA_NLS32, ORA_NLS33
-Thanks to Robin Langdon <robin@igis.se> for this information.
-Example:
-   $ENV{NLS_LANG}  = "american_america.we8iso8859p1";
-   $ENV{ORA_NLS}   = "$ENV{ORACLE_HOME}/ocommon/nls/admin/data";
-
-Also From: Yngvi Thor Sigurjonsson <yngvi@hagkaup.is>
-If you are using 8-bit characters and "export" for backups make sure
-that you have NLS_LANG set when export is run.  Otherwise you might get
-unusable backups with ? replacing all your beloved characters. We were
-lucky once when we noticed that our exports were damaged before
-disaster struck.
-
-Remember that the database has to be created with an 8-bit character set.
-
-Also note that the NLS files $ORACLE_HOME/ocommon/nls/admin/data
-changed extension (from .d to .nlb) between 7.2.3 and 7.3.2.
-
+This will possibly get you what you want, but it is strongly recomended
+that you always explicitly set NLS_LANG to the required value. That way all
+Oracle tools you may use will be in sync.
 
 =head1 Other Data Types
 
