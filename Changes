@@ -41,6 +41,8 @@ Add column_info test
     Perl 5.8.x highly recommended if you want to use Unicode.
     See POD for more information and documentation.
   Added many Unicode related tests thanks to Lincoln Baxter.
+  Added support for "... RETURNING lob_locator_column INTO ?"
+    using $sth->bind_param_inout(2, \$loc, 0, {ora_type => ORA_BLOB});
   Added Test::More as a prerequisite module.
   Added bind_param() support for SQL_BLOB & SQL_CLOB thanks to Stephen Clouse.
   Added $dbh->{ora_parse_error_offset} docs thanks to Andy Hassall.

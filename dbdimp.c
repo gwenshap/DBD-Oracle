@@ -1652,7 +1652,6 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	    /* is the value a null? */
 	    phs->indp = (SvOK(sv)) ? 0 : -1;
 
-	    /* Some checks for mutated storage since we pointed oracle at it.	*/
 	    if (phs->out_prepost_exec) {
 		if (!phs->out_prepost_exec(sth, imp_sth, phs, 1))
 		    return -2; /* out_prepost_exec already called ora_error()	*/
@@ -1668,6 +1667,7 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		av_clear((AV*)SvRV(sv));
 	    }
 	    else
+	    /* Some checks for mutated storage since we pointed oracle at it.	*/
 	    if (SvTYPE(sv) != phs->sv_type
 		    || (SvOK(sv) && !SvPOK(sv))
 		    /* SvROK==!SvPOK so cursor (SQLT_CUR) handle will call dbd_rebind_ph */

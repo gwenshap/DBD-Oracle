@@ -593,6 +593,15 @@ dbd_rebind_ph_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 /* ------ */
 
+static int
+lob_phs_post_execute(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
+{
+    if (pre_exec)
+	return 1;
+    sv_setref_pv(phs->sv, "OCILobLocatorPtr", (void*)phs->desc_h);
+    return 1;
+}
+
 int 
 dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs) 
 {
@@ -622,6 +631,8 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     phs->indp   = (SvOK(phs->sv)) ? 0 : -1;
     phs->progv  = (void*)&phs->desc_h;
     phs->maxlen = sizeof(OCILobLocator*);
+    if (phs->is_inout)
+	phs->out_prepost_exec = lob_phs_post_execute;
 
     return 1;
 }
