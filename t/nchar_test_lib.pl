@@ -258,6 +258,7 @@ sub select_handle #1 test
     {
         $sql .= $$col[0] . ", ";
     }
+    $sql .= "DUMP(".$tdata->{cols}[0][0] . "), ";
     $sql .= "dt from $table order by idx" ;
     my $h = $dbh->prepare( $sql );
     ok( $h ,"prepared: $sql" );
@@ -284,24 +285,35 @@ sub select_rows # 1 + numcols + rows * cols * 2
         ok( $sth->bind_col( $colnum+1 ,\$data[$colnum] ), "bind column " .$$tcols[$colnum][0] );
         $colnum++;
     }
+    my $dumpcol = "DUMP(" .$tdata->{cols}[0][0] .")";
+    #ok( $sth->bind_col( $colnum+1 ,\$data[$colnum] ),  "bind column DUMP(" .$tdata->{cols}[0][0] .")" );
+    $sth->bind_col( $colnum+1 ,\$data[$colnum] );
     my $cnt = 0;
     $sth->execute();
     while ( $sth->fetch() )
     {
-        for( my $i = 0 ; $i < @$tcols; $i++ )
+        my $row = $cnt + 1;
+        my $error = 0;
+        my $i = 0;
+        for( $i = 0 ; $i < @$tcols; $i++ )
         {
             my $res = $data[$i];
 	    my $charname = $trows->[$cnt][1] || '';
             my $is_utf8 = utf8::is_utf8( $res ) ? " (uft8)" : "";
-	    my $description = "row $cnt; column: $tcols->[$i][0] $is_utf8 $charname";
+	    my $description = "row $row: column: $tcols->[$i][0] $is_utf8 $charname";
 
-            cmp_ok( byte_string($res), 'eq', byte_string($$trows[$cnt][$i]),
+            $error += not cmp_ok( byte_string($res), 'eq', byte_string($$trows[$cnt][$i]),
+
 		"byte_string test of $description"
 	    );
-	    cmp_ok( nice_string($res), 'eq', nice_string($$trows[$cnt][$i] ),
+	    $error += not cmp_ok( nice_string($res), 'eq', nice_string($$trows[$cnt][$i] ),
 		"nice_string test of $description"
 	    );
             #$sth->trace(0) if $cnt >= 3 ;
+        }
+        if ( $error )
+        {
+            warn "#    row $row: $dumpcol = " .$data[$i]. "\n" ;
         }
         $cnt++;
     }
