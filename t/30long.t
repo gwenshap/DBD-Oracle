@@ -12,9 +12,9 @@ require 'nchar_test_lib.pl';
 my $utf8_test ; #= (($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i)) ? 1 : 0;
 
 my @test_sets;
-#push @test_sets, [ "LONG",	0,		0 ];
-#push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
-warn "LONG tests disabled for now";
+push @test_sets, [ "LONG",	0,		0 ];
+push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
+#warn "LONG tests disabled for now";
 push @test_sets, [ "NCLOB",	ORA_CLOB,	0 ] ;
 push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
 push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] ;
@@ -52,7 +52,7 @@ sub array_test {
 #	Normal  value 8 (to test old 64KB threshold well)
 my $sz = 8;
 
-my $tests_per_set = 92;
+my $tests_per_set = 82;
 my $tests = @test_sets * $tests_per_set;
 plan tests => $tests;
 #lab print "1..$tests\n";
@@ -103,7 +103,7 @@ sub run_long_tests
         my $long_data2 = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
         my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
         my $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
-        if ( $utf8_test ) { #use_utf8_data($dbh,$type_name)) {
+        if ( $utf8_test ) { #use_utf8_data($dbh,$type_name)) { #}
             my $utf_x = "0\x{263A}xyX"; #lab: the ubiquitous smiley face
             $long_data0 = ($utf_x x 2048) x (1    );        # 10KB  < 64KB
             if (length($long_data0) > 10240) {
@@ -122,25 +122,25 @@ sub run_long_tests
             #
         }
 
-       # special hack for long_data0 since RAW types need pairs of HEX
-       $long_data0 = "00FF" x (length($long_data0) / 2) if $type_name =~ /RAW/i;
+        # special hack for long_data0 since RAW types need pairs of HEX
+        $long_data0 = "00FF" x (length($long_data0) / 2) if $type_name =~ /RAW/i;
 
-       my $len_data0 = length($long_data0);
-       my $len_data1 = length($long_data1);
-       my $len_data2 = length($long_data2);
+        my $len_data0 = length($long_data0);
+        my $len_data1 = length($long_data1);
+        my $len_data2 = length($long_data2);
 
-       # warn if some of the key aspects of the data sizing are tampered with
-       warn "long_data0 is > 64KB: $len_data0\n"
-               if $len_data0 > 65535;
-       warn "long_data1 is < 64KB: $len_data1\n"
-               if $len_data1 < 65535;
-       warn "long_data2 is not smaller than $long_data1 ($len_data2 > $len_data1)\n"
-               if $len_data2 >= $len_data1;
+        # warn if some of the key aspects of the data sizing are tampered with
+        warn "long_data0 is > 64KB: $len_data0\n"
+                if $len_data0 > 65535;
+        warn "long_data1 is < 64KB: $len_data1\n"
+                if $len_data1 < 65535;
+        warn "long_data2 is not smaller than $long_data1 ($len_data2 > $len_data1)\n"
+                if $len_data2 >= $len_data1;
 
-       my $tdata = {
-           cols => long_test_cols( $type_name ),
-           rows => []
-       };
+        my $tdata = {
+            cols => long_test_cols( $type_name ),
+            rows => []
+        };
         
 
         skip "Unable to create test table for '$type_name' data ($DBI::err)." ,$tests_per_set 
@@ -258,7 +258,7 @@ sub run_long_tests
 
 
         SKIP: {
-            skip( "blob_read tests for LONGs - not currently supported.\n", 11 )
+            skip( "blob_read tests for LONGs - not currently supported", 11 )
                 if ($type_name =~ /LONG/i) ;
 
             #$dbh->trace(4);
@@ -276,9 +276,9 @@ sub run_long_tests
             ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref 1: $sqlstr"  );
             ok($tmp->[1] eq $long_data0, cdif($tmp->[1], $long_data0) );
 
-# skip for now at least XXX
-            skip "blob_read tests for NCLOB not currently supported", 8
-                if $type_name =~ /NCLOB/;
+            # skip for now at least XXX -- not any more (lab)
+            #skip "blob_read tests for NCLOB not currently supported", 8
+            #    if $type_name =~ /NCLOB/;
 
 	    print "read via blob_read_all\n";
             cmp_ok(blob_read_all($sth, 1, \$p1, 4096) ,'==', length($long_data0), "blob_read_all = length(\$long_data0)" );
@@ -298,7 +298,7 @@ sub run_long_tests
 
 
         SKIP: {
-            skip( "not ($type_name =~ /LOB/i)" ,1+(13*4) )
+            skip( "ora_auto_lob tests for $type_name" ."s - not supported" ,11*4 )
                 if not ( $type_name =~ /LOB/i );
 
             print " --- testing ora_auto_lob to access $type_name LobLocator\n\n";
@@ -345,9 +345,9 @@ sub run_long_tests
                 ok($ll_sth->execute,"execute (again 1) $sqlstr" );
                 while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
                     print "$idx locator: ".DBI::neat($lob_locator)."\n";
-                    #next if !defined($lob_locator) && $idx == 43;
-                    SKIP: {
-                        skip "long_data{idx} not ndefined" ,7 if ! defined $long_data{$idx};
+                    if ( not defined $long_data{$idx} ) {
+                        last; #for( my $i=0; $i<7; $i++) { ok(1,"end of loop"); }
+                    } else {
 
                         print "DBI::errstr=$DBI::errstr\n" if $DBI::err ;
 
@@ -379,10 +379,10 @@ sub run_long_tests
                         if ($DBI::err && $DBI::errstr =~ /ORA-24801:/) {
                             warn " If you're using Oracle < 8.1.7 then the OCILobWriteAppend error is probably\n";
                             warn " due to Oracle bug #886191 and is not a DBD::Oracle problem\n";
-                        }
+                       }
+                   }
 #$dbh->trace(6) if $utf8_test; 
-                    }
-                }
+                } #while
             }
             print " --- round again to check the length...\n";
             SKIP: { #10
@@ -392,16 +392,17 @@ sub run_long_tests
                ok($ll_sth->execute ,"execute (again 2) $sqlstr" );
                while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
                    print "$idx locator: ".DBI::neat($lob_locator)."\n";
-                   SKIP: {
-                       skip "lob_locator not defined" ,2 if not defined $lob_locator;
+                   if ( not defined $lob_locator ) {
+                      last; # ok(1,"end of loop"); ok(1,"end of loop");
+                   } else { #skip "lob_locator not defined" ,2 if not defined $lob_locator;
                        my $len = $dbh->func($lob_locator, 'ora_lob_length');
                        #lab: possible logic error here w/resp. to len
                        ok(!$DBI::err ,"DBI::errstr" );
                        cmp_ok( $len ,'==', $idx + 5 ,"len == idx+5" );
-                   }
+                  }
                }
             }
-            ok(1);
+            #ok(1);
         } #skip for LONG types
 
         $sth->finish if $sth;
