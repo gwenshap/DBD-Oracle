@@ -95,7 +95,7 @@ GetEnvOrRegKey(char *name, char *buf, unsigned long size)
     last_home_id[2] = 0;
     sprintf(ora_home_key, "SOFTWARE\\ORACLE\\HOME%s", last_home_id);
     size -= 1; /* allow room for null termination */
-    if (!GetRegKey(ora_home_key, "NLS_LANG", buf, &size))
+    if (!GetRegKey(ora_home_key, name, buf, &size))
 	return Nullch;
     buf[size] = 0;
     return buf;

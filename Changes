@@ -859,7 +859,7 @@
   Reworked logging to use DBILOGFP macro.
   Now test code added to loop through logon/prep/fin/logoff.
   
-=head1 Changes in DBD::Oracle 0.18:
+=head1 Changes in DBD::Oracle 0.18, 17th June 1995
 
   Makefile.PL: HPUX now builds with LINKTYPE=static automatically.
   Fixed errors on logout/global destruction.
@@ -870,6 +870,72 @@
   (You need to add the following after line 80 in DBI/DBI.pm:
      'readblob' =>   {'U'=>[4,5,'$field, $offset, $len [, \\$buf]']},
   in order to access the new readblob method.)
+
+=head1 Changes in DBD::Oracle 0.17, 9th June 1995
+
+  Further enhancements to proc.mk parsing (this should fix
+    the bug introduced in the last version which required the
+    manual editing of -lora etc into the link line).
+  Automatic use of proc16.mk if proc.mk not found.
+  Automatic use of -Xa if compiler is 'clcc' (CenterLine).
+  Further migration of code from Oracle.xs to dbdimp.c. This is
+    not complete but may give you a flavor of my current direction.
+  Fixed more warnings from pedantic compilers.
+  [Released with DBI 0.56]
+
+=head1 Changes in DBD::Oracle 0.16, 25 May 1995
+
+  Makefile.PL more robust and flexible.
+  Code restructured - much more still to do.
+  Changes to ora_do. It's probably still not right.
+  [Released with DBI 0.55]
+
+=head1 Changes in DBD::Oracle 0.15, 25 Apr 1995
+
+  Fixed all known build problems/core dumps/truncated data etc.
+  Returns undef for NULLS.
+  Bind vars still not supported (soon I hope).
+  Bind vars produce errors rather than being ignored.
+  Login usage of ORACLE_SID and TWO_TASK slightly revised.
+  test.pl now uses ORACLE_SID, TWO_TASK and ORACLE_USER if defined.
+
+=head1 Changes in DBD::Oracle 0.14, 5 Apr 1995
+
+  Fixed assorted build and core-dump problems.
+
+=head1 Changes in DBD::Oracle 0.13, 8th March 1995
+
+  "Another alpha release but hey, guess what, this one actually allows
+  you to fetch data :-)"
+
+=head1 Changes in DBD::Oracle 0.12, 1st March 1995
+
+  "For DBD::Oracle I have implemented a fairly radical way to deal with
+  the nightmare of Oracle OCI makefiles.  Rather than try to maintain a
+  *large* and complicated set of Makefile macros the DBD::Oracle
+  Makefile.PL now actually extracts the macros which oracle itself uses
+  from $ORACLE_HOME/rdbms/lib/oracle.mk!  (The horses mouth, so to speak.)"
+  [Released with DBI 0.53]
+
+=head1 Changes in DBD::Oracle 0.11, 24th Feb 1995
+
+  "The first fruits of that work are now available for the brave (or
+  foolhardy).  Take note: this very much *unsupported* *alpha* software
+  (it does not even fetch records from oracle yet). Feel free to ftp it
+  but don't expect to do anything very useful with it."
+  Also first release of the Oraperl emulation module:
+  "Yes, that's real oraperl code and it works! The only addition is
+  the 'use DBD::Oraperl' line."
+  [Released with DBI 0.51]
+
+=head1 ANCIENT HISTORY
+
+12th Oct 1994: First public release of the DBI module.
+               (for Perl 5.000-beta-3h)
+
+19th Sep 1994: DBperl project renamed to DBI.
+
+29th Sep 1992: DBperl project started.
 
 =cut
 
