@@ -26,7 +26,7 @@ my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
 });
 
 unless($dbh) {
-    warn "Unable to connect to Oracle ($DBI::errstr)\nTests skiped.\n";
+    warn "Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n";
     print "1..0\n";
     exit 0;
 }
@@ -51,7 +51,7 @@ sub print_nls_info
 
 
 unless(create_table("lng LONG")) {
-    warn "Unable to create test table ($DBI::errstr)\nTests skiped.\n";
+    warn "Unable to create test table ($DBI::errstr)\nTests skipped.\n";
     print "1..0\n";
     exit 0;
 }
