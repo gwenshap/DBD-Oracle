@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.70 1998/12/10 01:19:19 timbo Exp $
+# $Id: Makefile.PL,v 1.69 1998/11/29 00:14:07 timbo Exp timbo $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -24,7 +24,7 @@ BEGIN { if ($^O eq 'VMS') {
 # For those not using Dynamic loading this means building a
 # new static perl in the DBI directory by saying 'make perl'
 # and then using _that_ perl to make this one.
-use DBI 0.92;
+use DBI 1.02;
 use DBI::DBD;	# DBD creation tools
 
 my $dbi_dir      = dbd_dbi_dir();

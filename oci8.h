@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.h,v 1.4 1998/12/10 01:19:19 timbo Exp $
+   $Id: oci8.h,v 1.3 1998/12/02 02:48:32 timbo Exp $
 
    Copyright (c) 1998  Tim Bunce
 
@@ -79,7 +79,7 @@ oci_error(h, errhp, status, what)
     SV *errstr = DBIc_ERRSTR(imp_xxh);
     sv_setpv(errstr, "");
     if (errhp) {
-	char errbuf[1024];
+	text errbuf[1024];
 	ub4 recno = 0;
 	sb4 errcode = 0;
 	sb4 eg_errcode = 0;
@@ -95,7 +95,7 @@ oci_error(h, errhp, status, what)
 		    what, (long)recno, oci_status_name(eg_status),
 			status, (long)eg_errcode, errbuf);
 	    errcode = eg_errcode;
-	    sv_catpv(errstr, errbuf);
+	    sv_catpv(errstr, (char*)errbuf);
 	    if (*(SvEND(errstr)-1) == '\n')
 		--SvCUR(errstr);
 	}
@@ -329,6 +329,8 @@ dbd_describe(h, imp_sth)
 		/* XXX unhandled type may lead to core dump */
 		break;
 	}
+	if (fbh->ftype == 5)
+	    fbh->disize += 1;	/* allow for null terminator */
 
 	/* dbsize can be zero for 'select NULL ...'			*/
 	imp_sth->t_dbsize += fbh->dbsize;
@@ -635,10 +637,22 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     I32 i;
     char *p;
     lob_refetch_t *lr = NULL;
-
     STRLEN tablename_len;
-    char *tablename = find_ident_after(imp_sth->statement,
+    char *tablename;
+
+    switch (imp_sth->stmt_type) {
+    case OCI_STMT_UPDATE:
+		tablename = find_ident_after(imp_sth->statement,
+				"update", &tablename_len, 1);
+		break;
+    case OCI_STMT_INSERT:
+		tablename = find_ident_after(imp_sth->statement,
 				"into", &tablename_len, 1);
+		break;
+    default:
+	return oci_error(sth, errhp, OCI_ERROR,
+			"LOB refetch attempted for unsupported statement type");
+    }
     if (!tablename)
 	return oci_error(sth, errhp, OCI_ERROR,
 		"Unable to parse table name for LOB refetch");
@@ -668,7 +682,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     for (i = 1; i <= numcols; i++) {
 	OCIParam *colhd;
 	ub2 col_dbtype;
-	text *col_name;
+	char *col_name;
 	ub4  col_name_len;
         if ((status=OCIParamGet(collisthd, OCI_DTYPE_PARAM, errhp, (dvoid**)&colhd, i)))
 	    break;
@@ -735,7 +749,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		    phs->name, phs->ftype, p, sql_field);
 	    hv_delete(lob_cols_hv, p, i, 0);
 	    fbh = &lr->fbh_ary[lr->num_fields++];
-	    fbh->name = phs->name;
+	    fbh->name   = phs->name;
 	    fbh->dbtype = phs->ftype;
 	    fbh->ftype  = fbh->dbtype;
 	    fbh->disize = 99;
@@ -775,13 +789,13 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
     OCIHandleAlloc_ok(imp_sth->envhp, &lr->stmthp, OCI_HTYPE_STMT);
     status = OCIStmtPrepare(lr->stmthp, errhp,
-		SvPVX(sql_select), SvCUR(sql_select), OCI_NTV_SYNTAX, OCI_DEFAULT);
+		(text*)SvPVX(sql_select), SvCUR(sql_select), OCI_NTV_SYNTAX, OCI_DEFAULT);
     if (status != OCI_SUCCESS)
 	return oci_error(sth, errhp, status, "OCIStmtPrepare/LOB refetch");
 
     /* bind the rowid input */
     OCIDescriptorAlloc_ok(imp_sth->envhp, &lr->rowid, OCI_DTYPE_ROWID);
-    status = OCIBindByName(lr->stmthp, &lr->bindhp, errhp, ":rid", 4,
+    status = OCIBindByName(lr->stmthp, &lr->bindhp, errhp, (text*)":rid", 4,
            &lr->rowid, sizeof(OCIRowid*), SQLT_RDD, 0,0,0,0,0, OCI_DEFAULT);
     if (status != OCI_SUCCESS)
 	return oci_error(sth, errhp, status, "OCIBindByPos/LOB refetch");
@@ -799,8 +813,8 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	fbh->special = phs;
 	if (dbis->debug >= 3)
 	    fprintf(DBILOGFP,
-		"       lob refetch %ld for '%s' param: ftype %d setup\n",
-		i+1,fbh->name, fbh->dbtype);
+		"       lob refetch %d for '%s' param: ftype %d setup\n",
+		(int)i+1,fbh->name, fbh->dbtype);
 	status = OCIDefineByPos(lr->stmthp, &defnp, errhp, i+1,
 			 &fbh->desc_h, -1, fbh->ftype, 0,0,0, OCI_DEFAULT);
 	if (status != OCI_SUCCESS)
@@ -813,9 +827,10 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
 
 static int
-post_insert_lobs(sth, imp_sth)	/* XXX leaks handles on error */
+post_execute_lobs(sth, imp_sth, row_count)	/* XXX leaks handles on error */
     SV *	sth;
     imp_sth_t *imp_sth;
+    ub4 row_count;
 {
     /* To insert a new LOB transparently (without using 'INSERT . RETURNING .')	*/
     /* we have to insert an empty LobLocator and then fetch it back from the	*/
@@ -826,9 +841,14 @@ post_insert_lobs(sth, imp_sth)	/* XXX leaks handles on error */
     ub4 rowid_iter = 0;
     lob_refetch_t *lr;
 
+    if (row_count == 0)
+	return 1;	/* nothing to do */
+    if (row_count  > 1)
+	return oci_error(sth, errhp, OCI_ERROR, "LOB refetch attempted for multiple rows");
+
     if (!imp_sth->lob_refetch)
 	if (!init_lob_refetch(sth, imp_sth))
-	    return 0;
+	    return 0;	/* init_lob_refetch already called oci_error */
     lr = imp_sth->lob_refetch;
 
     status = OCIAttrGet_stmhp(imp_sth, (dvoid**)lr->rowid, &rowid_iter, OCI_ATTR_ROWID);

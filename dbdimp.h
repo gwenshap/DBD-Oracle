@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.25 1998/12/10 01:19:19 timbo Exp $
+   $Id: dbdimp.h,v 1.24 1998/12/02 02:48:32 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -11,18 +11,20 @@
 */
 
 
-#if PATCHLEVEL < 5 && !defined(PL_dirty)
-#define PL_dirty dirty
+/* Perl <= 5.004_0x defines dirty as either Perl_dirty or curinterp->Idirty */
+/* Perl  > 5.005_54 defines dirty as PL_dirty if PERL_POLLUTE is defined    */
+/*
+#xif !defined(dirty)
+#xdefine dirty PL_dirty
+#xendif
+*/
+#if defined(get_no_modify) && !defined(no_modify)
+#define no_modify PL_no_modify
 #endif
 
 
-/* try uncommenting this line if you get a syntax error on
- *	 typedef signed long  sbig_ora;
- * in oratypes.h for Oracle 7.1.3. Don't you just love Oracle!
- */
-/* now changed to only define it for non ansi-ish compilers	*/
 #ifndef CAN_PROTOTYPE
-#define signed
+#define signed	/* Oracle headers use signed */
 #endif
 
 
@@ -184,7 +186,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     sb4  cbufl;		/* length of select-list item 'name'	*/
 #endif
     SV   *name_sv;	/* only set for OCI8			*/
-    text *name;
+    char *name;
     sb4  disize;	/* max display/buffer size		*/
 
     /* Our storage space for the field data as it's fetched	*/

@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.60 1998/12/10 01:19:19 timbo Exp $
+#   $Id: Oracle.pm,v 1.59 1998/12/02 02:48:32 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.54_92';
+$DBD::Oracle::VERSION = '0.54_93';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -31,7 +31,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.60 $, 10);
+    my $Revision = substr(q$Revision: 1.59 $, 10);
 
     require_version DBI 1.02;
 
@@ -140,7 +140,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	my ($drh, $dbname, $user, $auth)= @_;
 
 	# If the application is asking for specific database
-	# then we have to mung the 
+	# then we have to mung the
 
 	if (DBD::Oracle::OCI() >= 8) {
 	    $dbname = $1 if !$dbname && $user =~ s/\@(.*)//;
@@ -385,14 +385,14 @@ DBD::Oracle - Oracle database driver for the DBI module
 
   use DBI;
 
-  $dbh = DBI->connect("dbi:Oracle:", $user, $passwd);
+  $dbh = DBI->connect("dbi:Oracle:$dbname", $user, $passwd);
 
   # See the DBI module documentation for full details
 
 =head1 DESCRIPTION
 
 DBD::Oracle is a Perl module which works with the DBI module to provide
-access to Oracle databases.
+access to Oracle databases (both version 7 and 8).
 
 =head1 CONNECTING TO ORACLE
 
@@ -441,16 +441,18 @@ what is going on. (It's unfortunate that TWO_TASK couldn't be renamed,
 since it makes no sense to the end user, and doesn't have the ORACLE
 prefix).
 
-=head2 Using DBD::Oracle
+=head2 Connection Examples Using DBD::Oracle
 
 Below are various ways of connecting to an oracle database using
 SQL*Net 1.x and SQL*Net 2.x.  "Machine" is the computer the database is
 running on, "SID" is the SID of the database, "DB" is the SQL*Net 2.x
 connection descriptor for the database.
 
-  BEGIN { 
+B<Note:> Some of these formats don't work with Oracle 8.
+
+  BEGIN {
      $ENV{ORACLE_HOME} = '/home/oracle/product/7.x.x';
-     $ENV{TWO_TASK}    = 'DB'; 
+     $ENV{TWO_TASK}    = 'DB';
   }
   $dbh = DBI->connect('dbi:Oracle:','scott', 'tiger');
   #  - or -
@@ -497,12 +499,12 @@ a small proportion of people experience these problems.)
 [By Lane Sharman <lane@bienlogic.com>] I spent a LOT of time optimizing
 listener.ora and I am including it here for anyone to benefit from. My
 connections over tnslistener on the same humble Netra 1 take an average
-of 10-20 millies according to tnsping. If anyone knows how to make it
-better, please let me know!
+of 10-20 milli seconds according to tnsping. If anyone knows how to
+make it better, please let me know!
 
  LISTENER =
   (ADDRESS_LIST =
-        (ADDRESS = 
+        (ADDRESS =
           (PROTOCOL = TCP)
           (Host = aa.bbb.cc.d)
           (Port = 1521)
@@ -541,13 +543,13 @@ space for the system as well.
 
 5) Use large tuning settings and get lots of RAM. Check out all the
 parameters you can set in v$parameters because there are quite a few not
-documented you may to set in your initxxx.ora file. 
+documented you may to set in your initxxx.ora file.
 
 6) Use svrmgrl to control oracle from the command line. Write lots of small
 SQL scripts to get at V$ info.
 
   use DBI;
-  # Environmental variables used by Oracle 
+  # Environmental variables used by Oracle
   $ENV{ORACLE_SID}   = "xxx";
   $ENV{ORACLE_HOME}  = "/opt/oracle7";
   $ENV{EPC_DISABLED} = "TRUE";
@@ -608,21 +610,21 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
     CREATE OR REPLACE PACKAGE plsql_example
     IS
       PROCEDURE proc_np;
-   
+
       PROCEDURE proc_in (
           err_code IN NUMBER
       );
-   
+
       PROCEDURE proc_in_inout (
           test_num IN NUMBER,
           is_odd IN OUT NUMBER
       );
-   
+
       FUNCTION func_np
         RETURN VARCHAR2;
-   
+
     END plsql_example;
-  
+
     CREATE OR REPLACE PACKAGE BODY plsql_example
     IS
       PROCEDURE proc_np
@@ -631,7 +633,7 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
       BEGIN
         SELECT USER INTO whoami FROM DUAL;
       END;
-   
+
       PROCEDURE proc_in (
         err_code IN NUMBER
       )
@@ -639,7 +641,7 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
       BEGIN
         RAISE_APPLICATION_ERROR(err_code, 'This is a test.');
       END;
-   
+
       PROCEDURE proc_in_inout (
         test_num IN NUMBER,
         is_odd IN OUT NUMBER
@@ -648,7 +650,7 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
       BEGIN
         is_odd := MOD(test_num, 2);
       END;
-   
+
       FUNCTION func_np
         RETURN VARCHAR2
       IS
@@ -657,38 +659,38 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
         SELECT USER INTO ret_val FROM DUAL;
         RETURN ret_val;
       END;
-   
+
     END plsql_example;
   };
-  
+
   use DBI;
 
   my($db, $csr, $ret_val);
-  
+
   $db = DBI->connect('dbi:Oracle:database','user','password')
         or die "Unable to connect: $DBI::errstr";
-  
+
   # So we don't have to check every DBI call we set RaiseError.
   # See the DBI docs now if you're not familiar with RaiseError.
   $db->{RaiseError} = 1;
-  
+
   # Example 1
   #
   # Calling a PLSQL procedure that takes no parameters. This shows you the
   # basic's of what you need to execute a PLSQL procedure. Just wrap your
   # procedure call in a BEGIN END; block just like you'd do in SQL*Plus.
-  # 
+  #
   # p.s. If you've used SQL*Plus's exec command all it does is wrap the
   #      command in a BEGIN END; block for you.
-  
+
   $csr = $db->prepare(q{
     BEGIN
       PLSQL_EXAMPLE.PROC_NP;
     END;
   });
   $csr->execute;
-  
-  
+
+
   # Example 2
   #
   # Now we call a procedure that has 1 IN parameter. Here we use bind_param
@@ -700,13 +702,13 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
   # placeholders (but few DBI drivers support them so they're not portable).
 
   my $err_code = -20001;
-  
+
   $csr = $db->prepare(q{
   	BEGIN
   	    PLSQL_EXAMPLE.PROC_IN(:err_code);
   	END;
   });
-  
+
   $csr->bind_param(":err_code", $err_code);
 
   # PROC_IN will RAISE_APPLICATION_ERROR which will cause the execute to 'fail'.
@@ -715,8 +717,8 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
     $csr->execute;
   };
   print 'After proc_in: $@=',"'$@', errstr=$DBI::errstr, ret_val=$ret_val\n";
-  
-  
+
+
   # Example 3
   #
   # Building on the last example, I've added 1 IN OUT parameter. We still
@@ -730,13 +732,13 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
 
   my $test_num = 5;
   my $is_odd;
-  
+
   $csr = $db->prepare(q{
   	BEGIN
   	    PLSQL_EXAMPLE.PROC_IN_INOUT(:test_num, :is_odd);
   	END;
   });
-  
+
   # The value of $test_num is _copied_ here
   $csr->bind_param(":test_num", $test_num);
 
@@ -744,9 +746,9 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
 
   # The execute will automagically update the value of $is_odd
   $csr->execute;
-  
+
   print "$test_num is ", ($is_odd) ? "odd - ok" : "even - error!", "\n";
-  
+
 
   # Example 4
   #
@@ -756,22 +758,69 @@ These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
   # we can access it's value after execute.
 
   my $whoami = "";
-  
+
   $csr = $db->prepare(q{
   	BEGIN
   	    :whoami := PLSQL_EXAMPLE.FUNC_NP;
   	END;
   });
-  
+
   $csr->bind_param_inout(":whoami", \$whoami, 20);
   $csr->execute;
   print "Your database user name is $whoami\n";
-  
+
   $db->disconnect;
 
 You can find more examples in the t/plsql.t file in the DBD::Oracle
 source directory.
 
+
+=head1 Oracle 8 Issues
+
+DBD::Oracle version 0.55 onwards can be built to use either the Oracle 7
+or Oracle 8 OCI (Oracle Call Interface) API functions. The new Oracle 8
+API is used by default and offers several advantages, including support
+for LOB type. Here's a quote from the Oracle OCI documentation:
+
+  The Oracle8 OCI has several enhancements to improve application
+  performance and scalability. Application performance has been improved
+  by reducing the number of client to server round trips required and
+  scalability improvements have been facilitated by reducing the amount
+  of state information that needs to be retained on the server side.
+
+(Note that the use of Oracle 8 OCI represents a major amount of
+rewriting of the internals of the drivers. There are bound to be some
+minor problems.)
+
+When fetching LOBs, they are treated just like LONGs and are subject to
+$sth->{LongReadLen} and $sth->{LongTruncOk}.
+
+When inserting or updating LOBs some *major* magic has to be performed
+behind the scenes to make it transparent.  Basically the driver has to
+refetch the newly inserted 'Lob Locators' before being able to write to
+them.  However, it works, and I've made it as fast as possible (just
+one extra server-round-trip per insert or update after the first).
+For the time being, only single-row LOB updates are supported.
+
+To insert or update a LOB, DBD::Oracle has to know in advance that it
+is a LOB type, there's no way around this. So you need to say:
+
+	$sth->bind_param($idx, $value, { ora_type => ORA_CLOB });
+
+The ORA_CLOB and ORA_BLOB constants can be imported using
+
+	use DBD::Oracle qw(:ora_types);
+
+or just use the corresponding integer values (112 and 113).
+
+To make scripts work with both Oracle7 and Oracle8, the Oracle7
+DBD::Oracle will treat the LOB ora_types as LONGs without error.
+So any code you may have now that looks like
+
+	$sth->bind_param($idx, $value, { ora_type => 8 });
+
+should change the 8 (LONG type) to ORA_CLOB or ORA_BLOB
+(or 112 or 113).
 
 =head1 Oracle on Linix
 
@@ -779,7 +828,7 @@ To join the oracle-on-linux mailing list, see:
 
   http://www.datamgmt.com/maillist.html
   http://www.eGroups.com/list/oracle-on-linux
-  mailto:oracle-on-linux-subscribe@egroups.com     
+  mailto:oracle-on-linux-subscribe@egroups.com
 
 =head1 Commercial Oracle Tools
 

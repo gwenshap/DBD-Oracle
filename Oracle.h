@@ -1,5 +1,5 @@
 /*
-   $Id: Oracle.h,v 1.12 1998/07/28 17:33:37 timbo Exp $
+   $Id: Oracle.h,v 1.13 1998/12/14 00:14:22 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -12,6 +12,8 @@
 
 
 #define NEED_DBIXS_VERSION 9
+
+#define PERL_POLLUTE
 
 #include <DBIXS.h>		/* installed by the DBI module	*/
 

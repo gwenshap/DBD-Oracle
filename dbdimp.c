@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.43 1998/12/10 01:19:19 timbo Exp $
+   $Id: dbdimp.c,v 1.42 1998/12/02 02:48:32 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -12,9 +12,6 @@
 
 #include "Oracle.h"
 
-#if PATCHLEVEL < 5 && !defined(PL_dirty)
-#define PL_dirty dirty
-#endif
 
 /* XXX DBI should provide a better version of this */
 #define IS_DBI_HANDLE(h) \
@@ -75,7 +72,7 @@ dbd_discon_all(drh, imp_drh)
     dTHR;
 
     /* The disconnect_all concept is flawed and needs more work */
-    if (!PL_dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
+    if (!dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
 	sv_setiv(DBIc_ERR(imp_drh), (IV)1);
 	sv_setpv(DBIc_ERRSTR(imp_drh),
 		(char*)"disconnect_all not implemented");
@@ -231,7 +228,7 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
     }
 
     ret=OCIServerAttach(imp_dbh->srvhp, imp_dbh->errhp,
-		dbname, strlen(dbname), 0);
+		(text*)dbname, strlen(dbname), 0);
     if (ret != OCI_SUCCESS) {
 	oci_error(dbh, imp_dbh->errhp, ret, "OCIServerAttach");
 	OCIHandleFree(imp_dbh->srvhp, OCI_HTYPE_SERVER);
@@ -554,7 +551,7 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 
     OCIHandleAlloc_ok(imp_dbh->envhp, &imp_sth->stmhp, OCI_HTYPE_STMT);
     status = OCIStmtPrepare(imp_sth->stmhp, imp_sth->errhp,
-	       imp_sth->statement, (ub4)strlen(imp_sth->statement),
+	       (text*)imp_sth->statement, (ub4)strlen(imp_sth->statement),
 	       oparse_lng, OCI_DEFAULT);
     if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCIStmtPrepare");
@@ -778,8 +775,8 @@ _rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
  	     fprintf(DBILOGFP, "size %ld/%ld/%ld, ",
  		(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
 	else fprintf(DBILOGFP, "NULL, ");
- 	fprintf(DBILOGFP, "ptype %ld, otype %d%s)\n",
- 	    SvTYPE(phs->sv), phs->ftype,
+ 	fprintf(DBILOGFP, "ptype %d, otype %d%s)\n",
+ 	    (int)SvTYPE(phs->sv), phs->ftype,
  	    (phs->is_inout) ? ", inout" : "");
     }
 
@@ -946,7 +943,7 @@ _dbd_rebind_ph(sth, imp_sth, phs)
 
 #ifdef OCI_V8_SYNTAX
     status = OCIBindByName(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
-	    phs->name, strlen(phs->name),
+	    (text*)phs->name, strlen(phs->name),
 	    phs->progv, phs->maxlen,
 	    phs->ftype, &phs->indp,
 	    alen_ptr, &phs->arcode,
@@ -1154,9 +1151,9 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 		phs->alen = SvCUR(phs->sv) + phs->alen_incnull;
 		if (debug >= 2)
  		    fprintf(DBILOGFP,
- 		        "      with %s = '%.*s' (len %d/%d, indp %d, otype %d, ptype %ld)\n",
+ 		        "      with %s = '%.*s' (len %d/%d, indp %d, otype %d, ptype %d)\n",
  			phs->name, phs->alen, SvPVX(phs->sv), phs->alen, (int)phs->maxlen,
- 			phs->indp, phs->ftype, SvTYPE(phs->sv));
+ 			phs->indp, phs->ftype, (int)SvTYPE(phs->sv));
 	    }
 	}
     }
@@ -1196,8 +1193,8 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	if (!dbd_describe(sth, imp_sth))
 	    return -2; /* dbd_describe already called oci_error()	*/
     }
-    if (imp_sth->has_lobs && imp_sth->stmt_type == OCI_STMT_INSERT) {
-	if (!post_insert_lobs(sth, imp_sth))
+    if (imp_sth->has_lobs && imp_sth->stmt_type != OCI_STMT_SELECT) {
+	if (!post_execute_lobs(sth, imp_sth, row_count))
 	    return -2; /* post_insert_lobs already called oci_error()	*/
     }
 
@@ -1406,7 +1403,7 @@ dbd_st_finish(sth, imp_sth)
 	/* oracle 7.3 code can core dump looking up an error message	*/
 	/* if we have logged out of the database. This typically	*/
 	/* happens during global destruction. This should catch most:	*/
-	if (PL_dirty && imp_sth->cda->rc == 3114)
+	if (dirty && imp_sth->cda->rc == 3114)
 	    ora_error(sth, NULL, imp_sth->cda->rc,
 		"ORA-03114: not connected to ORACLE (ocan)");
 	else
