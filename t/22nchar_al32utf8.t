@@ -31,6 +31,7 @@ SKIP: {
     plan skip_all => "Database NCHAR character set is not UTF8" if not nchar_is_utf8($dbh) ;
     print "testing utf8 with nchar columns\n" ;
 
+    show_db_charsets( $dbh );
     my $tdata = test_data( 'wide_nchar' );
     my $testcount = 0 #create table
                   + insert_test_count( $tdata )

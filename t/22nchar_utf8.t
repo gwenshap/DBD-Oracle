@@ -31,7 +31,14 @@ SKIP: {
     plan skip_all => "Database NCHAR character set is not UTF8" if not nchar_is_utf8($dbh) ;
     print "testing utf8 with nchar columns\n" ;
 
+    show_db_charsets( $dbh );
     my $tdata = test_data( 'wide_nchar' );
+
+    if ( $dbh->ora_nls_parameters()->{NLS_NCHAR_CHARACTERSET} eq 'UTF8' ) {
+        push( @{$tdata->{rows}} ,extra_wide_rows() ) ;
+        print " --- added 2 rows with extra wide chars to test data\n" ;
+    }
+
     my $testcount = 0 #create table
                   + insert_test_count( $tdata )
                   + select_test_count( $tdata ) * 1;

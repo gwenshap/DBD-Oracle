@@ -43,6 +43,13 @@ sub wide_data
         [ "\x{263A}", "smiley face"      ],
     ];
 }
+sub extra_wide_rows
+{
+   return (  
+      [ "\x{32263A}",   "3 byte wide char"  ],
+      [ "\x{2532263A}", "4 byte wide char"  ],  
+   );
+}
 sub narrow_data
 {
     [
