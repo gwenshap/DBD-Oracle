@@ -19,6 +19,7 @@
   Changed to not warn if ORACLE_HOME env var is not defined
     as it's not used with Oracle's new 'Instant Client'.
 
+  Added Test::More as a prerequisite module.
   Added bind_param() support for SQL_BLOB & SQL_CLOB thanks to Stephen Clouse.
   Added some experimental NCHAR/UTF8 support thanks to Lincoln Baxter.
     $dbh->{ora_ph_csform} = SQLCS_NCHAR;

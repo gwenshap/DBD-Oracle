@@ -17,7 +17,7 @@ SKIP :
     my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '',
 			   {
 			    AutoCommit => 1,
-			    PrintError => 0,
+			    PrintError => 1,
 			   });
 
     skip "Unable to connect to Oracle ($DBI::errstr)", $testcount
@@ -37,6 +37,10 @@ SKIP :
 
     ok($dbh->do("alter session set nls_date_format='$new_date_format'"), 'alter date format');
     ok(eq_hash($nls_parameters_before, $dbh->ora_nls_parameters),        'check ora_nls_parameters caches old values');
+
+    $nls_parameters_before->{NLS_DATE_FORMAT} = 'foo';
+    isnt($nls_parameters_before->{NLS_DATE_FORMAT},
+	$dbh->ora_nls_parameters->{NLS_DATE_FORMAT},        'check ora_nls_parameters returns a copy');
 
     is($dbh->ora_nls_parameters(1)->{'NLS_DATE_FORMAT'}, $new_date_format, 'refetch and check new nls_date_format value');
 }

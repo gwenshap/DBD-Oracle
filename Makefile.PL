@@ -44,6 +44,7 @@ $| = 1;
 my %opts = (
     NAME => 'DBD::Oracle',
     VERSION_FROM => 'Oracle.pm',
+    PREREQ_PM => { "Test::More" => 0 },
     EXE_FILES => [ "ora_explain$exe_ext" ],
     OBJECT => '$(O_FILES)',
     DEFINE => '',

@@ -854,33 +854,34 @@ SQL
 	my $dbh = shift;
 	my $refresh = shift;
 
-	if ($refresh || !defined $dbh->{ora_nls_parameters}) {
-	    $dbh->{ora_nls_parameters} =
-	      {
-	       map { $_->[0] => $_->[1] }
-	           @{$dbh->selectall_arrayref(q{
-                       SELECT parameter, value FROM v$nls_parameters})}
-	      };
+	if ($refresh || !$dbh->{ora_nls_parameters}) {
+            my $nls_parameters = $dbh->selectall_arrayref(q{
+		SELECT parameter, value FROM v$nls_parameters
+	    }) or return;
+	    $dbh->{ora_nls_parameters} = { map { $_->[0] => $_->[1] } @$nls_parameters };
 	}
 
-	return \%{$dbh->{ora_nls_parameters}};
+	# return copy of params to protect against accidental editing
+	my %nls = %{$dbh->{ora_nls_parameters}};
+	return \%nls;
     }
 
     sub ora_can_unicode {
+	my $dbh = shift;
+	my $refresh = shift;
 	# 0 = No Unicode support.
 	# 1 = National character set is Unicode-based.
 	# 2 = Database character set is Unicode-based.
 	# 3 = Both character sets are Unicode-based.
-	my $dbh = shift;
-	return $dbh->{ora_can_unicode} if defined $dbh->{ora_can_unicode};
+
+	return $dbh->{ora_can_unicode}
+	    if defined $dbh->{ora_can_unicode} && !$refresh;
+
+	my $nls = $dbh->ora_nls_parameters($refresh);
 
 	$dbh->{ora_can_unicode}  = 0;
-
-	$dbh->{ora_can_unicode} += 1
-	  if ($dbh->ora_nls_parameters->{'NLS_NCHAR_CHARACTERSET'} =~ /UTF/);
-
-	$dbh->{ora_can_unicode} += 2
-	  if ($dbh->ora_nls_parameters->{'NLS_CHARACTERSET'} =~ /UTF/);
+	$dbh->{ora_can_unicode} += 1 if $nls->{NLS_NCHAR_CHARACTERSET} =~ /UTF/;
+	$dbh->{ora_can_unicode} += 2 if $nls->{NLS_CHARACTERSET}       =~ /UTF/;
 
 	return $dbh->{ora_can_unicode};
     }
@@ -1887,10 +1888,11 @@ Returns a hash reference containing the current NLS parameters, as given
 by the v$nls_parameters view. The values fetched are cached between calls.
 To cause the latest values to be fetched, pass a true value to the function.
 
-=item ora_can_unicode
+=item ora_can_unicode ( [ $refresh ] )
 
 Returns a number indicating whether either of the database character sets
-is a Unicode encoding.
+is a Unicode encoding. Calls ora_nls_parameters() and passes the optional
+$refresh parameter to it.
 
 0 = Neither character set is a Unicode encoding.
 
