@@ -359,23 +359,38 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 	}
 	else {		/* Normal connect. */
 
+             ub2 charset ,ncharset;
+             size_t rsize;
+
 	    imp_drh->proc_handles = 0;
 	    /* XXX recent oracle docs recommend using OCIEnvCreate() instead of	*/
 	    /* OCIInitialize + OCIEnvInit, we'd need ifdef's for old versions	*/
-/* #define NEW_OCI_INIT 1 */
+
 #ifdef NEW_OCI_INIT
-            OCINlsEnvironmentVariableGet_log_stat( ,status)
-	    if (status != OCI_SUCCESS) {
-		oci_error(dbh, NULL, status,
-		    "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
-		return 0;
-	    }
-            OCIEnvNlsCreate_log_stat( ,status)
-	    if (status != OCI_SUCCESS) {
-		oci_error(dbh, NULL, status,
-		    "OCIEnvNlsCreate. Check ORACLE_HOME and NLS settings etc.");
-		return 0;
-	    }
+            {
+                /* nlsbuf = char[120]; /* FIX magic number */
+                OCINlsEnvironmentVariableGet_log_stat( &charset, 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
+                if (status != OCI_SUCCESS) {
+                    oci_error(dbh, NULL, status,
+                        "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
+                    return 0;
+                }
+
+                OCINlsEnvironmentVariableGet_log_stat( &ncharset, 0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
+                if (status != OCI_SUCCESS) {
+                    oci_error(dbh, NULL, status,
+                        "OCINlsEnvironmentVariableGet. Check ORACLE_HOME and NLS settings etc.");
+                    return 0;
+                }
+
+                OCIEnvNlsCreate_log_stat( &imp_drh->envhp, OCI_DEFAULT, 0, NULL, NULL, NULL, 0, 0, charset, ncharset, status );
+                if (status != OCI_SUCCESS) {
+                    oci_error(dbh, NULL, status,
+                        "OCIEnvNlsCreate. Check ORACLE_HOME and NLS settings etc.");
+                    return 0;
+                }
+            }
+
 #else /* NEW_OCI_INIT */
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
 	    if (status != OCI_SUCCESS) {
@@ -383,6 +398,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
 		    "OCIInitialize. Check ORACLE_HOME and NLS settings etc.");
 		return 0;
 	    }
+
 	    OCIEnvInit_log_stat( &imp_drh->envhp, OCI_DEFAULT, 0, 0, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCIEnvInit");
@@ -1404,7 +1420,7 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 	}
 
 	if (DBIS->debug >= 2) {
-	    PerlIO_printf(DBILOGFP, "(lab)  bind %s <== %s (type %ld, csform %d)\n",
+	    PerlIO_printf(DBILOGFP, "       bind %s <== %s (type %ld, csform %d)\n",
 	                  name, neatsvpv(newvalue,0), (long)sql_type, phs->csform );
 
 	}

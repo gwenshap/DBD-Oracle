@@ -594,6 +594,12 @@ $opts{DEFINE} .= ' -DCAN_USE_PRO_C' if $::opt_ProC;
 
 $opts{DEFINE} .= ' -DUTF8_SUPPORT' if ($] >= 5.006);
 
+#lincoln:
+#if perl >= 5.6 and ORA >= 9.2 then use NLS init routines for get better describe data 
+if ( ($] >= 5.006) and ($inspdver{rdbms_ver} >= 9.2) ) {
+    $opts{DEFINE} .= ' -DNEW_OCI_INIT';
+}
+
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($is_me){  # a reasonable guess
     $BELL = "<BELL>";

@@ -36,6 +36,24 @@
 	If done well the log will read like a compilable program.
 */
 
+/* added by lab */
+#define OCINlsEnvironmentVariableGet_log_stat( valp, size, item, charset, rsizep ,stat ) \
+   stat = OCINlsEnvironmentVariableGet(  valp, size, item, charset, rsizep ); \
+	(DBD_OCI_TRACEON) \
+   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+         "OCINlsEnvironmentVariableGet(%p,%d,%d,%d,%d)=%s\n",\
+         (void*)valp, size, item, charset, (void*)rsizep, oci_status_name(stat)),stat \
+   : stat
+
+/* added by lab */
+#define OCIEnvNlsCreate_log_stat( envp, mode, ctxp, f1, f2, f3, sz, usremepp ,chset, nchset ,stat ) \
+   stat = OCIEnvNlsCreate(envp, mode, ctxp, f1, f2, f3, sz, usremepp ,chset, nchset ); \
+	(DBD_OCI_TRACEON) \
+   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+         "OCINlsEnvCreate(%p,%d,%d,%p,%p,%p,%d,%p,%d,%d)=%s\n", \
+         (void*)envp, mode, ctxp, f1, f2, f3, sz, usremepp ,chset, nchset, oci_status_name(stat)),stat \
+   : stat
+
 
 #define OCIAttrGet_log_stat(th,ht,ah,sp,at,eh,stat)                    \
 	stat = OCIAttrGet(th,ht,ah,sp,at,eh);				\

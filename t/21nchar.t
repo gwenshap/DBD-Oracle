@@ -56,7 +56,7 @@ SKIP: {
     #TODO need a oracle 9i version test.... I guess I could clone one from Makefile.PL...
 
 
-    $dbh->{ora_ph_csform} = 2;
+    #$dbh->{ora_ph_csform} = 2;
     # silently drop $table if it exists... 
     {
         local $dbh->{PrintError} = 0;
@@ -109,8 +109,8 @@ SKIP: {
               );
     }
     cmp_ok($cnt, '==', $charcnt, "number of rows fetched" );
-    view_with_sqlplus(0) if $ENV{DBD_NCHAR_SQLPLUS_VIEW};
     view_with_sqlplus(1) if $ENV{DBD_NCHAR_SQLPLUS_VIEW};
+    view_with_sqlplus(0) if $ENV{DBD_NCHAR_SQLPLUS_VIEW};
     #pass( 'do not want test to fail yet' );
 }
 
@@ -135,11 +135,12 @@ select $cols from $table;
     print F "exit;\n" ;
     close F;
     
-    undef $ENV{NLS_LANG} if not $use_nls_lang;
     my $nls='unset';
     $nls = $ENV{NLS_LANG} if $ENV{NLS_LANG};
+    $ENV{NLS_LANG} = '' if not $use_nls_lang;
     print "From sqlplus...$str\n  ...with NLS_LANG = $nls\n" ;
     system( "sqlplus -s \@$sqlfile" );
+    $ENV{NLS_LANG} = $nls if $nls ne 'unset';
     unlink $sqlfile;
 }
 
