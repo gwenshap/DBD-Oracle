@@ -74,8 +74,13 @@ printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os 
 	die "\nTest aborted.\n";
     }
     # test_other($l);
-    print `sleep 1; echo Backticks OK` || "Backticks failed: $!\n"
-	    if ($os ne 'MSWin32' and $os ne 'VMS');
+	if ($os ne 'MSWin32' and $os ne 'VMS') {
+		my $backtick = `sleep 1; echo Backticks OK`;
+		unless ($backtick) {	 # $! == Interrupted system call
+			print "Warning: Oracle's SIGCHLD signal handler breaks perl ",
+				  "`backticks` commands: $!\n(d_sigaction=$Config{d_sigaction})\n";
+		}
+	}
     &ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
 }
 $start = time;

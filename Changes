@@ -1,3 +1,10 @@
+Changes in DBD::Oracle 0.53 (Oraperl 1.37), 3rd August 1998
+
+  Further build fixes (esp kpudc problem with Oracle 8).
+  Now prefers oracle.mk over proc.mk again.
+  Only $ENV{ORA_CLIENT_LIB} ||= 'shared' if shared lib exists.
+  Builds okay with 5.005-thread (not tested).
+
 Changes in DBD::Oracle 0.52 (Oraperl 1.37), 28th July 1998
 
   Assorted build fixes (esp. Win32, HP-UX and AIX).

@@ -1,6 +1,7 @@
 Oracle 8
 
-If LongReadLen > 64k then automatocally call oflng for each long LONG.
+Fetch: If LongReadLen > 64k then automatocally call oflng for each long LONG.
+Bind: Automatically do piecewise insert of longs.
 
 $drh->debug oddities (re data_source debugging)
 

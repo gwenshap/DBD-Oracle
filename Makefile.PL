@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.65 1998/07/28 17:33:37 timbo Exp $
+# $Id: Makefile.PL,v 1.67 1998/08/03 20:51:25 timbo Exp $
 
 BEGIN { $^W = 1 }
 BEGIN { require 5.003 }	# 5.003 fixes very important bugs
@@ -57,17 +57,19 @@ $opts{LINKTYPE} = 'static' if $Config{dlsrc} =~ /dl_none/;
 my(@MK, %MK, $MK, %MK_expanding);	# parsed macros from Oracle's makefiles
 
 # Options (rarely needed)
-$::opt_m = 0;		# path to proc.mk or oracle.mk file to read
-$::opt_n = '';		# Oracle .mk macro name to use for library list to link with
-$::opt_p = '';		# prefer oracle.mk over proc
-$::opt_l = 0;		# try direct-link to libclntsh
-$::opt_g = '';		# enable debugging (-g for compiler and linker)
-$::opt_s = '';		# Find a symbol in oracle libs, Don't build a Makefile
-$::opt_S = '';		# Find a symbol in oracle & system libs, Don't build a Makefile
-$::opt_v = 0;		# be more verbose
-$::opt_d = 0;		# much more verbose for debugging
+$::opt_m = 0;	# path to proc.mk or oracle.mk file to read
+$::opt_c = 0;	# don't encourage use of shared library
+$::opt_n = '';	# Oracle .mk macro name to use for library list to link with
+$::opt_p = '';	# alter preference for oracle.mk over proc
+$::opt_l = 0;	# try direct-link to libclntsh
+$::opt_g = '';	# enable debugging (-g for compiler and linker)
+$::opt_s = '';	# Find a symbol in oracle libs, Don't build a Makefile
+$::opt_S = '';	# Find a symbol in oracle & system libs, Don't build a Makefile
+$::opt_v = 0;	# be more verbose
+$::opt_d = 0;	# much more verbose for debugging
 
-GetOptions(qw(v! d! g! p! l! m=s n=s s=s S=s)) or die "Invalid arguments";
+GetOptions(qw(v! d! g! p! l! c! m=s n=s s=s S=s))
+	or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
 $::opt_v = 1 if $::opt_d;
@@ -93,11 +95,6 @@ die "$ORACLE_ENV environment variable must be set.\n" unless $OH;
 die "$ORACLE_ENV environment variable ($OH) not valid.\n" unless -d $OH;
 
 print "Using Oracle in $OH\n";
-
-# show original value of ORA_CLIENT_LIB if defined ...
-print "\$ORA_CLIENT_LIB=$ENV{ORA_CLIENT_LIB}\n" if $ENV{ORA_CLIENT_LIB};
-# ... before we then set it how it probably should be set
-$ENV{ORA_CLIENT_LIB} ||= 'shared' unless ($opts{LINKTYPE}||'') eq 'static';
 
 my (@inspdver, %inspdver);
 if ($os ne 'VMS' and $os ne 'MSWin32' and -x "$OH/orainst/inspdver") {
@@ -195,15 +192,23 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	."\nbuild fails you probably need to install more Oracle software.\n\n"
 	if @ora_libs < 6; # just a helpful hint
 
+    # can we give the shared library a helping hand?
+    my @shared = grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } @ora_libs;
+    # show original value of ORA_CLIENT_LIB if defined ...
+    print "\$ORA_CLIENT_LIB=$ENV{ORA_CLIENT_LIB}\n" if $ENV{ORA_CLIENT_LIB};
+    # ... before we then set it how it probably should be set
+    $ENV{ORA_CLIENT_LIB} ||= 'shared'
+	if ($opts{LINKTYPE}||'') ne 'static' && @shared && !$::opt_c;
+
     my $mkfile = find_mkfile();
     my $linkvia = fetch_oci_macros($mkfile);
-    my $libhome = expand_mkvars($MK{LIBHOME}, 0, 1, 0) || "$OH/lib";
-    $linkwith = expand_mkvars($linkvia,     0, 1, 0);
+    my $libhome = expand_mkvars($MK{LIBHOME}, 0, 1) || "$OH/lib";
+    $linkwith = expand_mkvars($linkvia, 0, 1);
     $linkwith =~ s/-Y P,/-YP,/g if $Config{'cc'} =~ /gcc/;
     $linkwith =~ s:-R /:-R/:g if $os eq 'solaris';
 
     # get a cut down $linkwith to pass to MakeMaker liblist
-    my $linkwith_s = expand_mkvars($linkwith, 1, 1, 0);
+    my $linkwith_s = expand_mkvars($linkwith, 1, 1);
 
     # convert "/full/path/libFOO.a" into "-L/full/path -lFOO"
     # to cater for lack of smarts in MakeMaker / Liblist
@@ -295,6 +300,8 @@ print "Oracle makefiles would have used these values but we override them:\n"
 print "  CC:       $MK{CC}\n"	if $MK{CC};
 print "  CFLAGS:   $MK{CFLAGS}\n"                  if $MK{CFLAGS};
 print "           [".mkvar('CFLAGS',1,0,0).  "]\n" if $MK{CFLAGS};
+print "  CLIBS:    $MK{CLIBS}\n"                   if $MK{CLIBS};
+print "           [".mkvar('CLIBS',1,0,0).   "]\n" if $MK{CLIBS};
 print "  LDFLAGS:  $MK{LDFLAGS}\n"                 if $MK{LDFLAGS};
 print "           [".mkvar('LDFLAGS',1,0,0). "]\n" if $MK{LDFLAGS};
 print "  LDSTRING: $MK{LDSTRING}\n"                if $MK{LDSTRING};
@@ -370,7 +377,8 @@ sub del_crtobj {
     # old: COMPOBJS=$(COMPOBJ)/crti.o $(COMPOBJ)/crt1.o $(COMPOBJ)/__fstd.o
     # new: COMPOBJS=$(COMPOBJ)/__fstd.o
     ($str = $orig) =~ s:[^\s=]*\bcrt[1in]\.o\b::g;
-	warn "del_crtobj: $orig\n          : $str\n" if $orig ne $str and $::opt_v;
+	print "del_crtobj: $orig\n          : $str\n"
+		if $orig ne $str and $::opt_v;
     return $str;
 }
 
@@ -378,16 +386,18 @@ sub del_crtobj {
 sub find_mkfile {
 
     my @mkfiles;
-    my @mkplaces = qw(
-	proc/lib/proc.mk    precomp/demo/proc/proc.mk	precomp/demo/proc/demo_proc.mk
-	proc16/lib/proc16.mk
-	rdbms/lib/oracle.mk rdbms/demo/oracle.mk	rdbms/demo/demo_rdbms.mk
+    my @mk_proc = (
+	'precomp/demo/proc/proc.mk',
+	'precomp/demo/proc/demo_proc.mk',
+	'proc/lib/proc.mk',
+	'proc16/lib/proc16.mk',
     );
-    if ($::opt_p) {
-	# if -p then copy oracle.mk to start of search list and thus prefer it
-	my @ora = grep { m/(oracle|rdbms)\.mk\b/ } @mkplaces;
-	unshift @mkplaces, @ora;
-    }
+    my @mk_oci = (
+	'rdbms/lib/oracle.mk',
+	'rdbms/demo/oracle.mk',
+	'rdbms/demo/demo_rdbms.mk',
+    );
+    my @mkplaces = ($::opt_p) ? @mk_proc : @mk_oci;
     if ($::opt_m) {
 	$::opt_m = cwd()."/$::opt_m" unless $::opt_m =~ m:^/:;
 	die "-m $::opt_m: not found" unless -f $::opt_m;
@@ -449,7 +459,7 @@ sub fetch_oci_macros {
 	my $of;
 	foreach $of (split(/=|\s+/)) {
 	    next if !$of or $of eq "COMPOBJS";
-	    my $obj = expand_mkvars($of,0,0,0);
+	    my $obj = expand_mkvars($of,0,0);
 	    next if -e $obj;
 	    print "Deleting $of from COMPOBJS because $obj doesn't exist.\n";
 	    s:\Q$of::;
@@ -516,11 +526,19 @@ sub fetch_oci_macros {
     }
 
     # modern Oracle .mk files define OCISTATICLIBS and OCISHAREDLIBS
-    $linkvia = '$(OCISTATICLIBS)'
-	if !$linkvia && $MK{OCISTATICLIBS}
-		&& $opts{LINKTYPE} && $opts{LINKTYPE} eq 'static';
-    $linkvia = '$(OCISHAREDLIBS)'
-	if !$linkvia && $MK{OCISHAREDLIBS};
+    if (!$linkvia && $MK{OCISHAREDLIBS}) {
+	$linkvia = '';
+	if ($opts{LINKTYPE} && $opts{LINKTYPE} eq 'static' && $MK{OCISTATICLIBS}) {
+	    $linkvia .= '$(DEF_ON) '   if $MK{DEF_ON};
+	    $linkvia .= '$(SSCOREED) ' if $MK{SSCOREED};
+	    $linkvia .= '$(OCISTATICLIBS)';
+	}
+	else {
+	    $linkvia .= '$(SSDBED) '	if $MK{SSDBED};
+	    $linkvia .= '$(DEF_OPT) '	if $MK{DEF_OPT};
+	    $linkvia .= '$(OCISHAREDLIBS)';
+	}
+    }
 
     # The oracle.mk file tends to define OCILDLIBS
     $linkvia = '$(OCILDLIBS)'
@@ -596,6 +614,7 @@ sub expand_shellescape {
 
 sub expand_mkvars { 
     my($string, $strip, $backtick, $level) = @_;
+	$level ||= 1;
     local($_) = $string;
     print "$level Expanding $_\n" if $::opt_d;
     # handle whizzo AIX make feature used by Oracle
@@ -623,7 +642,8 @@ sub mkvar {
     my $val = $MK{$var};
     if (!defined $val and exists $ENV{$var}) {
 	$val = $ENV{$var};
-	print "Using value of $var from environment: $val\n";
+	print "Using value of $var from environment: $val\n"
+		unless $var eq 'LD_LIBRARY_PATH';
     }
     return $default unless defined $val;
     if ($MK_expanding{$var}) {

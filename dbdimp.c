@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.38 1998/07/28 17:33:37 timbo Exp $
+   $Id: dbdimp.c,v 1.39 1998/08/03 19:43:39 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -54,6 +54,8 @@ dbd_discon_all(drh, imp_drh)
     SV *drh;
     imp_drh_t *imp_drh;
 {
+    dTHR;
+
     /* The disconnect_all concept is flawed and needs more work */
     if (!dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
 	sv_setiv(DBIc_ERR(imp_drh), (IV)1);
@@ -208,6 +210,8 @@ dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
     char *uid;
     char *pwd;
 {
+
+    dTHR;
     int ret;
 
     imp_dbh->lda = &imp_dbh->ldabuf;
@@ -297,6 +301,8 @@ dbd_db_disconnect(dbh, imp_dbh)
     SV *dbh;
     imp_dbh_t *imp_dbh;
 {
+    dTHR;
+
     /* We assume that disconnect will always work	*/
     /* since most errors imply already disconnected.	*/
     DBIc_ACTIVE_off(imp_dbh);
@@ -1093,6 +1099,8 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
     SV *sth;
     imp_sth_t *imp_sth;
 {
+    dTHR;
+
     int debug = dbis->debug;
     int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
 
@@ -1440,6 +1448,8 @@ dbd_st_finish(sth, imp_sth)
     SV *sth;
     imp_sth_t *imp_sth;
 {
+    dTHR;
+
     /* Cancel further fetches from this cursor.                 */
     /* We don't close the cursor till DESTROY (dbd_st_destroy). */
     /* The application may re execute(...) it.                  */
