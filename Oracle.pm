@@ -548,7 +548,18 @@ SQL
 	my $dbh  = shift;
 	my $attr = ( ref $_[0] eq 'HASH') ? $_[0] : {
 	    'TABLE_SCHEM' => $_[1],'TABLE_NAME' => $_[2],'COLUMN_NAME' => $_[3] };
-	my $Sql = <<'SQL';
+	my($typecase,$typecaseend) = ('','');
+	if (ora_server_version($dbh)->[0] >= 8) {
+	    $typecase = <<'SQL';
+CASE WHEN tc.DATA_TYPE LIKE 'TIMESTAMP% WITH% TIME ZONE' THEN 95
+     WHEN tc.DATA_TYPE LIKE 'TIMESTAMP%'                 THEN 93
+     WHEN tc.DATA_TYPE LIKE 'INTERVAL DAY% TO SECOND%'   THEN 110
+     WHEN tc.DATA_TYPE LIKE 'INTERVAL YEAR% TO MONTH'    THEN 107
+ELSE
+SQL
+	    $typecaseend = 'END';
+	}
+	my $Sql = <<"SQL";
 SELECT *
   FROM
 (
@@ -557,7 +568,7 @@ SELECT *
        , tc.OWNER            TABLE_SCHEM
        , tc.TABLE_NAME       TABLE_NAME
        , tc.COLUMN_NAME      COLUMN_NAME
-       , decode( tc.DATA_TYPE
+       , $typecase decode( tc.DATA_TYPE
          , 'MLSLABEL' , -9106
          , 'ROWID'    , -9104
          , 'UROWID'   , -9104
@@ -577,7 +588,7 @@ SELECT *
          , 'NCLOB'    ,    40
          , 'DATE'     ,    93
          , NULL
-         )                   DATA_TYPE          -- ...
+         ) $typecaseend      DATA_TYPE          -- ...
        , tc.DATA_TYPE        TYPE_NAME          -- std.?
        , decode( tc.DATA_TYPE
          , 'LONG RAW' , 2147483647
