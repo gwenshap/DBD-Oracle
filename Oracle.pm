@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.58 1998/11/29 00:14:07 timbo Exp $
+#   $Id: Oracle.pm,v 1.59 1998/12/02 02:48:32 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.002;
 
-$DBD::Oracle::VERSION = '0.54_90';
+$DBD::Oracle::VERSION = '0.54_91';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -22,7 +22,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use Exporter ();
     @ISA = qw(DynaLoader Exporter);
 
-    my $Revision = substr(q$Revision: 1.58 $, 10);
+    my $Revision = substr(q$Revision: 1.59 $, 10);
 
     require_version DBI 0.92;
 

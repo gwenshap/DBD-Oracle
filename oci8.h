@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.h,v 1.2 1998/11/29 00:14:07 timbo Exp $
+   $Id: oci8.h,v 1.3 1998/12/02 02:48:32 timbo Exp $
 
    Copyright (c) 1998  Tim Bunce
 
@@ -113,13 +113,79 @@ oci_error(h, errhp, status, what)
 }
 
 
+int fetch_func_lob(sth, imp_sth, fbh, dest_sv)
+    SV *sth;
+    imp_sth_t *imp_sth;
+    imp_fbh_t *fbh;
+    SV *dest_sv;
+{
+    char *hint = "";
+    ub4 loblen = 0;
+    ub4 getlen;
+    ub4 amtp = 0;
+    OCILobLocator *lobl = (OCILobLocator*)fbh->descriptorh;
+    sword status;
+
+    status = OCILobGetLength(imp_sth->svchp, imp_sth->errhp, lobl, &loblen);
+    if (status != OCI_SUCCESS) {
+	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength");
+	return 0;
+    }
+
+    getlen = imp_sth->long_readlen;
+    if (loblen < getlen)
+	getlen = loblen;
+    amtp = getlen;	/* set right semantics */
+
+    SvUPGRADE(dest_sv, SVt_PV);
+    SvGROW(dest_sv, getlen+1);
+
+    status = OCILobRead(imp_sth->svchp, imp_sth->errhp, lobl,
+	&amtp, 1,
+	SvPVX(dest_sv), getlen,
+	(dvoid *)0, (sb4 (*)(dvoid *, const dvoid *, ub4, ub1)) 0,
+	(ub2) 0, (ub1) SQLCS_IMPLICIT);
+    if (dbis->debug >= 3)
+	fprintf(DBILOGFP, "    OCILobRead %s: %ld/%ld/%ld\n",
+	    oci_status_name(status), getlen, amtp, imp_sth->long_readlen);
+    if (status == OCI_NEED_DATA) {
+	int oraperl = DBIc_COMPAT(imp_sth);
+	if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(ora_trunc))) {
+	    /* user says truncation is ok */
+	    /* Oraperl recorded the truncation in ora_errno so we	*/
+	    /* so also but only for Oraperl mode handles.		*/
+	    if (oraperl)
+		sv_setiv(DBIc_ERR(imp_sth), 1406);
+	    status = OCI_SUCCESS;    /* but don't provoke an error here	*/
+	}
+	else {
+	    /* else fall through and let status trigger failure below	*/
+	    hint = ", LongReadLen too small and/or LongTruncOk not set";
+        }
+    }
+    if (status != OCI_SUCCESS) {
+	char buf[300];
+	sprintf(buf,"OCILobRead of %ld bytes on field %d of %d%s",
+		getlen, fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), hint);
+	oci_error(sth, imp_sth->errhp, status, buf);
+	return 0;
+    }
+    /* tell perl what we've put in its dest_sv */
+    SvCUR(dest_sv) = amtp;
+    *SvEND(dest_sv) = '\0';
+    SvPOK_on(dest_sv);
+
+    return 1;
+}
+
+
 int
 dbd_describe(h, imp_sth)
     SV *h;
     imp_sth_t *imp_sth;
 {
     D_imp_dbh_from_sth;
-    I32	long_buflen;
+    I32	long_readlen;
     ub4 num_fields;
     int has_longs = 0;
     int est_width = 0;		/* estimated avg row width (for cache)	*/
@@ -132,12 +198,12 @@ dbd_describe(h, imp_sth)
     imp_sth->done_desc = 1;
 
     /* ora_trunc is checked at fetch time */
-    /* long_buflen:	length for long/longraw (if >0), else 80 (ora app dflt)	*/
+    /* long_readlen:	length for long/longraw (if >0), else 80 (ora app dflt)	*/
     /* Ought to be for COMPAT mode only but was relaxed before LongReadLen existed */
-    long_buflen = (SvOK(ora_long) && SvIV(ora_long)>0)
+    long_readlen = (SvOK(ora_long) && SvIV(ora_long)>0)
 				? SvIV(ora_long) : DBIc_LongReadLen(imp_sth);
-    if (long_buflen < 0)		/* trap any sillyness */
-	long_buflen = 80;		/* typical oracle app default	*/
+    if (long_readlen < 0)		/* trap any sillyness */
+	long_readlen = 80;		/* typical oracle app default	*/
 
     if (imp_sth->stmt_type != OCI_STMT_SELECT) {
 	if (dbis->debug >= 2)
@@ -150,7 +216,7 @@ dbd_describe(h, imp_sth)
     if (dbis->debug >= 2)
 	fprintf(DBILOGFP, "    dbd_describe %s (%s, lb %ld)...\n",
 	    oci_stmt_type_name(imp_sth->stmt_type),
-	    DBIc_ACTIVE(imp_sth) ? "implicit" : "EXPLICIT", (long)long_buflen);
+	    DBIc_ACTIVE(imp_sth) ? "implicit" : "EXPLICIT", (long)long_readlen);
 
     /* We know it's a select and we've not got the description yet, so if the	*/
     /* sth is not 'active' (executing) then we need an explicit describe.	*/
@@ -176,7 +242,8 @@ dbd_describe(h, imp_sth)
     for(i = 1; i <= num_fields; ++i) {
 	ub4 atrlen;
 	imp_fbh_t *fbh = &imp_sth->fbh[i-1];
-	fbh->imp_sth = imp_sth;
+	fbh->imp_sth   = imp_sth;
+	fbh->field_num = i;
 
 	status = OCIParamGet(imp_sth->stmhp, OCI_HTYPE_STMT, imp_sth->errhp,
 			(dvoid*)&fbh->parmdp, (ub4)i);
@@ -219,12 +286,12 @@ dbd_describe(h, imp_sth)
 
 	case   8:				/* LONG		*/
 		fbh->disize = fbh->dbsize;
-		fbh->dbsize = long_buflen;
+		fbh->dbsize = long_readlen;
 		fbh->ftype  = 8;
 		break;
 	case  24:				/* LONG RAW	*/
 		fbh->disize = fbh->dbsize;
-		fbh->dbsize = long_buflen * 2;
+		fbh->dbsize = long_readlen * 2;
 		fbh->ftype  = 24;
 		break;
 
@@ -235,13 +302,26 @@ dbd_describe(h, imp_sth)
 		fbh->disize = 20;
 		break;
 
+	case 112:				/* CLOB		*/
+	case 113:				/* BLOB		*/
+		fbh->ftype  = fbh->dbtype;
+		fbh->disize = fbh->dbsize;
+		fbh->fetch_func  = fetch_func_lob;
+		fbh->descriptort = OCI_DTYPE_LOB;
+	        status = OCIDescriptorAlloc(imp_dbh->envhp, (dvoid **)&fbh->descriptorh,
+				     fbh->descriptort, 0, 0);
+		if (status != OCI_SUCCESS) {
+		    oci_error(h, imp_sth->errhp, status, "OCIDescriptorAlloc");
+		    return 0;
+		}
+		break;
+
 	case 105:				/* MLSLABEL	*/
 	case 108:				/* User Defined	*/
 	case 111:				/* REF		*/
-	case 112:				/* CLOB		*/
-	case 113:				/* BLOB		*/
 	default:
 		fbh->disize = fbh->dbsize;
+		/* XXX unhandled type may lead to core dump */
 		break;
 	}
 
@@ -255,7 +335,7 @@ dbd_describe(h, imp_sth)
 	/* each field (and thus row) to determine a 'good' cache size.	*/
 	if (fbh->dbsize==0) {	/* is a LONG type or 'select NULL'	*/
 	    if (dbtype_is_long(fbh->dbtype)) {
-		est_width += long_buflen;
+		est_width += long_readlen;
 		++has_longs;	/* hint to auto cache sizing code	*/
 	    }
 	}
@@ -297,6 +377,7 @@ dbd_describe(h, imp_sth)
 		&cache_mem,  0, OCI_ATTR_PREFETCH_MEMORY, imp_dbh->errhp);
     }
 
+    imp_sth->long_readlen = long_readlen;
     /* Initialise cache counters */
     imp_sth->in_cache  = 0;
     imp_sth->eod_errno = 0;
@@ -305,14 +386,14 @@ dbd_describe(h, imp_sth)
 	imp_fbh_t *fbh = &imp_sth->fbh[i-1];
 	fb_ary_t  *fb_ary;
 
-	fbh->fb_ary = fb_ary = fb_ary_alloc(
-			fbh->disize+1,	/* +1: STRING null terminator   */
-			1);
+	fbh->fb_ary = fb_ary_alloc(fbh->disize+1 /* +1: STRING null terminator */, 1);
+	fb_ary = fbh->fb_ary;
 
 	status = OCIDefineByPos(imp_sth->stmhp, &fbh->defnp, imp_sth->errhp, (ub4) i,
-                    fb_ary->abuf, fbh->disize,	/* valuep, value_sz */
-		    fbh->ftype,
-                    fb_ary->aindp, fb_ary->arlen, fb_ary->arcode, OCI_DEFAULT);
+	    (fbh->descriptorh) ? (dvoid*)&fbh->descriptorh : (dvoid*)fb_ary->abuf,
+	    (fbh->descriptorh) ?                        -1 :         fbh->disize,
+	    fbh->ftype,
+	    fb_ary->aindp, fb_ary->arlen, fb_ary->arcode, OCI_DEFAULT);
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status, "OCIDefineByPos");
 	    return 0;
@@ -355,6 +436,8 @@ dbd_st_fetch(sth, imp_sth)
 	status = OCI_SUCCESS;
     }
     else {
+	if (dbis->debug >= 3)
+	    fprintf(DBILOGFP, "    dbd_st_fetch %d fields...\n", DBIc_NUM_FIELDS(imp_sth));
 	status = OCIStmtFetch(imp_sth->stmhp, imp_sth->errhp, 1, OCI_FETCH_NEXT, OCI_DEFAULT);
     }
     if (status != OCI_SUCCESS) {
@@ -389,8 +472,9 @@ dbd_st_fetch(sth, imp_sth)
 	int rc = fb_ary->arcode[cache_entry];
 	SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/
 
-	if (rc == 1406 && dbtype_is_long(fbh->dbtype)) {
-	    /* We have a LONG field which has been truncated.		*/
+	if (rc == 1406				/* field was truncated	*/
+	    && dbtype_is_long(fbh->dbtype)	/* field is a LONG	*/
+	) {
 	    int oraperl = DBIc_COMPAT(imp_sth);
 	    if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(ora_trunc))) {
 		/* user says truncation is ok */
@@ -404,14 +488,24 @@ dbd_st_fetch(sth, imp_sth)
 	}
 
 	if (rc == 0) {			/* the normal case		*/
-	    int datalen = fb_ary->arlen[cache_entry];
-	    char *p = (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl];
-	    /* if ChopBlanks check for Oracle CHAR type (blank padded)	*/
-	    if (ChopBlanks && fbh->dbtype == 96) {
-		while(datalen && p[datalen - 1]==' ')
-		    --datalen;
+	    if (fbh->ftype == 5) {
+		int datalen = fb_ary->arlen[cache_entry];
+		char *p = (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl];
+		/* if ChopBlanks check for Oracle CHAR type (blank padded)	*/
+		if (ChopBlanks && fbh->dbtype == 96) {
+		    while(datalen && p[datalen - 1]==' ')
+			--datalen;
+		}
+		sv_setpvn(sv, p, (STRLEN)datalen);
 	    }
-	    sv_setpvn(sv, p, (STRLEN)datalen);
+	    else if (fbh->descriptorh) {
+		if (!fbh->fetch_func(sth, imp_sth, fbh, sv))
+		    ++err;	/* fetch_func already called oci_error */
+	    }
+	    else {
+		++err;
+		oci_error(sth, imp_sth->errhp, OCI_ERROR, "panic: unhandled field type");
+	    }
 
 	} else if (rc == 1405) {	/* field is null - return undef	*/
 	    (void)SvOK_off(sv);
@@ -420,7 +514,7 @@ dbd_st_fetch(sth, imp_sth)
 	    char buf[200];
 	    char *hint = "";
 	    /* These may get more case-by-case treatment eventually.	*/
-	    if (rc == 1406) {		/* field truncated (see above)  */
+	    if (rc == 1406 && fbh->ftype == 5) { /* field truncated (see above)  */
 		/* Copy the truncated value anyway, it may be of use,	*/
 		/* but it'll only be accessible via prior bind_column()	*/
 		sv_setpvn(sv, (char*)&fb_ary->abuf[cache_entry * fb_ary->bufl],

@@ -1,7 +1,7 @@
 /*
-   $Id: dbdimp.h,v 1.23 1998/11/29 00:14:07 timbo Exp $
+   $Id: dbdimp.h,v 1.24 1998/12/02 02:48:32 timbo Exp $
 
-   Copyright (c) 1994,1995  Tim Bunce
+   Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
    You may distribute under the terms of either the GNU General Public
    License or the Artistic License, as specified in the Perl README file,
@@ -9,6 +9,11 @@
    for commercial distribution without the prior approval of the author.
 
 */
+
+
+#if PATCHLEVEL < 5 && !defined(PL_dirty)
+#define PL_dirty dirty
+#endif
 
 
 /* try uncommenting this line if you get a syntax error on
@@ -43,9 +48,10 @@
 
 #if defined(SQLT_NTY) && !defined(NO_OCI8)	/* use Oracle 8 */
 
-#ifdef dirty
-#undef dirty /* appears in OCI prototypes as parameter name */
-#endif
+/* ori.h uses 'dirty' as an arg name in prototypes so we use this */
+/* hack to prevent ori.h being read (since we don't need it)	  */
+#define ORI_ORACLE
+
 #include <oci.h>
 
 #else										/* use Oracle 7 */
@@ -123,6 +129,7 @@ struct imp_sth_st {
     imp_fbh_t *fbh;	    /* array of imp_fbh_t structs	*/
     char      *fbh_cbuf;    /* memory for all field names       */
     int       t_dbsize;     /* raw data width of a row		*/
+    IV        long_readlen; /* local copy to handle oraperl	*/
 
     /* Select Row Cache Details */
     int       cache_rows;
@@ -147,12 +154,16 @@ struct fb_ary_st { 	/* field buffer array EXPERIMENTAL	*/
 };
 
 struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
-    imp_sth_t *imp_sth;	/* 'parent' statement */
+    imp_sth_t *imp_sth;	/* 'parent' statement	*/
+    int field_num;	/* 0..n-1		*/
 
     /* Oracle's description of the field	*/
 #ifdef OCI_V8_SYNTAX
     OCIParam  *parmdp;
     OCIDefine *defnp;
+    void *descriptorh;	/* descriptor if needed (LOBs etc)	*/
+    ub4   descriptort;	/* OCI type of descriptorh		*/
+    int  (*fetch_func) _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv));
     ub2  dbsize;
     ub2  dbtype;	/* actual type of field (see ftype)	*/
     ub1  prec;

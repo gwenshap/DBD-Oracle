@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.41 1998/11/29 00:14:07 timbo Exp $
+   $Id: dbdimp.c,v 1.42 1998/12/02 02:48:32 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -12,7 +12,7 @@
 
 #include "Oracle.h"
 
-#if !defined(dirty) && !defined(PL_dirty)
+#if PATCHLEVEL < 5 && !defined(PL_dirty)
 #define PL_dirty dirty
 #endif
 
@@ -1382,6 +1382,10 @@ dbd_st_destroy(sth, imp_sth)
 	if (fbh->fb_ary)
 	    fb_ary_free(fbh->fb_ary);
 	sv_free(fbh->name_sv);
+#ifdef OCI_V8_SYNTAX
+	if (fbh->descriptorh)
+	    OCIDescriptorFree(fbh->descriptorh, fbh->descriptort);
+#endif
     }
     Safefree(imp_sth->fbh);
     Safefree(imp_sth->statement);
