@@ -155,8 +155,8 @@ if ($os eq 'darwin') {
     }
     close FH;
     unless ($stripped) {
-	die "ERROR: symbol table needs modification in Oracle library:\n"
-	   ."\t$oracle_lib\nManual modification required - see README.macosx\n";
+	warn "WARNING: symbol table may need modification in Oracle library:\n"
+	   ."\t$oracle_lib\nIF the build fails in the linking stage, manual modification is required - see README.macosx\n";
     }
 }
 

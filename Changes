@@ -1,7 +1,5 @@
 =head1 Changes in DBD-Oracle 1.16 (svn rev 398)   15th July 2004
 
-  NEEDS TESTING - especially for Oracle 8.x, 9.0.x and Windows
-
   NOTE:
   This release has major changes to Unicode support. See below.
   This release no longer supports the old Oracle 7 OCI interface.
@@ -43,6 +41,7 @@
   Documentation changes:
     Corrected typo in ora_lob_read() example thanks to Johannes Wierny.
     Corrected LOB example thanks to Sascha Pfalz and Thomas Upton.
+    Updated README.macosx thanks to Hilmar Lapp.
     Added $dbh->reauthenticate($user,$pass) docs thanks to Andy Hassall.
     Added $dbh->{ora_parse_error_offset} docs thanks to Andy Hassall.
     Added gcc example to README.aix thanks to Adrian Terranova.
