@@ -1,0 +1,48 @@
+[ In no particular order ]
+
+add docs about OPS$ login
+
+bind type 1 or 5?!
+
+Add hint about SQL*Plus commands if execute gets an ORA-0900 invalid SQL
+statement? Maybe just if common SQL*Plus command word is first word.
+
+Support SERVICE_NAME in new connect syntax (allow inplace of SID)
+
+warn (trace_msg?) if ORACLE_HOME changes after first connect
+relates to Apache::DBI scenario where changing ORACLE_HOME
+upsets existing connections.
+
+fetchall_arrayref in C (start with XS version in DBI for all drivers?)
+
+PRECISION for oci7 on VARCHAR etc
+
+Detect "Error while trying to retrieve text for error ORA-XXXX"
+and add "refer to oracle docs or use 'oerr ora XXXX'".
+
+blob_read for oci8 with LONGs
+
+connect(..., { ora_module_name => $0 });
+
+bind_param(... { TYPE => SQL_* }) esp SQL_LONGVARCHAR etc
+
+$sth = $dbh->prepare("select ... for update");
+$dbh->commit;
+$sth->execute; # fails ? auto-re-prepare?
+
+ora_bind() failed err = ORA-01026: multiple buffers of size > 4000 in
+the bind list (DBD: oexec error)
+
+http://outside.organic.com/mail-archives/dbi-users/Nov1997/0116.html
+
+Handle PL/SQL arrays.
+
+Non-blocking
+
+Tests:
+RAW types at max length
+
+http://www.oracle-users.com/html/freeware.html
+
+http://freespace.virgin.net/j.hatcher/ociwrap.htm
+
