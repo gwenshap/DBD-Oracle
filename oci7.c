@@ -1,5 +1,5 @@
 /*
-   $Id: oci7.c,v 1.13 2001/08/07 00:25:37 timbo Exp $
+   $Id: oci7.c,v 1.14 2001/08/29 19:38:31 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -237,6 +237,7 @@ dbd_describe(h, imp_sth)
 	/* Now define the storage for this field data.			*/
 
 	if (fbh->dbtype==23) {		/* RAW type			*/
+	    if (fbh->prec == 0) { fbh->prec = fbh->dbsize; }
 	    fbh->dbsize *= 2;
 	    fbh->disize *= 2;
 	}

@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.c,v 1.27 2001/08/07 00:25:37 timbo Exp $
+   $Id: oci8.c,v 1.31 2001/08/29 16:37:58 timbo Exp $
 
    Copyright (c) 1998  Tim Bunce
 
@@ -288,6 +288,23 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
 	if (!dbd_describe(sth, imp_sth))
 	    return 0;
     }
+    else {
+      /* set initial cache size by memory */
+      ub4 cache_mem;
+      if      (SvOK(ora_cache_o)) cache_mem = -SvIV(ora_cache_o);
+      else if (SvOK(ora_cache))   cache_mem = -SvIV(ora_cache);
+      else                        cache_mem = -imp_dbh->RowCacheSize;
+      if (cache_mem <= 0)
+	cache_mem = 10 * 1460;
+      OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	&cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
+	imp_sth->errhp, status);
+      if (status != OCI_SUCCESS) {
+        oci_error(sth, imp_sth->errhp, status,
+		  "OCIAttrSet OCI_ATTR_PREFETCH_MEMORY");
+        return 0;
+      }
+    }
 
     return 1;
 }
@@ -510,19 +527,15 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 int 
 dbd_rebind_ph_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs) 
 {
-#ifndef MM_CURSOR_FIX
   /* Only do this part for inout cursor refs because pp_exec_rset only gets called for all the output params */
   if (phs->is_inout) {
-#endif
     phs->out_prepost_exec = pp_exec_rset;
     return 2;	/* OCI bind done */
-#ifndef MM_CURSOR_FIX
   }
   else {
     /* Call a special rebinder for cursor ref "in" params */
     return(pp_rebind_ph_rset_in(sth, imp_sth, phs));
   }
-#endif
 }
 
 
@@ -640,6 +653,8 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
     /* this function is not called for NULL lobs */
 
+    /* The length is expressed in terms of bytes for BLOBs and BFILEs,	*/
+    /* and in terms of characters for CLOBs				*/
     OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc, &loblen, status);
     if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength");
@@ -647,7 +662,6 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
     }
 
     amtp = (loblen > imp_sth->long_readlen) ? imp_sth->long_readlen : loblen;
-    buflen = amtp;	/* set right semantics for OCILobRead */
 
     if (loblen > imp_sth->long_readlen) {	/* LOB will be truncated */
 	int oraperl = DBIc_COMPAT(imp_sth);
@@ -670,6 +684,11 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
         }
     }
 
+    /* set char vs bytes and get right semantics for OCILobRead */
+    if (fbh->dbtype==112) {
+	buflen = amtp * 4;  /* XXX bit of a hack, efective but wasteful */
+    }
+    else buflen = amtp;
     (void)SvUPGRADE(dest_sv, SVt_PV);
     SvGROW(dest_sv, buflen+1);
 
@@ -678,7 +697,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	    &amtp, 1, SvPVX(dest_sv), buflen, 0, 0, 0, SQLCS_IMPLICIT, status);
 	if (DBIS->debug >= 3)
 	    fprintf(DBILOGFP,
-		"       OCILobRead field %d %s: LOBlen %ld, LongReadLen %ld, BufLen %ld, Got %ld\n",
+		"       OCILobRead field %d %s: LOBlen %ldc, LongReadLen %ldc, BufLen %ldb, Got %ldc\n",
 		fbh->field_num+1, oci_status_name(status), ul_t(loblen),
 		imp_sth->long_readlen, ul_t(buflen), ul_t(amtp));
 	if (status != OCI_SUCCESS) {
@@ -808,6 +827,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->scale,  0, OCI_ATTR_SCALE,     status);
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->nullok, 0, OCI_ATTR_IS_NULL,   status);
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->name,   &atrlen, OCI_ATTR_NAME,status);
+	if (atrlen == 0) { /* long names can cause oracle to return 0 for atrlen */
+	    char buf[99];
+	    sprintf(buf,"field_%d_name_too_long", i);
+	    fbh->name = &buf[0];
+	    atrlen = strlen(fbh->name);
+	}
 	fbh->name_sv = newSVpv(fbh->name,atrlen);
 	fbh->name    = SvPVX(fbh->name_sv);
 
@@ -875,6 +900,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 	default:
 		/* XXX unhandled type may lead to errors or worse */
+		fbh->ftype  = fbh->dbtype;
 		fbh->disize = fbh->dbsize;
 		p = "Field %d has an Oracle type (%d) which is not explicitly supported%s";
 		if (DBIS->debug >= 1)
@@ -961,7 +987,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	}
 
 	if (fbh->ftype == 108) {
-		warn("OCIDefineObject call needed");
+	    oci_error(h, NULL, OCI_ERROR, "OCIDefineObject call needed but not implemented yet");
+	    return 0;
 	}
 
     }
@@ -1290,9 +1317,15 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
 		OCI_OTYPE_NAME, 1, OCI_PTYPE_TABLE, dschp, status);
     if (status != OCI_SUCCESS) {
+      /* XXX this OCI_PTYPE_TABLE->OCI_PTYPE_VIEW fallback should actually be	*/
+      /* a loop that includes synonyms etc */
+      OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
+		OCI_OTYPE_NAME, 1, OCI_PTYPE_VIEW, dschp, status);
+      if (status != OCI_SUCCESS) {
 	OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, status);
-	return oci_error(sth, errhp, status, "OCIDescribeAny/LOB refetch");
-    }
+	return oci_error(sth, errhp, status, "OCIDescribeAny(view)/LOB refetch");
+      }
+    } 
 
     OCIAttrGet_log_stat(dschp,  OCI_HTYPE_DESCRIBE,
 				&parmhp, 0, OCI_ATTR_PARAM, errhp, status);

@@ -1,5 +1,7 @@
 [ In no particular order ]
 
+Move urls from README into Oracle.pm
+
 Test script for bind type / field type / length / null interactions
 of char/varchar types.
 

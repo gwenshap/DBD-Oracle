@@ -42,7 +42,8 @@ grateful indeed.
 
 I've included below two of his email messages, slightly edited, where
 he explains the procedure for options 1 and 2 above. I've also
-appended a slight reworking of option 1 from Paul Vallee.
+appended a slight reworking of option 1 from Paul Vallee. And I've later
+added some more useful messages from other people.
 
 Tim.
 
@@ -214,4 +215,108 @@ Paul Vallee
 Principal
 The Pythian Group, Inc.
 ------------------------------------------------------------------------------ 
+
+From: Peter Ludemann <peter.ludemann@us.xacct.com>
+
+Here's a different way for ensuring that LD_PRELOAD has been set:
+
+  unless (($ENV{LD_PRELOAD}||'') =~ /thread.so/) {
+    $ENV{LD_PRELOAD} = '/lib/libthread.so';
+    exec($^X, '-w', $0, @ARGV);
+  }
+
+This hasn't been rigorously tested, but it seems to do the trick, at
+least on Solaris 7 with Oracle 8.
+
+------------------------------------------------------------------------------ 
+
+From: VG <vgabriel@nbcs.rutgers.edu>
+
+I've had luck with adding the following at the top of my program:
+
+use DynaLoader;
+Dynaloader::db_load_file("/usr/lib/libthread.so", 0x01);
+
+(Others have reported this nor working for them.)
+
+------------------------------------------------------------------------------ 
+
+From: daver@despair.tmok.com (Dave C.)
+Subject: Re: DBI::DBD with Oracle 8i
+Newsgroups: comp.lang.perl.modules
+
+It looks like a lot of people are having this problem....
+
+I managed to solve it. I'm running Oracle 8.1.6, Solaris 8, Perl 5.6.0,
+and the latest DBI/DBD modules.
+
+I did some experimentation and discovered that the root of the problem
+was that libclntsh.so was linking with nautab.o. For some reason,
+nautab.o was linked with this RADIUS authentication (?) thing that was
+calling into Java (even though I don't use that particular functionality.)
+
+So, what I had to do was generate a libclntsh.so that linked with a
+nautab.o that didn't require the radius (and thus the java). I then
+forced the Oracle DBD to link with my library and installed it, and it
+worked.
+
+Here's the step-by-step:
+ 
+To do this, first copy the "genautab" and "genclntsh" scripts to a
+scratch directory. By default "genautab" apparently generates some
+default network authentication stub without a lot of options (which was
+okay for me.)
+
+I ran:
+ 
+ ./genautab >nautab.s
+ as -P nautab.s
+ 
+After this step you should have a "nautab.o" file.
+ 
+Now, you must must modify "genclntsh" to produce your custom clntsh
+library (which I called "perlclntsh" so I wouldn't mess up the original
+Oracle library.) So I went into the file and modified CLNT_NAM to read
+"perlclntsh".  I also changed LIB_DIR to put the resulting library in
+my current directory:  (LIB_DIR=`pwd`)
+
+Also, instead of creating the library, I modified the script to just
+echo the command. Search for "# Create library" and put "echo " before
+{$LD} ${LD_RUNTIME}...  Now, when you run "./genclntsh" you should get
+a large command. Redir this command to a file "./genclntsh >t"
+
+Now, edit this file and remove all references to java libraries (get
+rid of all "-ljava" instances, at least, and you may need to delete
+other stuff, like -lnative_threads.) . Run your script: "sh ./t".
+After some time you should wind up with a "libperlclntsh.so.8.0".
+This is your custom library any of the java stuff linked in.
+
+Then copy this lib to /usr/local/lib and create a softlink
+"libperlclntsh.so" to "libperlclntsh.so.8.0" (or copy it wherever you
+want...)
+
+Then you have to force DBD to link with this library instead of linking
+with the libclntsh.so provided by Oracle.
+
+Basically what I did was follow the normal DBD-Oracle directions. I
+then edited the resulting Makefile manually and changed all references
+of libclntsh.so to libperlclnt.so (ie, -lclntsh to -lperlclntsh)  I
+also changed the LDDLFLAGS and LDFLAGS and appended "-L/usr/local/lib
+-R/usr/local/lib -L/usr/ucblib -R/usr/ucblib -lucb". (for some reason
+the resulting DBD wanted to link with ucb) Run "make" and rebuild the
+DBD.  Now "make test" should pass.
+
+Note that this was a fairly long (couple of hours) series of trial and
+error before I finally got this to work. Your system may be different
+and you may encounter your own linking problems, etc.
+
+Disclaimer: This may not work for you, but it worked for me. Even if it
+does work for you there is no guarantee that the resulting module will
+function correctly and won't hose your database, etc...
+
+I forgot to mention that in script resulting from genclntsh you must
+tell it to use _your_ nautab.o for linking, not the oracle lib one.
+Oops.
+
+-Dave
 
