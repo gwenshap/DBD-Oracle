@@ -82,7 +82,7 @@ sub extra_wide_rows
       [ "\x{20301}", "SIP Plane 2 wide char"  ], # CJK Unified Ideographs Extension B
    );
 }
-sub narrow_data 	# Assuming latin1 character set XXX?
+sub narrow_data 	# Assuming WE8ISO8859P1 or WE8MSWIN1252 character set 
 {
     [
         [ chr(3),   "control-C"        ],
