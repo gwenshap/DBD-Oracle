@@ -1313,15 +1313,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	}
 
 #ifdef OCI_ATTR_CHARSET_FORM
-        if ( (fbh->dbtype == 1) ) { /*  && (fbh->csform == SQLCS_NCHAR) && CS_IS_UTF8(ncharsetid) ) { */
-            /* ok... after doing what tim asked: setting SvUTF8 strictly based on csid 8bit Nchar test was broken
-               and this currently effectively just sets Attrs to the values in fhb ignoring ncharsetid altogether 
-               probably wrong
-             */
-            ub1 csform = fbh->csform;
+        if ( (fbh->dbtype == 1) && fbh->csform ) {
+	    /* csform may be 0 when talking to Oracle 8.0 database */
             if (DBIS->debug >= 3)
-               PerlIO_printf(DBILOGFP, "     calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d\n", csform );
-            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csform, 
+               PerlIO_printf(DBILOGFP, "     calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d\n", fbh->csform );
+            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
             if (status != OCI_SUCCESS) {
                 oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");

@@ -176,9 +176,9 @@ my $need_ldlp_env;
 
 if ($os eq 'VMS') {
     my $OCIINCLUDE = join " ",	vmsify("$OH/rdbms/"),
+				vmsify("$OH/rdbms/public"),
 				vmsify("$OH/rdbms/demo/"),
 				vmsify("$OH/rdbms/demo/oci_demo/"),
-				vmsify("$OH/rdbms/public"),
 				vmsify("$OH/netconfig/demo/"); # eg nzt.h in 8.1.7 on VMS
     $opts{INC}  = "$OCIINCLUDE $dbi_arch_dir";
     $opts{OBJECT} = 'oracle.obj dbdimp.obj oci7.obj oci8.obj' if $] < 5.005;
@@ -563,7 +563,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     $OCIINCLUDE .= " -I$OH/rdbms/demo";
     my @h_dirs = find_headers();
     my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
-    $opts{INC}  = "$OCIINCLUDE $inc -I$dbi_arch_dir";
+    $opts{INC}  = "$inc $OCIINCLUDE -I$dbi_arch_dir";
 }
 
 
@@ -1300,9 +1300,10 @@ sub find_headers {
 	my $dir = $File::Find::dir;
 	$dir =~ s:^\Q$OH/::;
 	$h_dir{$dir} = $_;
-	$h_file{$_} = $dir;
+	$h_file{$_} ||= $dir; # record first one found
 	print "Found $dir/$_\n" if $::opt_d;
-    }, "$OH/rdbms",
+    }, "$OH/rdbms/public", # prefer public over others
+       "$OH/rdbms",
        "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0)
     );
     @h_dir = keys %h_dir;

@@ -1,6 +1,11 @@
 =head1 Changes in DBD-Oracle 1.17 (svn rev NNN)
 
+  Fixed csform setting for Oracle 8.0.
+
+  Changed Makfile.PL to prefer ~/rdbms/public over other ~/rdbms/* for .h files.
   Changed README.vms re logical name tables thanks to Jakob Snoer.
+
+  Added VMS logical name checks to Makefile.PL thanks to Jakob Snoer.
 
 =head1 Changes in DBD-Oracle 1.16 (svn rev 515)   22nd October 2004
 
