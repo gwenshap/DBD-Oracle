@@ -13,6 +13,8 @@ DBD::Oracle  --  an Oracle 7 interface for Perl 5.
    oraperl emulation layer. This is fairly complete and stable.
    Execute "perldoc Oraperl" for info.
 
+   PLEASE READ THE ENTIRE README FILE!
+
 
 *BEFORE* BUILDING, TESTING AND INSTALLING this you will need to:
 
@@ -96,6 +98,10 @@ Master archive site for Perl DB information:
     ftp://ftp.demon.co.uk/pub/perl/db/
 Mailing list archive:                /DBI/perldb-interest/
 Perl 4 Oraperl (v2.4)                /perl4/oraperl/
+
+Searchable index of the dbi-users mailing list:
+http://www.coe.missouri.edu/~faq/lists/dbiusers/
+
 
 ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources/...
 
@@ -288,12 +294,12 @@ version of the DBI in order that it be automatically included when
 you do the 'make perl' above.
 
 -------------------------------------------------------------------------------
-Oracle 7.1.3: Syntax error in oratypes.h
+Oracle 7.1: Syntax error in oratypes.h
 
 Try uncommenting the '#define signed' line in Oracle.h
 
 -------------------------------------------------------------------------------
-Oracle 7.1.3/4: Connection takes a long time and may coredump
+Oracle 7.1 and 7.2: Connection takes a long time and may coredump
 
 Oracle bug number: 227321 related to changing the environment before
 connecting to oracle.
@@ -314,10 +320,7 @@ Edited from Message-ID: <3qaui9$ae@usenet.rpi.edu> and
 <3qb5dp$2nc@usenet.rpi.edu> in comp.databases.oracle
 From: finkej@ts.its.rpi.edu (Jon Finke)
 
-I am in the process of converting a locally developed that sits on top
-of the OCI routines from version 6 to version 7.   Unfortunately, I have
-run into a snag that I have been unable to get around.   Every test run
-results in getting an "ORA-01002: fetch out of sequence" error.
+Every test run results in an "ORA-01002: fetch out of sequence" error.
 
 The manual claims that this is the result of calling "ofetch" before
 oparse/oexec, or running out of things to fetch.   Yet, I am calling

@@ -1,3 +1,11 @@
+Changes in DBD::Oracle 0.36 (Oraperl 1.28), 10th July 1996
+
+	Fixed bind_param ora_type attribute.
+	Fixed preparse to allocate enough memory for worst case.
+	Fixed broken HP-UX 10 check in Makefile.PL.
+	Other assorted Makefile.PL improvements.
+	(Many thanks to those who sent in fixes.)
+
 Changes in DBD::Oracle 0.35 (Oraperl 1.28), 21st June 1996
 
 	Fixed broken Solaris 2.5 check in Makefile.PL.

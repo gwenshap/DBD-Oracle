@@ -1,7 +1,7 @@
 #!/usr/local/bin/perl -sw
-# $Id: Makefile.PL,v 1.45 1996/06/22 02:09:29 timbo Exp $
+# $Id: Makefile.PL,v 1.46 1996/07/10 02:27:52 timbo Exp $
 
-require 5.002;
+BEGIN { require 5.003 }	# 5.003 fixes very important bugs
 
 use ExtUtils::MakeMaker 5.16, qw(&WriteMakefile $Verbose);
 use Getopt::Std;
@@ -15,7 +15,7 @@ require FileHandle unless defined(&FileHandle::new);
 # For those not using Dynamic loading this means building a
 # new static perl in the DBI directory by saying 'make perl'
 # and then using _that_ perl to make this one.
-use DBI 0.70;
+use DBI 0.71;
 
 my %opts = (
     NAME => 'DBD::Oracle',
@@ -72,13 +72,16 @@ die "Unable to locate proc.mk (use -m /path/to/proc.mk to specify)\n"
 my $linkwith = fetch_oci_macros();
 my $libhome  = expand_mkvars($MK{LIBHOME}, 0, 0);
 $linkwith    = expand_mkvars($linkwith, 0, 0);
-$linkwith =~ s/-Y P,/-YP,/ if $Config{'cc'} =~ /gcc/;
+$linkwith =~ s/-Y P,/-YP,/g if $Config{'cc'} =~ /gcc/;
+$linkwith =~ s:-R /:-R/:g if $Config{osname} eq 'solaris';
 
 # get a cut down $linkwith to pass to MakeMaker liblist
 my $linkwith_s = expand_mkvars($linkwith, 1, 1);
+# convert "/full/path/libFOO.a" into "-L/full/path -lFOO"
+$linkwith_s =~ s!([/\w.]+)/lib(\w+).a!-L$1 -l$2!g;
 # extract object files, keep for use later
 my @linkwith_o;
-push @linkwith_o, $1 while $linkwith_s =~ s/(\S+\.o)\b//;
+push @linkwith_o, $1 while $linkwith_s =~ s/(\S+\.[oa])\b//;
 
 if ($::opt_s) {
 	warn "Searching for symbol '$::opt_s' in $libhome ...\n";
@@ -111,8 +114,8 @@ $opts{OBJECT} = '$(O_FILES)';
 # HP-UX 9 cannot link a non-PIC object file into a shared library.
 # Since the # .a libs that Oracle supplies contain non-PIC object
 # files, we sadly have to build static on HP-UX 9 :(
-if ($Config{osname} eq 'hpux' and $Config{osver} < 10) {
-    print "Warning: forced to build static not dynamic on $Config{osname} $Config{osver}\n";
+if ($Config{osname} eq 'hpux' and $Config{osvers} < 10) {
+    print "Warning: forced to build static not dynamic on $Config{osname} $Config{osvers}\n";
     print "         See README and Makefile.PL for more information.\n";
     $opts{LINKTYPE} = 'static';
 }
@@ -333,7 +336,7 @@ sub mkvar {
     my $backtick  = shift;
     my $default = $strip ? '' : "\$($var)";
     # warn "Expand var: $var\n";
-    return '$(LIBHOME)' if $var eq 'LIBHOME';	# gets too noisy
+    return '$(LIBHOME)' if $var eq 'LIBHOME' && !$strip; # gets noisy
     return $ENV{ORACLE_HOME} if $var eq 'ORACLE_HOME';
     $MK{$var} ? expand_mkvars($MK{$var}, $strip, $backtick) : $default;
 }

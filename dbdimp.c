@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.19 1996/06/19 00:48:09 timbo Exp $
+   $Id: dbdimp.c,v 1.20 1996/07/10 02:27:52 timbo Exp $
 
    Copyright (c) 1994,1995  Tim Bunce
 
@@ -309,7 +309,7 @@ dbd_st_prepare(sth, statement, attribs)
                 (sword)oparse_defer, (ub4)oparse_lng)) {
 	SV  *msgsv;
 	char msg[99];
-	sprintf(msg,"possibly parse error at character %d of %d in '",
+	sprintf(msg,"possibly parse error near character %d of %d in '",
 	    imp_sth->cda->peo+1, (int)strlen(imp_sth->statement));
 	msgsv = sv_2mortal(newSVpv(msg,0));
 	sv_catpv(msgsv, imp_sth->statement);
@@ -355,8 +355,8 @@ dbd_preparse(imp_sth, statement)
     int idx=0, style=0, laststyle=0;
 
     /* allocate room for copy of statement with spare capacity	*/
-    /* for editing ':1' into ':p1' so we can use obndrv.	*/
-    imp_sth->statement = (char*)safemalloc(strlen(statement) + 100);
+    /* for editing '?' or ':1' into ':p1' so we can use obndrv.	*/
+    imp_sth->statement = (char*)safemalloc(strlen(statement) * 3);
 
     /* initialise phs ready to be cloned per placeholder	*/
     memset(&phs_tpl, 0, sizeof(phs_tpl));
@@ -459,7 +459,7 @@ dbd_bind_ph(sth, ph_namesv, newvalue, attribs)
 	/* Setup / Clear attributes as defined by attribs.		*/
 	/* If attribs is EMPTY then reset attribs to default.		*/
 	;	/* XXX */
-	if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_type",0, 0)) == NULL) {
+	if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_type",8, 0)) == NULL) {
 	    if (!dbtype_is_string(SvIV(*svp)))	/* mean but safe	*/
 		croak("bind_param %s ora_type %d not a simple string type",
 			name, (int)SvIV(*svp));
