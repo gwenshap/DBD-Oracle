@@ -369,7 +369,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	system("make $DBD_ORA_OBJ.o CC='$Config{cc}'"); # make a valid .o file.
 
 	my $make = "$Config{make} -f $mkfile $build_target"
-		." ECHODO=echo ECHO=echo GENCLNTSH='echo genclntsh' CC=echo"
+		." ECHODO=echo ECHO=echo GENCLNTSH='echo genclntsh' CC=true"
 		." OPTIMIZE= CCFLAGS="
 		." EXE=DBD_ORA_EXE OBJS=$DBD_ORA_OBJ.o";
 	print "by executing: [$make]\n";
@@ -398,6 +398,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	print "Oracle oci build prolog:\n \t[", join("]\n\t[", @prolog), "]\n" if @prolog;
 	print "Oracle oci build command:\n\t[", join("]\n\t[", @cmds  ), "]\n";
 	if (@cmds == 1 && (my $build = shift @cmds) =~ /DBD_ORA_EXE/) {
+	    $build =~ s/\s*true\s+//;		# remove dummy compiler
 	    $build =~ s/$DBD_ORA_OBJ.o//;	# remove dummy object file
 	    $build =~ s/\S+\s+DBD_ORA_EXE//;	# remove dummy exe file and preceding flag
 	    $build =~ s/-o build\S*//;		# remove -o target that confuses gcc at least on Sun
@@ -1509,3 +1510,4 @@ sub check_security {
 }
 
 __END__
+
