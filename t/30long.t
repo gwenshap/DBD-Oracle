@@ -30,7 +30,7 @@ my %warnings;
 
 my @skip_unicode;
 push @skip_unicode, "Perl < 5.6 "          if $] < 5.006;
-push @skip_unicode, "Oracle client < 9.0 " if ORA_OCI() < 9.0; # Too many Oracle bugs :(
+push @skip_unicode, "Oracle client < 9.0 " if ORA_OCI() < 9.0 and !$ENV{DBD_ALL_TESTS};
 
 # Set size of test data (in 10KB units)
 #	Minimum value 3 (else tests fail because of assumptions)

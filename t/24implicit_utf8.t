@@ -15,6 +15,8 @@ my $dbh;
 $| = 1;
 SKIP: {
     plan skip_all => "Unable to run 8bit char test, perl version is less than 5.6" unless ( $] >= 5.006 );
+    plan skip_all => "Oracle charset tests unreliable for Oracle 8 client"
+	if ORA_OCI() < 9.0 and !$ENV{DBD_ALL_TESTS};
 
     $dbh = db_handle();	# just to check connection and db NCHAR character set
     plan skip_all => "Not connected to oracle" if not $dbh;

@@ -16,6 +16,8 @@ $| = 1;
 SKIP: {
 
     plan skip_all => "Unable to run unicode test, perl version is less than 5.6" unless ( $] >= 5.006 );
+    plan skip_all => "Oracle charset tests unreliable for Oracle 8 client"
+	if ORA_OCI() < 9.0 and !$ENV{DBD_ALL_TESTS};
 
 #!  #force Ncharset to NON UTF8! we are testing a wide database where someone
 #!  #perversely sets nchar to non utf8, and nls_lang to utf8.... 

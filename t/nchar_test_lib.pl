@@ -92,9 +92,9 @@ sub extra_wide_rows
 sub narrow_data 	# Assuming WE8ISO8859P1 or WE8MSWIN1252 character set 
 {
     [
-        [ chr(3),   "control-C"        ],
         [ "a",      "lowercase a"      ],
         [ "b",      "lowercase b"      ],
+        [ chr(3),   "control-C"        ],
         [ chr(161), "upside down bang" ],
         [ chr(162), "cent char"        ],
         [ chr(163), "british pound"    ],
@@ -362,13 +362,15 @@ sub show_db_charsets
 {
     my ( $dbh, $fh ) = @_;
     $fh ||= \*STDOUT;
+    my $ora_server_version = join ".", @{$dbh->func("ora_server_version")||[]};
     my $paramsH = $dbh->ora_nls_parameters();
-    printf $fh "Database CHAR set is %s (%s), NCHAR set is %s (%s)\n",
+    printf $fh "Database $ora_server_version CHAR set is %s (%s), NCHAR set is %s (%s)\n",
 	$paramsH->{NLS_CHARACTERSET}, 
 	db_ochar_is_utf($dbh) ? "Unicode" : "Non-Unicode",
 	$paramsH->{NLS_NCHAR_CHARACTERSET},
 	db_nchar_is_utf($dbh) ? "Unicode" : "Non-Unicode";
-    printf $fh "Client NLS_LANG is '%s', NLS_NCHAR is '%s'\n",
+    my $ora_client_version = ORA_OCI();
+    printf $fh "Client $ora_client_version NLS_LANG is '%s', NLS_NCHAR is '%s'\n",
 	ora_env_var("NLS_LANG") || "<unset>", ora_env_var("NLS_NCHAR") || "<unset>";
 }
 sub db_ochar_is_utf { return shift->ora_can_unicode & 2 }
