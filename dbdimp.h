@@ -217,7 +217,6 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
 extern int ora_fetchtest;
 
-#ifdef UTF8_SUPPORT
 extern ub2 charsetid;
 extern ub2 ncharsetid;
 extern ub2 utf8_csid;
@@ -229,25 +228,11 @@ extern ub2 al16utf16_csid;
 
 #define CS_IS_UTF16( cs ) ( cs == al16utf16_csid )
 
-#define UTF8_FIXUP_CSID( csid ,csform ,where ) \
-    if ( (CS_IS_UTF8(csid) || CS_IS_UTF16(csid)) && (csid != ncharsetid) ) { \
-        ub2 new_csid = ( csform == SQLCS_NCHAR ) ? ncharsetid : charsetid;   \
-	if (DBIS->debug >= 3)                                                \
-	   PerlIO_printf(DBILOGFP, "    csform %d so changing csid %d (UTF) to %d (in %s)\n", \
-		   csform, csid, new_csid, where );                          \
-	csid = new_csid; \
-    }
-
 #define CSFORM_IMPLIED_CSID(csform) \
     ((csform==SQLCS_NCHAR) ? ncharsetid : charsetid)
 
 #define CSFORM_IMPLIES_UTF8(csform) \
     CS_IS_UTF8( CSFORM_IMPLIED_CSID( csform ) )
-
-#else /* UTF8_SUPPORT */
-#define UTF8_FIXUP_CSID(csid,csform,where)
-#endif /* UTF8_SUPPORT */
-
 
 
 void dbd_init_oci _((dbistate_t *dbistate));
