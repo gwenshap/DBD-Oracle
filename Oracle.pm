@@ -1589,7 +1589,7 @@ until you upgrade.
 
 =head2 DBD::Oracle and Unicode
 
-DBD::Oracle unicode support has been implemented for Oracle versions 9
+DBD::Oracle Unicode support has been implemented for Oracle versions 9
 or greater, and perl version 5.6 or greater (though we I<strongly>
 suggest that you use perl 5.8.2 or later).
 
@@ -1641,6 +1641,11 @@ information to Oracle to ensure the string is correctly passed.
 [I think] Oracle will assume the statement is Unicode if NLS_LANG
 is AL32UTF8, but if NLS_LANG isn't but the statement string is, then
 Oracle needs to be told.
+
+=head2 DBD::Oracle and Other Character Sets and Encodings
+
+The only multi-byte Oracle character set supported by DBD::Oracle is
+"AL32UTF8" (and "UTF8"). Single-byte character sets should work well.
 
 =head1 Other Data Types
 
