@@ -1,4 +1,3 @@
-# $Id: Makefile.PL,v 1.94 2001/08/30 15:48:36 timbo Exp $
 
 ##
 ##  You should not need to edit this file.
@@ -36,10 +35,10 @@ BEGIN { if ($^O eq 'VMS') {
 my $dbi_dir      = dbd_dbi_dir();
 my $dbi_arch_dir = dbd_dbi_arch_dir();
 my $os = $^O;
-my $osvers = $Config{osvers};
-$osvers =~ s/^\s*(\d+\.\d+).*/$1/;	# drop sub-sub-version: 2.5.1 -> 2.5
+my $osvers = $Config{osvers}; $osvers =~ s/^\s*(\d+\.\d+).*/$1/; # drop sub-sub-version: 2.5.1 -> 2.5
 my $exe_ext = ($os eq 'VMS') ? '.pl' : '';
 my $BELL = "\a";
+$| = 1;
 
 my %opts = (
     NAME => 'DBD::Oracle',
@@ -334,7 +333,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     $linkwith =~ s/-Y P,/-YP,/g if $Config{gccversion};
     $linkwith =~ s:-R /:-R/:g if $os eq 'solaris';
 
-    # modifications by lbaxter@fleetcc.com
+    # modifications (mostly) by lbaxter@fleetcc.com
     if ( ($os eq 'hpux') && ($osvers > 10) && ($Config{'cc'} eq 'cc') )
     {
         # these get dragged in from demo_rdbms.mk where Oracle uses them
@@ -355,6 +354,15 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
         # we check for the library's existence first... (8.0.5 does not have it)
         if ( -r "$OH/lib/libqsmashr.sl" ) {
            $linkwith =~ s/$/ -lqsmashr/ if ( $linkwith !~ m/-lqsmshr/ );
+        }
+
+        if ( $os eq "hpux" && $osvers >= 11 and
+             $inspdver{RDBMS} =~ /^7.3/ and
+             $linkwith =~ m/-lcl\b/ && $linkwith =~ m/-l:libcl.a/
+	) {  # from h.m.brand@hccnet.nl
+            print "Warning: Stripping -lcl from the link flags, because it\n"
+                . "         seems to conflict with -l:libcl.a\n" ;
+            $linkwith =~ s/\s*-lcl\b//g;
         }
 
         if (($linkwith !~ m/-lcl/) || ($linkwith !~ m/-lpthread/)) {
@@ -427,7 +435,7 @@ $opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
 $opts{DEFINE} .= ' -DNO_OCI8' if $::opt_8;
 
 # Set some private WriteMakefile options if this is 'me' :-)
-if ($ENV{LOGNAME} eq 'timbo'){  # a reasonable guess
+if (($ENV{LOGNAME}||'') eq 'timbo'){  # a reasonable guess
     $BELL = "<BELL>";
     $opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith -Wtraditional'
 	. ' -Wbad-function-cast -Wcast-qual' if $Config{gccversion};
@@ -655,7 +663,12 @@ sub read_sysliblist {
     my $syslibs = (-f "$OH/lib/sysliblist")
 	? read_file("$OH/lib/sysliblist")
 	: (-f "$OH/rdbms/lib/sysliblist") ? read_file("$OH/rdbms/lib/sysliblist") : '';
-    $syslibs =~ s/-l:lib(\w+).(sl|a)\b/-l$1/g if $os eq 'hpux';
+    #$syslibs =~ s/-l:lib(\w+).(sl|a)\b/-l$1/g if $os eq 'hpux';
+    if ($os eq "hpux") {
+       $syslibs =~ s/-l:lib(\w+).(sl|a)\b/-l$1/g;
+       $linkwith =~ m/-lcl\b/ or
+           $syslibs =~ s/\s*-lcl\b//g;
+    }
     return $syslibs;
 }
 
@@ -1133,13 +1146,13 @@ You have an old copy which you should delete when installing this one.\n";
 	my $self = shift;
 	local($_) = $self->SUPER::const_loadlibs(@_);
 	# edit LD_RUN_PATH ...
-	my ($ldrp) = m/^LD_RUN_PATH=(.*)/m;
+	my ($ldrp) = m/^LD_RUN_PATH\s*=\s*(.*)/m;
 	# remove redundant /lib or /usr/lib as it can cause problems
 	$ldrp =~ s!:(/usr)?/lib$!!;
 	# if it's empty then set it manually
 	$ldrp ||= "$OH/lib:$OH/rdbms/lib";
 	# stitch it back in
-	s/^LD_RUN_PATH=(.*)/LD_RUN_PATH=$ldrp/m;
+	s/^LD_RUN_PATH\s*=\s*(.*)/LD_RUN_PATH=$ldrp/m;
 	my $env = $ENV{LD_RUN_PATH};
 	print "Ignoring LD_RUN_PATH='$env' in environment\n" if $env;
 	print "LD_RUN_PATH=$ldrp\n";

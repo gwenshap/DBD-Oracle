@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.c,v 1.32 2001/08/30 15:48:36 timbo Exp $
+   $Id: oci8.c,v 1.33 2001/08/31 15:54:13 timbo Exp $
 
    Copyright (c) 1998,1999,2000,2001  Tim Bunce
 
@@ -98,10 +98,6 @@ oci_hdtype_name(ub4 hdtype)
     case OCI_HTYPE_COMPLEXOBJECT:       return "OCI_HTYPE_COMPLEXOBJECT";
     case OCI_HTYPE_SECURITY:            return "OCI_HTYPE_SECURITY";
     case OCI_HTYPE_SUBSCRIPTION:        return "OCI_HTYPE_SUBSCRIPTION";
-    case OCI_HTYPE_DIRPATH_CTX:         return "OCI_HTYPE_DIRPATH_CTX";
-    case OCI_HTYPE_DIRPATH_COLUMN_ARRAY:return "OCI_HTYPE_DIRPATH_COLUMN_ARRAY";
-    case OCI_HTYPE_DIRPATH_STREAM:      return "OCI_HTYPE_DIRPATH_STREAM";
-    case OCI_HTYPE_PROC:                return "OCI_HTYPE_PROC";
     /* Descriptors */
     case OCI_DTYPE_LOB:			return "OCI_DTYPE_LOB";
     case OCI_DTYPE_SNAP:		return "OCI_DTYPE_SNAP";
@@ -110,14 +106,7 @@ oci_hdtype_name(ub4 hdtype)
     case OCI_DTYPE_ROWID:		return "OCI_DTYPE_ROWID";
     case OCI_DTYPE_COMPLEXOBJECTCOMP:	return "OCI_DTYPE_COMPLEXOBJECTCOMP";
     case OCI_DTYPE_FILE:		return "OCI_DTYPE_FILE";
-    case OCI_DTYPE_AQENQ_OPTIONS:	return "OCI_DTYPE_AQENQ_OPTIONS";
-    case OCI_DTYPE_AQDEQ_OPTIONS:	return "OCI_DTYPE_AQDEQ_OPTIONS";
-    case OCI_DTYPE_AQMSG_PROPERTIES:	return "OCI_DTYPE_AQMSG_PROPERTIES";
-    case OCI_DTYPE_AQAGENT:		return "OCI_DTYPE_AQAGENT";
     case OCI_DTYPE_LOCATOR:		return "OCI_DTYPE_LOCATOR";
-    case OCI_DTYPE_DATETIME:		return "OCI_DTYPE_DATETIME";
-    case OCI_DTYPE_INTERVAL:		return "OCI_DTYPE_INTERVAL";
-    case OCI_DTYPE_AQNFY_DESCRIPTOR:	return "OCI_DTYPE_AQNFY_DESCRIPTOR";
     }
     sv = sv_2mortal(newSViv(hdtype));
     return SvPV(sv,na);
