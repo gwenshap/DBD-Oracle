@@ -61,7 +61,7 @@ ok($tmp[1] >= 9.99e+125, "tmp1=$tmp[1]");
 
 my $warn='';
 eval {
-	$SIG{__WARN__} = sub { $warn = $_[0] };
+	local $SIG{__WARN__} = sub { $warn = $_[0] };
 	$dbh->{RaiseError} = 1;
 	$dbh->do("some invalid sql statement");
 };

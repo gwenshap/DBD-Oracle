@@ -102,8 +102,7 @@ ora_env_var(char *name, char *buf, unsigned long size)
 }
 
 void
-dbd_init(dbistate)
-    dbistate_t *dbistate;
+dbd_init(dbistate_t *dbistate)
 {
     char *p;
     DBIS = dbistate;
@@ -149,8 +148,7 @@ dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx)
 
 
 int
-ora_dbtype_is_long(dbtype)
-    int dbtype;
+ora_dbtype_is_long(int dbtype)
 {
     /* Is it a LONG, LONG RAW, LONG VARCHAR or LONG VARRAW type?	*/
     /* Return preferred type code to use if it's a long, else 0.	*/
@@ -164,8 +162,7 @@ ora_dbtype_is_long(dbtype)
 }
 
 static int
-oratype_bind_ok(dbtype)	/* It's a type we support for placeholders */
-    int dbtype;
+oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
 {
     /* basically we support types that can be returned as strings */
     switch(dbtype) {
@@ -220,8 +217,7 @@ fb_ary_free(fb_ary_t *fb_ary)
 
 
 int
-dbd_db_login(dbh, imp_dbh, dbname, uid, pwd)
-    SV *dbh; imp_dbh_t *imp_dbh; char *dbname; char *uid; char *pwd;
+dbd_db_login(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd)
 {
     return dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, Nullsv);
 }
@@ -238,13 +234,7 @@ typedef struct {
 
 
 int
-dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
-    SV *dbh;
-    imp_dbh_t *imp_dbh;
-    char *dbname;
-    char *uid;
-    char *pwd;
-    SV *attr;
+dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, SV *attr)
 {
     dTHR;
     sword status;
@@ -651,9 +641,7 @@ dbd_db_login6_out:
 
 
 int
-dbd_db_commit(dbh, imp_dbh)
-    SV *dbh;
-    imp_dbh_t *imp_dbh;
+dbd_db_commit(SV *dbh, imp_dbh_t *imp_dbh)
 {
     sword status;
     OCITransCommit_log_stat(imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
@@ -668,9 +656,7 @@ dbd_db_commit(dbh, imp_dbh)
 
 
 int
-dbd_st_cancel(sth, imp_sth)
-    SV *sth;
-    imp_sth_t *imp_sth;
+dbd_st_cancel(SV *sth, imp_sth_t *imp_sth)
 {
     sword status;
     status = OCIBreak(imp_sth->svchp, imp_sth->errhp);
@@ -684,9 +670,7 @@ dbd_st_cancel(sth, imp_sth)
 
 
 int
-dbd_db_rollback(dbh, imp_dbh)
-    SV *dbh;
-    imp_dbh_t *imp_dbh;
+dbd_db_rollback(SV *dbh, imp_dbh_t *imp_dbh)
 {
     sword status;
     OCITransRollback_log_stat(imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
@@ -699,9 +683,7 @@ dbd_db_rollback(dbh, imp_dbh)
 
 
 int
-dbd_db_disconnect(dbh, imp_dbh)
-    SV *dbh;
-    imp_dbh_t *imp_dbh;
+dbd_db_disconnect(SV *dbh, imp_dbh_t *imp_dbh)
 {
     dTHR;
     int refcnt = 1 ;
@@ -738,9 +720,7 @@ dbd_db_disconnect(dbh, imp_dbh)
 
 
 void
-dbd_db_destroy(dbh, imp_dbh)
-    SV *dbh;
-    imp_dbh_t *imp_dbh;
+dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 {
     dTHX ;	
     int refcnt = 1 ;
@@ -772,11 +752,7 @@ dbd_db_destroy_out:
 
 
 int
-dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)
-    SV *dbh;
-    imp_dbh_t *imp_dbh;
-    SV *keysv;
-    SV *valuesv;
+dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 {
     STRLEN kl;
     char *key = SvPV(keysv,kl);
@@ -809,10 +785,7 @@ dbd_db_STORE_attrib(dbh, imp_dbh, keysv, valuesv)
 
 
 SV *
-dbd_db_FETCH_attrib(dbh, imp_dbh, keysv)
-    SV *dbh;
-    imp_dbh_t *imp_dbh;
-    SV *keysv;
+dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 {
     STRLEN kl;
     char *key = SvPV(keysv,kl);
@@ -857,9 +830,7 @@ dbd_db_FETCH_attrib(dbh, imp_dbh, keysv)
 
 
 void
-dbd_preparse(imp_sth, statement)
-    imp_sth_t *imp_sth;
-    char *statement;
+dbd_preparse(imp_sth_t *imp_sth, char *statement)
 {
     D_imp_dbh_from_sth;
     bool in_literal = FALSE;
@@ -984,8 +955,7 @@ dbd_preparse(imp_sth, statement)
 
 
 int
-calc_cache_rows(num_fields, est_width, cache_rows, has_longs)
-    int num_fields, est_width, cache_rows, has_longs;
+calc_cache_rows(int num_fields, int est_width, int cache_rows, int has_longs)
 {
     /* Use guessed average on-the-wire row width calculated above	*/
     /* and add in overhead of 5 bytes per field plus 8 bytes per row.	*/
@@ -1023,10 +993,7 @@ calc_cache_rows(num_fields, est_width, cache_rows, has_longs)
 
 
 static int
-ora_sql_type(imp_sth, name, sql_type)
-    imp_sth_t *imp_sth;
-    char *name;
-    int sql_type;
+ora_sql_type(imp_sth_t *imp_sth, char *name, int sql_type)
 {
     /* XXX should detect DBI reserved standard type range here */
 
@@ -1076,11 +1043,7 @@ ora_sql_type(imp_sth, name, sql_type)
 
 
 static int 
-dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr) 
-    SV *sth;
-    imp_sth_t *imp_sth;
-    phs_t *phs;
-    ub2 **alen_ptr_ptr;
+dbd_rebind_ph_char(SV *sth, imp_sth_t *imp_sth, phs_t *phs, ub2 **alen_ptr_ptr)
 {
     STRLEN value_len;
     int at_exec = 0;
@@ -1293,10 +1256,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 
 
 static int 
-dbd_rebind_ph(sth, imp_sth, phs) 
-    SV *sth;
-    imp_sth_t *imp_sth;
-    phs_t *phs;
+dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
     ub2 *alen_ptr = NULL;
     sword status;
@@ -1397,15 +1357,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
 
 
 int
-dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxlen)
-    SV *sth;
-    imp_sth_t *imp_sth;
-    SV *ph_namesv;
-    SV *newvalue;
-    IV sql_type;
-    SV *attribs;
-    int is_inout;
-    IV maxlen;
+dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_type, SV *attribs, int is_inout, IV maxlen)
 {
     SV **phs_svp;
     STRLEN name_len;
@@ -1607,9 +1559,7 @@ dbd_phs_avsv_complete(phs_t *phs, I32 index, I32 debug)
 
 
 int
-dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count) */
-    SV *sth;
-    imp_sth_t *imp_sth;
+dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-1=unknown count) */
 {
     dTHR;
     ub4 row_count = 0;
@@ -1752,14 +1702,7 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 
 
 int
-dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
-    SV *sth;
-    imp_sth_t *imp_sth;
-    int field;
-    long offset;
-    long len;
-    SV *destrv;
-    long destoffset;
+dbd_st_blob_read(SV *sth, imp_sth_t *imp_sth, int field, long offset, long len, SV *destrv, long destoffset)
 {
     ub4 retl = 0;
     SV *bufsv;
@@ -1800,9 +1743,7 @@ dbd_st_blob_read(sth, imp_sth, field, offset, len, destrv, destoffset)
 
 
 int
-dbd_st_rows(sth, imp_sth)
-    SV *sth;
-    imp_sth_t *imp_sth;
+dbd_st_rows(SV *sth, imp_sth_t *imp_sth)
 {
     ub4 row_count = 0;
     sword status;
@@ -1816,9 +1757,7 @@ dbd_st_rows(sth, imp_sth)
 
 
 int
-dbd_st_finish(sth, imp_sth)
-    SV *sth;
-    imp_sth_t *imp_sth;
+dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
 {
     dTHR;
     D_imp_dbh_from_sth;
@@ -1857,8 +1796,7 @@ dbd_st_finish(sth, imp_sth)
 
 
 void
-ora_free_fbh_contents(fbh)
-    imp_fbh_t *fbh;
+ora_free_fbh_contents(imp_fbh_t *fbh)
 {
     if (fbh->fb_ary)
 	fb_ary_free(fbh->fb_ary);
@@ -1868,8 +1806,7 @@ ora_free_fbh_contents(fbh)
 }
 
 void
-ora_free_phs_contents(phs)
-    phs_t *phs;
+ora_free_phs_contents(phs_t *phs)
 {
     if (phs->desc_h)
 	OCIDescriptorFree_log(phs->desc_h, phs->desc_t);
@@ -1878,10 +1815,7 @@ ora_free_phs_contents(phs)
 }
 
 void
-ora_free_templob(sth, imp_sth, lobloc)
-    SV *sth;
-    imp_sth_t *imp_sth; 
-    OCILobLocator *lobloc;
+ora_free_templob(SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc)
 {
 #if defined(OCI_HTYPE_DIRPATH_FN_CTX)	/* >= 9.0 */
     boolean is_temporary = 0;
@@ -1907,9 +1841,7 @@ ora_free_templob(sth, imp_sth, lobloc)
 
 
 void
-dbd_st_destroy(sth, imp_sth)
-    SV *sth;
-    imp_sth_t *imp_sth;
+dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 {
     int fields;
     int i;
@@ -1966,11 +1898,7 @@ dbd_st_destroy(sth, imp_sth)
 
 
 int
-dbd_st_STORE_attrib(sth, imp_sth, keysv, valuesv)
-    SV *sth;
-    imp_sth_t *imp_sth;
-    SV *keysv;
-    SV *valuesv;
+dbd_st_STORE_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv, SV *valuesv)
 {
     STRLEN kl;
     SV *cachesv = NULL;
@@ -1992,10 +1920,7 @@ dbd_st_STORE_attrib(sth, imp_sth, keysv, valuesv)
 
 
 SV *
-dbd_st_FETCH_attrib(sth, imp_sth, keysv)
-    SV *sth;
-    imp_sth_t *imp_sth;
-    SV *keysv;
+dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 {
     STRLEN kl;
     char *key = SvPV(keysv,kl);

@@ -57,6 +57,7 @@
     Fixed suprious warning from Makefile.PL thanks to Marko Asplund.
     Fixed compiler warnings thanks to Robert Baron.
     Fixed oci.def for Cygwin by adding OCILobWriteAppend thanks to Gert-Jan Paulissen.
+    Changed to use ANSI C prototypes thanks to Steffen Goeldner.
     Changed to not warn if ORACLE_HOME env var is not defined
       as it's not used with Oracle's new 'Instant Client'.
     Added Test::More as a prerequisite module.

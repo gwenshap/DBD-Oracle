@@ -242,11 +242,7 @@ oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags)
 
 
 int
-dbd_st_prepare(sth, imp_sth, statement, attribs)
-    SV *sth;
-    imp_sth_t *imp_sth;
-    char *statement;
-    SV *attribs;
+dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 {
     D_imp_dbh_from_sth;
     sword status = 0;
@@ -1474,10 +1470,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 
 
 ub4
-ora_parse_uid(imp_dbh, uidp, pwdp)
-    imp_dbh_t *imp_dbh;
-    char **uidp;
-    char **pwdp;
+ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 {
     sword status;
     /* OCI 8 does not seem to allow uid to be "name/pass" :-( */
@@ -1503,11 +1496,7 @@ ora_parse_uid(imp_dbh, uidp, pwdp)
 
 
 int
-ora_db_reauthenticate(dbh, imp_dbh, uid, pwd)
-    SV *dbh;
-    imp_dbh_t *imp_dbh;
-    char *	uid;
-    char *	pwd;
+ora_db_reauthenticate(SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd)
 {
     sword status;
     /* XXX should possibly create new session before ending the old so	*/
