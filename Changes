@@ -2,6 +2,13 @@
 
   NOTE: This release no longer supports the old Oracle 7 OCI interface.
 
+  Added NCHAR/UFT8 and extended 8bit character set processing support
+    Thanks to Lincoln Baxter (with a little help from Jeff Urlwin)
+       $dbh->{ora_ph_csform} = SQLCS_NCHAR;
+       $sth->bind_param(..., { ora_csform => SQLCS_NCHAR });
+    There are problems with t/30long.t when NLS_LANG is set and
+    ends in a multi byte character set.  Help welcome.
+    See new note at the top of README.utf8 for more info.
   Fixed build32/build64 Makefile.PL bug spotted by Sean Kelly.
   Fixed Oracle version detection on clients thanks to Marko Asplund.
   Fixed Oracle 10 version detection on clients thanks to Andy Hassall.
@@ -21,10 +28,6 @@
 
   Added Test::More as a prerequisite module.
   Added bind_param() support for SQL_BLOB & SQL_CLOB thanks to Stephen Clouse.
-  Added some experimental NCHAR/UTF8 support thanks to Lincoln Baxter.
-    $dbh->{ora_ph_csform} = SQLCS_NCHAR;
-    $sth->bind_param(..., { ora_csform => SQLCS_NCHAR });
-    this is still a work-in-progress, help welcome.
   Added $dbh->{ora_parse_error_offset} docs thanks to Andy Hassall.
   Added $dbh->reauthenticate($user,$pass) docs thanks to Andy Hassall.
   Corrected typo in ora_lob_read() example thanks to Johannes Wierny.
