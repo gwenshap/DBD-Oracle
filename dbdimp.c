@@ -283,7 +283,6 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
     ub4 use_proc_connection = 0;
     SV **use_proc_connection_sv;
     D_imp_drh_from_dbh;
-    /* ub2 al32utf8_csid = 873;
 
     imp_dbh->envhp = imp_drh->envhp;	/* will be NULL on first connect */
 
