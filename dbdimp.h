@@ -220,23 +220,40 @@ extern ub2 charsetid;
 extern ub2 ncharsetid;
 extern ub2 cs_is_utf8;
 extern ub2 al32utf8_csid;
+extern ub2 al16utf16_csid;
 
 int set_utf8(SV *sv); /* defined in oci8.c should I move it to dbdimp.c? */
+
 
 #define CS_IS_UTF8( cs ) \
    (  ( cs == utf8_csid ) || ( cs == al32utf8_csid ) )
 
-#define UTF8_FIXUP_CSID( csid ,where ) \
-    if ( CS_IS_UTF8( csid ) && (csid != ncharsetid) ) { \
-        if (DBIS->debug >= 2) \
-            PerlIO_printf(DBILOGFP, \
-               "    csid is UTF8 (%d) setting it ncharsetid=%d (in %s)\n", \
-                    csid ,ncharsetid, where ); \
-        csid = ncharsetid; \
+#define CS_IS_UTF16( cs ) ( cs == al16utf16_csid )
+
+#define UTF8_FIXUP_CSID( csid ,csform ,where ) \
+    if ( ( CS_IS_UTF8( csid ) || CS_IS_UTF16( csid ) ) \
+       && (csid != ncharsetid)  ) {  \
+        if ( csform == SQLCS_NCHAR ) { \
+           if (DBIS->debug >= 2) \
+               PerlIO_printf(DBILOGFP, \
+                  "    csid is UTF (%d) and csform=SQLCS_NCHAR setting csid to ncharsetid=%d for LobWrite (in %s)\n", \
+                       csid ,ncharsetid, where );  \
+           csid = ncharsetid; \
+        } \
+        else { \
+           if (DBIS->debug >= 2) \
+               PerlIO_printf(DBILOGFP, \
+                  "    csid is UTF (%d) and csform!=SQLCS_NCHAR setting csid to charsetid=%d for LobWrite (in %s)\n", \
+                       csid ,ncharsetid, where );  \
+           csid = charsetid; \
+        } \
     }
-/* XXX UTF8_FIXUP_CSID is disabled for now */
+/* XXX UTF8_FIXUP_CSID is disabled for now
+OK... I rewrote this (above) to make it much more targeted... by checking csform
+and turned it back on... it _IS_ necessary (atleast in 9.2)
 #undef UTF8_FIXUP_CSID
 #define UTF8_FIXUP_CSID(csid,where)   0
+*/
 
 /* XXX DBD_SET_UTF8 should be passed and use the *relevant* csid,
    which means either ncharsetid or charsetid (NLS_NCHAR/NLS_LANG) */

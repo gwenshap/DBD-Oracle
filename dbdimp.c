@@ -43,6 +43,7 @@ ub2 charsetid = 0;
 ub2 ncharsetid = 0;
 ub2 utf8_csid = 871;
 ub2 al32utf8_csid = 873;
+ub2 al16utf16_csid = 2000;
 
 static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
 static int ora_sigchld_restart = 1;
@@ -474,6 +475,7 @@ dbd_db_login6(dbh, imp_dbh, dbname, uid, pwd, attr)
             /* update the hard-coded csid constants for unicode charsets */
             utf8_csid      = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"UTF8"); 
             al32utf8_csid  = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"AL32UTF8");
+            al16utf16_csid = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"AL16UTF16");
 
 #else /* (the old init code) NEW_OCI_INIT */
 

@@ -663,7 +663,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 	sv_set_undef(dest_sv);	/* signal error */
 	return 0;
     }
-    UTF8_FIXUP_CSID( csid ,"ora_blob_read_bm_peice" );
+    UTF8_FIXUP_CSID( csid ,csform ,"ora_blob_read_bm_peice" );
 #endif
     if (ftype != 112) {
 	oci_error(sth, imp_sth->errhp, OCI_ERROR,
@@ -797,7 +797,7 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
             sv_set_undef(dest_sv);	/* signal error */
             return 0;
         }
-        UTF8_FIXUP_CSID( csid ,"ora_blob_read_piece" );
+        UTF8_FIXUP_CSID( csid ,csform ,"ora_blob_read_piece" );
 #endif /* OCI_ATTR_CHARSET_ID */
 
 	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
@@ -923,7 +923,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
             sv_set_undef(dest_sv);
             return 0;
         }
-        UTF8_FIXUP_CSID( csid ,"fetch_func_auto_lob" );
+        UTF8_FIXUP_CSID( csid ,csform ,"fetch_func_auto_lob" );
 #endif /* OCI_ATTR_CHARSET_ID */
 
 	if (fbh->dbtype == 114) {
@@ -1942,7 +1942,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
                        PerlIO_printf(DBILOGFP, "     sv is utf8 but csid=%d and ncharsetid=%d (fixing csid)\n" );
                    csid = ncharsetid;
                 }
-                UTF8_FIXUP_CSID( csid, "post_execute_lobs" );
+                UTF8_FIXUP_CSID( csid, csform, "post_execute_lobs" );
 #endif /* OCI_ATTR_CHARSET_ID */
 
                 fbh->csid = csid; /* for information only */
