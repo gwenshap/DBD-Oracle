@@ -367,3 +367,8 @@ orol
 ortgcty
 osetpi
 osql3
+OCINlsEnvironmentVariableGet
+OCIEnvNlsCreate
+OCINlsCharSetNameToId
+OCILobIsTemporary
+OCILobFreeTemporary
