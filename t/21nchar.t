@@ -50,13 +50,13 @@ SKIP: {
     select_rows( $dbh, $tdata );
     if ( 0 ) {
        $dbh->disconnect();
-       set_nls_charset( 'UTF8' );
+       set_nls_nchar( 'UTF8' );
        $dbh = db_handle();
        select_rows( $dbh, $tdata );
     }
     if ( 0 ) {
        $dbh->disconnect();
-       set_nls_charset( '' );
+       set_nls_nchar( '' );
        $dbh = db_handle();
        select_rows( $dbh, $tdata );
     }

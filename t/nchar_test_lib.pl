@@ -94,7 +94,6 @@ sub narrow_data 	# Assuming WE8ISO8859P1 or WE8MSWIN1252 character set
     ];
 }
 
-
 my $tdata_hr = {
     narrow_char => {
         cols => char_cols(),
