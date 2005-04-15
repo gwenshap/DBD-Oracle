@@ -1,4 +1,36 @@
-Compiler: all these examples use xlc_r, except the first which uses gcc.
+Compiler: all these examples use xlc_r, except the first which uses Visual Age 7
+and the second which uses GCC.
+
+--------------------------------------------------------------------------------------
+- Oracle 9i is only certified as a 64-bit application on AIX 5L (5.1,5.2,5.3) with 32-bit support;
+	in other words, there is no 9i "32-bit" Oracle client
+- Oracle 10g is certified as both a 64-bit application and a 32-bit Oracle client
+
+- This information only pertains to deploying
+	the DBI (version 1.48)
+	and DBD-Oracle (version 1.16):
+        on AIX 5.3
+        using Oracle 9i (9.2.0.1/9.2.0.5)
+        using the existing Perl 5.8.2 (no custom-built Perl) which is 32-bit
+        using Visual Age 7.0 C/C++ compiler
+
+Install the DBI (required for the DBD-Oracle install - no issues here)
+Untar the DBD-Oracle bundle
+Run Makefile.PL
+$ perl Makefile.PL
+Edit Makefile with following commands:
+1,$s?/lib/ ?/lib32/ ?g
+1,$s?-q64??g
+1,$s?/lib/sysliblist?/lib32/sysliblist?g
+Now perform normal commands to perform the testing/making:
+$ make
+$ make test
+$ make install
+
+I've tested the basics of the DBD-Oracle and it seems fully functional.
+
+Stephen de Vries
+paulhill20@copper.net
 
 --------------------------------------------------------------------------------------
 The following setup worked to build on AIX 5.2:
