@@ -763,6 +763,9 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
     else if (kl==12 && strEQ(key, "RowCacheSize")) {
 	imp_dbh->RowCacheSize = SvIV(valuesv);
     }
+    else if (kl==22 && strEQ(key, "ora_max_nested_cursors")) {
+	imp_dbh->max_nested_cursors = SvIV(valuesv);
+    }
     else if (kl==11 && strEQ(key, "ora_ph_type")) {
         if (SvIV(valuesv)!=1 && SvIV(valuesv)!=5 && SvIV(valuesv)!=96 && SvIV(valuesv)!=97)
 	    warn("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
@@ -800,6 +803,9 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
     }
     else if (kl==12 && strEQ(key, "RowCacheSize")) {
 	retsv = newSViv(imp_dbh->RowCacheSize);
+    }
+    else if (kl==22 && strEQ(key, "ora_max_nested_cursors")) {
+	retsv = newSViv(imp_dbh->max_nested_cursors);
     }
     else if (kl==11 && strEQ(key, "ora_ph_type")) {
 	retsv = newSViv(imp_dbh->ph_type);
@@ -1610,6 +1616,15 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 	PerlIO_printf(DBILOGFP, "    dbd_st_execute %s (out%d, lob%d)...\n",
 	    oci_stmt_type_name(imp_sth->stmt_type), outparams, imp_sth->has_lobs);
 
+    /* Don't attempt execute for nested cursor. It would be meaningless,
+       and Oracle code has been seen to core dump */
+    if (imp_sth->nested_cursor) {
+	oci_error(sth, NULL, OCI_ERROR,
+	    "explicit execute forbidden for nested cursor");
+	return -2;
+    }
+
+
     if (outparams) {	/* check validity of bind_param_inout SV's	*/
 	int i = outparams;
 	while(--i >= 0) {
@@ -1798,6 +1813,9 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
     dTHR;
     D_imp_dbh_from_sth;
     sword status;
+    int num_fields = DBIc_NUM_FIELDS(imp_sth);
+    int i;
+
 
     if (DBIc_DBISTATE(imp_sth)->debug >= 6)
         PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_finish\n");
@@ -1812,8 +1830,10 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
     /* Turn off ACTIVE here regardless of errors below.		*/
     DBIc_ACTIVE_off(imp_sth);
 
-    if (imp_sth->disable_finish)	/* see ref cursors	*/
-	return 1;
+    for(i=0; i < num_fields; ++i) {
+	imp_fbh_t *fbh = &imp_sth->fbh[i];
+	if (fbh->fetch_cleanup) fbh->fetch_cleanup(sth, fbh);
+    }
 
     if (dirty)			/* don't walk on the wild side	*/
 	return 1;
@@ -1884,14 +1904,23 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
     sword status;
     dTHX ;
 
+    /* Don't free the OCI statement handle for a nested cursor. It will
+       be reused by Oracle on the next fetch. Indeed, we never
+       free these handles. Experiment shows that Oracle frees them
+       when they are no longer needed.
+    */
+
     if (DBIc_DBISTATE(imp_sth)->debug >= 6)
 	PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_destroy %s\n",
-	 (dirty) ? "(OCIHandleFree skipped during global destruction)" : "");
+	 (dirty) ? "(OCIHandleFree skipped during global destruction)" :
+	 (imp_sth->nested_cursor) ?"(OCIHandleFree skipped for nested cursor)" : "");
 
     if (!dirty) { /* XXX not ideal, leak may be a problem in some cases */
-	OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
-	if (status != OCI_SUCCESS)
-	    oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
+	if (!imp_sth->nested_cursor) {
+	    OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
+	    if (status != OCI_SUCCESS)
+	        oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
+	}
     }
 
     /* Free off contents of imp_sth	*/

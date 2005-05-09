@@ -575,6 +575,92 @@ fetch_func_nty(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
 /* ------ */
 
+static void
+fetch_cleanup_rset(SV *sth, imp_fbh_t *fbh)
+{
+    SV *sth_nested = (SV *)fbh->special;
+    fbh->special = NULL;
+
+    if (sth_nested) {
+	dTHR;
+	D_impdata(imp_sth_nested, imp_sth_t, sth_nested);
+        int fields = DBIc_NUM_FIELDS(imp_sth_nested);
+	int i;
+	for(i=0; i < fields; ++i) {
+	    imp_fbh_t *fbh_nested = &imp_sth_nested->fbh[i];
+	    if (fbh_nested->fetch_cleanup)
+		fbh_nested->fetch_cleanup(sth_nested, fbh_nested);
+	}
+	if (DBIS->debug >= 3)
+	    PerlIO_printf(DBILOGFP,
+		    "    fetch_cleanup_rset - deactivating handle %s (defunct nested cursor)\n",
+                		neatsvpv(sth_nested, 0));
+
+	DBIc_ACTIVE_off(imp_sth_nested);
+	SvREFCNT_dec(sth_nested);
+    }
+}
+
+static int
+fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
+{
+    OCIStmt *stmhp_nested = ((OCIStmt **)fbh->fb_ary->abuf)[0];
+
+    dTHR;
+    D_imp_sth(sth);
+    D_imp_dbh_from_sth;
+    dSP;
+    HV *init_attr = newHV();
+    int count;
+
+    if (DBIS->debug >= 3)
+	PerlIO_printf(DBILOGFP,
+		"    fetch_func_rset - allocating handle for cursor nested within %s ...\n",
+                		neatsvpv(sth, 0));
+
+    ENTER; SAVETMPS; PUSHMARK(SP);
+    XPUSHs(sv_2mortal(newRV((SV*)DBIc_MY_H(imp_dbh))));
+    XPUSHs(sv_2mortal(newRV((SV*)init_attr)));
+    PUTBACK;
+    count = perl_call_pv("DBI::_new_sth", G_ARRAY);
+    SPAGAIN;
+    if (count != 2)
+        croak("panic: DBI::_new_sth returned %d values instead of 2", count);
+    POPs;
+    sv_setsv(dest_sv, POPs);
+    SvREFCNT_dec(init_attr);
+    PUTBACK; FREETMPS; LEAVE;
+
+    if (DBIS->debug >= 3)
+	PerlIO_printf(DBILOGFP,
+		"    fetch_func_rset - ... allocated %s for nested cursor\n",
+                		neatsvpv(dest_sv, 0));
+
+    fbh->special = (void *)newSVsv(dest_sv);
+
+    {
+	D_impdata(imp_sth_nested, imp_sth_t, dest_sv);
+	imp_sth_nested->envhp = imp_sth->envhp;
+	imp_sth_nested->errhp = imp_sth->errhp;
+	imp_sth_nested->srvhp = imp_sth->srvhp;
+	imp_sth_nested->svchp = imp_sth->svchp;
+
+	imp_sth_nested->stmhp = stmhp_nested;
+	imp_sth_nested->nested_cursor = 1;
+
+        imp_sth_nested->stmt_type = OCI_STMT_SELECT;
+
+	DBIc_IMPSET_on(imp_sth_nested);
+
+	DBIc_ACTIVE_on(imp_sth_nested);  /* So describe won't do an execute */
+
+        if (!dbd_describe(dest_sv, imp_sth_nested)) return 0;
+    }
+
+    return 1;
+}
+/* ------ */
+
 
 int 
 dbd_rebind_ph_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs) 
@@ -1032,6 +1118,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     int num_errors = 0;
     int has_longs = 0;
     int est_width = 0;		/* estimated avg row width (for cache)	*/
+    int nested_cursors = 0;
     ub4 i = 0;
     sword status;
 
@@ -1205,6 +1292,14 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 #endif
 
+	case 116:				/* RSET		*/
+		fbh->ftype  = fbh->dbtype;
+		fbh->disize = sizeof(OCIStmt *);
+		fbh->fetch_func = fetch_func_rset;
+		fbh->fetch_cleanup = fetch_cleanup_rset;
+		nested_cursors++;
+		break;
+
 	case 182:                  /* INTERVAL YEAR TO MONTH */
 	case 183:                  /* INTERVAL DAY TO SECOND */
 	case 187:                  /* TIMESTAMP */
@@ -1256,6 +1351,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	ub4 cache_mem  = 0; /* so memory isn't the limit */
 	ub4 cache_rows = calc_cache_rows((int)num_fields,
 				est_width, imp_sth->cache_rows, has_longs);
+	if (nested_cursors) {
+	    int row_limit = imp_dbh->max_nested_cursors / nested_cursors;
+	    if (cache_rows > row_limit) cache_rows = row_limit;
+        }
 	imp_sth->cache_rows = cache_rows;	/* record updated value */
 	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
 	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
@@ -1271,6 +1370,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     else {				/* set cache size by memory	*/
 	ub4 cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
 	ub4 cache_rows = 100000;	/* set high so memory is the limit */
+	if (nested_cursors) {
+	    int row_limit = imp_dbh->max_nested_cursors / nested_cursors;
+	    if (cache_rows > row_limit) cache_rows = row_limit;
+        }
 	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
 	    &cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
 	    imp_sth->errhp, status);
@@ -1298,6 +1401,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 	fbh->fb_ary = fb_ary_alloc(define_len, 1);
 	fb_ary = fbh->fb_ary;
+
+	if (fbh->ftype == 116) { /* RSET */
+	    OCIHandleAlloc_ok(imp_sth->envhp,
+		(dvoid*)&((OCIStmt **)fb_ary->abuf)[0],
+		 OCI_HTYPE_STMT, status);
+	}
 
 	OCIDefineByPos_log_stat(imp_sth->stmhp, &fbh->defnp,
 	    imp_sth->errhp, (ub4) i,
@@ -1356,9 +1465,15 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
     /* that dbd_describe() executed sucessfuly so the memory buffers	*/
     /* are allocated and bound.						*/
     if ( !DBIc_ACTIVE(imp_sth) ) {
-	oci_error(sth, NULL, OCI_ERROR, 
+	oci_error(sth, NULL, OCI_ERROR, imp_sth->nested_cursor ?
+	    "nested cursor is defunct (parent row is no longer current)" :
 	    "no statement executing (perhaps you need to call execute first)");
 	return Nullav;
+    }
+
+    for(i=0; i < num_fields; ++i) {
+	imp_fbh_t *fbh = &imp_sth->fbh[i];
+	if (fbh->fetch_cleanup) fbh->fetch_cleanup(sth, fbh);
     }
 
     if (ora_fetchtest && DBIc_ROW_COUNT(imp_sth)>0) {

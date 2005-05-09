@@ -8,9 +8,11 @@
   Changed Makefile.PL to improve build rule detection.
   Changed README.vms re logical name tables thanks to Jakob Snoer.
   Changed README.aix thanks to Stephen de Vries.
+  Changed "Binding Cursors" section of docs, clarifying examples.
 
   Added VMS logical name checks to Makefile.PL thanks to Jakob Snoer.
   Added "Trailing Spaces" section to docs thanks to Michael A Chase.
+  Added support for nested cursors in select lists.
 
 =head1 Changes in DBD-Oracle 1.16 (svn rev 515)   22nd October 2004
 

@@ -2415,13 +2415,14 @@ select the lob locators 'FOR UPDATE'.
 
 =head1 Binding Cursors
 
-Cursors can be returned from PL/SQL blocks. Either from stored
-procedure OUT parameters or from direct C<OPEN> statements, as show below:
+Cursors can be returned from PL/SQL blocks, either from stored
+functions (or procedures with OUT parameters) or
+from direct C<OPEN> statements, as shown below:
 
   use DBI;
   use DBD::Oracle qw(:ora_types);
-  $dbh = DBI->connect(...);
-  $sth1 = $dbh->prepare(q{
+  my $dbh = DBI->connect(...);
+  my $sth1 = $dbh->prepare(q{
       BEGIN OPEN :cursor FOR
           SELECT table_name, tablespace_name
           FROM user_tables WHERE tablespace_name = :space;
@@ -2432,7 +2433,7 @@ procedure OUT parameters or from direct C<OPEN> statements, as show below:
   $sth1->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
   $sth1->execute;
   # $sth2 is now a valid DBI statement handle for the cursor
-  while ( @row = $sth2->fetchrow_array ) { ... }
+  while ( my @row = $sth2->fetchrow_array ) { ... }
 
 The only special requirement is the use of C<bind_param_inout()> with an
 attribute hash parameter that specifies C<ora_type> as C<ORA_RSET>.
@@ -2440,35 +2441,124 @@ If you don't do that you'll get an error from the C<execute()> like:
 "ORA-06550: line X, column Y: PLS-00306: wrong number or types of
 arguments in call to ...".
 
-Here's an alternative form using a function that returns a cursor:
+Here's an alternative form using a function that returns a cursor.
+This example uses the pre-defined weak (or generic) REF CURSOR type
+SYS_REFCURSOR. This is an Oracle 9 feature. For Oracle 8, you must
+create your own REF CURSOR type in a package (see the C<curref.pl>
+script mentioned at the end of this section).
 
   # Create the function that returns a cursor
-  $sth1 = $dbh->prepare(q{
-    CREATE OR REPLACE FUNCTION sp_ListEmp RETURN types.cursorType
-    AS l_cursor types.cursorType;
-    BEGIN
-      OPEN l_cursor FOR select ename, empno from emp order by ename;
-      RETURN l_cursor;
-    END;
+  $dbh->do(q{
+      CREATE OR REPLACE FUNCTION sp_ListEmp RETURN SYS_REFCURSOR
+      AS l_cursor SYS_REFCURSOR;
+      BEGIN
+          OPEN l_cursor FOR select ename, empno from emp
+              ORDER BY ename;
+          RETURN l_cursor;
+      END;
   });
-  # CREATE is executed in prepare().
 
   # Use the function that returns a cursor
-  $sth1 = $dbh->prepare(q{BEGIN :cursor := sp_ListEmp; END;});
+  my $sth1 = $dbh->prepare(q{BEGIN :cursor := sp_ListEmp; END;});
   my $sth2;
   $sth1->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
   $sth1->execute;
   # $sth2 is now a valid DBI statement handle for the cursor
-  while ( @row = $sth2->fetchrow_array ) { ... }
+  while ( my @row = $sth2->fetchrow_array ) { ... }
 
-To close the cursor you (currently) need to do this:
+A cursor obtained from PL/SQL as above may be passed back to PL/SQL
+by binding for input, as shown in this example, which explicitly
+closes a cursor:
 
-  $sth3 = $dbh->prepare("BEGIN CLOSE :cursor; END;");
-  $sth3->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
+  my $sth3 = $dbh->prepare("BEGIN CLOSE :cursor; END;");
+  $sth3->bind_param(":cursor", $sth2, { ora_type => ORA_RSET } );
   $sth3->execute;
+
+It is not normally necessary to close a cursor
+explicitly in this way. Oracle will close the cursor automatically
+at the first client-server interaction after the cursor statement handle is
+destroyed. An explicit close may be desirable if the reference to
+the cursor handle from the PL/SQL statement handle delays the destruction
+of the cursor handle for too long. This reference remains until the
+PL/SQL handle is re-bound, re-executed or destroyed.
 
 See the C<curref.pl> script in the Oracle.ex directory in the DBD::Oracle
 source distribution for a complete working example.
+
+=head1 Fetching Nested Cursors
+
+Oracle supports the use of select list expressions of type REF CURSOR.
+These may be explicit cursor expressions - C<CURSOR(SELECT ...)>, or
+calls to PL/SQL functions which return REF CURSOR values. The values
+of these expressions are known as nested cursors.
+
+The value returned to a Perl program when a nested cursor is fetched
+is a statement handle. This statement handle is ready to be fetched from.
+It should not (indeed, must not) be executed.
+
+Oracle imposes a restriction on the order of fetching when nested
+cursors are used. Suppose C<$sth1> is a handle for a select statement
+involving nested cursors, and C<$sth2> is a nested cursor handle fetched
+from C<$sth1>. C<$sth2> can only be fetched from while C<$sth1> is
+still active, and the row containing C<$sth2> is still current in C<$sth1>.
+Any attempt to fetch another row from C<$sth1> renders all nested cursor
+handles previously fetched from C<$sth1> defunct.
+
+Fetching from such a defunct handle results in an error with the message
+C<ERROR nested cursor is defunct (parent row is no longer current)>.
+
+This means that the C<fetchall...> or C<selectall...> methods are not useful
+for queries returning nested cursors. By the time such a method returns,
+all the nested cursor handles it has fetched will be defunct.
+
+It is necessary to use an explicit fetch loop, and to do all the
+fetching of nested cursors within the loop, as the following example
+shows:
+
+    use DBI;
+    my $dbh = DBI->connect(...);
+    my $sth = $dbh->prepare(q{
+        SELECT dname, CURSOR(
+            SELECT ename FROM emp
+                WHERE emp.deptno = dept.deptno
+                ORDER BY ename
+        ) FROM dept ORDER BY dname
+    });
+    $sth->execute;
+    while ( my ($dname, $nested) = $sth->fetchrow_array ) {
+        print "$dname\n";
+        while ( my ($ename) = $nested->fetchrow_array ) {
+            print "        $ename\n";
+        }
+    }
+
+
+The cursor returned by the function C<sp_ListEmp> defined in the
+previous section can be fetched as a nested cursor as follows:
+
+    my $sth = $dbh->prepare(q{SELECT sp_ListEmp FROM dual});
+    $sth->execute;
+    my ($nested) = $sth->fetchrow_array;
+    while ( my @row = $nested->fetchrow_array ) { ... }
+
+=head2 Pre-fetching Nested Cursors
+
+By default, DBD::Oracle pre-fetches rows in order to reduce the number of
+round trips to the server. For queries which do not involve nested cursors,
+the number of pre-fetched rows is controlled by the DBI database handle
+attribute C<RowCacheSize> (q.v.).
+
+In Oracle, server side open cursors are a controlled resource, limited in
+number, on a per session basis, to the value of the initialization
+parameter C<OPEN_CURSORS>. Nested cursors count towards ths limit.
+Each nested cursor in the current row counts 1, as does
+each nested cursor in a pre-fetched row. Defunct nested cursors do not count.
+
+An Oracle specific database handle attribute, C<ora_max_nested_cursors>,
+further controls pre-fetching for queries involving nested cursors. For
+each statement handle, the total number of nested cursors in pre-fetched
+rows is limited to the value of this parameter. The default value
+is 0, which disables pre-fetching for queries involving nested cursors.
 
 =head1 Returning A Value from an INSERT
 

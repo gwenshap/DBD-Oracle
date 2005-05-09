@@ -88,6 +88,7 @@ struct imp_dbh_st {
     int ph_type;		/* default oratype for placeholders */
     ub1 ph_csform;		/* default charset for placeholders */
     int parse_error_offset;	/* position in statement of last error */
+    int max_nested_cursors;     /* limit on cached nested cursors per stmt */
 };
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
@@ -110,7 +111,7 @@ struct imp_sth_st {
     U16		auto_lob;
     int  	has_lobs;
     lob_refetch_t *lob_refetch;
-    int  	disable_finish; /* fetched cursors can core dump in finish */
+    int  	nested_cursor;  /* cursors fetched from SELECTs */
 
     /* Input Details	*/
     char      *statement;	/* sql (see sth_scan)		*/
@@ -157,6 +158,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     void *desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4   desc_t;	/* OCI type of descriptorh		*/
     int  (*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
+    void (*fetch_cleanup) _((SV *sth, imp_fbh_t *fbh));
 
     ub2  dbtype;	/* actual type of field (see ftype)	*/
     ub2  dbsize;
