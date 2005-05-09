@@ -64,6 +64,7 @@ t/30long.t
 t/31lob.t
 t/40ph_type.t
 t/50cursor.t
+t/55nested.t
 t/60reauth.t
 t/70meta.t
 t/nchar_test_lib.pl
