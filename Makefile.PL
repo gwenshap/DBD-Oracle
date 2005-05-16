@@ -1586,11 +1586,10 @@ ORACLE_HOME = '.$OH.'
 	my($self) = shift;
 
 	unless ($os eq 'VMS') {
-		my $m;
-		$m = $self->SUPER::dynamic_lib(@_);
+		my $m = $self->SUPER::dynamic_lib(@_);
 		if ($os eq 'darwin') {
 			$m =  "NMEDIT = nmedit\n" . $m . 
-			      "\t\$(NMEDIT) -R ./hints/macos_bundle.syms \$(INST_DYNAMIC)\n";
+			      "\t\$(NMEDIT) -R ./hints/macos_bundle.syms \$(INST_DYNAMIC) || true\n";
 		}
 		elsif ($os eq 'hpux') {
 			$m =~ s/LD_RUN_PATH=(\S+)\s+(\S+)/$2 +b $1/;
