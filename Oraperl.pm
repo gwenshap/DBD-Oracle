@@ -1,13 +1,10 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.44 2003/09/23 07:22:10 timbo Exp $
+# Oraperl.pm
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
-#   You may distribute under the terms of either the GNU General Public
-#   License or the Artistic License, as specified in the Perl README file,
-#   with the exception that it cannot be placed on a CD-ROM or similar media
-#   for commercial distribution without the prior approval of the author.
+#   See the COPYRIGHT section in the Oracle.pm file for terms.
 #
 # To use this interface use one of the following invocations:
 #

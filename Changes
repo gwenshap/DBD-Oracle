@@ -16,6 +16,10 @@
   Updated README.aix thanks to Stephen de Vries.
   Updated README.macosx thanks to Stephen de Vries.
 
+  The Copyright terms for DBD::Oracle have been simplified and now read:
+    The DBD::Oracle module is free software; you can redistribute it
+    and/or modify it under the same terms as Perl 5.
+
 =head1 Changes in DBD-Oracle 1.16 (svn rev 515)   22nd October 2004
 
   NOTE:

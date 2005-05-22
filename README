@@ -1,9 +1,9 @@
 
 DBD::Oracle  --  an Oracle interface for Perl 5.
 
-   Copyright (c) 1994-2004  Tim Bunce, Ireland.
+   Copyright (c) 1994-2005  Tim Bunce, Ireland.
 
-   See the COPYRIGHT section in the Oracle.pm file.
+   See the COPYRIGHT section in the Oracle.pm file for terms.
 
    PLEASE READ THE ENTIRE README FILE CAREFULLY !
 

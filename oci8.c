@@ -1,13 +1,10 @@
 /*
    vim:sw=4:ts=8
-   $Id: oci8.c,v 1.44 2004/02/26 01:32:01 timbo Exp $
+   oci8.c
 
-   Copyright (c) 1998-2004  Tim Bunce  Ireland
+   Copyright (c) 1998-2005  Tim Bunce  Ireland
 
-   You may distribute under the terms of either the GNU General Public
-   License or the Artistic License, as specified in the Perl README file,
-   with the exception that it cannot be placed on a CD-ROM or similar media
-   for commercial distribution without the prior approval of the author.
+   See the COPYRIGHT section in the Oracle.pm file for terms.
 
 */
 

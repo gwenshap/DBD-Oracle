@@ -1,7 +1,6 @@
-
-#   Oracle.pm,v 1.1 2002/07/05 06:34:47 richter Exp
+#   Oracle.pm
 #
-#   Copyright (c) 1994-2004 Tim Bunce, Ireland
+#   Copyright (c) 1994-2005 Tim Bunce, Ireland
 #
 #   See COPYRIGHT section in the documentation below
 
@@ -2766,14 +2765,10 @@ DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
 
 =head1 COPYRIGHT
 
-The DBD::Oracle module is Copyright (c) 1994-2004 Tim Bunce. Ireland.
+The DBD::Oracle module is Copyright (c) 1994-2005 Tim Bunce. Ireland.
 
 The DBD::Oracle module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself with the exception that it
-cannot be placed on a CD-ROM or similar media for commercial distribution
-without the prior approval of the author unless the CD-ROM contains only
-Open Source software (http://www.opensource.org/licenses/index.php)
-or is primarily a copy of the majority of the CPAN archive.
+modify it under the same terms as Perl 5.
 
 =head1 ACKNOWLEDGEMENTS
 
