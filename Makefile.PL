@@ -1304,7 +1304,10 @@ sub find_headers {
 	$h_file{$_} ||= $dir; # record first one found
 	print "Found $dir/$_\n" if $::opt_d;
     },
-       "$OH/sdk", # Oracle Instant Client default location (10g)
+       # --- Oracle Instant Client locations
+       "$OH/sdk", # Instant Client default location (10g)
+       "/include/oracle/$client_version_full/client", # Instant Client for RedHat FC3
+       # --- Traditional full-install locations
        "$OH/rdbms/public", # prefer public over others
        "$OH/rdbms",
        "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0)
