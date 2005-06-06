@@ -54,7 +54,7 @@ my @test_sets = (
 my $sz = 8;
 
 my $tests = 2;
-my $tests_per_set = 11;
+my $tests_per_set = 12;
 $tests += @test_sets * $tests_per_set;
 print "1..$tests\n";
 
@@ -110,6 +110,15 @@ sub run_select_tests {
   
 } # end of run_select_tests
 
+  my $ora_server_version = $dbh->func("ora_server_version");
+  if ($ora_server_version < 10) {
+    ok(0, 1, 1); # skip
+  } else {
+    my $data = $dbh->selectrow_array(q!
+       select to_dsinterval(?) from dual
+       !, {}, "1 07:00:00");
+    ok (0, (defined $data and $data eq '+000000001 07:00:00.000000000'), 1);
+  }
 
 if (0) { # UNION ALL causes Oracle 9 (not 8) to describe col1 as zero length
 # causing "ORA-24345: A Truncation or null fetch error occurred" error

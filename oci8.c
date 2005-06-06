@@ -1299,6 +1299,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 	case 182:                  /* INTERVAL YEAR TO MONTH */
 	case 183:                  /* INTERVAL DAY TO SECOND */
+	case 190:                  /* INTERVAL DAY TO SECOND */
 	case 187:                  /* TIMESTAMP */
 	case 188: 	           /* TIMESTAMP WITH TIME ZONE	*/
 	case 232:                  /* TIMESTAMP WITH LOCAL TIME ZONE */

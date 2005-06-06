@@ -2,6 +2,7 @@
 
   Fixed csform setting for Oracle 8.0.
   Fixed csform setting for some UTF8 cases.
+  Fixed INTERVAL DAY TO SECOND thanks to Honza Pazdziora.
 
   Added support for nested cursors in select lists thanks to Charles Jardine.
   Added "Trailing Spaces" section to docs thanks to Michael A Chase.
