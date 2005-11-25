@@ -421,7 +421,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			charsetid, ncharsetid, status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
-                    "OCIEnvNlsCreate (check ORACLE_HOME and NLS settings etc.)");
+                    "OCIEnvNlsCreate (check ORACLE_HOME and NLS settings, permissions etc.)");
                 return 0;
             }
                 

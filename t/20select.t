@@ -54,7 +54,7 @@ my @test_sets = (
 my $sz = 8;
 
 my $tests = 2;
-my $tests_per_set = 12;
+my $tests_per_set = 14;
 $tests += @test_sets * $tests_per_set;
 print "1..$tests\n";
 
@@ -107,6 +107,13 @@ sub run_select_tests {
   ok(0, $tmp->[2][1] =~ m/$data2/,
      cdif($tmp->[2][1], $data2, "Len ".length($tmp->[2][1])) );
   
+  # 10/25/2005 lenio: adding tests around $sth->{PRECISION}:
+  # 1st column, an integer, should have PRECISION of 38
+  ok(0, $sth->{PRECISION}->[0] == 38);
+  # 2nd column, character type, should have PRECISION of 10
+  ok(0, $sth->{PRECISION}->[1] == 10);
+  # 3rd column, date type, should have PRECISION of 75
+  ok(0, $sth->{PRECISION}->[2] == 75);
   
 } # end of run_select_tests
 

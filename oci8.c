@@ -1223,9 +1223,9 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		/* FALLTHRU */
 	case  96:				/* CHAR		*/
 		fbh->disize = fbh->dbsize;
+		fbh->prec   = fbh->disize;
 		if (CS_IS_UTF8(fbh->csid)) 
 		    fbh->disize = fbh->dbsize * 4;
-		fbh->prec   = fbh->disize;
 		break;
 	case  23:				/* RAW		*/
 		fbh->disize = fbh->dbsize * 2;
