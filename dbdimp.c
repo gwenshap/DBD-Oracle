@@ -164,10 +164,14 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
     case  2:	/* NVARCHAR2	*/
     case  5:	/* STRING	*/
     case  8:	/* LONG		*/
+    case 21:	/* BINARY FLOAT os-endian */
+    case 22:	/* BINARY DOUBLE os-endian */
     case 23:	/* RAW		*/
     case 24:	/* LONG RAW	*/
     case 96:	/* CHAR		*/
     case 97:	/* CHARZ	*/
+    case 100:	/* BINARY FLOAT oracle-endian */
+    case 101:	/* BINARY DOUBLE oracle-endian */
     case 106:	/* MLSLABEL	*/
     case 102:	/* SQLT_CUR	OCI 7 cursor variable	*/
     case 112:	/* SQLT_CLOB / long	*/
@@ -421,7 +425,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			charsetid, ncharsetid, status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
-                    "OCIEnvNlsCreate (check ORACLE_HOME and NLS settings, permissions etc.)");
+                    "OCIEnvNlsCreate. Check ORACLE_HOME env var, NLS settings, permissions, etc.");
                 return 0;
             }
                 
@@ -438,7 +442,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, NULL, status,
-		    "OCIInitialize. Check ORACLE_HOME and NLS settings etc.");
+		    "OCIInitialize. Check ORACLE_HOME env var, Oracle NLS settings, permissions etc.");
 		return 0;
 	    }
 
@@ -2120,6 +2124,15 @@ ora2sql_type(imp_fbh_t* fbh) {
             sql_fbh.dbtype = SQL_DECIMAL; /* better: SQL_NUMERIC */
         }
         break;
+#ifdef SQLT_IBDOUBLE
+    case SQLT_BDOUBLE:
+    case SQLT_BFLOAT:
+    case SQLT_IBDOUBLE:
+    case SQLT_IBFLOAT:
+               sql_fbh.dbtype = SQL_DOUBLE;
+               sql_fbh.prec   = 126;
+               break;
+#endif
     case SQLT_CHR:  sql_fbh.dbtype = SQL_VARCHAR;       break;
     case SQLT_LNG:  sql_fbh.dbtype = SQL_LONGVARCHAR;   break; /* long */
     case SQLT_DAT:  sql_fbh.dbtype = SQL_TYPE_TIMESTAMP;break;

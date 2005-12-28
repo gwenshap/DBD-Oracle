@@ -48,3 +48,18 @@ smooth as just about every other CPAN module.
 
 I don't know if Oracle is bulletproof on Linux but the install process
 has some problems.
+
+
+From: John Scoles <scoles@pythian.com>
+Date: Fri, 29 Sep 2005 10:48:47 -0700 (EST)
+Subject: RE: Oracle 10g Instantclient
+
+The Makefile.PL will now work for  Oracle 10g Instantclient. To have both the Compile and
+the test.pl to work you must first have the LD_LIBRARY_PATH correctly set to your 
+"instantclient" directory. (http://www.oracle.com/technology/tech/oci/instantclient/instantclient.html) 
+The present version of the make creates a link on your "instantclient" directory as follows
+"ln -s libclntsh.so.10.1 libclntsh.so". It is needed for both the makefile creation and the compile 
+but is not need for the test.pl. It should be removed after the compile.
+If the Makefile.PL or make fails try creating this link directly in the ""instantclient" directory.
+ 
+"instantclient" as follows     

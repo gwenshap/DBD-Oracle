@@ -4,9 +4,10 @@ use Test::More;
 
 use DBI;
 use Oraperl;
+use Config;
 $| = 1;
 
-plan tests => 31;
+plan tests => 33;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '');
@@ -17,6 +18,14 @@ unless($dbh) {
 }
 
 my($sth, $p1, $p2, $tmp);
+
+SKIP: {
+	skip "not unix-like", 2 unless $Config{d_semctl};
+	# basic check that we can fork subprocesses and wait for the status
+	is system("false"), 1<<8, 'system false should return 256';
+	is system("true"),     0, 'system true should return 0';
+}
+
 
 $sth = $dbh->prepare(q{
 	/* also test preparse doesn't get confused by ? :1 */

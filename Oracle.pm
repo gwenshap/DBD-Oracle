@@ -203,6 +203,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	# create a 'blank' dbh
 
+	$user = '' if not defined $user;
         (my $user_only = $user) =~ s:/.*::;
 	my ($dbh, $dbh_inner) = DBI::_new_dbh($drh, {
 	    'Name' => $dbname,

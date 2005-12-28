@@ -1223,9 +1223,9 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		/* FALLTHRU */
 	case  96:				/* CHAR		*/
 		fbh->disize = fbh->dbsize;
-		fbh->prec   = fbh->disize;
 		if (CS_IS_UTF8(fbh->csid)) 
 		    fbh->disize = fbh->dbsize * 4;
+		fbh->prec   = fbh->disize;
 		break;
 	case  23:				/* RAW		*/
 		fbh->disize = fbh->dbsize * 2;
@@ -1233,8 +1233,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 
 	case   2:				/* NUMBER	*/
+	case  21:				/* BINARY FLOAT os-endian	*/
+	case  22:				/* BINARY DOUBLE os-endian	*/
+	case 100:				/* BINARY FLOAT oracle-endian	*/
+	case 101:				/* BINARY DOUBLE oracle-endian	*/
 		fbh->disize = 130+38+3;		/* worst case	*/
-		avg_width = 4;     /* > approx +/- 1_000_000 ?  */
+		avg_width = 4;     /* NUMBER approx +/- 1_000_000 */
 		break;
 
 	case  12:				/* DATE		*/

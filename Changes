@@ -3,12 +3,13 @@
   Fixed csform setting for Oracle 8.0.
   Fixed csform setting for some UTF8 cases.
   Fixed INTERVAL DAY TO SECOND thanks to Honza Pazdziora.
-  Fixed $sth->{PRECISION} for utf-8, with thanks Eric Lenio.
+  Fixed undef warnings when connecting with undef $user.
 
   Added support for nested cursors in select lists thanks to Charles Jardine.
   Added "Trailing Spaces" section to docs thanks to Michael A Chase.
-  Changed "Binding Cursors" docs, clarifying examples thanks to Charles Jardine.
+  Added support for binary floats/doubles thanks to Dennis Box.
 
+  Changed "Binding Cursors" docs, clarifying examples thanks to Charles Jardine.
   Changed Makefile.PL to avoid risk of sqlplus hanging thanks to Mark Dedlow.
   Changed Makefile.PL to prefer ~/rdbms/public over other ~/rdbms/* for .h files.
   Changed Makefile.PL to improve build rule detection.
@@ -17,6 +18,7 @@
   Updated README.vms re logical name tables thanks to Jakob Snoer.
   Updated README.aix thanks to Stephen de Vries.
   Updated README.macosx thanks to Stephen de Vries.
+  Renamed README.*'s to add .txt suffix to make life easier for some.
 
   The Copyright terms for DBD::Oracle have been simplified and now read:
     The DBD::Oracle module is free software; you can redistribute it

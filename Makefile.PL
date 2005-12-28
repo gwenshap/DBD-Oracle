@@ -1,6 +1,24 @@
 ##
 ##  You should not need to edit this file.
-##
+##  Ok I edited it! So what are you going to do about it?
+##  John Scoles The Pythian Group
+##  September 20 2005
+##  scoles@pythian.com
+##  changes made
+##  Removed option flag '-ic10'. 
+##  Added a new elsif block  that searches for libclntsh.so.10.1 file on the path $HO
+##  In this block it sets a  link to libclntsh.so.10.1  as libclntsh.so
+##  then hard codes the lib to clntsh and then carries on.
+##  I attempted to hardcode libclntsh.so.10.1 for clntsh but this does not 
+##  not work. It seems that others are getting this same form of error as well 
+##  i.e.  The compiler does not recognize .10.1 as a lib
+##  
+##  John Scoles (TPG)
+##  October 07 2005
+##  Changes made
+##  Adding in a few changes suggested by Andy Hassall <andy@andyh.co.uk>
+##  that will enable the compile to work for Windows version of the IC
+
 # vim: ts=8:sw=4
 
 BEGIN { $^W = 1 }
@@ -41,6 +59,7 @@ my $os = $^O;
 my $osvers = $Config{osvers}; $osvers =~ s/^\s*(\d+\.\d+).*/$1/; # drop sub-sub-version: 2.5.1 -> 2.5
 my $exe_ext = ($os eq 'VMS') ? '.pl' : '';
 my $BELL = "\a";
+# put this here as it might change
 $| = 1;
 
 my %opts = (
@@ -74,9 +93,10 @@ my %mk_target_rules;
 
 # Options (rarely needed)
 # to turn off an option prefix with 'no', ie 'perl Makefile.PL -nob'
+#$::opt_ic10 = 1;   # Build for Oracle 10g instantclient
 $::opt_b = 1;	# try to use Oracle's own 'build' rule
 $::opt_r = '';	# With -b above, use this names build rule (eg -r=build64)
-$::opt_m = 0;	# path to proc.mk or oracle.mk file to read
+$::opt_m = '';	# path to proc.mk or oracle.mk file to read
 $::opt_p = '';	# alter preference for oracle.mk over proc
 $::opt_n = '';	# Oracle .mk macro name to use for library list to link with
 $::opt_c = 0;	# don't encourage use of shared library
@@ -120,7 +140,6 @@ print "\n Configuring DBD::Oracle ...\n
 # --- Where is Oracle installed...
 
 my $ORACLE_ENV  = ($os eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
-
 my $OH = $ENV{$ORACLE_ENV} || '';
 $OH  = win32_oracle_home($OH) if ($os eq 'MSWin32') or ($os =~ /cygwin/i);
 $OH = unixify $OH if $os eq 'VMS';
@@ -133,12 +152,27 @@ die qq{  The $ORACLE_ENV environment variable must be set.
   ABORTED!
 } unless $OH;
 
+print "os=$os\n";
+
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture)
   See the README.clients file for more information.
   ABORTED!
-} unless (($os eq 'VMS') ? -d $OH : -d "$OH/lib/.");
+} unless (($os eq 'VMS') ? -d $OH : (-e "$OH/libclntsh.so.10.1" || -e "$OH/oci.dll") ? 1 : -d "$OH/lib/.");
+ 
+
+#the (-e "$OH/libclntsh.so.10.1" ) supports the 10g Instant Client on UNIX and Linux
+#The -e "$OH/oci.dll" supports the 10g Instant Client on Windows.
+
+die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
+  It must be set to hold the path to an Oracle installation directory
+  on this machine (or a machine with a compatible architecture)
+  See the README.clients file for more information.
+  ABORTED!
+
+} unless ( -d $OH );
+
 
 print "Using Oracle in $OH\n";
 
@@ -168,6 +202,9 @@ symbol_search() if $::opt_s or $::opt_S;
 
 
 # --- How shall we link with Oracle? Let me count the ways...
+
+# default to using XE .mk file if one exists
+$::opt_m ||= "$OH/rdbms/demo/demo_xe.mk" if -s "$OH/rdbms/demo/demo_xe.mk";
 
 my @mkfiles;
 my $linkwith = "";
@@ -200,12 +237,16 @@ if ($os eq 'VMS') {
 }
 
 elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
+
     my $OCIDIR = "";
     find( sub {
 	print "Found $_ directory\n" if /^OCI\d*$/i;
 	$OCIDIR = $_ if /^OCI\d*$/i && $OCIDIR lt $_;
 	$File::Find::prune = 1 if -d $_ && $_ !~ /^\./;
     }, $OH );
+    
+    $OCIDIR = 'sdk' if !$OCIDIR && -d "$OH/sdk"; # Instant Client SDK
+    
     die "OCI directory not found, please install OCI in $OH" if ! $OCIDIR;
     print "Using OCI directory '$OCIDIR'\n";
 
@@ -266,7 +307,7 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
 # --- UNIX Variants ---
 
 elsif ($::opt_l and # use -l to enable this direct-link approach
-	@_=grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } <$OH/lib/lib*>
+        @_=grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } <$OH/lib/lib*>
     ) {
     # --- the simple modern way ---
     foreach(@_) { s:\Q$OH/lib/::g }
@@ -278,19 +319,73 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
     my @h_dirs = find_headers();
     if ($client_version_full =~ /^8.0.6/ && $os eq 'hpux') {
-	$linkwith_msg = "-lextp -l$lib.";
-	$opts{LIBS} = [ "-L$OH/$libdir -lextp -l$lib $syslibs" ];
-	push @h_dirs, 'network/public';
+        $linkwith_msg = "-lextp -l$lib.";
+        $opts{LIBS} = [ "-L$OH/$libdir -lextp -l$lib $syslibs" ];
+        push @h_dirs, 'network/public';
     }
     else {
-	$linkwith_msg = "-l$lib.";
-	$opts{LIBS} = [ "-L$OH/$libdir -l$lib $syslibs" ];
+        $linkwith_msg = "-l$lib.";
+        $opts{LIBS} = [ "-L$OH/$libdir -l$lib $syslibs" ];
     }
     my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
     $opts{INC}  = "$inc -I$dbi_arch_dir";
 }
-else {	# --- trawl the guts of Oracle's make files looking the how it wants to link
 
+elsif ($::opt_m =~ /\bdemo_xe.mk$/) {	# Oracle XE
+
+    my $mk = $::opt_m;
+    print "Looks like Oracle XE ($mk)\n";
+
+    fetch_oci_macros($mk);
+    $MK{CCINCLUDES} = '-I$(ICINCHOME)'; # undo odd refinition in demo_xe.mk
+
+    # From linux Oracle XE (10.2.0):
+    #	ICINCHOME=$(ORACLE_HOME)/rdbms/public/
+    #	ICLIBHOME=$(ORACLE_HOME)/lib/
+    #	ICLIBPATH=-L$(ICLIBHOME)
+    #	THREADLIBS=-lpthread    [initially -lthread then redefined]
+    #	CCLIB=$(ICLIBPATH) -lclntsh $(THREADLIBS)
+    #	CCINCLUDES = -I$(ICINCHOME)   [see above]
+    #   CCFLAGS=$(CCINCLUDES) -DLINUX -D_GNU_SOURCE -D_REENTRANT -g [initially without -DLINUX -D_GNU_SOURCE]
+    my $cclib   = expand_mkvars($MK{CCLIB}, 0, 1);
+    my $ccflags = expand_mkvars($MK{CCFLAGS}, 0, 1);
+
+    $linkwith_msg = "$cclib";
+    $opts{LIBS} = [ $cclib ];
+    $opts{INC}  = "-I$dbi_arch_dir $ccflags";
+    $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
+}
+
+# --- special case for Oracle 10g instant client
+
+elsif (-e "$OH/libclntsh.so.10.1") {   # note lack of ../lib/...
+
+    #support for 10 instantclient
+    # John Scoles
+    # --- the simple modern way ---
+    
+    eval { symlink("$OH/libclntsh.so.10.1","$OH/libclntsh.so") };  
+    # need to link so.10.1 file to .so 
+    # hard coded the link dir here and below
+
+    print "Found direct-link candidate: clntsh\n";
+    my $lib = "clntsh";
+    my $syslibs = read_sysliblist();
+
+    print "Oracle sysliblist: $syslibs\n";
+
+    # no library dir with instantclient
+    my $libdir = "";
+    
+    $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
+
+    $linkwith_msg = "-l$lib.";
+    $opts{LIBS} = [ "-L$OH/$libdir -l$lib $syslibs"];
+    my $inc = "-I$OH\/sdk/include";
+    $opts{INC}  = "$inc -I$dbi_arch_dir";
+
+}
+else {	# --- trawl the guts of Oracle's make files looking the how it wants to link
     #Lincoln: pick the right library path
     my $libdir = ora_libdir();
     my @ora_libs = <$OH/$libdir/lib*>;
@@ -713,7 +808,6 @@ if ($opts{LINKTYPE} && $opts{LINKTYPE} eq 'static') {
 # create this before WriteMakefile so MakeMaker knows it's here
 open(MK_PM, ">mk.pm") or die "Unable to create mk.pm: $!";
 
-print "\n";
 WriteMakefile( dbd_edit_mm_attribs(\%opts) );
 
 check_security() unless $os eq 'VMS' or $os eq 'MSWin32' or $os =~ /cygwin/i;
@@ -922,6 +1016,7 @@ sub ora_libdir {
     else {
         $libdir = 'lib64' if   perl_is_64bit() and -d "$OH/lib64";
     }
+   
     return $libdir;
 }
 
@@ -943,7 +1038,6 @@ sub del_crtobj {
 
 
 sub find_mkfile {
-
     my @mkfiles;
     my @mk_proc = (
 	'precomp/demo/proc/proc.mk',
@@ -952,6 +1046,7 @@ sub find_mkfile {
 	'proc16/lib/proc16.mk',
     );
     my @mk_oci = (
+	'rdbms/demo/demo_xe.mk',
 	'rdbms/lib/oracle.mk',
 	'rdbms/demo/oracle.mk',
 	'rdbms/demo/demo_rdbms.mk',
@@ -992,7 +1087,6 @@ sub find_mkfile {
     } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile) || $::opt_F;
 
     print "Using $mkfile\n";
-
     warn "Note: Attempting to use makefile from otrace component. This may not work.\n"
 	if ($mkfile =~ /atmoci.mk/);
 
@@ -1173,6 +1267,9 @@ sub fetch_oci_macros {
 	    $linkvia = '-locic $(TTLIBS)';	# XXX GUESS HACK
 	}
     }
+    elsif (!$linkvia && $MK{CCLIB}) {	# Oracle XE
+	$linkvia = '$(CCLIB)';
+    }
     unless ($linkvia){
 	die "ERROR parsing $file: Unable to determine what to link with.\n"
 	."Please send me copies of these files (one per mail message):\n@mkfiles\n";
@@ -1288,7 +1385,7 @@ sub find_bin{
     my $bin = shift;
     my $path_sep = $Config{path_sep};
     foreach (split(/\Q$path_sep/, $ENV{PATH})){
-	return "$_/$bin" if -x "$_/$bin";
+      return "$_/$bin" if -x "$_/$bin";	
     }
     return undef;
 }
@@ -1296,7 +1393,8 @@ sub find_bin{
 
 sub find_headers {
     my (%h_dir, %h_file, @h_dir);
-    find( sub {
+  
+   find( sub {
 	return unless /^o(ci.{3,4}|ratypes)\.h$/i;
 	my $dir = $File::Find::dir;
 	$dir =~ s:^\Q$OH/::;
@@ -1305,15 +1403,17 @@ sub find_headers {
 	print "Found $dir/$_\n" if $::opt_d;
     },
        # --- Oracle Instant Client locations
-       "$OH/sdk", # Instant Client default location (10g)
        "/include/oracle/$client_version_full/client", # Instant Client for RedHat FC3
        # --- Traditional full-install locations
        "$OH/rdbms/public", # prefer public over others
        "$OH/rdbms",
-       "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0)
+       "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0),
     );
+
     @h_dir = keys %h_dir;
+
     print "Found header files in @h_dir.\n" if @h_dir;
+
     if (!$h_file{'oratypes.h'} || !$h_file{'ocidfn.h'}) {
 	print "\n\n*********************************************************\n";
 	print "I can't find the header files I need in your Oracle installation.\n";
@@ -1332,10 +1432,10 @@ sub get_client_version {
 
     my $client_version_full = '';
 
-    my $sqlplus_exe = ($os eq 'Win32') ? "sqlplus.exe" : "sqlplus";
+    my $sqlplus_exe = ($os eq 'Win32' || $os eq 'MSWin32') ? "sqlplus.exe" : "sqlplus";
     local $ENV{PATH} = join $Config{path_sep}, $ENV{PATH}, "$OH/bin", $OH;
     local $ENV{SQLPATH} = ""; # avoid $SQLPATH/login.sql causing sqlplus to hang
-
+    print "path=$ENV{PATH}\n";
     if (find_bin($sqlplus_exe)) {
 	# Try to use the _SQLPLUS_RELEASE predefined variable from sqlplus
 	# Documented in the SQL*Plus reference guide:
@@ -1348,8 +1448,8 @@ sub get_client_version {
 	close FH;
 	my $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
 	unlink "define.sql";
-	print $sqlplus_release;
-	if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
+	print $sqlplus_release; # the _SQLPLUS_RELEASE may not be on first line:
+	if ($sqlplus_release =~ /DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
 	    $client_version_full = sprintf("%d.%d.%d.%d", $1, $2, $3, $4);
 	}
     }
