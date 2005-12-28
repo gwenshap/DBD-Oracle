@@ -1,6 +1,11 @@
 This file contains some random notes relating to minimal Oracle
 configurations for building and/or using DBD::Oracle / Oraperl.
 
+
+*** ALL THE TEXT BELOW IS OLD ***
+*** THE PREFERED METHOD IS TO USE Oracle Instant Client ***
+
+
 -------------------------------------------------------------------------------
 With recent versions of Oracle (specifically >= 7.3) you may be
 able to build DBD::Oracle without Pro*C installed by using the Oracle

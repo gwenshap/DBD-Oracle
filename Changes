@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.17 (svn rev NNN)
+=head1 Changes in DBD-Oracle 1.17 (svn rev 2334)
 
   Fixed csform setting for Oracle 8.0.
   Fixed csform setting for some UTF8 cases.
@@ -19,6 +19,7 @@
   Updated README.aix thanks to Stephen de Vries.
   Updated README.macosx thanks to Stephen de Vries.
   Renamed README.*'s to add .txt suffix to make life easier for some.
+  Removed README.utf8 since the topic was covered better in the main docs.
 
   The Copyright terms for DBD::Oracle have been simplified and now read:
     The DBD::Oracle module is free software; you can redistribute it
