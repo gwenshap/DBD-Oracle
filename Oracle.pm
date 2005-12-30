@@ -2379,7 +2379,7 @@ than could be stored in memory at a given time.
    my $offset = 1;   # Offsets start at 1, not 0
    while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) ) {
       print STDOUT $data;
-      $offset += $length;
+      $offset += $chunk_size;
    }
 
 Notice that the select statement does not contain the phrase

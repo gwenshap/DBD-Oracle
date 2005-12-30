@@ -4,13 +4,15 @@
   Fixed csform setting for some UTF8 cases.
   Fixed INTERVAL DAY TO SECOND thanks to Honza Pazdziora.
   Fixed undef warnings when connecting with undef $user.
+  Fixed LOB streaming example thanks to Pablo Zorzoli.
 
   Added support for nested cursors in select lists thanks to Charles Jardine.
   Added "Trailing Spaces" section to docs thanks to Michael A Chase.
   Added support for binary floats/doubles thanks to Dennis Box.
 
   Changed "Binding Cursors" docs, clarifying examples thanks to Charles Jardine.
-  Changed Makefile.PL to avoid risk of sqlplus hanging thanks to Mark Dedlow.
+  Changed Makefile.PL to avoid risk of sqlplus hanging thanks to Mark Dedlow,
+    and more reliably use correct sqlplus thanks to Honza Pazdziora.
   Changed Makefile.PL to prefer ~/rdbms/public over other ~/rdbms/* for .h files.
   Changed Makefile.PL to improve build rule detection.
   Changed Makefile.PL to Instant Client build support thanks to Hilmar Lapp.

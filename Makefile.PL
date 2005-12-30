@@ -1433,7 +1433,7 @@ sub get_client_version {
     my $client_version_full = '';
 
     my $sqlplus_exe = ($os eq 'Win32' || $os eq 'MSWin32') ? "sqlplus.exe" : "sqlplus";
-    local $ENV{PATH} = join $Config{path_sep}, $ENV{PATH}, "$OH/bin", $OH;
+    local $ENV{PATH} = join $Config{path_sep}, "$OH/bin", $OH, $ENV{PATH};
     local $ENV{SQLPATH} = ""; # avoid $SQLPATH/login.sql causing sqlplus to hang
     print "path=$ENV{PATH}\n";
     if (find_bin($sqlplus_exe)) {
