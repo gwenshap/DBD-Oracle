@@ -12,7 +12,7 @@ after resolving some undefined symbol errors, I succeeded where for I had
 previously despaired of finding the time to hack out the right 
 incantation.  
 
-This F<README.hpux> describes the combined knowledge of a number of
+This F<README.hpux.txt> describes the combined knowledge of a number of
 folks who invested many hours discovering a working set of build options.
 The instructions in this file, which include building Perl from
 source, will produce a working dynamically linked DBD-Oracle that can

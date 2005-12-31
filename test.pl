@@ -96,7 +96,7 @@ $start = time;
 &test1();
 
 print "\nTesting repetitive connect/open/close/disconnect:\n";
-print "If this test hangs then read the README.help file.\n";
+print "If this test hangs then read the README.help.txt file.\n";
 print "Expect sequence of digits, no other messages:\n";
 #DBI->internal->{DebugDispatch} = 2;
 foreach(1..$opt_n) { print "$_ "; &test2(); }

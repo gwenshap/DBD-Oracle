@@ -1,7 +1,7 @@
 In general, on Windows, it's best to just use ActiveState Perl and the
 PPM package manager to install a pre-built version of DBD::Oracle.
 
-If you built Perl with gcc, read README.wingcc as well as this file.
+If you built Perl with gcc, read README.wingcc.txt as well as this file.
 
 --- other information, some of which is out of date ---
 

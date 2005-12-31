@@ -1,4 +1,4 @@
-=head1 README.vms for DBI and DBD::Oracle
+=head1 README.vms.txt for DBI and DBD::Oracle
 
 Date: Wed, 15 Sep 2004 11:44:09 +0300
 From: Jakob Snoer <jakob.snoer@dk.ibm.com>

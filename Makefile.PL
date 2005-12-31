@@ -148,7 +148,7 @@ $OH =~ s:/$::;
 die qq{  The $ORACLE_ENV environment variable must be set.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture).
-  See the README.clients file for more information.
+  See the README.clients.txt file for more information.
   ABORTED!
 } unless $OH;
 
@@ -157,7 +157,7 @@ print "os=$os\n";
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture)
-  See the README.clients file for more information.
+  See the README.clients.txt file for more information.
   ABORTED!
 } unless (($os eq 'VMS') ? -d $OH : (-e "$OH/libclntsh.so.10.1" || -e "$OH/oci.dll") ? 1 : -d "$OH/lib/.");
  
@@ -168,7 +168,7 @@ die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture)
-  See the README.clients file for more information.
+  See the README.clients.txt file for more information.
   ABORTED!
 
 } unless ( -d $OH );
@@ -194,7 +194,8 @@ if ($os eq 'darwin') {
     close FH;
     unless ($stripped) {
 	warn "WARNING: symbol table may need modification in Oracle library:\n"
-	   ."\t$oracle_lib\nIF the build fails in the linking stage, manual modification is required - see README.macosx\n";
+	   ."\t$oracle_lib\nIF the build fails in the linking stage,\n"
+	   . "manual modification is required - see README.macosx.txt\n";
     }
 }
 
@@ -253,7 +254,7 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
     if ($Config{cc} =~ /gcc/i) {
       system("dlltool --input-def oci.def --output-lib liboci.a")
 	  if ! -f "liboci.a";
-      die "Could not find or create liboci.a.  See README.wingcc\n"
+      die "Could not find or create liboci.a.  See README.wingcc.txt\n"
 	  if ! -f "liboci.a";
       my $pwd = cwd();
       $opts{LIBS} = [ "-L$pwd -loci" ];
@@ -603,13 +604,13 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
         if ($Config{cc} =~ /gcc/i) {
 	    print "Warning: perl was not built with -fpic or -fPIC in compiler flags.\n",
 		  "         You may need to rebuild perl from sources.\n",
-		  "         See instructions in README.hpux\n"
+		  "         See instructions in README.hpux.txt\n"
 		unless $ccf =~ m/-fpic\b/i;
         }
         else {
             print "Warning: perl was not built with +z or +Z in compiler flags.\n",
                   "         You may need to rebuild perl from sources.\n",
-                  "         See instructions in README.hpux\n"
+                  "         See instructions in README.hpux.txt\n"
         	unless $ccf =~ m/\+[zZ]/;
         }
     }
@@ -715,7 +716,7 @@ if ($os eq 'hpux') {
 	$opts{LINKTYPE} = 'static';
     }
     else {
-	print "*** Warning: If you have trouble, see README.hpux...\n"
+	print "*** Warning: If you have trouble, see README.hpux.txt...\n"
 	     ."    you may have to build your own perl, or go hunting for libraries\n";
     }
     print "*** Warning: If you have trouble, try perl Makefile.PL -l\n" unless $::opt_l;
@@ -814,7 +815,7 @@ check_security() unless $os eq 'VMS' or $os eq 'MSWin32' or $os =~ /cygwin/i;
 
 print "\n";
 print "***  If you have problems...\n";
-print "     read all the log printed above, and the README and README.help files.\n";
+print "     read all the log printed above, and the README and README.help.txt files.\n";
 print "     (Of course, you have read README by now anyway, haven't you?)\n\n";
 
 exit 0;
@@ -1082,7 +1083,7 @@ sub find_mkfile {
 	somewhere non-standard you can specify where it is using the -m option:
 		perl Makefile.PL -m /path/to/your.mk
 
-	See README.clients for more information and some alternatives.
+	See README.clients.txt for more information and some alternatives.
 
     } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile) || $::opt_F;
 
@@ -1419,7 +1420,7 @@ sub find_headers {
 	print "I can't find the header files I need in your Oracle installation.\n";
 	print "You probably need to install some more Oracle components.\n";
 	print "I'll keep going, but the compile will probably fail.\n";
-	print "See README.clients for more information.$BELL\n";
+	print "See README.clients.txt for more information.$BELL\n";
 	print "*********************************************************\n\n";
 	sleep 5;
     }
@@ -1758,7 +1759,7 @@ sub check_security {
 
     print "\n";
     warn "***  WARNING - YOUR ORACLE INSTALLATION HAS A SECURITY PROBLEM.$BELL\n";
-    warn "     Read the README.sec file for more information and patch details.$BELL\n";
+    warn "     Read the README.sec.txt file for more information and patch details.$BELL\n";
     warn "     This is just a warning. It does not affect DBD::Oracle in any way.\n\n";
     sleep 6;
 }
