@@ -1383,6 +1383,7 @@ sub read_file {
 
 
 sub find_bin{
+    use filetest 'access';
     my $bin = shift;
     my $path_sep = $Config{path_sep};
     foreach (split(/\Q$path_sep/, $ENV{PATH})){
@@ -1433,8 +1434,21 @@ sub get_client_version {
 
     my $client_version_full = '';
 
-    my $sqlplus_exe = ($os eq 'Win32' || $os eq 'MSWin32') ? "sqlplus.exe" : "sqlplus";
-    local $ENV{PATH} = join $Config{path_sep}, "$OH/bin", $OH, $ENV{PATH};
+    my $sqlplus_exe = ($os eq 'Win32' || $os eq 'MSWin32' || $os eq 'cygwin') ? "sqlplus.exe" : "sqlplus";
+
+    my $OH_path = $OH;
+
+    # When building under Cygwin, ORACLE_HOME must be a native Windows
+    # path so Oracle itself can use it, but it needs to be translated
+    # to a Cygwin path so it can be joined into the PATH.
+    # Otherwise, the colon in the drive specification (e.g. "c:") is
+    # treated as a separator.
+
+    if ($os eq 'cygwin') {
+        chomp($OH_path = `/usr/bin/cygpath -u $OH_path`)
+    }
+
+    local $ENV{PATH} = join $Config{path_sep}, "$OH_path/bin", $OH_path, $ENV{PATH};
     local $ENV{SQLPATH} = ""; # avoid $SQLPATH/login.sql causing sqlplus to hang
     print "path=$ENV{PATH}\n";
     if (find_bin($sqlplus_exe)) {

@@ -15,6 +15,7 @@
     and more reliably use correct sqlplus thanks to Honza Pazdziora.
   Changed Makefile.PL to prefer ~/rdbms/public over other ~/rdbms/* for .h files.
   Changed Makefile.PL to improve build rule detection.
+  Changed Makefile.PL to improve cygwin build thanks to Andy Hassall.
   Changed Makefile.PL to Instant Client build support thanks to Hilmar Lapp.
   Changed Makefile.PL to do VMS logical name checks thanks to Jakob Snoer.
   Updated README.vms re logical name tables thanks to Jakob Snoer.
