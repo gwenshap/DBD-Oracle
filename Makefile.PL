@@ -56,6 +56,7 @@ BEGIN { if ($^O eq 'VMS') {
 my $dbi_dir      = dbd_dbi_dir();
 my $dbi_arch_dir = dbd_dbi_arch_dir();
 my $os = $^O;
+my $so = $Config{so}; # typically 'so', 'dylib' on Darwin/OSX
 my $osvers = $Config{osvers}; $osvers =~ s/^\s*(\d+\.\d+).*/$1/; # drop sub-sub-version: 2.5.1 -> 2.5
 my $exe_ext = ($os eq 'VMS') ? '.pl' : '';
 my $BELL = "\a";
@@ -156,15 +157,16 @@ print "os=$os\n";
 
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
-  on this machine (or a machine with a compatible architecture)
+  on this machine (or a machine with a compatible architecture).
+  For an Instant Client install, the directory should include an sdk subdirectory.
   See the README.clients.txt file for more information.
   ABORTED!
-} unless (($os eq 'VMS') ? -d $OH : (-e "$OH/libclntsh.so.10.1" || -e "$OH/oci.dll") ? 1 : -d "$OH/lib/.");
+} unless (-d $OH and $os eq 'VMS')
+      or -d "$OH/sdk/." 	# Instant Client with SDK
+      or -d "$OH/lib/." 	# normal Oracle installation
+      or -e "$OH/libclntsh.$so.10.1" # pre-sdk instant client XXX hack (version specific)
+      or -e "$OH/oci.dll";	# Windows Instant Client
  
-
-#the (-e "$OH/libclntsh.so.10.1" ) supports the 10g Instant Client on UNIX and Linux
-#The -e "$OH/oci.dll" supports the 10g Instant Client on Windows.
-
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture)
@@ -184,8 +186,7 @@ die "DBD::Oracle no longer supports Oracle versions before 8.\n"
 
 
 # Check for symbol table problem in libclntsh.dylib.9.0 on MacOS X
-if ($os eq 'darwin') {
-    my $oracle_lib = "$OH/lib/libclntsh.dylib";
+if ($os eq 'darwin' and -f (my $oracle_lib = "$OH/lib/libclntsh.dylib")) {
     open FH,"nm $oracle_lib |";
     my $stripped = 1;
     while (<FH> ) {
@@ -205,7 +206,10 @@ symbol_search() if $::opt_s or $::opt_S;
 # --- How shall we link with Oracle? Let me count the ways...
 
 # default to using XE .mk file if one exists
-$::opt_m ||= "$OH/rdbms/demo/demo_xe.mk" if -s "$OH/rdbms/demo/demo_xe.mk";
+if (-s "$OH/rdbms/demo/demo_xe.mk" && !$::opt_m) {
+    $::opt_m = "$OH/rdbms/demo/demo_xe.mk";
+    warn "Looks like an Oracle XE, so we'll use $::opt_m\n";
+}
 
 my @mkfiles;
 my $linkwith = "";
@@ -359,31 +363,30 @@ elsif ($::opt_m =~ /\bdemo_xe.mk$/) {	# Oracle XE
 
 # --- special case for Oracle 10g instant client
 
-elsif (-e "$OH/libclntsh.so.10.1") {   # note lack of ../lib/...
+elsif (-e "$OH/libclntsh.$so" or -e "$OH/libclntsh.$so.10.1") {   # note lack of ../lib/...
 
-    #support for 10 instantclient
-    # John Scoles
-    # --- the simple modern way ---
+    print "Looks like an Instant Client installation, okay\n";
     
-    eval { symlink("$OH/libclntsh.so.10.1","$OH/libclntsh.so") };  
-    # need to link so.10.1 file to .so 
-    # hard coded the link dir here and below
+    # the libclntsh.$so (without version suffix) may be missing
+    # we need it to link to so try to create it
+    eval {
+        symlink("$OH/libclntsh.$so.10.1", "$OH/libclntsh.$so")
+	    or warn "Can't symlink $OH/libclntsh.$so to $OH/libclntsh.$so.10.1: $!\n";
+    } unless -e "$OH/libclntsh.$so";  
 
-    print "Found direct-link candidate: clntsh\n";
     my $lib = "clntsh";
     my $syslibs = read_sysliblist();
-
     print "Oracle sysliblist: $syslibs\n";
 
-    # no library dir with instantclient
-    my $libdir = "";
-    
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
 
     $linkwith_msg = "-l$lib.";
-    $opts{LIBS} = [ "-L$OH/$libdir -l$lib $syslibs"];
-    my $inc = "-I$OH\/sdk/include";
-    $opts{INC}  = "$inc -I$dbi_arch_dir";
+    $opts{LIBS} = [ "-L$OH -l$lib $syslibs" ];
+
+    my $inc = "$OH/sdk/include";
+    warn "Your Instant Client installation doesn't have the SDK component installed\n"
+        unless -d $inc;
+    $opts{INC}  = "-I$inc -I$dbi_arch_dir";
 
 }
 else {	# --- trawl the guts of Oracle's make files looking the how it wants to link
@@ -1467,6 +1470,19 @@ sub get_client_version {
 	if ($sqlplus_release =~ /DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
 	    $client_version_full = sprintf("%d.%d.%d.%d", $1, $2, $3, $4);
 	}
+	else {
+	    warn qq{
+	    If sqlplus failed due to a linker/symbol/relocation/library error or similar problem
+	    then it's likely that you've not configured your environment correctly.
+	    Many systems need an environment variable to be set
+	    (such as LD_LIBRARY_PATH, DYLD_LIBRARY_PATH)
+	    to include the directory containing the Oracle libraries.
+	    \a\n};
+    	    sleep 5;
+	}
+    }
+    else {
+	warn "Can't find sqlplus. Pity, it would have helped.\n";
     }
 
     if (!$client_version_full && open INST, "<$OH/install/unix.rgs") {
