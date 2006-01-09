@@ -206,10 +206,7 @@ symbol_search() if $::opt_s or $::opt_S;
 # --- How shall we link with Oracle? Let me count the ways...
 
 # default to using XE .mk file if one exists
-if (-s "$OH/rdbms/demo/demo_xe.mk" && !$::opt_m) {
-    $::opt_m = "$OH/rdbms/demo/demo_xe.mk";
-    warn "Looks like an Oracle XE, so we'll use $::opt_m\n";
-}
+$::opt_m ||= "$OH/rdbms/demo/demo_xe.mk";
 
 my @mkfiles;
 my $linkwith = "";
@@ -1773,7 +1770,7 @@ $(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt $(INST_ARCHAUTODIR)
 
 sub check_ldlibpthname {
     my ($libdir) = @_;
-    $libdir ||= ora_libdir();
+    $libdir ||= "$OH/".ora_libdir();
     $libdir =~ s:[\\/]$::;
     my $ldlibpthname = $Config{ldlibpthname} or return;
     my $val = $ENV{$ldlibpthname} || '';
