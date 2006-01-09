@@ -1196,8 +1196,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
         /* OCI_ATTR_CHAR_SIZE: like OCI_ATTR_DATA_SIZE but measured in chars	*/
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->len_char_size, 0, OCI_ATTR_CHAR_SIZE, status);
 #endif
-#ifdef OCI_ATTR_CHARSET_ID
         fbh->csid = 0; fbh->csform = 0; /* just to be sure */
+#ifdef OCI_ATTR_CHARSET_ID
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->csid,   0, OCI_ATTR_CHARSET_ID,   status);
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->csform, 0, OCI_ATTR_CHARSET_FORM, status);
 #endif
@@ -1223,7 +1223,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		/* FALLTHRU */
 	case  96:				/* CHAR		*/
 		fbh->disize = fbh->dbsize;
-		if (CS_IS_UTF8(fbh->csid)) 
+		if (CSFORM_IMPLIES_UTF8(fbh->csform))
 		    fbh->disize = fbh->dbsize * 4;
 		fbh->prec   = fbh->disize;
 		break;
@@ -1249,7 +1249,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 
 	case   8:				/* LONG		*/
-                if (CS_IS_UTF8(fbh->csid)) 
+		if (CSFORM_IMPLIES_UTF8(fbh->csform))
                     fbh->disize = long_readlen * 4;
                 else
                     fbh->disize = long_readlen;
