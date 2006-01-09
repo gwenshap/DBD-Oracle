@@ -334,6 +334,7 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
     }
     my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
     $opts{INC}  = "$inc -I$dbi_arch_dir";
+    check_ldlibpthname();
 }
 
 elsif ($::opt_m =~ /\bdemo_xe.mk$/) {	# Oracle XE
@@ -359,6 +360,7 @@ elsif ($::opt_m =~ /\bdemo_xe.mk$/) {	# Oracle XE
     $opts{LIBS} = [ $cclib ];
     $opts{INC}  = "-I$dbi_arch_dir $ccflags";
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
+    check_ldlibpthname();
 }
 
 # --- special case for Oracle 10g instant client
@@ -366,6 +368,7 @@ elsif ($::opt_m =~ /\bdemo_xe.mk$/) {	# Oracle XE
 elsif (-e "$OH/libclntsh.$so" or -e "$OH/libclntsh.$so.10.1") {   # note lack of ../lib/...
 
     print "Looks like an Instant Client installation, okay\n";
+    check_ldlibpthname($OH);
     
     # the libclntsh.$so (without version suffix) may be missing
     # we need it to link to so try to create it
@@ -391,6 +394,7 @@ elsif (-e "$OH/libclntsh.$so" or -e "$OH/libclntsh.$so.10.1") {   # note lack of
 }
 else {	# --- trawl the guts of Oracle's make files looking the how it wants to link
     #Lincoln: pick the right library path
+    check_ldlibpthname();
     my $libdir = ora_libdir();
     my @ora_libs = <$OH/$libdir/lib*>;
     if (@ora_libs < 6) { # just a helpful hint
@@ -1471,12 +1475,14 @@ sub get_client_version {
 	    $client_version_full = sprintf("%d.%d.%d.%d", $1, $2, $3, $4);
 	}
 	else {
+	    my $ldlib_note = ($Config{ldlibpthname})
+	    	? "Specifically, your $Config{ldlibpthname} environment variable"
+		: "Many systems need an environment variable (such as LD_LIBRARY_PATH, DYLD_LIBRARY_PATH)";
 	    warn qq{
 	    If sqlplus failed due to a linker/symbol/relocation/library error or similar problem
 	    then it's likely that you've not configured your environment correctly.
-	    Many systems need an environment variable to be set
-	    (such as LD_LIBRARY_PATH, DYLD_LIBRARY_PATH)
-	    to include the directory containing the Oracle libraries.
+	    $ldlib_note
+	    set to include the directory containing the Oracle libraries.
 	    \a\n};
     	    sleep 5;
 	}
@@ -1762,6 +1768,20 @@ $(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt $(INST_ARCHAUTODIR)
 	join('',@m);
     }
 
+}
+
+
+sub check_ldlibpthname {
+    my ($libdir) = @_;
+    $libdir ||= ora_libdir();
+    $libdir =~ s:[\\/]$::;
+    my $ldlibpthname = $Config{ldlibpthname} or return;
+    my $val = $ENV{$ldlibpthname} || '';
+    print "Your $ldlibpthname env var is set to '$val'\n";
+    my @val = split /\Q$Config{path_sep}/o, $val, -1;
+    return 1 if grep { s:[\\/]$::; $_ eq $libdir } @val;
+    warn "Your $ldlibpthname env var doesn't include '$libdir' but probably needs to.\n";
+    return;
 }
 
 
