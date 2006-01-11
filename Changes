@@ -1,10 +1,6 @@
-=head1 Changes in DBD-Oracle 1.17 RC2 (svn rev 2383)
+=head1 Changes in DBD-Oracle 1.17 (svn rev 2385)   XXth January 2005
 
-Known problems:	t/24implicit_utf8.t may fail some tests for databases with
-		non-unicode CHAR and unicode NCHAR
-
-  Fixed csform setting for Oracle 8.0.
-  Fixed csform setting for some UTF8 cases.
+  Fixed automatic csform setting for some UTF8 cases and for Oracle 8.0
   Fixed truncation error on fetch into UTF8 charset thanks to Honza Pazdziora.
   Fixed INTERVAL DAY TO SECOND thanks to Honza Pazdziora.
   Fixed undef warnings when connecting with undef $user.
@@ -15,18 +11,20 @@ Known problems:	t/24implicit_utf8.t may fail some tests for databases with
   Added support for binary floats/doubles thanks to Dennis Box.
 
   Changed "Binding Cursors" docs, clarifying examples thanks to Charles Jardine.
-  Changed Makefile.PL to avoid risk of sqlplus hanging thanks to Mark Dedlow,
-    and more reliably use correct sqlplus thanks to Honza Pazdziora.
-  Changed Makefile.PL to prefer ~/rdbms/public over other ~/rdbms/* for .h files.
-  Changed Makefile.PL to improve build rule detection.
-  Changed Makefile.PL to improve cygwin build thanks to Andy Hassall.
-  Changed Makefile.PL to Instant Client build support thanks to Hilmar Lapp.
-  Changed Makefile.PL to do VMS logical name checks thanks to Jakob Snoer.
   Updated README.vms re logical name tables thanks to Jakob Snoer.
+  Removed README.utf8 since the topic was covered better in the main docs.
   Updated README.aix thanks to Stephen de Vries.
   Updated README.macosx thanks to Stephen de Vries.
   Renamed README.*'s to add .txt suffix to make life easier for some.
-  Removed README.utf8 since the topic was covered better in the main docs.
+
+  Changes to Makefile.PL:
+    Instant Client support thanks to Hilmar Lapp, John Scoles and others.
+    Avoid risk of sqlplus hanging thanks to Mark Dedlow.
+    More reliably use correct sqlplus thanks to Honza Pazdziora.
+    Improve finding Oracle header files
+    Improve build rule detection.
+    Improve cygwin build thanks to Andy Hassall.
+    VMS logical name checks thanks to Jakob Snoer.
 
   The Copyright terms for DBD::Oracle have been simplified and now read:
     The DBD::Oracle module is free software; you can redistribute it
