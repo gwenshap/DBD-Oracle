@@ -1332,13 +1332,16 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
     if (!csform && SvUTF8(phs->sv)) {
     	/* try to default csform to avoid translation through non-unicode */
-	if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT))	/* prefer implicit */
-	    csform = SQLCS_IMPLICIT;
-	else if (CSFORM_IMPLIES_UTF8(SQLCS_NCHAR))
+	if (CSFORM_IMPLIES_UTF8(SQLCS_NCHAR))		/* prefer NCHAR */
 	    csform = SQLCS_NCHAR;
-	else if (trace_level)				/* leave csform == 0 */
-	    PerlIO_printf(DBILOGFP, "       rebinding %s with UTF8 value but neither CHAR nor NCHAR are unicode\n",
-		    phs->name);
+	else if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT))
+	    csform = SQLCS_IMPLICIT;
+	/* else leave csform == 0 */
+	if (trace_level)
+	    PerlIO_printf(DBILOGFP, "       rebinding %s with UTF8 value %s", phs->name,
+		(csform == SQLCS_NCHAR)    ? "so setting csform=SQLCS_IMPLICIT" :
+		(csform == SQLCS_IMPLICIT) ? "so setting csform=SQLCS_NCHAR" :
+		    "but neither CHAR nor NCHAR are unicode\n");
     }
 
     if (csform) {
