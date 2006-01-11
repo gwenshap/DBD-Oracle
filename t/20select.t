@@ -111,7 +111,7 @@ sub run_select_tests {
 } # end of run_select_tests
 
   my $ora_server_version = $dbh->func("ora_server_version");
-  if ($ora_server_version < 10) {
+  if ($ora_server_version->[0] < 10) {
     ok(0, 1, 1); # skip
   } else {
     my $data = $dbh->selectrow_array(q!

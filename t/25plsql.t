@@ -304,7 +304,7 @@ SKIP: {
     # http://www.nntp.perl.org/group/perl.dbi.users/24217
     my $ora_server_version = $dbh->func("ora_server_version");
     skip "Client/server version < 9.0", 15
-	if DBD::Oracle::ORA_OCI() < 9.0 || $ora_server_version < 9.8;
+	if DBD::Oracle::ORA_OCI() < 9.0 || $ora_server_version->[0] < 9;
     my $func_name = "dbd_oracle_nvctest".($ENV{DBD_ORACLE_SEQ}||'');
     $dbh->do(qq{
 	CREATE OR REPLACE FUNCTION $func_name(arg nvarchar2, arg2 nvarchar2)
