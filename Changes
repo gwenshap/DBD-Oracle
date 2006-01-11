@@ -1,4 +1,7 @@
-=head1 Changes in DBD-Oracle 1.17 (svn rev 2334)
+=head1 Changes in DBD-Oracle 1.17 RC2 (svn rev 2383)
+
+Known problems:	t/24implicit_utf8.t may fail some tests for databases with
+		non-unicode CHAR and unicode NCHAR
 
   Fixed csform setting for Oracle 8.0.
   Fixed csform setting for some UTF8 cases.
