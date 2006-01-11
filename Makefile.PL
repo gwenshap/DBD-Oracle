@@ -1,30 +1,8 @@
-##
-##  You should not need to edit this file.
-##  Ok I edited it! So what are you going to do about it?
-##  John Scoles The Pythian Group
-##  September 20 2005
-##  scoles@pythian.com
-##  changes made
-##  Removed option flag '-ic10'. 
-##  Added a new elsif block  that searches for libclntsh.so.10.1 file on the path $HO
-##  In this block it sets a  link to libclntsh.so.10.1  as libclntsh.so
-##  then hard codes the lib to clntsh and then carries on.
-##  I attempted to hardcode libclntsh.so.10.1 for clntsh but this does not 
-##  not work. It seems that others are getting this same form of error as well 
-##  i.e.  The compiler does not recognize .10.1 as a lib
-##  
-##  John Scoles (TPG)
-##  October 07 2005
-##  Changes made
-##  Adding in a few changes suggested by Andy Hassall <andy@andyh.co.uk>
-##  that will enable the compile to work for Windows version of the IC
+## Makefile.PL for DBD::Oracle - see README file for more information.
 
 # vim: ts=8:sw=4
 
 BEGIN { $^W = 1 }
-
-# perl5.5 could be supported with some work.
-# If you need it, then do the work yourself and send me a diff. Thanks.
 BEGIN { require 5.006 }
 
 use ExtUtils::MakeMaker 5.16, qw(&WriteMakefile $Verbose);
@@ -98,6 +76,7 @@ my %mk_target_rules;
 $::opt_b = 1;	# try to use Oracle's own 'build' rule
 $::opt_r = '';	# With -b above, use this names build rule (eg -r=build64)
 $::opt_m = '';	# path to proc.mk or oracle.mk file to read
+$::opt_h = '';	# path to oracle header files
 $::opt_p = '';	# alter preference for oracle.mk over proc
 $::opt_n = '';	# Oracle .mk macro name to use for library list to link with
 $::opt_c = 0;	# don't encourage use of shared library
@@ -117,7 +96,7 @@ $::opt_V = 0;   # force assumption of specified Oracle version
 		# and we force our emulation of OCILobWriteAppend
 
 Getopt::Long::config( qw( no_ignore_case ) );
-GetOptions(qw(b! r=s v! d! g! p! l! c! f! F! W! w! m=s n=s s=s S=s V=s ProC!))
+GetOptions(qw(b! r=s v! d! g! p! l! c! f! F! W! w! m=s h=s n=s s=s S=s V=s ProC!))
 	or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
@@ -132,10 +111,12 @@ if ($::opt_W) {
 
 # --- Introduction
 
-print "\n Configuring DBD::Oracle ...\n
->>>\tRemember to actually *READ* the README file!
-   \tEspecially if you have any problems.\n
-" unless $::opt_s;
+print qq{
+Configuring DBD::Oracle for perl $] on $os ($Config{archname})
+
+Remember to actually *READ* the README file! Especially if you have any problems.
+
+} unless $::opt_s;
 
 
 # --- Where is Oracle installed...
@@ -153,8 +134,6 @@ die qq{  The $ORACLE_ENV environment variable must be set.
   ABORTED!
 } unless $OH;
 
-print "os=$os\n";
-
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture).
@@ -167,15 +146,6 @@ die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
       or -e "$OH/libclntsh.$so.10.1" # pre-sdk instant client XXX hack (version specific)
       or -e "$OH/oci.dll";	# Windows Instant Client
  
-die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
-  It must be set to hold the path to an Oracle installation directory
-  on this machine (or a machine with a compatible architecture)
-  See the README.clients.txt file for more information.
-  ABORTED!
-
-} unless ( -d $OH );
-
-
 print "Using Oracle in $OH\n";
 
 # $client_version => Major.Minor, $client_version_full => Major.Minor.X.Y.Z
@@ -759,22 +729,22 @@ print "Linker:     ". (find_bin('ld')||"not found") ."\n" unless $os eq 'VMS';
 print "Sysliblist: ".read_sysliblist()."\n";
 print "Oracle makefiles would have used these definitions but we override them:\n"
 	if $MK{CFLAGS} || $MK{LDFLAGS} || $MK{LDSTRING};
-print "  CC:       $MK{CC}\n\n"	if $MK{CC};
+print "  CC:       $MK{CC}\n"	if $MK{CC};
 print "  CFLAGS:   $MK{CFLAGS}\n"                    if $MK{CFLAGS};
-print "           [".mkvar('CFLAGS',0,1,0).  "]\n\n" if $MK{CFLAGS};
+print "           [".mkvar('CFLAGS',0,1,0).  "]\n" if $MK{CFLAGS};
 print "  CLIBS:    $MK{CLIBS}\n"                     if $MK{CLIBS};
-print "           [".mkvar('CLIBS',0,1,0).   "]\n\n" if $MK{CLIBS};
+print "           [".mkvar('CLIBS',0,1,0).   "]\n" if $MK{CLIBS};
 if ($mk_target_rules{build} && !$::opt_b) {
     my $rules = join "\n", '', @{ $mk_target_rules{build} };
     $rules = expand_mkvars($rules, 0, 0, 1, 1) if $rules =~ /^\s*\$\(\w+\)\s*$/;
 print "  build:    $rules\n";
-print "           [".expand_mkvars($rules,0,1,0).   "]\n\n";
+print "           [".expand_mkvars($rules,0,1,0).   "]\n";
 }
 print "  LDFLAGS:  $MK{LDFLAGS}\n"                   if $MK{LDFLAGS};
-print "           [".mkvar('LDFLAGS',0,1,0). "]\n\n" if $MK{LDFLAGS};
+print "           [".mkvar('LDFLAGS',0,1,0). "]\n" if $MK{LDFLAGS};
 print "  LDSTRING: $MK{LDSTRING}\n"                  if $MK{LDSTRING};
-print "           [".mkvar('LDSTRING',0,1,0)."]\n\n" if $MK{LDSTRING};
-print "\nLinking with $linkwith_msg\n" if $linkwith_msg;
+print "           [".mkvar('LDSTRING',0,1,0)."]\n" if $MK{LDSTRING};
+print "Linking with $linkwith_msg\n" if $linkwith_msg;
 print "\n";
 
 # --- display extra notes and warnings
@@ -1398,8 +1368,24 @@ sub find_bin{
 
 
 sub find_headers {
-    my (%h_dir, %h_file, @h_dir);
+
+    # compensate for case where final .0 isn't in the install directory name
+    (my $client_version_trim = $client_version_full) =~ s/\.0$//;
   
+    my @try = (
+       # --- Oracle Instant Client locations
+       "/usr/include/oracle/$client_version_full/client", # Instant Client for RedHat FC4
+       "/usr/include/oracle/$client_version_trim/client", # Instant Client for RedHat FC4
+       "/include/oracle/$client_version_full/client", # Instant Client for RedHat FC3
+       "/include/oracle/$client_version_trim/client", # Instant Client for RedHat FC3
+       # --- Traditional full-install locations
+       "$OH/rdbms/public", # prefer public over others
+       "$OH/rdbms",
+       "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0),
+   );
+   unshift @try, $::opt_h if $::opt_h;
+
+    my (%h_dir, %h_file, @h_dir);
    find( sub {
 	return unless /^o(ci.{3,4}|ratypes)\.h$/i;
 	my $dir = $File::Find::dir;
@@ -1407,15 +1393,8 @@ sub find_headers {
 	$h_dir{$dir} = $_;
 	$h_file{$_} ||= $dir; # record first one found
 	print "Found $dir/$_\n" if $::opt_d;
-    },
-       # --- Oracle Instant Client locations
-       "/include/oracle/$client_version_full/client", # Instant Client for RedHat FC3
-       # --- Traditional full-install locations
-       "$OH/rdbms/public", # prefer public over others
-       "$OH/rdbms",
-       "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0),
-    );
-
+    }, @try);
+       
     @h_dir = keys %h_dir;
 
     print "Found header files in @h_dir.\n" if @h_dir;
@@ -1424,6 +1403,7 @@ sub find_headers {
 	print "\n\n*********************************************************\n";
 	print "I can't find the header files I need in your Oracle installation.\n";
 	print "You probably need to install some more Oracle components.\n";
+	print "For Instant Client that means the SDK package.\n";
 	print "I'll keep going, but the compile will probably fail.\n";
 	print "See README.clients.txt for more information.$BELL\n";
 	print "*********************************************************\n\n";
@@ -1440,22 +1420,20 @@ sub get_client_version {
 
     my $sqlplus_exe = ($os eq 'Win32' || $os eq 'MSWin32' || $os eq 'cygwin') ? "sqlplus.exe" : "sqlplus";
 
-    my $OH_path = $OH;
-
     # When building under Cygwin, ORACLE_HOME must be a native Windows
     # path so Oracle itself can use it, but it needs to be translated
     # to a Cygwin path so it can be joined into the PATH.
     # Otherwise, the colon in the drive specification (e.g. "c:") is
     # treated as a separator.
+    my $OH_path = $OH;
+    chomp($OH_path = `/usr/bin/cygpath -u $OH_path`) if $os eq 'cygwin' && $OH;
 
-    if ($os eq 'cygwin') {
-        chomp($OH_path = `/usr/bin/cygpath -u $OH_path`)
-    }
+    # if we have an ORACLE_HOME then prepend it to the PATH
+    local $ENV{PATH} = join $Config{path_sep}, "$OH_path/bin", $OH_path, $ENV{PATH} if $OH;
+    print "PATH=$ENV{PATH}\n" if $::opt_v;
 
-    local $ENV{PATH} = join $Config{path_sep}, "$OH_path/bin", $OH_path, $ENV{PATH};
-    local $ENV{SQLPATH} = ""; # avoid $SQLPATH/login.sql causing sqlplus to hang
-    print "path=$ENV{PATH}\n";
     if (find_bin($sqlplus_exe)) {
+	local $ENV{SQLPATH} = ""; # avoid $SQLPATH/login.sql causing sqlplus to hang
 	# Try to use the _SQLPLUS_RELEASE predefined variable from sqlplus
 	# Documented in the SQL*Plus reference guide:
 	#  http://download-west.oracle.com/docs/cd/B12037_01/server.101/b12170/ch13.htm#i2675128
@@ -1488,14 +1466,14 @@ sub get_client_version {
 	warn "Can't find sqlplus. Pity, it would have helped.\n";
     }
 
-    if (!$client_version_full && open INST, "<$OH/install/unix.rgs") {
+    if (!$client_version_full && $OH && open INST, "<$OH/install/unix.rgs") {
 	local $/ = undef;
 	<INST> =~ m/^(rdbms|sql\*plus)\s+([\d.]+)/m;
 	$client_version_full = $2 if $2;
 	close INST;
     }
 
-    if (!$client_version_full && -x "$OH/orainst/inspdver" ) {
+    if (!$client_version_full && $OH && -x "$OH/orainst/inspdver" ) {
 	open INST, "$OH/orainst/inspdver |"; # client only install does not have this
 	my @inspdver = <INST>;
 	close INST;
@@ -1510,7 +1488,7 @@ sub get_client_version {
     if (!$client_version_full) {
 	print "I'm having trouble finding your Oracle version number... trying harder\n"
 	    unless $force_version;
-	if ( $OH =~ m![^\d\.]((?:8|9|10)\.\d+\.\d+)! ) { #decode it from $OH if possible
+	if ( $OH =~ m![^\d\.]((?:8|9|1\d)\.\d+\.\d+)! ) { #decode it from $OH if possible
 	    $client_version_full = $1;
 	}
 	elsif ( "$OH/" =~ m!\D(8|9|10)(\d)(\d?)\D!) { # scary but handy
@@ -1538,7 +1516,7 @@ sub get_client_version {
 WARNING: I could not determine Oracle client version so I'll just
 default to version $client_version_full. Some features of DBD::Oracle may not work.
 Oracle version based logic in Makefile.PL may produce erroneous results.
-You can use "perl Makefile.PL -V X.Y" to specify a your client version.\n
+You can use "perl Makefile.PL -V X.Y.Z" to specify a your client version.\n
 };
 	sleep 2;
     }
