@@ -49,7 +49,7 @@ my %opts = (
     OBJECT => '$(O_FILES)',
     DEFINE => '',
     DIR  => [],
-    clean => {	FILES	=> 'xstmp.c Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def ora_explain mk.pm' },
+    clean => {	FILES	=> 'xstmp.c Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def ora_explain mk.pm DBD_ORA_OBJ.*' },
     dist  => {
 	DIST_DEFAULT	=> 'clean distcheck disttest tardist',
 	PREOP		=> '$(MAKE) -f Makefile.old distdir',
@@ -175,10 +175,8 @@ symbol_search() if $::opt_s or $::opt_S;
 
 # --- How shall we link with Oracle? Let me count the ways...
 
-# default to using XE .mk file if one exists
-$::opt_m ||= "$OH/rdbms/demo/demo_xe.mk";
-
-my @mkfiles;
+my $mkfile;	# primary .mk file to use
+my @mkfiles;	# $mkfile plus any files it 'includes'
 my $linkwith = "";
 my $linkwith_msg = "";
 my $need_ldlp_env;
@@ -304,12 +302,11 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
     check_ldlibpthname();
 }
 
-elsif ($::opt_m =~ /\bdemo_xe.mk$/) {	# Oracle XE
+elsif ($mkfile = find_mkfile() and $mkfile =~ /\bdemo_xe.mk$/) { # Oracle XE
 
-    my $mk = $::opt_m;
-    print "Looks like Oracle XE ($mk)\n";
+    print "Looks like Oracle XE ($mkfile)\n";
 
-    fetch_oci_macros($mk);
+    fetch_oci_macros($mkfile);
     $MK{CCINCLUDES} = '-I$(ICINCHOME)'; # undo odd refinition in demo_xe.mk
 
     # From linux Oracle XE (10.2.0):
@@ -381,7 +378,6 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 		if !defined $ENV{ORA_CLIENT_LIB}
 		&& ($opts{LINKTYPE}||'') ne 'static' && @shared && !$::opt_c;
 
-    my $mkfile = find_mkfile();
     my $linkvia = fetch_oci_macros($mkfile) if -f $mkfile;
 
     my $libhome = expand_mkvars($MK{LIBHOME}, 0, 1) || "$OH/lib";
@@ -436,9 +432,9 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	    next if $line =~ /^\s*$/; # remove any blank lines
 	    push @filtered_cmds, $line;
 	}
+	print "reduced to:\n[".join("]\n[",@filtered_cmds)."]\n"
+	    if $::opt_v && "@filtered_cmds" ne "@cmds";
 	@cmds = @filtered_cmds;
-
-	print "reduced to:\n[".join("]\n[",@cmds)."]\n" if $::opt_v;
 
 	my @prolog; push @prolog, shift @cmds while @cmds && $cmds[0] !~ /DBD_ORA_EXE/;
 	print "Oracle oci build prolog:\n \t[", join("]\n\t[", @prolog), "]\n" if @prolog;
@@ -459,7 +455,8 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	    sleep 2;
 	    $::opt_b = 0;
 	}
-	unlink "$DBD_ORA_OBJ.c", "$DBD_ORA_OBJ.o" unless $os eq 'darwin';
+	unlink "$DBD_ORA_OBJ.c", "$DBD_ORA_OBJ.o"
+		unless $os eq 'darwin'; # why?
 	print "\n";
     }
     else {
@@ -1013,7 +1010,6 @@ sub del_crtobj {
 
 
 sub find_mkfile {
-    my @mkfiles;
     my @mk_proc = (
 	'precomp/demo/proc/proc.mk',
 	'precomp/demo/proc/demo_proc.mk',
@@ -1025,7 +1021,6 @@ sub find_mkfile {
 	'rdbms/lib/oracle.mk',
 	'rdbms/demo/oracle.mk',
 	'rdbms/demo/demo_rdbms.mk',
-	'otrace/demo/atmoci.mk',
     );
     my @mkplaces = ($::opt_p) ? (@mk_proc,@mk_oci) : (@mk_oci,@mk_proc);
     if ($::opt_m) {
@@ -1033,25 +1028,25 @@ sub find_mkfile {
 	die "-m $::opt_m: not found" unless -f $::opt_m;
 	unshift @mkplaces, $::opt_m;
     }
-    my ($mkfile, $place);
-    foreach $place (@mkplaces) {
+    my $mkfile;
+    foreach my $place (@mkplaces) {
 	$place = "$OH/$place"
 	    unless $place =~ m:^[/\.]:; # abs or relative path
 	next unless -f $place;
-	push @mkfiles, $place;
+	$mkfile ||= $place;	# use first one found
 	print "Found $place\n";
     }
-    $mkfile = $mkfiles[0];	# use first one found
     die qq{
 	Unable to locate an oracle.mk, proc.mk or other suitable *.mk
 	file in your Oracle installation.  (I looked in
-	@mkplaces)
+	@mkplaces under $OH)
 
 	The oracle.mk (or demo_rdbms.mk) file is part of the Oracle
 	RDBMS product. The proc.mk (or demo_proc.mk) file is part of
 	the Oracle Pro*C product.  You need to build DBD::Oracle on a
 	system which has one of these Oracle components installed.
 	(Other *.mk files such as the env_*.mk files will not work.)
+	Alternatively you can use Oracle Instant Client.
 
 	In the unlikely event that a suitable *.mk file is installed
 	somewhere non-standard you can specify where it is using the -m option:
@@ -1062,9 +1057,6 @@ sub find_mkfile {
     } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile) || $::opt_F;
 
     print "Using $mkfile\n";
-    warn "Note: Attempting to use makefile from otrace component. This may not work.\n"
-	if ($mkfile =~ /atmoci.mk/);
-
     return $mkfile;
 }
 
@@ -1384,6 +1376,7 @@ sub find_headers {
        "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0),
    );
    unshift @try, $::opt_h if $::opt_h;
+   @try = grep { -d $_ } @try;
 
     my (%h_dir, %h_file, @h_dir);
    find( sub {
