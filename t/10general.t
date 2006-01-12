@@ -22,8 +22,9 @@ my($sth, $p1, $p2, $tmp);
 SKIP: {
 	skip "not unix-like", 2 unless $Config{d_semctl};
 	# basic check that we can fork subprocesses and wait for the status
-	is system("false"), 1<<8, 'system false should return 256';
-	is system("true"),     0, 'system true should return 0';
+	# after having connected to Oracle
+	is system("exit 1;"), 1<<8, 'system exit 1 should return 256';
+	is system("exit 0;"),    0, 'system exit 0 should return 0';
 }
 
 
