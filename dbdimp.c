@@ -42,8 +42,6 @@ ub2 utf8_csid = 871;
 ub2 al32utf8_csid = 873;
 ub2 al16utf16_csid = 2000;
 
-static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
-
 typedef struct sql_fbh_st sql_fbh_t;
 struct sql_fbh_st {
   int dbtype;
@@ -103,9 +101,6 @@ dbd_init(dbistate_t *dbistate)
     char *p;
     DBIS = dbistate;
     dbd_init_oci(dbistate);
-
-    if ((p=getenv("DBD_ORACLE_LOGIN_NOMSG")))
-	ora_login_nomsg = atoi(p);
 }
 
 
@@ -1176,7 +1171,6 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
     if (pre_exec) {	/* pre-execute - allocate a statement handle */
 	dSP;
 	D_imp_dbh_from_sth;
-	SV *sth_i;
 	HV *init_attr = newHV();
 	int count;
 	sword status;
@@ -1217,7 +1211,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	SPAGAIN;
 	if (count != 2)
 	    croak("panic: DBI::_new_sth returned %d values instead of 2", count);
-	sth_i = POPs;			/* discard inner handle */
+	(void)POPs;			/* discard inner handle */
 	sv_setsv(phs->sv, POPs); 	/* save outer handle */
 	SvREFCNT_dec(init_attr);
 	PUTBACK;
