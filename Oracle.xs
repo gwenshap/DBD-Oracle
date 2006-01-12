@@ -268,10 +268,8 @@ ora_lob_read(dbh, locator, offset, length)
     SV *dest_sv;
     dvoid *bufp;
     sword status;
-    ub2 csid;
     ub1 csform;
     CODE:
-    csid = 0;
     csform = SQLCS_IMPLICIT;
     dest_sv = sv_2mortal(newSV(length*4)); /*LAB: crude hack that works... tim did it else where XXX */
     SvPOK_on(dest_sv);

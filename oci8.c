@@ -1090,6 +1090,7 @@ fetch_func_getrefpv(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
     return 1;
 }
 
+#ifdef OCI_DTYPE_REF
 static void
 fbh_setup_getrefpv(imp_fbh_t *fbh, int desc_t, char *bless)
 {
@@ -1103,6 +1104,7 @@ fbh_setup_getrefpv(imp_fbh_t *fbh, int desc_t, char *bless)
     fbh->desc_t = desc_t;
     OCIDescriptorAlloc_ok(fbh->imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
 }
+#endif
 
 
 int
