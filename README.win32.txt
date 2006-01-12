@@ -22,7 +22,7 @@ Windows 2000 professional platform having no Oracle or other development environ
 
 2) Use the PPM application to get the latest version of DBI
 
-3) Download the Pythian branch of dbd-oracle from http://svn.perl.org/modules/dbd-oracle/branches/pythian 
+3) Download the latest DBD::Oracle from http://svn.perl.org/modules/dbd-oracle/trunk/
 
 4) Download and unzip the Oracle Instant Client (10.2.0.1 or 10.1.0.4) 32 bit from 
    http://www.oracle.com/technology/tech/oci/instantclient/instantclient.html 

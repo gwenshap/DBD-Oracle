@@ -48,7 +48,13 @@ DBD::Oracle  --  an Oracle interface for Perl 5.
     Remember to *read* the DBI README file and this one CAREFULLY!
 
     Install enough Oracle software to enable DBD::Oracle to build.
-    For Oracle Instant Client that means install the SDK component.
+
+    For Oracle Instant Client that means install the following packages:
+        * The "Basic" package for the essential Oracle libraries.
+        * The "SDK" package for the headers and makefile.
+        * The "SQL*Plus" component is optional, but will help you check
+          your configuration and DBD::Oracle determine your Oracle version.
+
     For full Oracle installs that usually includes Pro*C and SQL*Net.
     (That's not very specific because it varies between Oracle releases.)
 
