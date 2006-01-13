@@ -1743,8 +1743,16 @@ sub check_ldlibpthname {
     my ($libdir) = @_;
     $libdir ||= "$OH/".ora_libdir();
     $libdir =~ s:[\\/]$::;
-    my $ldlibpthname = $Config{ldlibpthname} or return;
-    my $val = $ENV{$ldlibpthname} || '';
+    my ($ldlibpthname, $val);
+    if ($^O eq "hpux") { # hpux is odd again: can use two env vars
+        my @envs = grep { $ENV{$_} } qw( LD_LIBRARY_PATH SHLIB_PATH );
+        $ldlibpthname = join "/", @envs;
+        $val          = join $Config{path_sep}, @ENV{@envs}
+    }
+    else {
+        $ldlibpthname = $Config{ldlibpthname} or return;
+	$val          = $ENV{$ldlibpthname} || '';
+    }
     print "Your $ldlibpthname env var is set to '$val'\n";
     my @val = split /\Q$Config{path_sep}/o, $val, -1;
     return 1 if grep { s:[\\/]$::; $_ eq $libdir } @val;
