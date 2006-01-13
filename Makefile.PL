@@ -302,34 +302,9 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
     check_ldlibpthname();
 }
 
-elsif ($mkfile = find_mkfile() and $mkfile =~ /\bdemo_xe.mk$/) { # Oracle XE
+# --- special case for Oracle 10g instant client (note lack of ../lib/...)
 
-    print "Looks like Oracle XE ($mkfile)\n";
-
-    fetch_oci_macros($mkfile);
-    $MK{CCINCLUDES} = '-I$(ICINCHOME)'; # undo odd refinition in demo_xe.mk
-
-    # From linux Oracle XE (10.2.0):
-    #	ICINCHOME=$(ORACLE_HOME)/rdbms/public/
-    #	ICLIBHOME=$(ORACLE_HOME)/lib/
-    #	ICLIBPATH=-L$(ICLIBHOME)
-    #	THREADLIBS=-lpthread    [initially -lthread then redefined]
-    #	CCLIB=$(ICLIBPATH) -lclntsh $(THREADLIBS)
-    #	CCINCLUDES = -I$(ICINCHOME)   [see above]
-    #   CCFLAGS=$(CCINCLUDES) -DLINUX -D_GNU_SOURCE -D_REENTRANT -g [initially without -DLINUX -D_GNU_SOURCE]
-    my $cclib   = expand_mkvars($MK{CCLIB}, 0, 1);
-    my $ccflags = expand_mkvars($MK{CCFLAGS}, 0, 1);
-
-    $linkwith_msg = "$cclib";
-    $opts{LIBS} = [ $cclib ];
-    $opts{INC}  = "-I$dbi_arch_dir $ccflags";
-    $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
-    check_ldlibpthname();
-}
-
-# --- special case for Oracle 10g instant client
-
-elsif (-e "$OH/libclntsh.$so" or -e "$OH/libclntsh.$so.10.1") {   # note lack of ../lib/...
+elsif (-e "$OH/libclntsh.$so" or -e "$OH/libclntsh.$so.10.1") { # XXX ought to glob()
 
     print "Looks like an Instant Client installation, okay\n";
     check_ldlibpthname($OH);
@@ -356,6 +331,32 @@ elsif (-e "$OH/libclntsh.$so" or -e "$OH/libclntsh.$so.10.1") {   # note lack of
     $opts{INC}  = "-I$inc -I$dbi_arch_dir";
 
 }
+
+elsif ($mkfile = find_mkfile() and $mkfile =~ /\bdemo_xe.mk$/) { # Oracle XE
+
+    print "Looks like Oracle XE ($mkfile)\n";
+
+    fetch_oci_macros($mkfile);
+    $MK{CCINCLUDES} = '-I$(ICINCHOME)'; # undo odd refinition in demo_xe.mk
+
+    # From linux Oracle XE (10.2.0):
+    #	ICINCHOME=$(ORACLE_HOME)/rdbms/public/
+    #	ICLIBHOME=$(ORACLE_HOME)/lib/
+    #	ICLIBPATH=-L$(ICLIBHOME)
+    #	THREADLIBS=-lpthread    [initially -lthread then redefined]
+    #	CCLIB=$(ICLIBPATH) -lclntsh $(THREADLIBS)
+    #	CCINCLUDES = -I$(ICINCHOME)   [see above]
+    #   CCFLAGS=$(CCINCLUDES) -DLINUX -D_GNU_SOURCE -D_REENTRANT -g [initially without -DLINUX -D_GNU_SOURCE]
+    my $cclib   = expand_mkvars($MK{CCLIB}, 0, 1);
+    my $ccflags = expand_mkvars($MK{CCFLAGS}, 0, 1);
+
+    $linkwith_msg = "$cclib";
+    $opts{LIBS} = [ $cclib ];
+    $opts{INC}  = "-I$dbi_arch_dir $ccflags";
+    $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
+    check_ldlibpthname();
+}
+
 else {	# --- trawl the guts of Oracle's make files looking the how it wants to link
     #Lincoln: pick the right library path
     check_ldlibpthname();
