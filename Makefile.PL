@@ -304,24 +304,28 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
 
 # --- special case for Oracle 10g instant client (note lack of ../lib/...)
 
-elsif (-e "$OH/libclntsh.$so" or -e "$OH/libclntsh.$so.10.1") { # XXX ought to glob()
+elsif (my @libclntsh = glob("$OH/libclntsh.$so*")) {
 
     print "Looks like an Instant Client installation, okay\n";
-    check_ldlibpthname($OH);
     
     # the libclntsh.$so (without version suffix) may be missing
     # we need it to link to so try to create it
     eval {
-        symlink("$OH/libclntsh.$so.10.1", "$OH/libclntsh.$so")
-	    or warn "Can't symlink $OH/libclntsh.$so to $OH/libclntsh.$so.10.1: $!\n";
+	print "You don't have a libclntsh.$so file, only @libclntsh\n";
+	my $libclntsh_v = (grep { /\d$/ } sort @libclntsh)[0]; # tacky but sufficient
+	print "So I'm going to create a $OH/libclntsh.$so symlink to $libclntsh_v\n";
+        symlink($libclntsh_v, "$OH/libclntsh.$so")
+	    or warn "Can't create symlink $OH/libclntsh.$so to $libclntsh_v: $!\n";
     } unless -e "$OH/libclntsh.$so";  
 
-    my $lib = "clntsh";
+    check_ldlibpthname($OH);
+
     my $syslibs = read_sysliblist();
     print "Oracle sysliblist: $syslibs\n";
 
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
 
+    my $lib = "clntsh";
     $linkwith_msg = "-l$lib.";
     $opts{LIBS} = [ "-L$OH -l$lib $syslibs" ];
 
