@@ -5,12 +5,17 @@ use Test::More;
 use DBI;
 use Oraperl;
 use Config;
+
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
+
 $| = 1;
 
 plan tests => 33;
 
+my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '');
+my $dbh = DBI->connect($dsn, $dbuser, '');
 
 unless($dbh) {
 	BAILOUT("Unable to connect to Oracle ($DBI::errstr)\nTests skiped.\n");

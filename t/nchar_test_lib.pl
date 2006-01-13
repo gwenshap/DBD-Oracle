@@ -141,11 +141,19 @@ sub test_data
     return $test_data;
 }
 
+sub oracle_test_dsn
+{
+    my( $default, $dsn ) = ( 'dbi:Oracle:', $ENV{ORACLE_DSN} );
+    $dsn ||= $ENV{DBI_DSN} if $ENV{DBI_DSN} && ($ENV{DBI_DSN} =~ /^$default/io);
+    $dsn ||= $default;
+    return $dsn;
+}
+
 sub db_handle
 {
-
+    my $dsn = oracle_test_dsn();
     my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-    my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
+    my $dbh = DBI->connect($dsn, $dbuser, '', {
         AutoCommit => 1,
         PrintError => 1,
         ora_envhp  => 0, # force fresh environment (with current NLS env vars)

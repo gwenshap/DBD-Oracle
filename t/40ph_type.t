@@ -18,11 +18,14 @@ use DBI qw(neat);
 use DBD::Oracle qw(ORA_OCI);
 use vars qw($tests);
 
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
+
 $| = 1;
 $^W = 1;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dsn    = $ENV{ORACLE_DSN}    || 'dbi:Oracle:';
+my $dsn = oracle_test_dsn();
 my $dbh = DBI->connect($dsn, $dbuser, '', {
 	AutoCommit => 0,
 	PrintError => 1,

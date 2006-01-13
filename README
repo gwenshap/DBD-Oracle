@@ -61,16 +61,25 @@ DBD::Oracle  --  an Oracle interface for Perl 5.
     The ORACLE_HOME environment variable must point to the Oracle Home
     used to create DBD::Oracle. (Not essential under MS Windows).
 
-    MOST IMPORTANTLY:
+*** MOST IMPORTANTLY:
 
     Make sure Oracle is working and you can use the Oracle sqlplus
-    command to talk to the database *from the machine* you
-    want to build DBD::Oracle on. (This often involves setting
-    environment variables like PATH, LD_LIBRARY_PATH, TWO_TASK etc.)
+    command to talk to the database from the machine you
+    want to build DBD::Oracle on. This often involves setting
+    environment variables like PATH, LD_LIBRARY_PATH, TWO_TASK etc.
+    Consult Oracle documentation for more details.
+
+    Only once you can connect to Oracle using sqlplus
+    should you try building and testing DBD::Oracle.
 
 *** BUILDING:
 
+Execute:
+
     perl Makefile.PL            # use a perl that's in your PATH
+
+Use the perl that is first on your PATH. Then execute:
+
     make
 
 If you get an error like "make: not found" you need to find the
@@ -85,21 +94,23 @@ If you have problems see the 'IF YOU HAVE PROBLEMS' section below.
 If it builds without error you should then run 'make test'. For the
 main tests to work they must be able to connect to an Oracle database.
 
-You will need to set either the TWO_TASK or ORACLE_SID environment
-variables to the correct values for your database. Consult Oracle
-documentation for more details. Test your settings by connecting to
-the database using an Oracle tool such as sqlplus. Only once you can do
-that should you try building and testing DBD::Oracle.
+The tests default to using a DSN of "dbi:Oracle:" which means you'll be
+connected to the default database based on your TWO_TASK or ORACLE_SID
+environment variables. This default can be altered either by defining the
+ORACLE_DSN environment variable or the DBI_DSN environment variable.
+See the oracle_test_dsn() sub in t/nchar_test_lib.pl
 
 The supplied tests will connect to the database using the value of the
-ORACLE_USERID environment variable to supply the username/password so
-you should set that to a valid value (e.g. 'scott/tiger') before
-starting the test. Using 'system/manager' might work but is not
-recommended! Please read README.login.txt.
+ORACLE_USERID environment variable to supply the username/password.
+So you should set that to a valid value (e.g. 'scott/tiger') before starting
+the test. Using 'system/manager' might work but is not recommended! See also
+README.login.txt.
 
     make test
 
-    make install (if the tests look okay, the last few are rather verbose)
+If the all the formal tests pass then, finally, run:
+
+    make install
 
 
 *** IF YOU HAVE PROBLEMS:

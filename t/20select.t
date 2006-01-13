@@ -18,8 +18,9 @@ my %ocibug;
 my $table = "dbd_ora__drop_me" . ($ENV{DBD_ORACLE_SEQ}||'');
 
 
+my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
+my $dbh = DBI->connect($dsn, $dbuser, '', {
 	AutoCommit => 1,
 	PrintError => 0,
 });
