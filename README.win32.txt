@@ -48,7 +48,7 @@ Windows 2000 professional platform having no Oracle or other development environ
    you installed in step 4.  If you are unable to connect at this stage then any problems you encounter 
    later may have nothing to do with DBD::Oracle
 
-10) On the path where you installed Visual C++ find and edit the vcars32.bat file as follows.  You may have to modify 
+10) On the path where you installed Visual C++ find and edit the vcvars32.bat file as follows.  You may have to modify 
     these path values depending where you installed the products on you computer, 
 
 	i.   Add  the local path to the windows platform SDK include directory to the Set INCLUDE 
@@ -115,7 +115,7 @@ I have confirmed that this Makefile.pl will work for both Oracle InstantClient
 10.2.0.1 & 10.1.0.4 using same process the Andy Hassall uses. Starting with a clean OD
 One needs only to get the latest version of Active Perl 5.8.7 use PPM to get DBI and then
 install Microsoft Visual C++ toolkit, Windows SDK, and the Microsoft .net 
-framework 1.1. and modify the vcars32.bat in C++ dir as follows
+framework 1.1. and modify the vcvars32.bat in C++ dir as follows
 
    1) Add  the local path to the windows platform SDK include directory to the
       Set INCLUDE Command Line to include the needed files from the Windows SDK.
@@ -183,40 +183,3 @@ is not set.  If neither module is installed, you must set ORACLE_HOME
 before running Makefile.PL.  Since the registry location of the current
 Oracle Home is in different locations in different Oracle versions,
 it is usually safer to set ORACLE_HOME before running Makefile.PL.
-
-10/24/97 -- Jeff Urlwin
-
-Tested with Oracle 8 and OCI 8.  Well, not the *new* OCI api, but
-using the same api as always.  This version now searches for OCI
-include and library files in $ORACLE_HOME\OCI80, then 
-$ORACLE_HOME\OCI73.  It will use the first of these found.
-
-In order for the tests to connect successfully, I had to
-set the environment variable ORACLE_USERID to
-scott/tiger@mydb (where mydb is the tns name of your server)
-
-4/8/97 -- Jeff Urlwin
-
-Even though the Oracle libraries under Win32 (NT) do not require the
-environment variable ORACLE_HOME be set for proper operation, the
-Makefile.PL does.  Please set the ORACLE_HOME variable to your oracle
-home directory.  Mine, for example, is H:\ORANT.
-
-The environment variable TWO_TASK is not supported under Windows.
-Instead Oracle uses the settings LOCAL and REMOTE as described in
-the Oracle Networking Documentation, "Oracle Network Products Getting
-Started for Windows Platforms."
-
-This version was created and tested with the 7.3 client libraries (see
-if you have an OCI73 directory).  This version of the Oracle clients
-have a convenient organization, including OCI73\INCLUDE, OCI73\LIB,
-etc.  It also has a nice samples directory to test with.  Older
-versions had the OCI samples under RDMBS72.  This version has not been
-tested (and will not currently work) with anything other than the 7.3
-versions.
-
-Questions should be directed towards the dbi-users mailing list. I will
-try to answer them quickly there.  Please put something about Win32 or
-95 or NT in the subject, as I get TONS of other email and spend a fair
-amount of time weeding out messages that are not relevant to what I
-do.  I may miss something if the subject is not clear.
