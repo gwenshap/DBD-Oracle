@@ -87,8 +87,8 @@ directory that has the make command installed in it (e.g. /usr/ccs/bin
 on Solaris) and add that to your PATH environment variable.
 
 Don't worry about most warnings when make runs, specifically ones like
-"end-of-loop code not reached", "ANSI C forbids braced-groups within
-expressions", "cast increases required alignment of target type" etc.
+"end-of-loop code not reached", "... due to prototype",
+"cast increases required alignment of target type", etc.
 
 If you have problems see the 'IF YOU HAVE PROBLEMS' section below.
 If it builds without error you should then run 'make test'. For the
