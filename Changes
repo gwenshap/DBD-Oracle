@@ -20,11 +20,11 @@
 
   Changes to Makefile.PL:
     Instant Client support thanks to Hilmar Lapp, John Scoles and others.
+    Improved HP-UX support thanks to H.Merijn Brand.
     Avoid risk of sqlplus hanging thanks to Mark Dedlow.
     More reliably use correct sqlplus thanks to Honza Pazdziora.
-    Improve finding Oracle header files
-    Improve build rule detection.
-    Improve cygwin build thanks to Andy Hassall.
+    Improved build rule and Oracle header file detection.
+    Improved cygwin build thanks to Andy Hassall.
     VMS logical name checks thanks to Jakob Snoer.
 
   The Copyright terms for DBD::Oracle have been simplified and now read:

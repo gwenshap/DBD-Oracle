@@ -422,7 +422,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	my @cmds = `$make 2>&1`;
 	chomp @cmds;
 	print "returned:\n[".join("]\n[",@cmds)."]\n" if $::opt_v;
-	warn "Warning: Oracle build rule discovery failed ($?)\n" if $?;
+	warn "WARNING: Oracle build rule discovery failed ($?)\n" if $?;
 	warn "Add path to $Config{make} command into your PATH environment variable.\n"
 		if $? && "@cmds" =~ /make.*not found/; # hint
 
@@ -465,10 +465,10 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	print "\n";
     }
     else {
-	print "Warning: Oracle $mkfile doesn't define a 'build' rule.\n" if $::opt_b;
+	print "WARNING: Oracle $mkfile doesn't define a 'build' rule.\n" if $::opt_b;
 	$::opt_b = 0;
 	print "\n";
-	print "Warning: I will now try to guess how to build and link DBD::Oracle for you.$BELL\n";
+	print "WARNING: I will now try to guess how to build and link DBD::Oracle for you.$BELL\n";
 	print "         This kind of guess work is very error prone and Oracle-version sensitive.\n";
 	print "         It is possible that it won't be supported in future versions of DBD::Oracle.\n";
 	print "         *PLEASE* notify dbi-users about exactly _why_ you had to build it this way.\n";
@@ -516,7 +516,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
         }
 
         if ( ($Config{'libswanted'} !~ m/\bcl\b/) or $Config{'libswanted'} !~ m/\bpthread\b/ ) {
-            print "Warning: Oracle is built with multi-threading libraries\n"
+            print "WARNING: Oracle is built with multi-threading libraries\n"
                 . "         You will most likely need to rebuild perl from sources\n"
                 . "         with the following libraries: -lcl -lpthread\n" ;
         }
@@ -524,7 +524,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
        if ( $osvers >= 11 and
             $linkwith =~ m/-lcl\b/ && $linkwith =~ m/-l:libcl.a/
         ) {  # from h.m.brand@hccnet.nl
-            print "Warning: Stripping -lcl from the link flags, because it\n",
+            print "WARNING: Stripping -lcl from the link flags, because it\n",
                   "         seems to conflict with -l:libcl.a\n" ;
             $linkwith =~ s/\s*-lcl\b//g;
         }
@@ -559,7 +559,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
         }
 
         if ($osvers >= 11 and $linkwith =~ m/-l:libcl.a/) {
-	    print "Warning: stripping -l:libcl.a from liblist (conflict with ld looking for shared libs)\n";
+	    print "WARNING: stripping -l:libcl.a from liblist (conflict with ld looking for shared libs)\n";
 	    $linkwith =~ s/\s*-l:libcl.a\b//g;
 	}
 
@@ -567,24 +567,23 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
         #         I wonder if this should targetted less specifically than only HPUX 11
         #         For now this should be relatively safe...
         if ( $osvers >= 11 and
-            $linkwith =~ m/(`cat.*sysliblist`)/
+            $linkwith =~ s/(`cat[^`]+sysliblist`)//g
         ) {
-            print "Warning: Stripping $1 \n",
+            print "WARNING: Stripped $1 \n",
                   "         from link command, because it contains libraries not \n",
                   "         compiled with +z or +Z (PIC) causing link to fail.\n",
                   "         Furthermore, we should have already grabbed these libraries\n";;
-            $linkwith =~ s/`cat.*sysliblist`//g;
         }
 
         my $ccf = join " ", map { $_ || '' } @Config{qw(ccflags ccldflags cccdlflags)};
         if ($Config{cc} =~ /gcc/i) {
-	    print "Warning: perl was not built with -fpic or -fPIC in compiler flags.\n",
+	    print "WARNING: perl was not built with -fpic or -fPIC in compiler flags.\n",
 		  "         You may need to rebuild perl from sources.\n",
 		  "         See instructions in README.hpux.txt\n"
 		unless $ccf =~ m/-fpic\b/i;
         }
         else {
-            print "Warning: perl was not built with +z or +Z in compiler flags.\n",
+            print "WARNING: perl was not built with +z or +Z in compiler flags.\n",
                   "         You may need to rebuild perl from sources.\n",
                   "         See instructions in README.hpux.txt\n"
         	unless $ccf =~ m/\+[zZ]/;
@@ -616,7 +615,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	if ($os eq 'solaris' and $linkwith_s =~ /-lthread/
 		and $osvers >= 2.3 and $osvers <= 2.6
 	) {
-	    print "Warning: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
+	    print "WARNING: Solaris 2.5 bug #1224467 may cause '_rmutex_unlock' error.\n";
 	    print "Deleting -lthread from link list as a possible workround ($osvers).\n";
 	    $linkwith_s =~ s/\s*-lthread\b/ /g;
 	}
@@ -686,18 +685,16 @@ if ($is_developer){  # a reasonable guess
 # Since the # .a libs that Oracle supplies contain non-PIC object
 # files, we sadly have to build static on HP-UX 9 :(
 if ($os eq 'hpux') {
-    print "***$BELL\n";
     if ($osvers < 10) {
-	print "*** Warning: Forced to build static not dynamic on $os $osvers.$BELL\n";
+	print "WARNING: Forced to build static not dynamic on $os $osvers.$BELL\n";
 	$opts{LINKTYPE} = 'static';
     }
     else {
-	print "*** Warning: If you have trouble, see README.hpux.txt...\n"
-	     ."    you may have to build your own perl, or go hunting for libraries\n";
+	print "WARNING: If you have trouble, see README.hpux.txt...\n"
+	          ."    you may have to build your own perl, or go hunting for libraries\n";
     }
-    print "*** Warning: If you have trouble, try perl Makefile.PL -l\n" unless $::opt_l;
-    print "***$BELL\n";
-    sleep 3;
+    print "WARNING: If you have trouble, try perl Makefile.PL -l\n" unless $::opt_l;
+    sleep 5;
     $opts{DEFINE} .= ' $(HP64DEFINES)' if ($Config{archname} =~ /-thread\b/i and perl_is_64bit());
     # linker doesn't understand +DD64 flag Weiguo Sun <wesun@cisco.com>
     $opts{dynamic_lib}->{OTHERLDFLAGS} =~ s/\+DD64\b// if $opts{dynamic_lib}->{OTHERLDFLAGS};
@@ -753,7 +750,7 @@ print "\n";
 
 if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
     print "\n\n";
-    print "Warning: You will may need to rebuild perl using the xlc_r compiler.$BELL\n";
+    print "WARNING: You will may need to rebuild perl using the xlc_r compiler.$BELL\n";
     print "         You may also need do: ORACCENV='cc=xlc_r'; export ORACCENV\n";
     print "         Also see the README about the -p option\n";
     sleep 5;
@@ -761,17 +758,17 @@ if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
 
 if ($Config{archname} !~ /-thread\b/i) {
     print "\n";
-    print "Warning: If you have problems you may need to rebuild perl with threading enabled.$BELL\n";
+    print "WARNING: If you have problems you may need to rebuild perl with threading enabled.$BELL\n";
     sleep 5;
 }
 
 if ($Config{usemymalloc} eq 'y') {
     print "\n";
-    print "Warning: If you have problems you may need to rebuild perl with -Uusemymalloc.$BELL\n";
+    print "WARNING: If you have problems you may need to rebuild perl with -Uusemymalloc.$BELL\n";
     sleep 5;
 }
 
-print "Warning: Your GNU C compiler is very old. Please upgrade.\n"
+print "WARNING: Your GNU C compiler is very old. Please upgrade.\n"
     if ($Config{gccversion} and $Config{gccversion} =~ m/^(1|2\.[1-5])/);
 
 if ($opts{LINKTYPE} && $opts{LINKTYPE} eq 'static') {
@@ -1235,7 +1232,7 @@ sub fetch_oci_macros {
 	if ($MK{LLIBOCIC}) {
 	    $linkvia = '$(LLIBOCIC) $(TTLIBS)';
 	} else {
-	    print "Warning: Guessing what to link with.\n";
+	    print "WARNING: Guessing what to link with.\n";
 	    $linkvia = '-locic $(TTLIBS)';	# XXX GUESS HACK
 	}
     }
@@ -1613,17 +1610,15 @@ You have an old copy which you should delete when installing this one.\n";
 	# edit LD_RUN_PATH ...
 	my ($ldrp) = m/^LD_RUN_PATH\s*=\s*(.*)/m;
 	# remove redundant /lib or /usr/lib as it can cause problems
-	$ldrp =~ s!:(/usr)?/lib$!!;
+	$ldrp =~ s!:(/usr)?/lib$!! if $ldrp;
         # if it's empty then set it manually
         #Lincoln: if pick the right library path
         my $libdir = main::ora_libdir();
         $ldrp ||= "$OH/$libdir:$OH/rdbms/$libdir";
-        #print "ldrp=$ldrp\n";
 
 	# stitch it back in
 	s/^LD_RUN_PATH\s*=\s*(.*)/LD_RUN_PATH=$ldrp/m;
-	my $env = $ENV{LD_RUN_PATH};
-	print "Ignoring LD_RUN_PATH='$env' in environment\n" if $env;
+	print "Ignoring LD_RUN_PATH='$ENV{LD_RUN_PATH}' in environment\n" if $ENV{LD_RUN_PATH};
 	print "LD_RUN_PATH=$ldrp\n";
 	return $_;
     }
