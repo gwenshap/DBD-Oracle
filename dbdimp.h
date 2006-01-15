@@ -240,7 +240,6 @@ void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
 void ora_free_fbh_contents _((imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
-int calc_cache_rows _((int num_fields, int est_width, int cache_rows, int has_longs));
 fb_ary_t *fb_ary_alloc _((int bufl, int size));
 int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
 

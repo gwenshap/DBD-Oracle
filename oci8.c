@@ -1107,11 +1107,98 @@ fbh_setup_getrefpv(imp_fbh_t *fbh, int desc_t, char *bless)
 #endif
 
 
+static int
+calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs)
+{
+    if (has_longs)			/* override/disable caching	*/
+	cache_rows = 1;			/* else read_blob can't work	*/
+    else
+    if (cache_rows == 0) {		/* automatically size the cache	*/
+
+	/* Oracle packets on ethernet have max size of around 1460.	*/
+	/* We'll aim to fill our row cache with around 10 per go.	*/
+	/* Using 10 means any 'runt' packets will have less impact.	*/
+	int txfr_size  = 10 * 1460;	/* desired transfer/cache size	*/
+
+	/* Use guessed average on-the-wire row width calculated above &	*/
+	/* add in overhead of 5 bytes per field plus 8 bytes per row.	*/
+	/* The n*5+8 was determined by studying SQL*Net v2 packets.	*/
+	/* It could probably benefit from a more detailed analysis.	*/
+	est_width += num_fields*5 + 8;
+
+	cache_rows = txfr_size / est_width;	      /* (maybe 1 or 0)	*/
+
+	/* To ensure good performance with large rows (near or larger	*/
+	/* than our target transfer size) we set a minimum cache size.	*/
+	if (cache_rows < 6)	/* is cache a 'useful' size?	*/
+	    cache_rows = (cache_rows > 0) ? 6 : 4;
+    }
+    if (cache_rows > 32767)	/* keep within Oracle's limits  */
+	cache_rows = 32767;
+
+    return cache_rows;
+}
+
+
+static int			/* --- Setup the row cache for this sth --- */
+sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields, int est_width, int has_longs)
+{
+    D_imp_dbh_from_sth;
+    D_imp_drh_from_dbh;
+    int num_errors = 0;
+    sword status;
+
+    /* number of rows to cache	*/
+    if      (SvOK(imp_drh->ora_cache_o)) imp_sth->cache_rows = SvIV(imp_drh->ora_cache_o);
+    else if (SvOK(imp_drh->ora_cache))   imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
+    else                                 imp_sth->cache_rows = imp_dbh->RowCacheSize;
+
+    if (imp_sth->cache_rows >= 0) {	/* set cache size by row count	*/
+	ub4 cache_mem  = 0;             /* so memory isn't the limit */
+	ub4 cache_rows = calc_cache_rows(imp_sth->cache_rows,
+		(int)num_fields, est_width, has_longs);
+	if (max_cache_rows && cache_rows > max_cache_rows)
+	    cache_rows = max_cache_rows;
+	imp_sth->cache_rows = cache_rows;	/* record updated value */
+
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
+	    imp_sth->errhp, status);
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+		&cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
+		imp_sth->errhp, status);
+	if (status != OCI_SUCCESS) {
+	    oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
+	    ++num_errors;
+	}
+    }
+    else {				/* set cache size by memory	*/
+	ub4 cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
+	ub4 cache_rows = 100000;	/* set high so memory is the limit */
+	if (max_cache_rows && cache_rows > max_cache_rows) {
+	    cache_rows = max_cache_rows;
+	    imp_sth->cache_rows = cache_rows;	/* record updated value only if max_cache_rows */
+	}
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	    &cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
+	    imp_sth->errhp, status);
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
+	    imp_sth->errhp, status);
+	if (status != OCI_SUCCESS) {
+	    oci_error(h, imp_sth->errhp, status,
+		"OCIAttrSet OCI_ATTR_PREFETCH_ROWS/OCI_ATTR_PREFETCH_MEMORY");
+	    ++num_errors;
+	}
+    }
+    return num_errors;
+}
+
 int
 dbd_describe(SV *h, imp_sth_t *imp_sth)
 {
     D_imp_dbh_from_sth;
-	D_imp_drh_from_dbh ;
+    D_imp_drh_from_dbh;
     UV	long_readlen;
     ub4 num_fields;
     int num_errors = 0;
@@ -1345,51 +1432,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     }
     imp_sth->est_width = est_width;
 
-    /* --- Setup the row cache for this query --- */
-
-    /* number of rows to cache	*/
-    if      (SvOK(imp_drh->ora_cache_o)) imp_sth->cache_rows = SvIV(imp_drh->ora_cache_o);
-    else if (SvOK(imp_drh->ora_cache))   imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
-    else                        imp_sth->cache_rows = imp_dbh->RowCacheSize;
-    if (imp_sth->cache_rows >= 0) {	/* set cache size by row count	*/
-	ub4 cache_mem  = 0; /* so memory isn't the limit */
-	ub4 cache_rows = calc_cache_rows((int)num_fields,
-				est_width, imp_sth->cache_rows, has_longs);
-	if (nested_cursors) {
-	    int row_limit = imp_dbh->max_nested_cursors / nested_cursors;
-	    if (cache_rows > row_limit) cache_rows = row_limit;
-        }
-	imp_sth->cache_rows = cache_rows;	/* record updated value */
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
-	    imp_sth->errhp, status);
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-		&cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
-		imp_sth->errhp, status);
-	if (status != OCI_SUCCESS) {
-	    oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
-	    ++num_errors;
-	}
-    }
-    else {				/* set cache size by memory	*/
-	ub4 cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
-	ub4 cache_rows = 100000;	/* set high so memory is the limit */
-	if (nested_cursors) {
-	    int row_limit = imp_dbh->max_nested_cursors / nested_cursors;
-	    if (cache_rows > row_limit) cache_rows = row_limit;
-        }
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-	    &cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
-	    imp_sth->errhp, status);
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
-	    imp_sth->errhp, status);
-	if (status != OCI_SUCCESS) {
-	    oci_error(h, imp_sth->errhp, status,
-		"OCIAttrSet OCI_ATTR_PREFETCH_ROWS/OCI_ATTR_PREFETCH_MEMORY");
-	    ++num_errors;
-	}
-    }
+    sth_set_row_cache(h, imp_sth,
+	(nested_cursors) ? imp_dbh->max_nested_cursors / nested_cursors : 0,
+	(int)num_fields, est_width, has_longs
+    );
 
     imp_sth->long_readlen = long_readlen;
     /* Initialise cache counters */

@@ -956,44 +956,6 @@ dbd_preparse(imp_sth_t *imp_sth, char *statement)
 }
 
 
-int
-calc_cache_rows(int num_fields, int est_width, int cache_rows, int has_longs)
-{
-    /* Use guessed average on-the-wire row width calculated above	*/
-    /* and add in overhead of 5 bytes per field plus 8 bytes per row.	*/
-    /* The n*5+8 was determined by studying SQL*Net v2 packets.		*/
-    /* It could probably benefit from a more detailed analysis.		*/
-    est_width += num_fields*5 + 8;
-
-    if (has_longs)			/* override/disable caching	*/
-	cache_rows = 1;			/* else read_blob can't work	*/
-
-    else if (cache_rows < 1) {		/* automatically size the cache	*/
-	int txfr_size;
-	/*  0 == try to pick 'optimal' cache for this query (default)	*/
-	/* <0 == base cache on target transfer size of -n bytes.	*/
-	if (cache_rows == 0) {
-	    /* Oracle packets on ethernet have max size of around 1460.	*/
-	    /* We'll aim to fill our row cache with around 10 per go.	*/
-	    /* Using 10 means any 'runt' packets will have less impact.	*/
-	    txfr_size = 10 * 1460;	/* default transfer/cache size	*/
-	}
-	else {	/* user is specifying desired transfer size in bytes	*/
-	    txfr_size = -cache_rows;
-	}
-	cache_rows = txfr_size / est_width;	/* maybe 1 or 0	*/
-	/* To ensure good performance with large rows (near or larger	*/
-	/* than our target transfer size) we set a minimum cache size.	*/
-	if (cache_rows < 6)	/* is cache a 'useful' size?	*/
-	    cache_rows = (cache_rows>0) ? 6 : 4;
-    }
-    if (cache_rows > 32767)	/* keep within Oracle's limits  */
-	cache_rows = 32767;
-
-    return cache_rows;
-}
-
-
 static int
 ora_sql_type(imp_sth_t *imp_sth, char *name, int sql_type)
 {
