@@ -42,6 +42,7 @@ ok( 1,
     FROM all_objects WHERE rownum <= 5
   })
 );
+#$outer->{TraceLevel} = 3;
 ok( 2, $outer->{ora_types}[1] == ORA_RSET);
 ok( 3, $outer->execute);
 ok( 4, my @row1 = $outer->fetchrow_array);

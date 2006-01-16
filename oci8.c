@@ -648,10 +648,10 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
         imp_sth_nested->stmt_type = OCI_STMT_SELECT;
 
 	DBIc_IMPSET_on(imp_sth_nested);
-
 	DBIc_ACTIVE_on(imp_sth_nested);  /* So describe won't do an execute */
 
-        if (!dbd_describe(dest_sv, imp_sth_nested)) return 0;
+        if (!dbd_describe(dest_sv, imp_sth_nested))
+	    return 0;
     }
 
     return 1;
@@ -1141,11 +1141,12 @@ calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs)
 
 
 static int			/* --- Setup the row cache for this sth --- */
-sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields, int est_width, int has_longs)
+sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields, int has_longs)
 {
     D_imp_dbh_from_sth;
     D_imp_drh_from_dbh;
     int num_errors = 0;
+    ub4 cache_mem, cache_rows;
     sword status;
 
     /* number of rows to cache	*/
@@ -1154,9 +1155,10 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
     else                                 imp_sth->cache_rows = imp_dbh->RowCacheSize;
 
     if (imp_sth->cache_rows >= 0) {	/* set cache size by row count	*/
-	ub4 cache_mem  = 0;             /* so memory isn't the limit */
-	ub4 cache_rows = calc_cache_rows(imp_sth->cache_rows,
-		(int)num_fields, est_width, has_longs);
+	/* imp_sth->est_width needs to be set */
+	cache_mem  = 0;             /* so memory isn't the limit */
+	cache_rows = calc_cache_rows(imp_sth->cache_rows,
+		(int)num_fields, imp_sth->est_width, has_longs);
 	if (max_cache_rows && cache_rows > max_cache_rows)
 	    cache_rows = max_cache_rows;
 	imp_sth->cache_rows = cache_rows;	/* record updated value */
@@ -1173,8 +1175,8 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	}
     }
     else {				/* set cache size by memory	*/
-	ub4 cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
-	ub4 cache_rows = 100000;	/* set high so memory is the limit */
+	cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
+	cache_rows = 100000;	/* set high so memory is the limit */
 	if (max_cache_rows && cache_rows > max_cache_rows) {
 	    cache_rows = max_cache_rows;
 	    imp_sth->cache_rows = cache_rows;	/* record updated value only if max_cache_rows */
@@ -1191,6 +1193,10 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	    ++num_errors;
 	}
     }
+    if (DBIS->debug >= 3)
+	PerlIO_printf(DBILOGFP,
+	    "    row cache OCI_ATTR_PREFETCH_ROWS %lu, OCI_ATTR_PREFETCH_MEMORY %lu\n",
+	    cache_rows, cache_mem);
     return num_errors;
 }
 
@@ -1434,7 +1440,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
     sth_set_row_cache(h, imp_sth,
 	(nested_cursors) ? imp_dbh->max_nested_cursors / nested_cursors : 0,
-	(int)num_fields, est_width, has_longs
+	(int)num_fields, has_longs
     );
 
     imp_sth->long_readlen = long_readlen;
@@ -1475,7 +1481,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
         if ( (fbh->dbtype == 1) && fbh->csform ) {
 	    /* csform may be 0 when talking to Oracle 8.0 database */
             if (DBIS->debug >= 3)
-               PerlIO_printf(DBILOGFP, "     calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d\n", fbh->csform );
+               PerlIO_printf(DBILOGFP, "    calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d\n", fbh->csform );
             OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
             if (status != OCI_SUCCESS) {

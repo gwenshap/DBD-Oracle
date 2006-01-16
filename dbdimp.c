@@ -98,7 +98,6 @@ ora_env_var(char *name, char *buf, unsigned long size)
 void
 dbd_init(dbistate_t *dbistate)
 {
-    char *p;
     DBIS = dbistate;
     dbd_init_oci(dbistate);
 }
@@ -272,8 +271,6 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		
 	if (shared_dbh_len == sizeof (imp_dbh_t)) {
 	    /* initialize from shared data */
-            int o = DBH_DUP_OFF ;
-            int l = DBH_DUP_LEN ;
             memcpy (((char *)imp_dbh) + DBH_DUP_OFF, ((char *)shared_dbh) + DBH_DUP_OFF, DBH_DUP_LEN) ;
 	    shared_dbh -> refcnt++ ;
 	    imp_dbh -> shared_dbh_priv_sv = shared_dbh_priv_sv ;
