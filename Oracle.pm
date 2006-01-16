@@ -174,22 +174,27 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                 (uc($n), $v)
 	    } split /\s*;\s*/, $dbname;
 	    my %dbname = ( PROTOCOL => 'tcp', @dbname );
-	    my $sid = delete $dbname{SID};
+
+	    # extract main attributes for connect_data portion
+	    my @connect_data_attr = qw(SID INSTANCE_NAME SERVER SERVICE_NAME);
+	    my %connect_data = map { ($_ => delete $dbname{$_}) }
+		grep { exists $dbname{$_} } @connect_data_attr;
+	    my $connect_data = join "", map { "($_=$connect_data{$_})" } keys %connect_data;
+
 	    return $drh->DBI::set_err(-1,
-		"Can't connect using this syntax without specifying a " .
-                "HOST and a SID")
-		unless $sid and $dbname{HOST};
-	    my @addrs;
-	    push @addrs, "$n=$v" while ( ($n,$v) = each %dbname );
-	    my $addrs = "(" . join(")(", @addrs) . ")";
+		"Can't connect using this syntax without specifying a HOST and one of @connect_data_attr")
+		unless $dbname{HOST} and %connect_data;
+
+	    my @addrs = map { "($_=$dbname{$_})" } keys %dbname;
+	    my $addrs = join "", @addrs;
 	    if ($dbname{PORT}) {
 		$addrs = "(ADDRESS=$addrs)";
 	    }
 	    else {
-		$addrs = "(ADDRESS_LIST=(ADDRESS=$addrs(PORT=1526))"	# Oracle8+
-				     . "(ADDRESS=$addrs(PORT=1521)))";	# Oracle7
+		$addrs = "(ADDRESS_LIST=(ADDRESS=$addrs(PORT=1526))"
+				     . "(ADDRESS=$addrs(PORT=1521)))";
 	    }
-	    $dbname = "(DESCRIPTION=$addrs(CONNECT_DATA=(SID=$sid)))";
+	    $dbname = "(DESCRIPTION=$addrs(CONNECT_DATA=$connect_data))";
 	    $drh->trace_msg("connect using '$dbname'");
 	}
 

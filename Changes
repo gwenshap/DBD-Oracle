@@ -9,6 +9,9 @@
   Added support for nested cursors in select lists thanks to Charles Jardine.
   Added "Trailing Spaces" section to docs thanks to Michael A Chase.
   Added support for binary floats/doubles thanks to Dennis Box.
+  Added INSTANCE_NAME, SERVER and SERVICE_NAME as valid connect keywords
+    in the 'dbi:Oracle:x=y' short form of connecting without tnsnames.ora.
+    For example 'dbi:Oracle:host=localhost;service_name=xe;server=dedicated'
 
   Changed "Binding Cursors" docs, clarifying examples thanks to Charles Jardine.
   Changed tests to use ORACLE_DSN or DBI_DSN env vars if defined thanks to Jill Vogel.
