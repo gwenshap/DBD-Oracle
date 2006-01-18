@@ -48,7 +48,6 @@ ok( 1,
     FROM all_objects WHERE rownum <= 5
   })
 );
-#$outer->{TraceLevel} = 3;
 ok( 2, $outer->{ora_types}[1] == ORA_RSET);
 ok( 3, $outer->execute);
 ok( 4, my @row1 = $outer->fetchrow_array);
@@ -66,7 +65,46 @@ ok(14, $dbh->errstr =~ / defunct /);
 ok(15, $outer->finish);
 ok(16, $dbh->{ActiveKids} == 0);
 
-$dbh->disconnect;
+
+#########################################################################
+# Fetch speed test: START
+#########################################################################
+
+$dbh->{RaiseError} = 1;
+
+sub timed_fetch {
+  my ($rs,$caption) = @_;
+  my $row_count = 0;
+  my $tm_start = DBI::dbi_time();
+  $row_count++ while $rs->fetch;
+  my $elapsed = DBI::dbi_time() - $tm_start;
+  print "Fetched $row_count rows ($caption): $elapsed secs.\n";
+  return $elapsed;
+}
+
+##################################################
+# regular select
+##################################################
+my $sql1 = q{
+    SELECT object_name
+    FROM (SELECT object_name FROM all_objects WHERE ROWNUM<=70),
+	 (SELECT           1 FROM all_objects WHERE ROWNUM<=70)
+};
+$outer = $dbh->prepare($sql1);
+$outer->execute();
+my $dur_std = timed_fetch($outer,'select');
+
+##################################################
+# nested cursor
+##################################################
+$outer = $dbh->prepare("SELECT CURSOR($sql1) FROM DUAL");
+$outer->execute();
+my $ref_csr = $outer->fetchrow_arrayref->[0];
+my $dur_ref = timed_fetch($ref_csr,'nested cursor');
+
+#########################################################################
+# Fetch speed test: END
+#########################################################################
 
 exit 0;
 
