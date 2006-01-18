@@ -36,6 +36,12 @@ my $tests = 16;
 
 print "1..$tests\n";
 
+# ref cursors may be slow due to oracle bug 3735785
+# believed fixed in
+#	 9.2.0.6 (Server Patch Set) 
+#	10.1.0.4 (Server Patch Set) 
+#	10.2.0.1 (Base Release)
+
 ok( 1,
   my $outer = $dbh->prepare(q{
     SELECT object_name, CURSOR(SELECT object_name FROM dual)
