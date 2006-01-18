@@ -1317,9 +1317,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		avg_width = fbh->dbsize / 2;
 		/* FALLTHRU */
 	case  96:				/* CHAR		*/
-		fbh->disize = fbh->dbsize;
-		if (CSFORM_IMPLIES_UTF8(fbh->csform))
+		if ( CSFORM_IMPLIES_UTF8(fbh->csform) && !CS_IS_UTF8(fbh->csid) )
 		    fbh->disize = fbh->dbsize * 4;
+		else
+		    fbh->disize = fbh->dbsize;
 		fbh->prec   = fbh->disize;
 		break;
 	case  23:				/* RAW		*/
@@ -1344,7 +1345,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 
 	case   8:				/* LONG		*/
-		if (CSFORM_IMPLIES_UTF8(fbh->csform))
+		if ( CSFORM_IMPLIES_UTF8(fbh->csform) && !CS_IS_UTF8(fbh->csid) )
                     fbh->disize = long_readlen * 4;
                 else
                     fbh->disize = long_readlen;
