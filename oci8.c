@@ -2,7 +2,7 @@
    vim:sw=4:ts=8
    oci8.c
 
-   Copyright (c) 1998-2005  Tim Bunce  Ireland
+   Copyright (c) 1998-2006  Tim Bunce  Ireland
 
    See the COPYRIGHT section in the Oracle.pm file for terms.
 

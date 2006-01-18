@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.17 (svn rev 2417)   XXth January 2005
+=head1 Changes in DBD-Oracle 1.17 (svn rev 2429)   XXth January 2005
 
   Fixed automatic csform setting for some UTF8 cases and for Oracle 8.0
   Fixed truncation error on fetch into UTF8 charset thanks to Honza Pazdziora.
@@ -31,8 +31,8 @@
     VMS logical name checks thanks to Jakob Snoer.
 
   The Copyright terms for DBD::Oracle have been simplified and now read:
-    The DBD::Oracle module is free software; you can redistribute it
-    and/or modify it under the same terms as Perl 5.
+    The DBD::Oracle module is free open source software; you can
+    redistribute it and/or modify it under the same terms as Perl 5.
 
 =head1 Changes in DBD-Oracle 1.16 (svn rev 515)   22nd October 2004
 

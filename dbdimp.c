@@ -2,7 +2,7 @@
    vim: sw=4:ts=8
    dbdimp.c
 
-   Copyright (c) 1994-2004  Tim Bunce  Ireland
+   Copyright (c) 1994-2006  Tim Bunce  Ireland
 
    See the COPYRIGHT section in the Oracle.pm file for terms.
 

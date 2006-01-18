@@ -1,7 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.48 2004/02/02 08:10:17 timbo Exp $
-
-   Copyright (c) 1994-2005 Tim Bunce
+   Copyright (c) 1994-2006 Tim Bunce
 
    See the COPYRIGHT section in the Oracle.pm file for terms.
 

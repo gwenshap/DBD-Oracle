@@ -2771,15 +2771,16 @@ DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
 
 =head1 COPYRIGHT
 
-The DBD::Oracle module is Copyright (c) 1994-2005 Tim Bunce. Ireland.
+The DBD::Oracle module is Copyright (c) 1994-2006 Tim Bunce. Ireland.
 
-The DBD::Oracle module is free software; you can redistribute it and/or
-modify it under the same terms as Perl 5.
+The DBD::Oracle module is free open source software; you can
+redistribute it and/or modify it under the same terms as Perl 5.
 
 =head1 ACKNOWLEDGEMENTS
 
-A great many people have helped me over the years. Far too many to
-name, but I thank them all. Many are named in the Changes file.
+A great many people have helped me with DBD::Oracle over the 12 years
+between 1994 and 2006.  Far too many to name, but I thank them all.
+Many are named in the Changes file.
 
 See also L<DBI/ACKNOWLEDGEMENTS>.
 
