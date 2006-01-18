@@ -291,13 +291,13 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
     if ($client_version_full =~ /^8.0.6/ && $os eq 'hpux') {
         $linkwith_msg = "-lextp -l$lib.";
         $opts{LIBS} = [ "-L$OH/$libdir -lextp -l$lib $syslibs" ];
-        push @h_dirs, 'network/public';
+        push @h_dirs, "$OH/network/public";
     }
     else {
         $linkwith_msg = "-l$lib.";
         $opts{LIBS} = [ "-L$OH/$libdir -l$lib $syslibs" ];
     }
-    my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
+    my $inc = join " ", map { "-I$_" } @h_dirs;
     $opts{INC}  = "$inc -I$dbi_arch_dir";
     check_ldlibpthname();
 }
@@ -632,9 +632,8 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     }
 
     my $OCIINCLUDE = expand_mkvars($MK{INCLUDE} || '', 0, 0);
-    # $OCIINCLUDE .= " -I$OH/rdbms/demo";
     my @h_dirs = find_headers();
-    my $inc = join " ", map { "-I$OH/$_" } @h_dirs;
+    my $inc = join " ", map { "-I$_" } @h_dirs;
     $opts{INC}  = "$inc $OCIINCLUDE -I$dbi_arch_dir";
 }
 
@@ -1366,31 +1365,30 @@ sub find_headers {
     # compensate for case where final .0 isn't in the install directory name
     (my $client_version_trim = $client_version_full) =~ s/\.0$//;
   
-    my @try = (
+    my @try = (	# search the ORACLE_HOME we're using first
+       # --- Traditional full-install locations
+       "$OH/rdbms/public", # prefer public over others
+       "$OH/rdbms",
+       "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0),
        # --- Oracle Instant Client locations
        "/usr/include/oracle/$client_version_full/client", # Instant Client for RedHat FC4
        "/usr/include/oracle/$client_version_trim/client", # Instant Client for RedHat FC4
        "/include/oracle/$client_version_full/client", # Instant Client for RedHat FC3
        "/include/oracle/$client_version_trim/client", # Instant Client for RedHat FC3
-       # --- Traditional full-install locations
-       "$OH/rdbms/public", # prefer public over others
-       "$OH/rdbms",
-       "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0),
    );
    unshift @try, $::opt_h if $::opt_h;
    @try = grep { -d $_ } @try;
 
-    my (%h_dir, %h_file, @h_dir);
+   my %h_file;
    find( sub {
 	return unless /^o(ci.{3,4}|ratypes)\.h$/i;
 	my $dir = $File::Find::dir;
-	$dir =~ s:^\Q$OH/::;
-	$h_dir{$dir} = $_;
 	$h_file{$_} ||= $dir; # record first one found
 	print "Found $dir/$_\n" if $::opt_d;
     }, @try);
        
-    @h_dir = keys %h_dir;
+    my %h_dir = reverse %h_file; # distinct first found dirs
+    my @h_dir = keys %h_dir;
 
     print "Found header files in @h_dir.\n" if @h_dir;
 
