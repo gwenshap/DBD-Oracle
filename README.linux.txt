@@ -60,6 +60,12 @@ the test.pl to work you must first have the LD_LIBRARY_PATH correctly set to you
 The present version of the make creates a link on your "instantclient" directory as follows
 "ln -s libclntsh.so.10.1 libclntsh.so". It is needed for both the makefile creation and the compile 
 but is not need for the test.pl. It should be removed after the compile.
-If the Makefile.PL or make fails try creating this link directly in the ""instantclient" directory.
+If the Makefile.PL or make fails try creating this link directly in your "instantclient" directory.
  
-"instantclient" as follows     
+From: John Scoles <scoles@pythian.com>
+Date: Thurs, 19 Jan 2006 11:48:47 -0700 (EST)
+Subject: RE: Oracle Database 10g Express Edition  10.2 
+
+To get 10Xe to compile correctly I had to add $ORACLE_HOME/lib to the LD_LIBRARY_PATH 
+
+e.g. LD_LIBRARY_PATH=$ORACLE_HOME:$ORACLE_HOME/sdk/include:$ORACLE_HOME/lib

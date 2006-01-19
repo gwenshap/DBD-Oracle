@@ -75,7 +75,8 @@ Windows 2000 professional platform having no Oracle or other development environ
 
 15) Using the "Set" command add "ORACLE_USERID=test/test@test" substituting test with the username/password@database 
     you wish to run the make test files against. 
-        Note: it is not necessary to do this step for the compile and install to work. However, the self-test programs included with        Oracle-DBD will not run correctly is this varaible is not set.
+        Note: it is not necessary to do this step for the compile and install to work. 
+              However, the self-test programs included with Oracle-DBD will not run correctly is this varaible is not set.
 
 16) Move to the DBD-Oracle directory in the Visual C++ window DOS prompt and enter the following.
 
