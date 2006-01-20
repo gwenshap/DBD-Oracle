@@ -25,7 +25,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	) ],
         ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
     );
-    @EXPORT_OK = qw(ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var);
+    @EXPORT_OK = qw(ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var ora_cygwin_set_env);
+    #unshift @EXPORT_OK, 'ora_cygwin_set_env' if $^O eq 'cygwin';
     Exporter::export_ok_tags(qw(ora_types ora_session_modes));
 
     my $Revision = substr(q$Revision: 1.103 $, 10);

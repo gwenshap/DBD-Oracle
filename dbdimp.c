@@ -12,6 +12,11 @@
 #define strcasecmp strcmpi
 #endif
 
+#ifdef __CYGWIN32__
+#include "w32api/windows.h"
+#include "w32api/winbase.h"
+#endif /* __CYGWIN32__ */
+
 #include "Oracle.h"
 
 #if defined(CAN_USE_PRO_C)
@@ -94,6 +99,34 @@ ora_env_var(char *name, char *buf, unsigned long size)
     buf[size] = 0;
     return buf;
 }
+
+#ifdef __CYGWIN32__
+/* Under Cygwin there are issues with setting environment variables
+ * at runtime such that Windows-native libraries loaded by a Cygwin
+ * process can see those changes.
+ * 
+ * Cygwin maintains its own cache of environment variables, and also
+ * only writes to the Windows environment using the "_putenv" win32
+ * call. This call writes to a Windows C runtime cache, rather than
+ * the true process environment block.
+ *
+ * In order to change environment variables so that the Oracle client
+ * DLL can see the change, the win32 function SetEnvironmentVariable
+ * must be called. This function gives an interface to that API.
+ * 
+ * It is only available when building under Cygwin, and is used by
+ * the testsuite.
+ *
+ * Whilst it could be called by end users, it should be used with
+ * caution, as it bypasses the environment variable conversions that
+ * Cygwin typically performs.
+ */
+void
+ora_cygwin_set_env(char *name, char *value)
+{
+    SetEnvironmentVariable(name, value);
+}
+#endif /* __CYGWIN32__ */
 
 void
 dbd_init(dbistate_t *dbistate)

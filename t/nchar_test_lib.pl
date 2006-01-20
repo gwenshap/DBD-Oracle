@@ -420,6 +420,10 @@ sub set_nls_nchar
     } else {
         undef $ENV{NLS_NCHAR}; # XXX windows? (perhaps $ENV{NLS_NCHAR}=""?)
     }
+    # Special treatment for environment variables under Cygwin -
+    # see comments in dbdimp.c for details.
+    DBD::Oracle::ora_cygwin_set_env('NLS_NCHAR', $ENV{NLS_NCHAR}||'')
+	if $^O eq 'cygwin';
     print defined ora_env_var("NLS_NCHAR") ?	# defined?
         "set \$ENV{NLS_NCHAR}=$cset\n" :
         "set \$ENV{NLS_LANG}=undef\n"		# XXX ?
@@ -436,6 +440,10 @@ sub set_nls_lang_charset
         $ENV{NLS_LANG} = "";	# not the same as set_nls_nchar() above which uses undef
         print "set \$ENV{NLS_LANG}=''\n" if ( $verbose );
     }
+    # Special treatment for environment variables under Cygwin -
+    # see comments in dbdimp.c for details.
+    DBD::Oracle::ora_cygwin_set_env('NLS_LANG', $ENV{NLS_LANG}||'')
+	if $^O eq 'cygwin';
 }
 
 sub byte_string {

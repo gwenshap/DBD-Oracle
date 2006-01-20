@@ -3,6 +3,7 @@
   Fixed automatic csform setting for some UTF8 cases and for Oracle 8.0
   Fixed truncation error on fetch into UTF8 charset thanks to Honza Pazdziora.
   Fixed INTERVAL DAY TO SECOND thanks to Honza Pazdziora.
+  Fixed unicode tests for cygwin thanks to Andy Hassall.
   Fixed undef warnings when connecting with undef $user.
   Fixed undef warnings from $dbh->get_info(18);
   Fixed LOB streaming example thanks to Pablo Zorzoli.

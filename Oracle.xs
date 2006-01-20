@@ -56,6 +56,16 @@ ora_env_var(name)
         sv_setpv(sv, p);
     ST(0) = sv;
 
+#ifdef __CYGWIN32__
+void
+ora_cygwin_set_env(name, value)
+    char * name
+    char * value
+    CODE:
+    ora_cygwin_set_env(name, value);
+
+#endif /* __CYGWIN32__ */
+
 
 INCLUDE: Oracle.xsi
 
