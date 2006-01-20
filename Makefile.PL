@@ -143,7 +143,7 @@ die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
 } unless (-d $OH and $os eq 'VMS')
       or -d "$OH/sdk/." 	# Instant Client with SDK
       or -d "$OH/lib/." 	# normal Oracle installation
-      or -e "$OH/libclntsh.$so.10.1" # pre-sdk instant client XXX hack (version specific)
+      or glob("$OH/libclntsh.$so*") # pre-sdk instant client or rpm
       or -e "$OH/oci.dll";	# Windows Instant Client
  
 print "Using Oracle in $OH\n";
@@ -329,11 +329,8 @@ elsif (my @libclntsh = glob("$OH/libclntsh.$so*")) {
     $linkwith_msg = "-l$lib.";
     $opts{LIBS} = [ "-L$OH -l$lib $syslibs" ];
 
-    my $inc = "$OH/sdk/include";
-    warn "Your Instant Client installation doesn't have the SDK component installed\n"
-        unless -d $inc;
-    $opts{INC}  = "-I$inc -I$dbi_arch_dir";
-
+    my $inc = join " ", map { "-I$_" } find_headers();
+    $opts{INC}  = "$inc -I$dbi_arch_dir";
 }
 
 elsif ($mkfile = find_mkfile() and $mkfile =~ /\bdemo_xe.mk$/) { # Oracle XE
@@ -1370,7 +1367,9 @@ sub find_headers {
        "$OH/rdbms/public", # prefer public over others
        "$OH/rdbms",
        "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0),
-       # --- Oracle Instant Client locations
+       # --- Oracle SDK Instant Client locations
+       "$OH/sdk/include",
+       # --- Oracle RPM Instant Client locations
        "/usr/include/oracle/$client_version_full/client", # Instant Client for RedHat FC4
        "/usr/include/oracle/$client_version_trim/client", # Instant Client for RedHat FC4
        "/include/oracle/$client_version_full/client", # Instant Client for RedHat FC3
