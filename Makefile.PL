@@ -451,7 +451,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	    $linkwith = del_crtobj($linkwith, 1) if $os eq 'solaris';
 	}
 	else {
-	    print "Unable to interpret Oracle build commands from $mkfile.\a\n";
+	    print "WARNING: Unable to interpret Oracle build commands from $mkfile.\a\n";
 	    print "(Will continue by using fallback approach.)\n";
 	    print "Please report this to dbi-users\@perl.org. See README for what to include.\n";
 	    sleep 2;
@@ -817,7 +817,7 @@ if ($os eq 'VMS') { # sanity check VMS logical names
 
    Please read the Readme.VMS file for further information.
        \a\n};
-       sleep 3;
+       sleep 5;
    }
    else {
 
@@ -836,7 +836,7 @@ if ($os eq 'VMS') { # sanity check VMS logical names
 
       \$ DEFINE PERL_ENV_TABLES LNM\$PROCESS, LNM\$JOB , CRTL_ENV
       \a\n};
-      sleep 3;
+      sleep 5;
       }
    } # end if 
 }
@@ -1510,7 +1510,7 @@ default to version $client_version_full. Some features of DBD::Oracle may not wo
 Oracle version based logic in Makefile.PL may produce erroneous results.
 You can use "perl Makefile.PL -V X.Y.Z" to specify a your client version.\n
 };
-	sleep 2;
+	sleep 5;
     }
 
     # hack up a simple floating point form of the version: 8.1.6.2 => 8.1
@@ -1753,7 +1753,8 @@ sub check_ldlibpthname {
     print "Your $ldlibpthname env var is set to '$val'\n";
     my @val = split /\Q$Config{path_sep}/o, $val, -1;
     return 1 if grep { s:[\\/]$::; $_ eq $libdir } @val;
-    warn "Your $ldlibpthname env var doesn't include '$libdir' but probably needs to.\n";
+    warn "WARNING: Your $ldlibpthname env var doesn't include '$libdir' but probably needs to.$BELL\n";
+    sleep 5;
     return;
 }
 
