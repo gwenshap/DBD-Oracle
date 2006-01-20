@@ -32,7 +32,7 @@ unless ($dbh) {
 	exit 0;
 }
 
-print "1..11\n";
+print "1..13\n";
 
 print "type_info_all\n";
 my @types = $dbh->type_info(SQL_ALL_TYPES);
@@ -62,6 +62,11 @@ foreach my $table_info_params (@table_info_params) {
     print "$name: ".@$data." rows, $dur seconds\n";
 #   print Dumper($data);
 }
+
+my $sql_dbms_version = $dbh->get_info(18);
+ok(0,$sql_dbms_version);
+print "sql_dbms_version=$sql_dbms_version\n";
+ok(0,$sql_dbms_version =~ /^\d+\.\d+\.\d+$/);
 
 $dbh->disconnect;
 
