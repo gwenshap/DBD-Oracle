@@ -67,5 +67,6 @@ Date: Thurs, 19 Jan 2006 11:48:47 -0700 (EST)
 Subject: RE: Oracle Database 10g Express Edition  10.2 
 
 To get 10Xe to compile correctly I had to add $ORACLE_HOME/lib to the LD_LIBRARY_PATH 
-
-e.g. LD_LIBRARY_PATH=$ORACLE_HOME:$ORACLE_HOME/sdk/include:$ORACLE_HOME/lib
+as you would for an install against 10g Standard Edition, Standard Edition One, or 
+Enterprise Edition 
+ 
