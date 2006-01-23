@@ -14,6 +14,7 @@
   Added INSTANCE_NAME, SERVER and SERVICE_NAME as valid connect keywords
     in the 'dbi:Oracle:x=y' short form of connecting without tnsnames.ora.
     For example 'dbi:Oracle:host=localhost;service_name=xe;server=dedicated'
+  Added auto-detection of ORACLE_HOME in some configurations.
 
   Changed "Binding Cursors" docs, clarifying examples thanks to Charles Jardine.
   Changed tests to use ORACLE_DSN or DBI_DSN env vars if defined thanks to Jill Vogel.

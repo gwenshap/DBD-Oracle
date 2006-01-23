@@ -127,12 +127,13 @@ $OH  = win32_oracle_home($OH) if ($os eq 'MSWin32') or ($os =~ /cygwin/i);
 $OH = unixify $OH if $os eq 'VMS';
 $OH =~ s:/$::;
 
-die qq{  The $ORACLE_ENV environment variable must be set.
+$OH ||= find_oracle_home() || die qq{
+  The $ORACLE_ENV environment variable is not set and I couldn't guess it.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture).
   See the README.clients.txt file for more information.
   ABORTED!
-} unless $OH;
+};
 
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
@@ -842,6 +843,22 @@ if ($os eq 'VMS') { # sanity check VMS logical names
 }
 
 # =====================================================================
+
+
+sub find_oracle_home {
+    print "Trying to find an ORACLE_HOME\n";
+    my (undef, undef, @dirs) = ldlibpth_info(1);
+    my @path = split /\Q$Config{path_sep}/, $ENV{PATH};
+    # this should work for properly configured instant client installs
+    my @oh = grep { (glob("$_/libclntsh.$so*"))[0] } (@dirs, @path);
+    if (!@oh) {
+	# this should work for non-instant-client installs ($OH/bin & $OH/lib*)
+	@oh = grep { (glob("$_/../lib*/libclntsh.$so*"))[0] } @path;
+	s:/[^/]/?$:: for @oh;
+    }
+    die "Found @oh\n" if @oh;
+    return $oh[0];
+}
 
 
 sub win32_oracle_home {
@@ -1736,10 +1753,8 @@ $(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt $(INST_ARCHAUTODIR)
 }
 
 
-sub check_ldlibpthname {
-    my ($libdir) = @_;
-    $libdir ||= "$OH/".ora_libdir();
-    $libdir =~ s:[\\/]$::;
+sub ldlibpth_info {
+    my ($verbose) = @_;
     my ($ldlibpthname, $val);
     if ($^O eq "hpux") { # hpux is odd again: can use two env vars
         my @envs = grep { $ENV{$_} } qw( LD_LIBRARY_PATH SHLIB_PATH );
@@ -1750,9 +1765,18 @@ sub check_ldlibpthname {
         $ldlibpthname = $Config{ldlibpthname} or return;
 	$val          = $ENV{$ldlibpthname} || '';
     }
-    print "Your $ldlibpthname env var is set to '$val'\n";
-    my @val = split /\Q$Config{path_sep}/o, $val, -1;
-    return 1 if grep { s:[\\/]$::; $_ eq $libdir } @val;
+    print "Your $ldlibpthname env var is set to '$val'\n" if $verbose;
+    my @dirs = split /\Q$Config{path_sep}/o, $val, -1;
+    return ($ldlibpthname, $val, @dirs);
+}
+
+
+sub check_ldlibpthname {
+    my ($libdir) = @_;
+    $libdir ||= "$OH/".ora_libdir();
+    $libdir =~ s:[\\/]$::;
+    my ($ldlibpthname, $val, @dirs) = ldlibpth_info(1);
+    return 1 if grep { s:[\\/]$::; $_ eq $libdir } @dirs;
     warn "WARNING: Your $ldlibpthname env var doesn't include '$libdir' but probably needs to.$BELL\n";
     sleep 5;
     return;
