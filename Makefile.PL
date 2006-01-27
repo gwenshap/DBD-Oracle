@@ -127,13 +127,20 @@ $OH  = win32_oracle_home($OH) if ($os eq 'MSWin32') or ($os =~ /cygwin/i);
 $OH = unixify $OH if $os eq 'VMS';
 $OH =~ s:/$::;
 
-$OH ||= find_oracle_home() || die qq{
-  The $ORACLE_ENV environment variable is not set and I couldn't guess it.
-  It must be set to hold the path to an Oracle installation directory
-  on this machine (or a machine with a compatible architecture).
-  See the README.clients.txt file for more information.
-  ABORTED!
-};
+if (!$OH) {
+  $OH = find_oracle_home() || die qq{
+      The $ORACLE_ENV environment variable is not set and I couldn't guess it.
+      It must be set to hold the path to an Oracle installation directory
+      on this machine (or a machine with a compatible architecture).
+      See the README.clients.txt file for more information.
+      ABORTED!
+  \n};
+  $ENV{$ORACLE_ENV} = $OH;
+  print "\n";
+  print "WARNING: Setting $ORACLE_ENV env var to $OH for you.\a\n";
+  print "WARNING: The tests will probably fail unless you set $ORACLE_ENV yourself!\n";
+  sleep 5;
+}
 
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
@@ -847,16 +854,26 @@ if ($os eq 'VMS') { # sanity check VMS logical names
 
 sub find_oracle_home {
     print "Trying to find an ORACLE_HOME\n";
-    my (undef, undef, @dirs) = ldlibpth_info(1);
+
     my @path = split /\Q$Config{path_sep}/, $ENV{PATH};
-    # this should work for properly configured instant client installs
-    my @oh = grep { (glob("$_/libclntsh.$so*"))[0] } (@dirs, @path);
-    if (!@oh) {
+    print "using PATH @path\n" if $::opt_v;
+    # instant client has libclntsh in same dir as sqlplus
+    my @oh = grep { (glob("$_/libclntsh.$so*"))[0] } @path;
+
+    if (!@oh) { # failing that, try LD_LIBRARY_PATH or equiv
+	my (undef, undef, @ldlibpth) = ldlibpth_info(1);
+	print "using ldlib @ldlibpth\n" if $::opt_v;
+	@oh = grep { (glob("$_/libclntsh.$so*"))[0] } @ldlibpth;
+	# for instant client @oh may be actual ORACLE_HOME
+	# but for non-IC ORACLE_HOME may be dir above a /lib*
+	s:/lib\w*/?$:: for @oh; # remove possible trailing lib dir
+    }
+    if (!@oh) { # else try the traditional kind of install
 	# this should work for non-instant-client installs ($OH/bin & $OH/lib*)
 	@oh = grep { (glob("$_/../lib*/libclntsh.$so*"))[0] } @path;
 	s:/[^/]/?$:: for @oh;
     }
-    die "Found @oh\n" if @oh;
+    print "Found @oh\n" if @oh;
     return $oh[0];
 }
 

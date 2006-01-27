@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.17 (svn rev 2429)   XXth January 2005
+=head1 Changes in DBD-Oracle 1.17 (svn rev 2460)   27th January 2006
 
   Fixed automatic csform setting for some UTF8 cases and for Oracle 8.0
   Fixed truncation error on fetch into UTF8 charset thanks to Honza Pazdziora.
