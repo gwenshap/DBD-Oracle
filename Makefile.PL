@@ -753,10 +753,11 @@ print "\n";
 # --- display extra notes and warnings
 
 if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
-    print "\n\n";
-    print "WARNING: You will may need to rebuild perl using the xlc_r compiler.$BELL\n";
-    print "         You may also need do: ORACCENV='cc=xlc_r'; export ORACCENV\n";
-    print "         Also see the README about the -p option\n";
+    print "\n";
+    print "WARNING: You will may need to rebuild perl using the xlc_r compiler.\a\n";
+    print "         The important thing is that perl and DBD::Oracle be built with the same compiler.\n";
+    print "         You may also need to: ORACCENV='cc=xlc_r'; export ORACCENV\n";
+    print "         Also see README.aix for gcc instructions and read about the -p option.\n";
     sleep 5;
 }
 
