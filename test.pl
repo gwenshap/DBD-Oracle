@@ -31,6 +31,9 @@ GetOptions(
 ) or die;
 $opt_n ||= 10;
 
+# skip this old set of half-baked oddities if ORACLE_DSN env var is set
+exit 0 if $ENV{ORACLE_DSN};
+
 $dbname = $ARGV[0] || '';	# if '' it'll use TWO_TASK/ORACLE_SID
 $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 
