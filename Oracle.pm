@@ -2770,13 +2770,6 @@ Oracle.ex directory
 
 DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
 
-=head1 COPYRIGHT
-
-The DBD::Oracle module is Copyright (c) 1994-2006 Tim Bunce. Ireland.
-
-The DBD::Oracle module is free open source software; you can
-redistribute it and/or modify it under the same terms as Perl 5.
-
 =head1 ACKNOWLEDGEMENTS
 
 A great many people have helped me with DBD::Oracle over the 12 years
@@ -2785,11 +2778,24 @@ Many are named in the Changes file.
 
 See also L<DBI/ACKNOWLEDGEMENTS>.
 
+=head1 MAINTAINER
+
+As of release 1.17 in February 2006 The Pythian Group, Inc. (L<http://www.pythian.com>)
+are taking the lead in maintaining DBD::Oracle with my assistance and
+gratitude. That fees more of my time to work on DBI for perl 5 and perl 6.
+
+=head1 COPYRIGHT
+
+The DBD::Oracle module is Copyright (c) 1994-2006 Tim Bunce. Ireland.
+
+The DBD::Oracle module is free open source software; you can
+redistribute it and/or modify it under the same terms as Perl 5.
+
 =head1 CONTRIBUTING
 
 If you'd like DBD::Oracle to do something new or different the best way
-to make that happen is to do it yourself and send me a patch to the
-source code that shows the changes.
+to make that happen is to do it yourself and email to dbi-dev@perl.org a
+patch of the source code (using 'diff' - see below) that shows the changes.
 
 =head2 How to create a patch using Subversion
 

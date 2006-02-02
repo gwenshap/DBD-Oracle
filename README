@@ -4,6 +4,7 @@ DBD::Oracle  --  an Oracle interface for Perl 5.
    Copyright (c) 1994-2006  Tim Bunce, Ireland.
 
    See the COPYRIGHT section in the Oracle.pm file for terms.
+   See also the MAINTAINER section in the Oracle.pm
 
    PLEASE READ THE ENTIRE README FILE CAREFULLY !
 
@@ -49,13 +50,13 @@ DBD::Oracle  --  an Oracle interface for Perl 5.
 
     Install enough Oracle software to enable DBD::Oracle to build.
 
-    For Oracle Instant Client that means install the following packages:
+    For Oracle Instant Client: that means install the following packages:
         * The "Basic" package for the essential Oracle libraries.
         * The "SDK" package for the headers and makefile.
         * The "SQL*Plus" component is optional, but will help you check
           your configuration and DBD::Oracle determine your Oracle version.
 
-    For full Oracle installs that usually includes Pro*C and SQL*Net.
+    For full Oracle installs: that usually includes Pro*C and SQL*Net.
     (That's not very specific because it varies between Oracle releases.)
 
     The ORACLE_HOME environment variable must point to the Oracle Home
@@ -136,7 +137,7 @@ worked, plus the output of the "perl -V" command).
 Do not hand edit the generated Makefile unless you are completely sure
 you understand the implications! Always try to make changes via the
 Makefile.PL command line and/or editing the Makefile.PL.
-You should not need to make any changes. If you do please let me
+You should not need to make any changes. If you do please let us
 know so that I can try to make it automatic in a later release.
 
 If you just can't login or login takes a long time then read
@@ -168,7 +169,7 @@ Please do NOT post problems to comp.lang.perl.*, perl5-porters@perl.org,
 http://www.cpanforum.com/dist/DBD-Oracle, or google groups etc.
 
 If you're *sure* the problem is a bug then you can post a bug report
-to http://rt.cpan.org/NoAuth/Bugs.html?Dist=DBD-Oracle
+to http://rt.cpan.org/Public/Dist/Display.html?Name=DBD-Oracle
 Problem reports that don't include sufficient detail (including the
 information listed below and how to reproduce the problem)
 are unlikely to get resolved.
@@ -185,7 +186,7 @@ dbi-users@perl.org.
 1. A complete log of all steps of the build, e.g.:
 
     (do a make realclean first)
-    perl Makefile.PL -v        (note the -v for verbose)
+    perl Makefile.PL
     make
     make test
 
@@ -218,7 +219,7 @@ dbi-users@perl.org.
    debugger (gdb, sdb, dbx, adb etc) to get a stack trace from it.
    NOTE: I may not be able to help you much without a stack trace!
    It is worth fetching and building the GNU GDB debugger (>=4.15) if
-   you don't have a good debugger on your system. If desparate try:
+   you don't have a good debugger on your system. If desperate try:
      make perl; ./perl script; echo '$c' | adb ./perl core
    Also see the Devel::CoreStack module on CPAN.
 
@@ -227,7 +228,7 @@ dbi-users@perl.org.
 
 7. If your installation succeeds, but your script does not behave
    as you expect, the problem may be on your end. Before
-   sending to dbi-users, try writing a small, easy to use test case
+   sending to dbi-users, try writing a *small*, easy to use test case
    to reproduce your problem. Also, use the DBI->trace method to
    trace your database calls.
 
