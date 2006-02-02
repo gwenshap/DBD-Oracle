@@ -1,0 +1,47 @@
+Summary of my perl5 (revision 5 version 8 subversion 8 patch 27029) configuration:
+  Platform:
+    osname=hpux, osvers=11.11, archname=PA-RISC2.0
+    uname='hp-ux r3 b.11.11 u 9000800 1909236376 unlimited-user license '
+    config_args='-Dcc=gcc -des'
+    hint=recommended, useposix=true, d_sigaction=define
+    usethreads=undef use5005threads=undef useithreads=undef usemultiplicity=undef
+    useperlio=define d_sfio=undef uselargefiles=define usesocks=undef
+    use64bitint=undef use64bitall=undef uselongdouble=undef
+    usemymalloc=n, bincompat5005=undef
+  Compiler:
+    cc='gcc', ccflags ='-mpa-risc-2-0 -DPERL_DONT_CREATE_GVSV -D_HPUX_SOURCE -DDEBUGGING -fno-strict-aliasing -pipe -Wdeclaration-after-statement -I/pro/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64',
+    optimize='-g -O',
+    cppflags='-mpa-risc-2-0 -DPERL_DONT_CREATE_GVSV -D_HPUX_SOURCE -mpa-risc-2-0 -DPERL_DONT_CREATE_GVSV -D_HPUX_SOURCE -DDEBUGGING -fno-strict-aliasing -pipe -Wdeclaration-after-statement -I/pro/local/include'
+    ccversion='', gccversion='3.4.5', gccosandvers='hpux11.11'
+    intsize=4, longsize=4, ptrsize=4, doublesize=8, byteorder=4321
+    d_longlong=define, longlongsize=8, d_longdbl=define, longdblsize=16
+    ivtype='long', ivsize=4, nvtype='double', nvsize=8, Off_t='off_t', lseeksize=8
+    alignbytes=8, prototype=define
+  Linker and Libraries:
+    ld='/usr/bin/ld', ldflags =' -L/usr/local/lib'
+    libpth=/usr/local/lib /lib /usr/lib /usr/ccs/lib
+    libs=-lcl -lpthread -lnsl -lnm -lndbm -lgdbm -ldb -lmalloc -ldld -lm -lsec -lc
+    perllibs=-lcl -lpthread -lnsl -lnm -lmalloc -ldld -lm -lsec -lc
+    libc=/lib/libc.sl, so=sl, useshrplib=false, libperl=libperl.a
+    gnulibc_version=''
+  Dynamic Linking:
+    dlsrc=dl_hpux.xs, dlext=sl, d_dlsymun=undef, ccdlflags='-Wl,-E -Wl,-B,deferred '
+    cccdlflags='-fPIC', lddlflags='-b -L/usr/local/lib'
+
+
+Characteristics of this binary (from libperl):
+  Compile-time options: DEBUGGING PERL_DONT_CREATE_GVSV PERL_MALLOC_WRAP
+                        USE_LARGE_FILES USE_PERLIO
+  Locally applied patches:
+        defined-or
+  Built under hpux
+  Compiled at Feb  1 2006 12:07:21
+  %ENV:
+    PERL5_CPANPLUS_CONFIG="/u/usr/merijn/.cpanplus/config"
+  @INC:
+    /opt/perl/lib/5.8.8/PA-RISC2.0
+    /opt/perl/lib/5.8.8
+    /opt/perl/lib/site_perl/5.8.8/PA-RISC2.0
+    /opt/perl/lib/site_perl/5.8.8
+    /opt/perl/lib/site_perl
+    .

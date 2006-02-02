@@ -20,6 +20,7 @@
   Changed tests to use ORACLE_DSN or DBI_DSN env vars if defined thanks to Jill Vogel.
   Updated README.vms re logical name tables thanks to Jakob Snoer.
   Removed README.utf8 since the topic was covered better in the main docs.
+  Updated README.hpux.txt and restructured examples thanks to H.Merijn Brand.
   Updated README.aix thanks to Stephen de Vries and Nathan Vonnahme.
   Updated README.macosx thanks to Stephen de Vries.
   Renamed README.*'s to add .txt suffix to make life easier for some.
