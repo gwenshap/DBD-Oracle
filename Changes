@@ -1,4 +1,9 @@
-=head1 Changes in DBD-Oracle 1.17 (svn rev 2460)   27th January 2006
+=head1 Changes in DBD-Oracle 1.17 (svn rev 2487)   7th February 2006
+
+  NOTE: With this release of DBD::Oracle pythian.com (http://www.pythian.com)
+  are taking on the role of lead maintainer - with my support and gratitude.
+  John Scoles at pythian.com is now the man in the hot seat for support and
+  maintenance!
 
   Fixed automatic csform setting for some UTF8 cases and for Oracle 8.0
   Fixed truncation error on fetch into UTF8 charset thanks to Honza Pazdziora.

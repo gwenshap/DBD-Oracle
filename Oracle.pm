@@ -2782,7 +2782,7 @@ See also L<DBI/ACKNOWLEDGEMENTS>.
 
 As of release 1.17 in February 2006 The Pythian Group, Inc. (L<http://www.pythian.com>)
 are taking the lead in maintaining DBD::Oracle with my assistance and
-gratitude. That fees more of my time to work on DBI for perl 5 and perl 6.
+gratitude. That frees more of my time to work on DBI for perl 5 and perl 6.
 
 =head1 COPYRIGHT
 
