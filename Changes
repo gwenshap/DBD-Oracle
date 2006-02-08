@@ -1,3 +1,48 @@
+=head1 Changes in DBD-Oracle 1.17 (svn rev 2487)   7th February 2006
+
+  NOTE: With this release of DBD::Oracle pythian.com (http://www.pythian.com)
+  are taking on the role of lead maintainer - with my support and gratitude.
+  John Scoles at pythian.com is now the man in the hot seat for support and
+  maintenance!
+
+  Fixed automatic csform setting for some UTF8 cases and for Oracle 8.0
+  Fixed truncation error on fetch into UTF8 charset thanks to Honza Pazdziora.
+  Fixed INTERVAL DAY TO SECOND thanks to Honza Pazdziora.
+  Fixed unicode tests for cygwin thanks to Andy Hassall.
+  Fixed undef warnings when connecting with undef $user.
+  Fixed undef warnings from $dbh->get_info(18);
+  Fixed LOB streaming example thanks to Pablo Zorzoli.
+
+  Added support for nested cursors in select lists thanks to Charles Jardine.
+  Added "Trailing Spaces" section to docs thanks to Michael A Chase.
+  Added support for binary floats/doubles thanks to Dennis Box.
+  Added INSTANCE_NAME, SERVER and SERVICE_NAME as valid connect keywords
+    in the 'dbi:Oracle:x=y' short form of connecting without tnsnames.ora.
+    For example 'dbi:Oracle:host=localhost;service_name=xe;server=dedicated'
+  Added auto-detection of ORACLE_HOME in some configurations.
+
+  Changed "Binding Cursors" docs, clarifying examples thanks to Charles Jardine.
+  Changed tests to use ORACLE_DSN or DBI_DSN env vars if defined thanks to Jill Vogel.
+  Updated README.vms re logical name tables thanks to Jakob Snoer.
+  Removed README.utf8 since the topic was covered better in the main docs.
+  Updated README.hpux.txt and restructured examples thanks to H.Merijn Brand.
+  Updated README.aix thanks to Stephen de Vries and Nathan Vonnahme.
+  Updated README.macosx thanks to Stephen de Vries.
+  Renamed README.*'s to add .txt suffix to make life easier for some.
+
+  Changes to Makefile.PL:
+    Instant Client support thanks to Hilmar Lapp, John Scoles and others.
+    Improved HP-UX support thanks to H.Merijn Brand.
+    Avoid risk of sqlplus hanging thanks to Mark Dedlow.
+    More reliably use correct sqlplus thanks to Honza Pazdziora.
+    Improved build rule and Oracle header file detection.
+    Improved cygwin build thanks to Andy Hassall.
+    VMS logical name checks thanks to Jakob Snoer.
+
+  The Copyright terms for DBD::Oracle have been simplified and now read:
+    The DBD::Oracle module is free open source software; you can
+    redistribute it and/or modify it under the same terms as Perl 5.
+
 =head1 Changes in DBD-Oracle 1.16 (svn rev 515)   22nd October 2004
 
   NOTE:

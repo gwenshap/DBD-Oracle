@@ -1,13 +1,12 @@
-
-#   Oracle.pm,v 1.1 2002/07/05 06:34:47 richter Exp
+#   Oracle.pm
 #
-#   Copyright (c) 1994-2004 Tim Bunce, Ireland
+#   Copyright (c) 1994-2005 Tim Bunce, Ireland
 #
 #   See COPYRIGHT section in the documentation below
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.16';
+$DBD::Oracle::VERSION = '1.17';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -26,7 +25,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	) ],
         ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
     );
-    @EXPORT_OK = qw(ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var);
+    @EXPORT_OK = qw(ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var ora_cygwin_set_env);
+    #unshift @EXPORT_OK, 'ora_cygwin_set_env' if $^O eq 'cygwin';
     Exporter::export_ok_tags(qw(ora_types ora_session_modes));
 
     my $Revision = substr(q$Revision: 1.103 $, 10);
@@ -175,22 +175,27 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                 (uc($n), $v)
 	    } split /\s*;\s*/, $dbname;
 	    my %dbname = ( PROTOCOL => 'tcp', @dbname );
-	    my $sid = delete $dbname{SID};
+
+	    # extract main attributes for connect_data portion
+	    my @connect_data_attr = qw(SID INSTANCE_NAME SERVER SERVICE_NAME);
+	    my %connect_data = map { ($_ => delete $dbname{$_}) }
+		grep { exists $dbname{$_} } @connect_data_attr;
+	    my $connect_data = join "", map { "($_=$connect_data{$_})" } keys %connect_data;
+
 	    return $drh->DBI::set_err(-1,
-		"Can't connect using this syntax without specifying a " .
-                "HOST and a SID")
-		unless $sid and $dbname{HOST};
-	    my @addrs;
-	    push @addrs, "$n=$v" while ( ($n,$v) = each %dbname );
-	    my $addrs = "(" . join(")(", @addrs) . ")";
+		"Can't connect using this syntax without specifying a HOST and one of @connect_data_attr")
+		unless $dbname{HOST} and %connect_data;
+
+	    my @addrs = map { "($_=$dbname{$_})" } keys %dbname;
+	    my $addrs = join "", @addrs;
 	    if ($dbname{PORT}) {
 		$addrs = "(ADDRESS=$addrs)";
 	    }
 	    else {
-		$addrs = "(ADDRESS_LIST=(ADDRESS=$addrs(PORT=1526))"	# Oracle8+
-				     . "(ADDRESS=$addrs(PORT=1521)))";	# Oracle7
+		$addrs = "(ADDRESS_LIST=(ADDRESS=$addrs(PORT=1526))"
+				     . "(ADDRESS=$addrs(PORT=1521)))";
 	    }
-	    $dbname = "(DESCRIPTION=$addrs(CONNECT_DATA=(SID=$sid)))";
+	    $dbname = "(DESCRIPTION=$addrs(CONNECT_DATA=$connect_data))";
 	    $drh->trace_msg("connect using '$dbname'");
 	}
 
@@ -204,6 +209,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	# create a 'blank' dbh
 
+	$user = '' if not defined $user;
         (my $user_only = $user) =~ s:/.*::;
 	my ($dbh, $dbh_inner) = DBI::_new_dbh($drh, {
 	    'Name' => $dbname,
@@ -1353,6 +1359,29 @@ causes the data to use more space and so fail with a truncation error.
 
 =back
 
+=head2 Trailing Spaces
+
+The Oracle strips trailing spaces from VARCHAR placeholder
+values and uses Nonpadded Comparison Semantics with the result.
+This causes trouble if the spaces are needed for
+comparison with a CHAR value or to prevent the value from
+becoming '' which Oracle treats as NULL.
+Look for Blank-padded Comparison Semantics and Nonpadded
+Comparison Semantics in Oracle's SQL Reference or Server
+SQL Reference for more details.
+
+Please remember that using spaces as a value or at the end of
+a value makes visually distinguishing values with different
+numbers of spaces difficult and should be avoided.
+
+To preserve trailing spaces in placeholder values, either change
+the default placeholder type with L</ora_ph_type> or the placeholder
+type for a particular call to L<DBI/bind> or L<DBI/bind_param_inout>
+with L</ora_type> or C<TYPE>.
+Using L<ORA_CHAR> with L<ora_type> or C<SQL_CHAR> with C<TYPE>
+allows the placeholder to be used with Padded Comparison Semantics
+if the value it is being compared to is a CHAR, NCHAR, or literal.
+
 =head1 Metadata
 
 =head2 C<get_info()>
@@ -2356,7 +2385,7 @@ than could be stored in memory at a given time.
    my $offset = 1;   # Offsets start at 1, not 0
    while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) ) {
       print STDOUT $data;
-      $offset += $length;
+      $offset += $chunk_size;
    }
 
 Notice that the select statement does not contain the phrase
@@ -2392,13 +2421,14 @@ select the lob locators 'FOR UPDATE'.
 
 =head1 Binding Cursors
 
-Cursors can be returned from PL/SQL blocks. Either from stored
-procedure OUT parameters or from direct C<OPEN> statements, as show below:
+Cursors can be returned from PL/SQL blocks, either from stored
+functions (or procedures with OUT parameters) or
+from direct C<OPEN> statements, as shown below:
 
   use DBI;
   use DBD::Oracle qw(:ora_types);
-  $dbh = DBI->connect(...);
-  $sth1 = $dbh->prepare(q{
+  my $dbh = DBI->connect(...);
+  my $sth1 = $dbh->prepare(q{
       BEGIN OPEN :cursor FOR
           SELECT table_name, tablespace_name
           FROM user_tables WHERE tablespace_name = :space;
@@ -2409,7 +2439,7 @@ procedure OUT parameters or from direct C<OPEN> statements, as show below:
   $sth1->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
   $sth1->execute;
   # $sth2 is now a valid DBI statement handle for the cursor
-  while ( @row = $sth2->fetchrow_array ) { ... }
+  while ( my @row = $sth2->fetchrow_array ) { ... }
 
 The only special requirement is the use of C<bind_param_inout()> with an
 attribute hash parameter that specifies C<ora_type> as C<ORA_RSET>.
@@ -2417,35 +2447,124 @@ If you don't do that you'll get an error from the C<execute()> like:
 "ORA-06550: line X, column Y: PLS-00306: wrong number or types of
 arguments in call to ...".
 
-Here's an alternative form using a function that returns a cursor:
+Here's an alternative form using a function that returns a cursor.
+This example uses the pre-defined weak (or generic) REF CURSOR type
+SYS_REFCURSOR. This is an Oracle 9 feature. For Oracle 8, you must
+create your own REF CURSOR type in a package (see the C<curref.pl>
+script mentioned at the end of this section).
 
   # Create the function that returns a cursor
-  $sth1 = $dbh->prepare(q{
-    CREATE OR REPLACE FUNCTION sp_ListEmp RETURN types.cursorType
-    AS l_cursor types.cursorType;
-    BEGIN
-      OPEN l_cursor FOR select ename, empno from emp order by ename;
-      RETURN l_cursor;
-    END;
+  $dbh->do(q{
+      CREATE OR REPLACE FUNCTION sp_ListEmp RETURN SYS_REFCURSOR
+      AS l_cursor SYS_REFCURSOR;
+      BEGIN
+          OPEN l_cursor FOR select ename, empno from emp
+              ORDER BY ename;
+          RETURN l_cursor;
+      END;
   });
-  # CREATE is executed in prepare().
 
   # Use the function that returns a cursor
-  $sth1 = $dbh->prepare(q{BEGIN :cursor := sp_ListEmp; END;});
+  my $sth1 = $dbh->prepare(q{BEGIN :cursor := sp_ListEmp; END;});
   my $sth2;
   $sth1->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
   $sth1->execute;
   # $sth2 is now a valid DBI statement handle for the cursor
-  while ( @row = $sth2->fetchrow_array ) { ... }
+  while ( my @row = $sth2->fetchrow_array ) { ... }
 
-To close the cursor you (currently) need to do this:
+A cursor obtained from PL/SQL as above may be passed back to PL/SQL
+by binding for input, as shown in this example, which explicitly
+closes a cursor:
 
-  $sth3 = $dbh->prepare("BEGIN CLOSE :cursor; END;");
-  $sth3->bind_param_inout(":cursor", \$sth2, 0, { ora_type => ORA_RSET } );
+  my $sth3 = $dbh->prepare("BEGIN CLOSE :cursor; END;");
+  $sth3->bind_param(":cursor", $sth2, { ora_type => ORA_RSET } );
   $sth3->execute;
+
+It is not normally necessary to close a cursor
+explicitly in this way. Oracle will close the cursor automatically
+at the first client-server interaction after the cursor statement handle is
+destroyed. An explicit close may be desirable if the reference to
+the cursor handle from the PL/SQL statement handle delays the destruction
+of the cursor handle for too long. This reference remains until the
+PL/SQL handle is re-bound, re-executed or destroyed.
 
 See the C<curref.pl> script in the Oracle.ex directory in the DBD::Oracle
 source distribution for a complete working example.
+
+=head1 Fetching Nested Cursors
+
+Oracle supports the use of select list expressions of type REF CURSOR.
+These may be explicit cursor expressions - C<CURSOR(SELECT ...)>, or
+calls to PL/SQL functions which return REF CURSOR values. The values
+of these expressions are known as nested cursors.
+
+The value returned to a Perl program when a nested cursor is fetched
+is a statement handle. This statement handle is ready to be fetched from.
+It should not (indeed, must not) be executed.
+
+Oracle imposes a restriction on the order of fetching when nested
+cursors are used. Suppose C<$sth1> is a handle for a select statement
+involving nested cursors, and C<$sth2> is a nested cursor handle fetched
+from C<$sth1>. C<$sth2> can only be fetched from while C<$sth1> is
+still active, and the row containing C<$sth2> is still current in C<$sth1>.
+Any attempt to fetch another row from C<$sth1> renders all nested cursor
+handles previously fetched from C<$sth1> defunct.
+
+Fetching from such a defunct handle results in an error with the message
+C<ERROR nested cursor is defunct (parent row is no longer current)>.
+
+This means that the C<fetchall...> or C<selectall...> methods are not useful
+for queries returning nested cursors. By the time such a method returns,
+all the nested cursor handles it has fetched will be defunct.
+
+It is necessary to use an explicit fetch loop, and to do all the
+fetching of nested cursors within the loop, as the following example
+shows:
+
+    use DBI;
+    my $dbh = DBI->connect(...);
+    my $sth = $dbh->prepare(q{
+        SELECT dname, CURSOR(
+            SELECT ename FROM emp
+                WHERE emp.deptno = dept.deptno
+                ORDER BY ename
+        ) FROM dept ORDER BY dname
+    });
+    $sth->execute;
+    while ( my ($dname, $nested) = $sth->fetchrow_array ) {
+        print "$dname\n";
+        while ( my ($ename) = $nested->fetchrow_array ) {
+            print "        $ename\n";
+        }
+    }
+
+
+The cursor returned by the function C<sp_ListEmp> defined in the
+previous section can be fetched as a nested cursor as follows:
+
+    my $sth = $dbh->prepare(q{SELECT sp_ListEmp FROM dual});
+    $sth->execute;
+    my ($nested) = $sth->fetchrow_array;
+    while ( my @row = $nested->fetchrow_array ) { ... }
+
+=head2 Pre-fetching Nested Cursors
+
+By default, DBD::Oracle pre-fetches rows in order to reduce the number of
+round trips to the server. For queries which do not involve nested cursors,
+the number of pre-fetched rows is controlled by the DBI database handle
+attribute C<RowCacheSize> (q.v.).
+
+In Oracle, server side open cursors are a controlled resource, limited in
+number, on a per session basis, to the value of the initialization
+parameter C<OPEN_CURSORS>. Nested cursors count towards ths limit.
+Each nested cursor in the current row counts 1, as does
+each nested cursor in a pre-fetched row. Defunct nested cursors do not count.
+
+An Oracle specific database handle attribute, C<ora_max_nested_cursors>,
+further controls pre-fetching for queries involving nested cursors. For
+each statement handle, the total number of nested cursors in pre-fetched
+rows is limited to the value of this parameter. The default value
+is 0, which disables pre-fetching for queries involving nested cursors.
 
 =head1 Returning A Value from an INSERT
 
@@ -2651,29 +2770,32 @@ Oracle.ex directory
 
 DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
 
-=head1 COPYRIGHT
-
-The DBD::Oracle module is Copyright (c) 1994-2004 Tim Bunce. Ireland.
-
-The DBD::Oracle module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself with the exception that it
-cannot be placed on a CD-ROM or similar media for commercial distribution
-without the prior approval of the author unless the CD-ROM contains only
-Open Source software (http://www.opensource.org/licenses/index.php)
-or is primarily a copy of the majority of the CPAN archive.
-
 =head1 ACKNOWLEDGEMENTS
 
-A great many people have helped me over the years. Far too many to
-name, but I thank them all. Many are named in the Changes file.
+A great many people have helped me with DBD::Oracle over the 12 years
+between 1994 and 2006.  Far too many to name, but I thank them all.
+Many are named in the Changes file.
 
 See also L<DBI/ACKNOWLEDGEMENTS>.
+
+=head1 MAINTAINER
+
+As of release 1.17 in February 2006 The Pythian Group, Inc. (L<http://www.pythian.com>)
+are taking the lead in maintaining DBD::Oracle with my assistance and
+gratitude. That frees more of my time to work on DBI for perl 5 and perl 6.
+
+=head1 COPYRIGHT
+
+The DBD::Oracle module is Copyright (c) 1994-2006 Tim Bunce. Ireland.
+
+The DBD::Oracle module is free open source software; you can
+redistribute it and/or modify it under the same terms as Perl 5.
 
 =head1 CONTRIBUTING
 
 If you'd like DBD::Oracle to do something new or different the best way
-to make that happen is to do it yourself and send me a patch to the
-source code that shows the changes.
+to make that happen is to do it yourself and email to dbi-dev@perl.org a
+patch of the source code (using 'diff' - see below) that shows the changes.
 
 =head2 How to create a patch using Subversion
 

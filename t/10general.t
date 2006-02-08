@@ -4,12 +4,18 @@ use Test::More;
 
 use DBI;
 use Oraperl;
+use Config;
+
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
+
 $| = 1;
 
-plan tests => 31;
+plan tests => 33;
 
+my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '');
+my $dbh = DBI->connect($dsn, $dbuser, '');
 
 unless($dbh) {
 	BAILOUT("Unable to connect to Oracle ($DBI::errstr)\nTests skiped.\n");
@@ -17,6 +23,15 @@ unless($dbh) {
 }
 
 my($sth, $p1, $p2, $tmp);
+
+SKIP: {
+	skip "not unix-like", 2 unless $Config{d_semctl};
+	# basic check that we can fork subprocesses and wait for the status
+	# after having connected to Oracle
+	is system("exit 1;"), 1<<8, 'system exit 1 should return 256';
+	is system("exit 0;"),    0, 'system exit 0 should return 0';
+}
+
 
 $sth = $dbh->prepare(q{
 	/* also test preparse doesn't get confused by ? :1 */

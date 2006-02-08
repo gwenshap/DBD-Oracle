@@ -155,7 +155,7 @@ See 'Hang during "repetitive connect/open/close/disconnect" test' below.
 -------------------------------------------------------------------------------
 HP-UX: General
 
-Read README.hpux. Then read it again.
+Read README.hpux.txt. Then read it again.
 
 HP's bundled C compiler is dumb. Very dumb. You're almost bound to have
 problems if you use it - you'll certainly need to do a 'static link'
@@ -260,7 +260,8 @@ Verbrugghen jverbrug@be.oracle.com)
 -------------------------------------------------------------------------------
 Connection/Login takes a long time
 
-Try connect('', 'user/passwd@tnsname', '').  See README.login and item above.
+Try connect('', 'user/passwd@tnsname', '').  See README.login.txt and
+item above.
 
 -------------------------------------------------------------------------------
 Error: ORA-00604: error occurred at recursive SQL level  (DBD: login failed)

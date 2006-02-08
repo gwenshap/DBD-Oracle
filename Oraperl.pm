@@ -1,13 +1,10 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.44 2003/09/23 07:22:10 timbo Exp $
+# Oraperl.pm
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
-#   You may distribute under the terms of either the GNU General Public
-#   License or the Artistic License, as specified in the Perl README file,
-#   with the exception that it cannot be placed on a CD-ROM or similar media
-#   for commercial distribution without the prior approval of the author.
+#   See the COPYRIGHT section in the Oracle.pm file for terms.
 #
 # To use this interface use one of the following invocations:
 #
@@ -855,16 +852,24 @@ perl(1)
 
 =back
 
-=head1 AUTHORS
-
-Perl by Larry Wall <lwall@netlabs.com>.
-
-ORACLE by Oracle Corporation, California.
+=head1 AUTHOR
 
 Original Oraperl 2.4 code and documentation
 by Kevin Stock <kstock@auspex.fr>.
 
-DBI and Oraperl emulation using DBD::Oracle
-by <Tim.Bunce@ig.co.uk>
+DBI and Oraperl emulation using DBD::Oracle by Tim Bunce.
+
+=head1 MAINTAINER
+    
+As of DBD::Oracle release 1.17 in February 2006 The Pythian Group, Inc.
+(L<http://www.pythian.com>) are taking the lead in maintaining DBD::Oracle with
+my assistance and gratitude.
+
+=head1 COPYRIGHT
+
+Copyright (c) 1994-2006 Tim Bunce. Ireland.
+
+The DBD::Oracle module is free open source software; you can
+redistribute it and/or modify it under the same terms as Perl 5.
 
 =cut

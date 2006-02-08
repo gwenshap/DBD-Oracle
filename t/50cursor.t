@@ -18,10 +18,14 @@ use DBI;
 use DBD::Oracle qw(ORA_RSET);
 use strict;
 
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
+
 $| = 1;
 
+my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', { PrintError => 0 });
+my $dbh = DBI->connect($dsn, $dbuser, '', { PrintError => 0 });
 
 unless ($dbh) {
 	warn "Unable to connect to Oracle as $dbuser ($DBI::errstr)\nTests skipped.\n";

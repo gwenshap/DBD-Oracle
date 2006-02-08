@@ -1,4 +1,102 @@
-Compiler: all these examples use xlc_r, except the first which uses gcc.
+
+DBD::Oracle AIX-specific README
+
+
+Using Visual Age 7 C Compiler 
+======================================================================================
+
+- Oracle 9i is only certified as a 64-bit application on AIX 5L (5.1,5.2,5.3) with 32-bit support;
+	in other words, there is no 9i "32-bit" Oracle client
+- Oracle 10g is certified as both a 64-bit application and a 32-bit Oracle client
+
+- This information only pertains to deploying
+	the DBI (version 1.48)
+	and DBD-Oracle (version 1.16):
+        on AIX 5.3
+        using Oracle 9i (9.2.0.1/9.2.0.5)
+        using the existing Perl 5.8.2 (no custom-built Perl) which is 32-bit
+        using Visual Age 7.0 C/C++ compiler
+
+Install the DBI (required for the DBD-Oracle install - no issues here)
+Untar the DBD-Oracle bundle
+Run Makefile.PL
+$ perl Makefile.PL
+Edit Makefile with following commands:
+1,$s?/lib/ ?/lib32/ ?g
+1,$s?-q64??g
+1,$s?/lib/sysliblist?/lib32/sysliblist?g
+Now perform normal commands to perform the testing/making:
+$ make
+$ make test
+$ make install
+
+I've tested the basics of the DBD-Oracle and it seems fully functional.
+
+Stephen de Vries
+paulhill20@copper.net
+
+
+
+Using gcc C Compiler 
+======================================================================================
+
+
+
+DBD::Oracle with gcc and Oracle Instant Client on AIX
+--------------------------------------------------------------------------------------	
+Nathan Vonnahme     Dec 15 2005, 4:28 pm   Newsgroups: perl.dbi.users
+See:  http://groups.google.com/group/perl.dbi.users/msg/0bd9097f80f2c8a9
+[ with updates 1/31/2006 - DBD::Oracle 1.17 doesn't need makefile hacking 
+to work with instantclient on AIX ]
+
+
+Yes!  It eluded me last year but I finally got DBD::Oracle working on an
+AIX machine using gcc.  Here's the short version:
+
+First I had to recompile perl with gcc, using
+        sh Configure -de -Dcc=gcc
+This apparently built a 32 bit perl, someday I will try getting it to go
+64 bit.
+
+I was then able to install and build DBI 1.50 with the CPAN shell.
+
+I downloaded the base and sdk packages of the Oracle Instant Client for
+AIX -- first I tried the 64 bit but that didn't work with my 32 bit perl
+-- the 32 bit version (still at 10.1.0.3) did the trick.  I unzipped
+them and moved the dir to /usr/local/oracle/instantclient10_1 and made a
+symlink without the version at /usr/local/oracle/instantclient , then
+set:
+
+export ORACLE_HOME=/usr/local/oracle/instantclient
+export LIBPATH=$ORACLE_HOME
+
+
+
+Oracle wasn't providing the sqlplus package for 32 bit AIX so I
+explicitly told Makefile.PL the version:
+
+perl Makefile.PL -V 10.1 
+
+make
+
+My test databases were on other machines so I set these environment variables 
+to get the tests to run:
+
+export ORACLE_DSN=DBI:Oracle://host/dbinstance
+export ORACLE_USERID="user/password"
+
+make test
+make install
+
+
+NOTE:  I have an older full version of Oracle on this machine, and the 
+ORACLE_HOME environment variable is normally set to point to that, so 
+my perl scripts that use DBD::Oracle have to make sure to first set
+   $ENV{ORACLE_HOME}='/usr/local/oracle/instantclient';
+ 
+
+
+
 
 --------------------------------------------------------------------------------------
 The following setup worked to build on AIX 5.2:
@@ -22,6 +120,11 @@ This setup worked with 8.1.7 w/32 bit support, and with 9.2.0 w/ 32-bit support.
 --Adrian Terranova
 peril99@yahoo.com
 
+
+
+
+Using xlc_r C Compiler 
+======================================================================================
 --------------------------------------------------------------------------------------
 From: Rafael Caceres <rcaceres@m1.aasa.com.pe>
 Date: 22 Jul 2003 10:05:20 -0500
