@@ -199,6 +199,22 @@
 	  "%sLobFileClose(%p,%p,%p)=%s\n",				\
 	  OciTp, (void*)sv,(void*)eh,(void*)lh,				\
 	  oci_status_name(stat)),stat : stat
+/*Added by JPS for Jeffrey.Klein*/
+
+#if !defined(ORA_OCI_8)
+#define OCILobCreateTemporary_log_stat(sv,eh,lh,csi,csf,lt,ca,dur,stat) \
+	stat=OCILobCreateTemporary(sv,eh,lh,csi,csf,lt,ca,dur);					\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
+	  "%sLobCreateTemporary(%p,%p,%p,%lu,%lu,%lu,%lu,%lu)=%s\n",				\
+	  OciTp, (void*)sv,(void*)eh,(void*)lh,				\
+          ul_t(csi),ul_t(csf),ul_t(lt),ul_t(ca),ul_t(dur), \
+	  oci_status_name(stat)),stat : stat
+#else
+#define OCILobCreateTemporary_log_stat(sv,eh,lh,stat) \
+    stat=0 /* Actually, this should be a compile error */
+#endif
+
+/*end add*/
 
 #if !defined(ORA_OCI_8)
 #define OCILobFreeTemporary_log_stat(sv,eh,lh,stat) \
@@ -223,6 +239,16 @@
 #define OCILobIsTemporary_log_stat(ev,eh,lh,istemp,stat) \
     stat=0
 #endif
+/*Added by JPS for Jeffrey.Klein */
+
+#define OCILobLocatorAssign_log_stat(sv,eh,src,dest,stat) \
+        stat=OCILobLocatorAssign(sv,eh,src,dest); \
+        (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP, \
+        "%sLobLocatorAssign(%p,%p,%p,%p)=%s\n", \
+       OciTp,(void*)sv,(void*)eh,(void*)src,(void*)dest, \
+        oci_status_name(stat)),stat : stat
+
+/*end add*/
 
 #define OCILobRead_log_stat(sv,eh,lh,am,of,bp,bl,cx,cb,csi,csf,stat)   \
 	stat=OCILobRead(sv,eh,lh,am,of,bp,bl,cx,cb,csi,csf);		\

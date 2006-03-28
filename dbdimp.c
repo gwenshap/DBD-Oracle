@@ -104,7 +104,7 @@ ora_env_var(char *name, char *buf, unsigned long size)
 /* Under Cygwin there are issues with setting environment variables
  * at runtime such that Windows-native libraries loaded by a Cygwin
  * process can see those changes.
- * 
+ *
  * Cygwin maintains its own cache of environment variables, and also
  * only writes to the Windows environment using the "_putenv" win32
  * call. This call writes to a Windows C runtime cache, rather than
@@ -113,7 +113,7 @@ ora_env_var(char *name, char *buf, unsigned long size)
  * In order to change environment variables so that the Oracle client
  * DLL can see the change, the win32 function SetEnvironmentVariable
  * must be called. This function gives an interface to that API.
- * 
+ *
  * It is only available when building under Cygwin, and is used by
  * the testsuite.
  *
@@ -255,7 +255,7 @@ typedef struct {
     /*recursive_lock_t    lock; */
     /*perl_cond           user_cond;*/      /* For user-level conditions */
 } shared_sv;
-	
+
 
 
 int
@@ -282,26 +282,26 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     shared_dbh_priv_svp = (DBD_ATTRIB_OK(attr)?hv_fetch((HV*)SvRV(attr), "ora_dbh_share", 13, 0):NULL) ;
     shared_dbh_priv_sv = shared_dbh_priv_svp?*shared_dbh_priv_svp:NULL ;
 
-    if (shared_dbh_priv_sv && SvROK(shared_dbh_priv_sv)) 
-	shared_dbh_priv_sv = SvRV(shared_dbh_priv_sv) ;	
-    
+    if (shared_dbh_priv_sv && SvROK(shared_dbh_priv_sv))
+	shared_dbh_priv_sv = SvRV(shared_dbh_priv_sv) ;
+
     if (shared_dbh_priv_sv) {
 	MAGIC * mg ;
 
 	SvLOCK (shared_dbh_priv_sv) ;
-	
+
         /* some magic from shared.xs (no public api yet :-( */
 	mg = mg_find(shared_dbh_priv_sv, PERL_MAGIC_shared_scalar) ;
-	
+
 	shared_dbh_ssv = (shared_sv * )(mg?mg -> mg_ptr:NULL) ;  /*sharedsv_find(*shared_dbh_priv_sv) ;*/
 	if (!shared_dbh_ssv)
 	    croak ("value of ora_dbh_share must be a scalar that is shared") ;
-		
+
 	shared_dbh 		= (imp_dbh_t *)SvPVX(shared_dbh_ssv -> sv) ;
 	shared_dbh_len 	= SvCUR((shared_dbh_ssv -> sv)) ;
-	if (shared_dbh_len > 0 && shared_dbh_len != sizeof (imp_dbh_t)) 
+	if (shared_dbh_len > 0 && shared_dbh_len != sizeof (imp_dbh_t))
 	    croak ("Invalid value for ora_dbh_dup") ;
-		
+
 	if (shared_dbh_len == sizeof (imp_dbh_t)) {
 	    /* initialize from shared data */
             memcpy (((char *)imp_dbh) + DBH_DUP_OFF, ((char *)shared_dbh) + DBH_DUP_OFF, DBH_DUP_LEN) ;
@@ -314,7 +314,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
             shared_dbh = NULL ;
        }
     }
-#endif	
+#endif
 
     /* Check if we should re-use a ProC connection and not connect ourselves. */
     DBD_ATTRIB_GET_IV(attr, "ora_use_proc_connection", 23,
@@ -453,9 +453,9 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
                     "OCIEnvNlsCreate. Check ORACLE_HOME env var, NLS settings, permissions, etc.");
                 return 0;
             }
-                
+
             /* update the hard-coded csid constants for unicode charsets */
-            utf8_csid      = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"UTF8"); 
+            utf8_csid      = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"UTF8");
             al32utf8_csid  = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"AL32UTF8");
             al16utf16_csid = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"AL16UTF16");
 
@@ -531,7 +531,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	/* We don't have a way to get the actual charsetid & ncharsetid in use
 	*  but we only care about UTF8 so we'll just check for that and use the
 	*  the hardcoded utf8_csid if found
-	*/  
+	*/
 	char buf[81];
 	char *nls = ora_env_var("NLS_LANG", buf, sizeof(buf)-1);
 	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8"))
@@ -540,10 +540,10 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8"))
 	     ncharsetid = utf8_csid;
     }
-#endif 
+#endif
 #endif
 
-    /* At this point we have charsetid & ncharsetid 
+    /* At this point we have charsetid & ncharsetid
     *  note that it is possible for charsetid and ncharestid to
     *  be distinct if NLS_LANG and NLS_NCHAR are both used.
     *  BTW: NLS_NCHAR is set as follows: NSL_LANG=AL32UTF8
@@ -603,7 +603,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		return 0;
 	    }
 
-	    OCIAttrSet_log_stat( imp_dbh->svchp, OCI_HTYPE_SVCCTX, imp_dbh->srvhp, 
+	    OCIAttrSet_log_stat( imp_dbh->svchp, OCI_HTYPE_SVCCTX, imp_dbh->srvhp,
 			    (ub4) 0, OCI_ATTR_SERVER, imp_dbh->errhp, status);
 
 	    OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->authp, OCI_HTYPE_SESSION, status);
@@ -657,7 +657,7 @@ dbd_db_login6_out:
 	memcpy(SvPVX(shared_dbh_priv_sv) + DBH_DUP_OFF, ((char *)imp_dbh) + DBH_DUP_OFF, DBH_DUP_LEN) ;
 	SvSETMAGIC(shared_dbh_priv_sv);
 	imp_dbh->shared_dbh = (imp_dbh_t *)SvPVX(shared_dbh_ssv->sv);
-    }		
+    }
 #endif
 
     return 1;
@@ -746,10 +746,10 @@ dbd_db_disconnect(SV *dbh, imp_dbh_t *imp_dbh)
 void
 dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 {
-    dTHX ;	
+    dTHX ;
     int refcnt = 1 ;
     sword status;
-	
+
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
     if (DBIc_IMPSET(imp_dbh) && imp_dbh->shared_dbh) {
 	SvLOCK (imp_dbh->shared_dbh_priv_sv) ;
@@ -941,7 +941,7 @@ dbd_preparse(imp_sth_t *imp_sth, char *statement)
 
 	/* only here for : or ? outside of a comment or literal	*/
 
-	start = dest;			/* save name inc colon	*/ 
+	start = dest;			/* save name inc colon	*/
 	*dest++ = *src++;
 	if (*start == '?') {		/* X/Open standard	*/
 	    sprintf(start,":p%d", ++idx); /* '?' -> ':p1' (etc)	*/
@@ -1036,7 +1036,7 @@ ora_sql_type(imp_sth_t *imp_sth, char *name, int sql_type)
 
 
 
-static int 
+static int
 dbd_rebind_ph_char(SV *sth, imp_sth_t *imp_sth, phs_t *phs, ub2 **alen_ptr_ptr)
 {
     STRLEN value_len;
@@ -1055,7 +1055,7 @@ dbd_rebind_ph_char(SV *sth, imp_sth_t *imp_sth, phs_t *phs, ub2 **alen_ptr_ptr)
     if (DBIS->debug >= 2) {
 	char *val = neatsvpv(phs->sv,0);
  	PerlIO_printf(DBILOGFP, "       bind %s <== %.1000s (", phs->name, val);
- 	if (!SvOK(phs->sv)) 
+ 	if (!SvOK(phs->sv))
 	    PerlIO_printf(DBILOGFP, "NULL, ");
 	PerlIO_printf(DBILOGFP, "size %ld/%ld/%ld, ",
 	    (long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
@@ -1125,8 +1125,8 @@ dbd_rebind_ph_char(SV *sth, imp_sth_t *imp_sth, phs_t *phs, ub2 **alen_ptr_ptr)
  * This allows passing cursor refs as "in" to pl/sql (but only if you got the
  * cursor from pl/sql to begin with)
  */
-int 
-pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs) 
+int
+pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
     /*dTHR; -- do we need to do this??? */
     SV * sth_csr = phs->sv;
@@ -1158,7 +1158,7 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 
 int
-pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec) 
+pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 {
     if (pre_exec) {	/* pre-execute - allocate a statement handle */
 	dSP;
@@ -1248,7 +1248,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 }
 
 
-static int 
+static int
 dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
     ub2 *alen_ptr = NULL;
@@ -1332,10 +1332,10 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
     if (csform) {
     	/* set OCI_ATTR_CHARSET_FORM before we get the default OCI_ATTR_CHARSET_ID */
-	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
+	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
 	    &csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
 	if ( status != OCI_SUCCESS ) {
-	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)")); 
+	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)"));
 	    return 0;
 	}
     }
@@ -1364,10 +1364,10 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 
     if (csid) {
-	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND, 
+	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
 	    &csid, (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
 	if ( status != OCI_SUCCESS ) {
-	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)")); 
+	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)"));
 	    return 0;
 	}
     }
@@ -1376,7 +1376,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
 	    neatsvpv(phs->sv,0), (ub4)phs->maxdata_size, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
 	if ( status != OCI_SUCCESS ) {
-	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)")); 
+	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)"));
 	    return 0;
 	}
     }
@@ -1417,6 +1417,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
     if (SvROK(newvalue)
 	&& !IS_DBI_HANDLE(newvalue)	/* dbi handle allowed for cursor variables */
 	&& !SvAMAGIC(newvalue)		/* overload magic allowed (untested) */
+    && !sv_derived_from(newvalue, "OCILobLocatorPtr" )  /* input LOB locator*/
     )
 	croak("Can't bind a reference (%s)", neatsvpv(newvalue,0));
     if (SvTYPE(newvalue) > SVt_PVLV) /* hook for later array logic?	*/
@@ -1729,7 +1730,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 		AV *av = (AV*)SvRV(sv);
 		I32 avlen = AvFILL(av);
 		if (avlen >= 0)
-		    dbd_phs_avsv_complete(phs, avlen, debug); 
+		    dbd_phs_avsv_complete(phs, avlen, debug);
 	    }
 	    else
 		dbd_phs_sv_complete(phs, sv, debug);
@@ -1755,7 +1756,7 @@ dbd_st_blob_read(SV *sth, imp_sth_t *imp_sth, int field, long offset, long len, 
 
 #ifdef UTF8_SUPPORT
     if (ftype == 112 && CS_IS_UTF8(ncharsetid) ) {
-      return ora_blob_read_mb_piece(sth, imp_sth, fbh, bufsv, 
+      return ora_blob_read_mb_piece(sth, imp_sth, fbh, bufsv,
 				    offset, len, destoffset);
     }
 #endif /* UTF8_SUPPORT */
@@ -1856,6 +1857,7 @@ ora_free_phs_contents(phs_t *phs)
 {
     if (phs->desc_h)
 	OCIDescriptorFree_log(phs->desc_h, phs->desc_t);
+
     sv_free(phs->ora_field);
     sv_free(phs->sv);
 }
@@ -1941,8 +1943,14 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 	hv_iterinit(hv);
 	while( (sv = hv_iternextsv(hv, &key, &retlen)) != NULL ) {
 	    if (sv != &sv_undef) {
-		phs_t *phs = (phs_t*)(void*)SvPVX(sv);
-		ora_free_phs_contents(phs);
+		  phs_t *phs = (phs_t*)(void*)SvPVX(sv);
+
+
+	      if (phs->desc_h && phs->desc_t == OCI_DTYPE_LOB)
+	        ora_free_templob(sth, imp_sth, (OCILobLocator*)phs->desc_h);
+
+
+	      ora_free_phs_contents(phs);
 	    }
 	}
 	sv_free((SV*)imp_sth->all_params_hv);
@@ -1986,7 +1994,7 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
     /* int oraperl = DBIc_COMPAT(imp_sth); */
 
     if (kl==13 && strEQ(key, "NUM_OF_PARAMS"))	/* handled by DBI */
-	return Nullsv;	
+	return Nullsv;
 
     if (!imp_sth->done_desc && !dbd_describe(sth, imp_sth)) {
 	STRLEN lna;
