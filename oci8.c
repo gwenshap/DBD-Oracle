@@ -729,7 +729,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	phs->out_prepost_exec = lob_phs_post_execute;
     /* accept input LOBs */
 
-    if (sv_derived_from(phs->sv, "OCILobLocatorPtr")) {
+    if (SvOK(phs->sv) && sv_derived_from(phs->sv, "OCILobLocatorPtr")) {
        OCILobLocator *src;
        OCILobLocator **dest;
        src = INT2PTR(OCILobLocator *, SvIV(SvRV(phs->sv)));
