@@ -1,8 +1,13 @@
-=head1 Changes in DBD-Oracle 1.17 (svn rev 3725)   31th March 2006
-  Added expanded support for Lobs from Jeffrey.Klein@priority-health.com 
-  Changed the following dbdimp.c, oci8.c, ocitrace.h, t/31log.t
+=head1 Changes in DBD-Oracle 1.17 (scn rev 3726)
   
+  Updated README.win32.txt fixed some typos
+  Fixed expanded support for Lobs support from Jeffrey Klein
+  Added notes on expanded support for Lobs to Oracle.pm
+ 
+=head1 Changes in DBD-Oracle 1.17 (svn rev 3725)   
 
+  Added expanded support for Lobs from Jeffrey Klein
+  
 =head1 Changes in DBD-Oracle 1.17 (svn rev 2487)   7th February 2006
 
   NOTE: With this release of DBD::Oracle pythian.com (http://www.pythian.com)

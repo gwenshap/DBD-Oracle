@@ -12,7 +12,7 @@ The Pythian Group
 The preferred method of getting DBD::Oracle is to use a pre-built version from the ActiveState 
 repository, which can be installed with PPM. 
 
-Compiling and installing DBD::Oracle 1.06 on a windows 2000 professional OS for use 
+Compiling and installing DBD::Oracle 1.17 on a windows 2000 professional OS for use 
 with Oracle instantClient ver 10.2.0.1 & 10.1.0.4 requires only a few downloads and 
 a minimal number of environment setting.  The procedures below were tested on a clean 
 Windows 2000 professional platform having no Oracle or other development environment installed.

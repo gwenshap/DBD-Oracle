@@ -2163,7 +2163,6 @@ then you need to tell it which field each LOB param relates to:
 There are some limitations inherent in the way DBD::Oracle makes typical
 LOB operations simple by hiding the LOB Locator processing:
 
- - Can't pass LOBs to/from PL/SQL (except as strings less than 32KB)
  - Can't read/write LOBs in chunks (except via DBMS_LOB.WRITEAPPEND in PL/SQL)
  - To INSERT a LOB, you need UPDATE privilege.
 
@@ -2171,6 +2170,50 @@ The alternative is to disable the automatic LOB Locator processing.
 If L</ora_auto_lob> is 0 in prepare(), you can fetch the LOB Locators and
 do all the work yourself using the ora_lob_*() methods and/or Oracle::OCI.
 See the L</LOB Methods> section below.
+
+=head2 LOB support in PL/SQL
+
+LOB Locators can be passed to PL/SQL calls by binding them to placeholders
+with the proper C<ora_type>.  If L</ora_auto_lob> is true, output LOB
+parameters will be automatically returned as strings. 
+
+If the Oracle driver has support for temporary LOBs (Oracle 9i and higher),
+strings can be bound to input LOB placeholders and will be automatically 
+converted to LOBs.
+
+Example:
+     # Build a large XML document, bind it as a CLOB,
+     # extract elements through PL/SQL and return as a CLOB
+
+     # $dbh is a connected database handle 
+     # output will be large
+
+     local $dbh->{LongReadLen} = 1_000_000;
+
+     my $in_clob = "<document>\n";
+     $in_clob .= "  <value>$_</value>\n" for 1 .. 10_000;
+     $in_clob .= "</document>\n";
+
+     my $out_clob;
+     
+     
+     my $sth = $dbh->prepare(<<PLSQL_END);
+     -- extract 'value' nodes
+     DECLARE
+       x XMLTYPE := XMLTYPE(:in);
+     BEGIN
+       :out := x.extract('/document/value').getClobVal();
+     END;
+
+     PLSQL_END
+     
+     # :in param will be converted to a temp lob
+     # :out parameter will be returned as a string.
+
+     $sth->bind_param( ':in', $in_clob, { ora_type => ORA_CLOB } );
+     $sth->bind_param_inout( ':out', \$out_clob, 0, { ora_type => ORA_CLOB } );
+     $sth->execute;
+
 
 =head2 LOB Locator Methods
 
@@ -2182,6 +2225,10 @@ attribute is false, or returned via PL/SQL procedure calls.
 func() method. Note that methods called via func() don't honour
 RaiseError etc, and so it's important to check $dbh->err after each call.
 It's recommended that you upgrade to DBI 1.38 or later.)
+
+Note that LOB locators are only valid while the statement handle that
+created them is valid.  When all references to the original statement
+handle are lost, the handle is destroyed and the locators are freed.
 
 B<Warning:> Currently multi-byte character set issues have not been
 fully worked out.  So these methods may not do what you expect if

@@ -729,7 +729,8 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	phs->out_prepost_exec = lob_phs_post_execute;
     /* accept input LOBs */
 
-    if (SvOK(phs->sv) && sv_derived_from(phs->sv, "OCILobLocatorPtr")) {
+if (sv_isobject(phs->sv) && sv_derived_from(phs->sv, "OCILobLocatorPtr")) {
+
        OCILobLocator *src;
        OCILobLocator **dest;
        src = INT2PTR(OCILobLocator *, SvIV(SvRV(phs->sv)));
@@ -745,7 +746,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 #if !defined(ORA_OCI_8)
     /* create temporary LOB for PL/SQL placeholder */
 
-    else if (imp_sth->auto_lob && (imp_sth->stmt_type == OCI_STMT_BEGIN ||
+    else if (imp_sth->stmt_type == OCI_STMT_BEGIN ||
           imp_sth->stmt_type == OCI_STMT_DECLARE)) {
        ub4 amtp;
 
