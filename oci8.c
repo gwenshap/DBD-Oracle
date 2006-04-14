@@ -747,7 +747,7 @@ if (sv_isobject(phs->sv) && sv_derived_from(phs->sv, "OCILobLocatorPtr")) {
     /* create temporary LOB for PL/SQL placeholder */
 
     else if (imp_sth->stmt_type == OCI_STMT_BEGIN ||
-          imp_sth->stmt_type == OCI_STMT_DECLARE)) {
+          imp_sth->stmt_type == OCI_STMT_DECLARE) {
        ub4 amtp;
 
        SvUPGRADE(phs->sv, SVt_PV);	/* just in case */
