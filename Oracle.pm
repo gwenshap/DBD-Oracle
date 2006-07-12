@@ -832,7 +832,37 @@ SQL
 
 {   package DBD::Oracle::st; # ====== STATEMENT ======
 
-    # all done in XS
+    sub execute_for_fetch {
+       my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
+       my $row_count = 0;
+       my $batch_size = ($sth->{ora_array_chunk_size} ||= 1000);
+       my $tuple_batch_status;
+    
+       if(defined($tuple_status)) {
+           @$tuple_status = ();
+       $tuple_batch_status = [ ];
+    }
+       while (1) {
+           my @tuple_batch;
+           for (my $i = 0; $i < $batch_size; $i++) {
+                push @tuple_batch, [ @{$fetch_tuple_sub->() || last} ];
+            }
+            last unless @tuple_batch;
+            my $res = ora_execute_array($sth,
+                                            \@tuple_batch,
+                                            scalar(@tuple_batch),
+                                            $tuple_batch_status);
+             if(defined($res) && defined($row_count)) {
+                $row_count += $res;
+             } else {
+                $row_count = undef;
+             }
+             push @$tuple_status, @$tuple_batch_status
+                 if defined($tuple_status);
+            }
+            return $row_count;
+   }
+
 }
 
 1;
@@ -1263,6 +1293,26 @@ Force 'blank-padded comparison semantics'.
 If the previous error was from a failed C<prepare> due to a syntax error,
 this attribute gives the offset into the C<Statement> attribute where the
 error was found.
+
+=back
+
+=head2 Statement Handle Attributes
+
+=over 4
+
+=item C<ora_array_chunk_size>
+
+Because of OCI limitations, DBD::Oracle needs to buffer up rows of
+bind values in its C<execute_for_fetch> implementation. This attribute
+sets the number of rows to buffer at a time (default value is 1000).
+
+The C<execute_for_fetch> function will collect (at most) this many
+rows in an array, send them of to the DB for execution, then go back
+to collect the next chunk of rows and so on. This attribute can be
+used to limit or extend the number of rows processed at a time.
+
+Note that this attribute also applies to C<execute_array>, since that
+method is implemented using C<execute_for_fetch>.
 
 =back
 

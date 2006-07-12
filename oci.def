@@ -372,3 +372,6 @@ OCIEnvNlsCreate
 OCINlsCharSetNameToId
 OCILobIsTemporary
 OCILobFreeTemporary
+OCILobLocatorAssign
+OCILobCreateTemporary
+

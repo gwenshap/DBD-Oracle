@@ -113,6 +113,32 @@ ora_fetch(sth)
 	PerlIO_printf(DBILOGFP, "    !! ERROR: %s %s",
 	    neatsvpv(DBIc_ERR(imp_sth),0), neatsvpv(DBIc_ERRSTR(imp_sth),0));
 
+void
+ora_execute_array(sth, tuples, exe_count, tuples_status, cols=&sv_undef)
+    SV *        sth
+    SV *        tuples
+    IV         exe_count
+    SV *        tuples_status
+    SV *        cols
+    PREINIT:
+    D_imp_sth(sth);
+    int retval;
+    CODE:
+    /* XXX Need default bindings if any phs are so far unbound(?) */
+    /* XXX this code is duplicated in selectrow_arrayref above  */
+    if (DBIc_ROW_COUNT(imp_sth) > 0) /* reset for re-execute */
+        DBIc_ROW_COUNT(imp_sth) = 0;
+    retval = ora_st_execute_array(sth, imp_sth, tuples, tuples_status,
+                                  cols, (ub4)exe_count);
+    /* XXX Handle return value ... like DBI::execute_array(). */
+    /* remember that dbd_st_execute must return <= -2 for error */
+    if (retval == 0)            /* ok with no rows affected     */
+        XST_mPV(0, "0E0");      /* (true but zero)              */
+    else if (retval < -1)       /* -1 == unknown number of rows */
+        XST_mUNDEF(0);          /* <= -2 means error            */
+    else
+        XST_mIV(0, retval);     /* typically 1, rowcount or -1  */
+
 
 void
 cancel(sth)

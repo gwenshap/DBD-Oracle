@@ -105,8 +105,11 @@ struct imp_sth_st {
     ub2 	stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
     U16		auto_lob;
     int  	has_lobs;
+
     lob_refetch_t *lob_refetch;
     int  	nested_cursor;  /* cursors fetched from SELECTs */
+    AV          *bind_tuples;  /* Bind tuples in array execute, or NULL */int         rowwise;       /* If true, bind_tuples is list of */
+		                       /* tuples, otherwise list of columns. */
 
     /* Input Details	*/
     char      *statement;	/* sql (see sth_scan)		*/
@@ -199,6 +202,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     ub4   desc_t;	/* OCI type of desc_h			*/
     ub4   alen;
     ub2 arcode;
+    int   idx;      /* 0-based index for ?/:1 style, or -1  */
 
     sb2 indp;		/* null indicator			*/
     char *progv;
@@ -255,6 +259,9 @@ char *oci_stmt_type_name _((int stmt_type));
 char *oci_status_name _((sword status));
 char * oci_hdtype_name _((ub4 hdtype));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
+int ora_st_execute_array _((SV *sth, imp_sth_t *imp_sth, SV *tuples,
+                            SV *tuples_status, SV *columns, ub4 exe_count));
+
 void ora_free_lob_refetch _((SV *sth, imp_sth_t *imp_sth));
 void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));
 void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));

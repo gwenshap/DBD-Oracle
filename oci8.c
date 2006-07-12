@@ -136,7 +136,7 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
     ) {
 	if (debug >= 4 || recno>1/*XXX temp*/)
 	    PerlIO_printf(DBILOGFP, "    OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
-		what, (long)recno,
+		what ? what : "<NULL>", (long)recno,
 		    (eg_status==OCI_SUCCESS) ? "ok" : oci_status_name(eg_status),
 		    status, (long)eg_errcode, errbuf);
 	errcode = eg_errcode;
@@ -355,6 +355,30 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 {
     phs_t *phs = (phs_t*)octxp;
     STRLEN phs_len;
+    AV *tuples_av;
+	SV *sv;
+	AV *av;
+	SV **sv_p;
+
+	/* Check for bind values supplied by tuple array. */
+	tuples_av = phs->imp_sth->bind_tuples;
+	if(tuples_av) {
+	   /* NOTE: we already checked the validity in ora_st_bind_for_array_exec(). */
+	   sv_p = av_fetch(tuples_av, phs->imp_sth->rowwise ? iter : phs->idx, 0);
+	   av = (AV*)SvRV(*sv_p);
+	   sv_p = av_fetch(av, phs->imp_sth->rowwise ? phs->idx : iter, 0);
+	   sv = *sv_p;
+	   if(SvOK(sv)) {
+	     *bufpp = SvPV(sv, phs_len);
+	     phs->alen = (phs->alen_incnull) ? phs_len+1 : phs_len;
+	     phs->indp = 0;
+	   } else {
+	     *bufpp = SvPVX(sv);
+	     phs->alen = 0;
+	     phs->indp = -1;
+	   }
+    }
+    else
     if (phs->desc_h) {
 	*bufpp  = phs->desc_h;
 	phs->alen = 0;
@@ -378,7 +402,7 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
  	PerlIO_printf(DBILOGFP, "       in  '%s' [%lu,%lu]: len %2lu, ind %d%s\n",
 		phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
 		(phs->desc_h) ? " via descriptor" : "");
-    if (index > 0 || iter > 0)
+   if (!tuples_av && (index > 0 || iter > 0))
 	croak("Arrays and multiple iterations not currently supported by DBD::Oracle (in %d/%d)", index,iter);
     return OCI_CONTINUE;
 }
