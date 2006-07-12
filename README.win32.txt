@@ -5,20 +5,20 @@ If you built Perl with gcc, read README.wingcc.txt as well as this file.
 
 --- other information, some of which is out of date ---
 
-DBD-Oracle for Windows and Oracle Instantclient
+DBD-Oracle for Windows and Oracle Instantclient and 10XE (Express Edition)
 By: John Scoles Scoles@ptyhian.com
 The Pythian Group
 
 The preferred method of getting DBD::Oracle is to use a pre-built version from the ActiveState 
 repository, which can be installed with PPM. 
 
-Compiling and installing DBD::Oracle 1.17 on a windows 2000 professional OS for use 
-with Oracle instantClient ver 10.2.0.1 & 10.1.0.4 requires only a few downloads and 
+Compiling and installing DBD::Oracle 1.18 on a windows 2000 professional or XP OS for use 
+with Oracle instantClient ver 10.2.0.1 & 10.1.0.4 or Oracle XE requires only a few downloads and 
 a minimal number of environment setting.  The procedures below were tested on a clean 
-Windows 2000 professional platform having no Oracle or other development environment installed.
+Windows platform having no Oracle or other development environment installed.
 
 1) The first part of the process is to download and install the latest version of 
-   Active Perl (5.8.7 used) from http://www.activeperl.com/.
+   Active Perl from http://www.activeperl.com/.
 
 2) Use the PPM application to get the latest version of DBI
 
@@ -30,9 +30,15 @@ Windows 2000 professional platform having no Oracle or other development environ
 	i.	Instant Client Package - Basic
 	ii.	Instant Client Package - SQL*Plus:
 	iii.	Instant Client Package - SDK:
+   or 
+   
+   install oracle 10XE http://www.oracle.com/technology/products/database/xe/index.html 
 
-5) You will now need the Microsoft Visual C++ toolkit. Which you can get at 
-   http://msdn.microsoft.com/visualc/vctoolkit2003/. Download and then install this product.
+5) You will now need the Microsoft Visual C++ toolkit 2003. Unfortunately this product is no longer available from Microsoft.  
+   The file name was VCToolkitSetup.exe  and is available at this mirror site http://www.filewatcher.com/m/VCToolkitSetup.exe.32952488.0.0.html at the time of writing.
+   Microsoft's replacement for this tool kit is Visual C++ 2005 Express Edition and all attempts to compile DBD::Oracle with this product fail. It has been successfully compiled
+   using a complete edition of Microsoft Visual Studio 2005. 
+   Download and then install this product.
 
 6) You will also need the Windows SDK. Which can be found at 
    http://www.microsoft.com/downloads/details.aspx?FamilyId=A55B6B43-E24F-4EA3-A93E-40C0EC4F68E5&displaylang=en
@@ -53,21 +59,30 @@ Windows 2000 professional platform having no Oracle or other development environ
 
 	i.   Add  the local path to the windows platform SDK include directory to the Set INCLUDE 
              Command Line to include the needed files from the Windows SDK. 
+             
              e.g.  "C:\Program Files\Microsoft Platform SDK\Include;" 
+             
 	ii.  Add the local path to the .net Vc7 lib directory to the Set LIB command
              to include the needed library file from the .Net SKD
+             
              e.g. C:\Program Files\Microsoft Visual Studio .NET 2003\Vc7\lib;
+             
         iii. Add the local path to the windows platform SDK Lib directory to the Set Lib command 
              to include the needed library files from the Windows SDK
+             
 	     e.g. C:\Program Files\Microsoft Platform SDK\Lib;
 
 11) Open a Windows Visual C++ command window from the start menu.
 
-12) Add the path to the instant client directory to the Path command
-    e.g.  PATH = C:\Oracle\instantclient;%PATH%
+12) Add the path to the instant client or the 10XE client directory to the Path command
+    e.g.  PATH = C:/Oracle/instantclient;%PATH%
+    or
+          PATH = C:/oraclexe/app/oracle/product/10.2.0/server;%Path%
 
 13) Using the "Set" command add "ORACLE_HOME=path to Instant client" to the environment variables.
-    e.g. Set ORACLE_HOME= C:\Oracle\instantclient
+    e.g. Set ORACLE_HOME=C:\Oracle\instantclient
+    or
+         Set ORACLE_HOME=C:/oraclexe/app/oracle/product/10.2.0/server
 
 14) Using the "Set" command add "NLS_LANG=.WE8ISO8859P15" to the environment variables. The globalization variable is required, 
     with this or another compatible value, by Oracle instantclient in order for it to compile correctly.
