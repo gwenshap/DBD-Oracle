@@ -74,16 +74,13 @@ Windows platform having no Oracle or other development environment installed.
 
 11) Open a Windows Visual C++ command window from the start menu.
 
-12) Add the path to the instant client or the 10XE client directory to the Path command
+12) Add the path to the instant client to the Path command. If you are compiling aginst a 10XE db/client then you can skip steps 
+    12 to 14. 
     e.g.  PATH = C:/Oracle/instantclient;%PATH%
-    or
-          PATH = C:/oraclexe/app/oracle/product/10.2.0/server;%Path%
-
+   
 13) Using the "Set" command add "ORACLE_HOME=path to Instant client" to the environment variables.
     e.g. Set ORACLE_HOME=C:\Oracle\instantclient
-    or
-         Set ORACLE_HOME=C:/oraclexe/app/oracle/product/10.2.0/server
-
+   
 14) Using the "Set" command add "NLS_LANG=.WE8ISO8859P15" to the environment variables. The globalization variable is required, 
     with this or another compatible value, by Oracle instantclient in order for it to compile correctly.
     e.g. Set NLS_LANG=.WE8ISO8859P15
@@ -91,7 +88,7 @@ Windows platform having no Oracle or other development environment installed.
 15) Using the "Set" command add "ORACLE_USERID=test/test@test" substituting test with the username/password@database 
     you wish to run the make test files against. 
         Note: it is not necessary to do this step for the compile and install to work. 
-              However, the self-test programs included with Oracle-DBD will not run correctly is this varaible is not set.
+     However: The self-test programs included with Oracle-DBD will mostly fail.
 
 16) Move to the DBD-Oracle directory in the Visual C++ window DOS prompt and enter the following.
 
@@ -99,7 +96,7 @@ Windows platform having no Oracle or other development environment installed.
 
      The Makefile should then run and compile Oracle-dbd without reporting any errors.
 
-17) From the DOS prompt enter the following command
+17) From this DOS prompt enter the following command
 
 		c:\oracle-dbd\>nmake
 
@@ -109,7 +106,7 @@ Windows platform having no Oracle or other development environment installed.
 
 		c:\oracle-dbd\>nmake test
 
-    As long as you have given a valid user name, password and database name instep 15 you will see some results.  If it appears to
+    As long as you have given a valid user name, password and database name in step 15 you will see some results.  If it appears to
     run but you do not get a connection check the following.
 
 		i.   User name password and DB Name 
@@ -117,6 +114,7 @@ Windows platform having no Oracle or other development environment installed.
 		iii. Attempt to log into the version of SQLPLUS that comes with Instantclient.  
                      If you manage to log on use the username password and TNS name with 
                      the Set ORACLE_USERID = and rerun the tests.
+                iv   If you are compiling against 10XE and have skiped steps 12 to 14 try again bu this time carry out these steps
 
 19) You can now install DBD-Oracle into you system by entering the following command from the Visual C++ window dos prompt;
 

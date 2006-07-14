@@ -224,7 +224,7 @@ ora_lob_append(dbh, locator, data)
     STRLEN data_len; /* bytes not chars */
     dvoid *bufp;
     sword status;
-    ub4 startp;
+    /*ub4 startp;*/
     ub1 csform;
     ub2 csid;
     CODE:

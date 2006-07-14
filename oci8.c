@@ -582,17 +582,19 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
     return 1;
 }
 
-static int
+/*static int
 fetch_func_nty(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 {
     fb_ary_t *fb_ary = fbh->fb_ary;
     char *p = (char*)&fb_ary->abuf[0];
-    ub4 datalen = *(ub4*)p;     /* XXX alignment ? */
+    ub4 datalen = *(ub4*)p;   */
+  /* XXX alignment ? */
+/*
     warn("fetch_func_nty unimplemented (datalen %d)", datalen);
     sv_set_undef(dest_sv);
     return 1;
 }
-
+*/
 
 /* ------ */
 

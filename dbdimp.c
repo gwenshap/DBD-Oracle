@@ -1859,7 +1859,7 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
     AV *av;
     phs_t **phs;
     STRLEN len;
-    sword status;
+    /*sword status;*/
 
     phs = safemalloc(param_count*sizeof(*phs));
     memset(phs, 0, param_count*sizeof(*phs));
@@ -2002,7 +2002,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     ub4 exe_count;
 {
     dTHR;
-    ub4 row_count = 0;
+    /*ub4 row_count = 0;*/
     int debug = DBIS->debug;
     D_imp_dbh_from_sth;
     sword status, exe_status;
@@ -2096,7 +2096,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
         OCIError *row_errhp, *tmp_errhp;
         ub4 row_off;
         SV *err_svs[2];
-        AV *err_av;
+        /*AV *err_av;*/
         sb4 err_code;
 
         err_svs[0] = newSViv((IV)0);
