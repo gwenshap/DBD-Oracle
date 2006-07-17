@@ -1016,7 +1016,7 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	    "        blob_read field %d: ftype %d %s, offset %ld, len %lu."
 		    "LOB csform %d, len %lu, amtp %lu, (destoffset=%ld)\n",
 	    fbh->field_num+1, ftype, type_name, offset, ul_t(len),
-	    csform, loblen, ul_t(amtp), destoffset);
+	    csform,(unsigned long) (loblen), ul_t(amtp), destoffset);
 
     if (loblen > 0) {
         ub1 * bufp = (ub1 *)(SvPVX(dest_sv));
@@ -1280,7 +1280,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	cache_mem  = 0;             /* so memory isn't the limit */
 	cache_rows = calc_cache_rows(imp_sth->cache_rows,
 		(int)num_fields, imp_sth->est_width, has_longs);
-	if (max_cache_rows && cache_rows > max_cache_rows)
+	if (max_cache_rows && cache_rows > (unsigned long) max_cache_rows)
 	    cache_rows = max_cache_rows;
 	imp_sth->cache_rows = cache_rows;	/* record updated value */
 
@@ -1298,7 +1298,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
     else {				/* set cache size by memory	*/
 	cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
 	cache_rows = 100000;	/* set high so memory is the limit */
-	if (max_cache_rows && cache_rows > max_cache_rows) {
+	if (max_cache_rows &&  cache_rows > (unsigned long) max_cache_rows) {
 	    cache_rows = max_cache_rows;
 	    imp_sth->cache_rows = cache_rows;	/* record updated value only if max_cache_rows */
 	}
@@ -1317,7 +1317,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
     if (DBIS->debug >= 3)
 	PerlIO_printf(DBILOGFP,
 	    "    row cache OCI_ATTR_PREFETCH_ROWS %lu, OCI_ATTR_PREFETCH_MEMORY %lu\n",
-	    cache_rows, cache_mem);
+	    (unsigned long) (cache_rows), (unsigned long) (cache_mem));
     return num_errors;
 }
 

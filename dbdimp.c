@@ -1133,7 +1133,7 @@ dbd_rebind_ph_char(SV *sth, imp_sth_t *imp_sth, phs_t *phs, ub2 **alen_ptr_ptr)
 	    /* phs->sv _is_ the real live variable, it may 'mutate' later	*/
 	    /* pre-upgrade to high'ish type to reduce risk of SvPVX realloc/move */
 	    (void)SvUPGRADE(phs->sv, SVt_PVNV);
-	    SvGROW(phs->sv, (STRLEN)((phs->maxlen < min_len) ? min_len : phs->maxlen)+1/*for null*/);
+	    SvGROW(phs->sv, (STRLEN)(((unsigned int) phs->maxlen < min_len) ? min_len : (unsigned int) phs->maxlen)+1/*for null*/);
 	}
     }
 
@@ -1901,7 +1901,7 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
             }
             av = (AV*)SvRV(sv);
 
-            for(j = 0; j < exe_count; j++) {
+            for(j = 0; (unsigned int) j <  exe_count; j++) {
                 sv_p = av_fetch(av, j, 0);
                 if(sv_p == NULL) {
                     Safefree(phs);
@@ -1916,7 +1916,7 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
                           neatsvpv(sv,0), i, j);
                 }
                 SvPV(sv, len);
-                if(len > phs[i]->maxlen)
+                if(len > (unsigned int) phs[i]->maxlen)
                     phs[i]->maxlen = len;
             }
 
@@ -1927,7 +1927,7 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
         }
     } else {
         /* Row-wise operation; tuples_av holds a list of bind value tuples. */
-        for(j = 0; j < exe_count; j++) {
+        for(j = 0; (unsigned int) j < exe_count; j++) {
             sv_p = av_fetch(tuples_av, j, 0);
             if(sv_p == NULL) {
                 Safefree(phs);
@@ -1972,7 +1972,7 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
                           neatsvpv(sv,0), i, j);
                 }
                 SvPV(sv, len);
-                if(len > phs[i]->maxlen)
+                if(len > (unsigned int) phs[i]->maxlen)
                     phs[i]->maxlen = len;
 
                 /* Do OCI bind calls on last iteration. */
@@ -2055,7 +2055,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
         av_fill(tuples_status_av, exe_count - 1);
         /* Fill in 'unknown' exe count in every element (know not how to get
            individual execute row counts from OCI). */
-        for(i = 0; i < exe_count; i++) {
+        for(i = 0; (unsigned int) i < exe_count; i++) {
             av_store(tuples_status_av, i, newSViv((IV)-1));
         }
     } else {
@@ -2103,7 +2103,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
         err_svs[1] = newSVpvn("", 0);
         OCIHandleAlloc_ok(imp_sth->envhp, &row_errhp, OCI_HTYPE_ERROR, status);
         OCIHandleAlloc_ok(imp_sth->envhp, &tmp_errhp, OCI_HTYPE_ERROR, status);
-        for(i = 0; i < num_errs; i++) {
+        for(i = 0; (unsigned int) i < num_errs; i++) {
             OCIParamGet_log_stat(imp_sth->errhp, OCI_HTYPE_ERROR,
                                  tmp_errhp, (dvoid *)&row_errhp,
                                  (ub4)i, status);

@@ -13,7 +13,7 @@ The preferred method of getting DBD::Oracle is to use a pre-built version from t
 repository, which can be installed with PPM. 
 
 Compiling and installing DBD::Oracle 1.18 on a windows 2000 professional or XP OS for use 
-with Oracle instantClient ver 10.2.0.1 & 10.1.0.4 or Oracle XE requires only a few downloads and 
+with Oracle instantClient ver 10.2.0.1 & 10.1.0.5 or Oracle XE requires only a few downloads and 
 a minimal number of environment setting.  The procedures below were tested on a clean 
 Windows platform having no Oracle or other development environment installed.
 
@@ -24,7 +24,7 @@ Windows platform having no Oracle or other development environment installed.
 
 3) Download the latest DBD::Oracle from http://svn.perl.org/modules/dbd-oracle/trunk/
 
-4) Download and unzip the Oracle Instant Client (10.2.0.1 or 10.1.0.4) 32 bit from 
+4) Download and unzip the Oracle Instant Client (10.2.0.1 or 10.1.0.5) 32 bit from 
    http://www.oracle.com/technology/tech/oci/instantclient/instantclient.html 
    You will need all three of these products
 	i.	Instant Client Package - Basic
