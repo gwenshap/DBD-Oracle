@@ -70,3 +70,26 @@ To get 10Xe to compile correctly I had to add $ORACLE_HOME/lib to the LD_LIBRARY
 as you would for an install against 10g Standard Edition, Standard Edition One, or 
 Enterprise Edition 
  
+From John Scoles <scoles@pythian.com>
+Date: Fri, 21 July 2006 13:42:47 -0700 (EST)
+Subject: UTF8 bug in Oracle  9.2.0.5.0 and 9.2.0.7.0  
+
+DBD::Oracle from version 1.16 forward seems to hit some sort of bug with the above two versions of DB.
+The bug seems to hit when you when the Oracle database charset: US7ASCII and the Oracle nchar charset: AL16UTF16 and it has also
+been reported when the Oracle database charset: WE8ISO8850P1 Oracle nchar charset: AL32UTF16.  
+
+So far there is no patch for this but here are some work arounds 
+
+use DBD::Oracle qw( SQLCS_IMPLICIT SQLCS_NCHAR );
+...
+$sth->bind_param(1, $value, { ora_csform => SQLCS_NCHAR });
+
+or this way
+
+$dbh->{ora_ph_csform} = SQLCS_NCHAR; # default for all future placeholders
+
+or this way
+
+utf8::downgrade($parameter, 1);
+
+
