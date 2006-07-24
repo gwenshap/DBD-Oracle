@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="6647"
+   name=""
+   committed-date="2006-07-14T16:01:35.023333Z"
+   url="http://svn.perl.org/modules/dbd-oracle/trunk/t"
+   last-author="byterock"
+   kind="dir"
+   uuid="50811bd7-b8ce-0310-adc1-d9db26280581"
+   repos="http://svn.perl.org/modules"
+   revision="6699"/>
+<entry
+   committed-rev="2412"
+   name="10general.t"
+   text-time="2006-07-07T13:17:28.890625Z"
+   committed-date="2006-01-13T15:15:01.051979Z"
+   checksum="421b8fdc2111110d4e88f4fee115c7c8"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.625000Z"/>
+<entry
+   committed-rev="3723"
+   name="31lob.t"
+   text-time="2006-07-07T13:17:28.906250Z"
+   committed-date="2006-03-28T16:47:33.975748Z"
+   checksum="1c572f515d9e7c4d7645c13180d4faa7"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.656250Z"/>
+<entry
+   committed-rev="2412"
+   name="20select.t"
+   text-time="2006-07-07T13:17:28.921875Z"
+   committed-date="2006-01-13T15:15:01.051979Z"
+   checksum="3953260637bdf5dffb721b660d204364"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.671875Z"/>
+<entry
+   committed-rev="2412"
+   name="50cursor.t"
+   text-time="2006-07-07T13:17:28.921875Z"
+   committed-date="2006-01-13T15:15:01.051979Z"
+   checksum="90ffb3d561a5e66fc8c35612ae1cf5ad"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.671875Z"/>
+<entry
+   committed-rev="437"
+   name="24implicit_utf8.t"
+   text-time="2006-07-07T13:17:28.937500Z"
+   committed-date="2004-08-25T23:46:44.416056Z"
+   checksum="b985a250cb4d3d022923505099b5132f"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.687500Z"/>
+<entry
+   committed-rev="437"
+   name="22nchar_al32utf8.t"
+   text-time="2006-07-07T13:17:28.937500Z"
+   committed-date="2004-08-25T23:46:44.416056Z"
+   checksum="bd4eaf8b686d86531056e23187b55210"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.718750Z"/>
+<entry
+   committed-rev="6647"
+   name="26exe_array.t"
+   text-time="2006-07-21T16:52:42.656250Z"
+   committed-date="2006-07-14T16:01:35.023333Z"
+   checksum="a447b712d79d234150264efa95f411b4"
+   last-author="byterock"
+   kind="file"/>
+<entry
+   committed-rev="509"
+   name="23wide_db_8bit.t"
+   text-time="2006-07-07T13:17:28.968750Z"
+   committed-date="2004-10-21T16:52:28.990604Z"
+   checksum="fe8a73f1ef491b1a20a1bc8ac348b8e4"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.734375Z"/>
+<entry
+   committed-rev="2436"
+   name="nchar_test_lib.pl"
+   text-time="2006-07-07T13:17:28.953125Z"
+   committed-date="2006-01-20T09:53:01.767731Z"
+   checksum="496e0a8fb9d46bd5b135655743b26c85"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.718750Z"/>
+<entry
+   committed-rev="437"
+   name="23wide_db_al32utf8.t"
+   text-time="2006-07-07T13:17:28.968750Z"
+   committed-date="2004-08-25T23:46:44.416056Z"
+   checksum="0c4a6ec9bfafac80c1b465af57f8e564"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.734375Z"/>
+<entry
+   committed-rev="2426"
+   name="55nested.t"
+   text-time="2006-07-07T13:17:28.984375Z"
+   committed-date="2006-01-18T10:30:46.169661Z"
+   checksum="5e04b2f86982c85910161f06f339af38"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.765625Z"/>
+<entry
+   committed-rev="2435"
+   name="70meta.t"
+   text-time="2006-07-07T13:17:29.000000Z"
+   committed-date="2006-01-20T09:42:05.815179Z"
+   checksum="320ef3849834d5a10623f1508bf6434d"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.765625Z"/>
+<entry
+   committed-rev="2412"
+   name="60reauth.t"
+   text-time="2006-07-07T13:17:29.015625Z"
+   committed-date="2006-01-13T15:15:01.051979Z"
+   checksum="32bc977b1f50374092d2bd3e579110cf"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.796875Z"/>
+<entry
+   committed-rev="443"
+   name="21nchar.t"
+   text-time="2006-07-07T13:17:29.015625Z"
+   committed-date="2004-08-26T23:34:49.417307Z"
+   checksum="965a7f28283d462560c3e3d731290eff"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.781250Z"/>
+<entry
+   committed-rev="2412"
+   name="25plsql.t"
+   text-time="2006-07-07T13:17:29.031250Z"
+   committed-date="2006-01-13T15:15:01.051979Z"
+   checksum="5a2782a96b5d0cc4bb5395b303cbdbdb"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.812500Z"/>
+<entry
+   committed-rev="494"
+   name="30long.t"
+   text-time="2006-07-07T13:17:29.031250Z"
+   committed-date="2004-10-18T21:02:01.062990Z"
+   checksum="6024b44f2018cc2210bca52b2b14be1e"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.812500Z"/>
+<entry
+   committed-rev="2412"
+   name="15nls.t"
+   text-time="2006-07-07T13:17:29.046875Z"
+   committed-date="2006-01-13T15:15:01.051979Z"
+   checksum="70c33f3cb574979429629153b779b5b7"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.828125Z"/>
+<entry
+   committed-rev="437"
+   name="23wide_db.t"
+   text-time="2006-07-07T13:17:29.062500Z"
+   committed-date="2004-08-25T23:46:44.416056Z"
+   checksum="57b6b63ebb1c2fee9e2cfbcd3fc78df3"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.828125Z"/>
+<entry
+   committed-rev="437"
+   name="22nchar_utf8.t"
+   text-time="2006-07-07T13:17:29.062500Z"
+   committed-date="2004-08-25T23:46:44.416056Z"
+   checksum="6ef0db92132755c72acc072e03d17c6b"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.859375Z"/>
+<entry
+   committed-rev="2348"
+   name="01base.t"
+   text-time="2006-07-07T13:17:29.093750Z"
+   committed-date="2005-12-31T17:42:40.653449Z"
+   checksum="9c69de100042ea1dd798e8b35613b884"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.875000Z"/>
+<entry
+   committed-rev="2420"
+   name="40ph_type.t"
+   text-time="2006-07-07T13:17:29.093750Z"
+   committed-date="2006-01-16T21:14:49.632844Z"
+   checksum="19b86e1f4aac096cd27628627fabf4c0"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.890625Z"/>
+</wc-entries>

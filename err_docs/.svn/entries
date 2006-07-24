@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="1088"
+   name=""
+   committed-date="2005-06-25T00:30:12.866514Z"
+   url="http://svn.perl.org/modules/dbd-oracle/trunk/err_docs"
+   last-author="timbo"
+   kind="dir"
+   uuid="50811bd7-b8ce-0310-adc1-d9db26280581"
+   repos="http://svn.perl.org/modules"
+   revision="6699"/>
+<entry
+   committed-rev="1088"
+   name="err_trace.msg"
+   text-time="2006-07-07T13:17:26.750000Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="3b5173cfe542a38fb6d21c03dab815de"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:26.734375Z"/>
+</wc-entries>

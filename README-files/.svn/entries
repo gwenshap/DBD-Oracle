@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="2477"
+   name=""
+   committed-date="2006-02-02T20:57:03.981892Z"
+   url="http://svn.perl.org/modules/dbd-oracle/trunk/README-files"
+   last-author="timbo"
+   kind="dir"
+   uuid="50811bd7-b8ce-0310-adc1-d9db26280581"
+   repos="http://svn.perl.org/modules"
+   revision="6699"/>
+<entry
+   name="hpux"
+   kind="dir"/>
+</wc-entries>

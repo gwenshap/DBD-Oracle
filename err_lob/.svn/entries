@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="1088"
+   name=""
+   committed-date="2005-06-25T00:30:12.866514Z"
+   url="http://svn.perl.org/modules/dbd-oracle/trunk/err_lob"
+   last-author="timbo"
+   kind="dir"
+   uuid="50811bd7-b8ce-0310-adc1-d9db26280581"
+   repos="http://svn.perl.org/modules"
+   revision="6699"/>
+<entry
+   committed-rev="1088"
+   name="err_loblenwide.msg"
+   text-time="2006-07-07T13:17:27.968750Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="e5a08455ea32c14c4b0668e37d4c1df7"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.875000Z"/>
+<entry
+   committed-rev="1088"
+   name="err_csr_clob.msg"
+   text-time="2006-07-07T13:17:27.984375Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="6b411184a424a53594548c1201c2fcc7"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.890625Z"/>
+<entry
+   committed-rev="1088"
+   name="err_lobtesttblfail.msg"
+   text-time="2006-07-07T13:17:27.984375Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="0d4fdcd140bf2dd7aa5431e91cf17fbd"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.921875Z"/>
+<entry
+   committed-rev="1088"
+   name="err_nulllobsegv.msg"
+   text-time="2006-07-07T13:17:28.000000Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="8bc71d89755e68ef2c7dc2b634cc6a1c"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.937500Z"/>
+<entry
+   committed-rev="1088"
+   name="err_tmplobfree.msg"
+   text-time="2006-07-07T13:17:28.000000Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="844c97dad51f159d1a1af9c8c388faf6"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.937500Z"/>
+<entry
+   committed-rev="1088"
+   name="err_nclob_form.msg"
+   text-time="2006-07-07T13:17:28.015625Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="0ec92419da38311c3c658f8673f36cea"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.953125Z"/>
+</wc-entries>

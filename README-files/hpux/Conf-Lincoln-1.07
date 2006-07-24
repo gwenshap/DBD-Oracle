@@ -1,0 +1,43 @@
+     Platform:
+       osname=hpux, osvers=11.11, archname=PA-RISC2.0
+       uname='hp-ux dhas116 b.11.11 u 9000800 1509760598 unlimited-user license '
+       config_args='-Dprefix=/opt/perl/5.6.1-fccs-02 -Ubincompat5005 -Uuselargefiles \
+         -A eval:libswanted=\"cl pthread $libswanted\"  -des'
+       hint=recommended, useposix=true, d_sigaction=define
+       usethreads=undef use5005threads=undef useithreads=undef usemultiplicity=undef
+       useperlio=undef d_sfio=undef uselargefiles=undef usesocks=undef
+       use64bitint=undef use64bitall=undef uselongdouble=undef
+     Compiler:
+       cc='cc', ccflags ='-D_HP-UX_SOURCE -Aa',
+       optimize='-O',
+       cppflags='-D_HP-UX_SOURCE -Aa'
+       ccversion='B.11.11.02', gccversion='', gccosandvers=''
+       intsize=4, longsize=4, ptrsize=4, doublesize=8, byteorder=4321
+       d_longlong=undef, longlongsize=, d_longdbl=define, longdblsize=16
+       ivtype='long', ivsize=4, nvtype='double', nvsize=8, Off_t='off_t', lseeksize=4
+       alignbytes=8, usemymalloc=y, prototype=define
+     Linker and Libraries:
+       ld='ld', ldflags =' -Wl,+vnocompatwarnings -L/usr/local/lib -L/opt/gnu/lib'
+       libpth=/usr/local/lib /opt/gnu/lib /lib /usr/lib /usr/ccs/lib
+       libs=-lcl -lpthread -lnsl -lnm -lndbm -ldld -lm -lc -lndir -lcrypt -lsec
+       perllibs=-lcl -lpthread -lnsl -lnm -ldld -lm -lc -lndir -lcrypt -lsec
+       libc=/lib/libc.sl, so=sl, useshrplib=false, libperl=libperl.a
+     Dynamic Linking:
+       dlsrc=dl_hpux.xs, dlext=sl, d_dlsymun=undef, ccdlflags='-Wl,-E -Wl,-B,deferred '
+       cccdlflags='+z', lddlflags='-b +vnocompatwarnings -L/usr/local/lib -L/opt/gnu/lib'
+
+
+   Characteristics of this binary (from libperl):
+     Compile-time options:
+     Built under hpux
+     Compiled at Feb 26 2002 22:05:51
+     %ENV:
+       PERL5LIB="/home/baxtlinc/local/lib:/home/baxtlinc/perl/lib"
+     @INC:
+       /home/baxtlinc/local/lib
+       /home/baxtlinc/perl/lib
+       /opt/perl/5.6.1-fccs-02/lib/5.6.1/PA-RISC2.0
+       /opt/perl/5.6.1-fccs-02/lib/5.6.1
+       /opt/perl/5.6.1-fccs-02/lib/site_perl/5.6.1/PA-RISC2.0
+       /opt/perl/5.6.1-fccs-02/lib/site_perl/5.6.1
+       /opt/perl/5.6.1-fccs-02/lib/site_perl
