@@ -75,6 +75,7 @@ t/23wide_db_8bit.t
 t/23wide_db_al32utf8.t
 t/24implicit_utf8.t
 t/25plsql.t
+t/26exe_array.t
 t/30long.t
 t/31lob.t
 t/40ph_type.t
