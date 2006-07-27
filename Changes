@@ -3,7 +3,7 @@
   Added support for native Oracle Array interface thanks Kristian Nielsen 
   Added suppot for LOB Locators from Jeffrey Klein.
   Updated README.win32.txt for Oracle 10xe and new Visual C++ version
-  Updated README.win32.txt for work-araound for UTF8 bug
+  Updated README.lunix.txt for work-araound for UTF8 bug
   Fixed a number of compile warings  
   
 please enjoy.
