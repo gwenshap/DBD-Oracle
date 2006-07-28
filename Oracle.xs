@@ -224,7 +224,7 @@ ora_lob_append(dbh, locator, data)
     STRLEN data_len; /* bytes not chars */
     dvoid *bufp;
     sword status;
-#if defined(ORA_OCI_8) || !defined(OCI_HTYPE_DIRPATH_FN_CTX) /* Oracle is > 9.0 */
+#if defined(ORA_OCI_8) || !defined(OCI_HTYPE_DIRPATH_FN_CTX) /* Oracle is < 9.0 */
     ub4 startp;
 #endif
     ub1 csform;
