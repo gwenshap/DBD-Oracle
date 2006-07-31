@@ -927,4 +927,57 @@ Dynamicly linking is what you get by default, so its way better tested.
 
 =back
 
+=head1 Appendix E (WebLogic Driver for Oracle with the Oracle8i Server Lob Bug)
+
+Michael Fox reported a bug when you are using DBD-Oracle-1.18 or later and when using older Oracle versions. 
+The bug will result in an error report 
+
+   'Failed to load Oracle extension and/or shared libraries'.
+
+This problem occurs if you use the WebLogic Driver for Oracle with the Oracle8i Server 
+- Enterprise Edition 8.1.7 and the corresponding Oracle Call Interface (OCI). 
+This problem occurs only in Oracle 8.1.7; it is fixed in Oracle 9i.
+
+This link details the problem
+
+=head1 http://e-docs.bea.com/platform/suppconfigs/configs70/hptru64unix51_alpha/70sp1.html#88784
+
+The solution from this page is below;
+
+To work around this problem, complete the following procedure:
+
+=item 1 Log in to your Oracle account: 
+
+   su - oracle 
+
+=item 2 In a text editor, open the following file:  
+
+   $ORACLE_HOME/rdbms/admin/shrept.lst
+
+=itme 3 Add the following line: 
+   
+   rdbms:OCILobLocatorAssign
+
+=item 4 (optional) Add the names of any other missing functions needed by applications, other than WebLogic Server 7.0, that you want to execute. 
+Note: The OCILobLocatorAssign function is not the only missing function that WebLogic Server 7.0 should be able to call, but it is the only missing function that WebLogic Server 7.0 requires. Other functions that WebLogic Server should be able to call, such as OCIEnvCreate and OCIerminate, are also missing. If these functions are required by other applications that you plan to run, you must add them to your environment by specifying them, too, in $ORACLE_HOME/rdbms/admin/shrept.lst.
+
+=item 5 Rebuild the shared client library: 
+   
+   $ cd $ORACLE_HOME/rdbms/lib 
+   $ make -f ins_rdbms.mk client_sharedlib 
+
+The make command updates the following files in /opt/oracle/product/8.1.7/lib:
+
+   clntsh.map 
+   ldap.def libclntsh.so 
+   libclntsh.so.8.0 libclntst8.a 
+   network.def 
+   plsql.def 
+   precomp.def 
+   rdbms.def 
+
+Because OCILobLocatorAssign is now visible in libclntsh.so, WebLogic Server can call it.
+
+=back
+
 =cut
