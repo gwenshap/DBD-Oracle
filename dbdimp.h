@@ -108,8 +108,9 @@ struct imp_sth_st {
 
     lob_refetch_t *lob_refetch;
     int  	nested_cursor;  /* cursors fetched from SELECTs */
-    AV          *bind_tuples;  /* Bind tuples in array execute, or NULL */int         rowwise;       /* If true, bind_tuples is list of */
-		                       /* tuples, otherwise list of columns. */
+    AV      *bind_tuples;  /* Bind tuples in array execute, or NULL */
+    int     rowwise;       /* If true, bind_tuples is list of */
+		                   /* tuples, otherwise list of columns. */
 
     /* Input Details	*/
     char      *statement;	/* sql (see sth_scan)		*/
@@ -260,7 +261,7 @@ char *oci_status_name _((sword status));
 char * oci_hdtype_name _((ub4 hdtype));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 int ora_st_execute_array _((SV *sth, imp_sth_t *imp_sth, SV *tuples,
-                            SV *tuples_status, SV *columns, ub4 exe_count));
+                            SV *tuples_status, SV *columns,ub4 exe_count));
 
 void ora_free_lob_refetch _((SV *sth, imp_sth_t *imp_sth));
 void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));

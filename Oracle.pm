@@ -6,7 +6,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.18';
+$DBD::Oracle::VERSION = '1.19';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -835,33 +835,39 @@ SQL
     sub execute_for_fetch {
        my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
        my $row_count = 0;
+       my $tuple_count=0;
        my $batch_size = ($sth->{ora_array_chunk_size} ||= 1000);
        my $tuple_batch_status;
     
        if(defined($tuple_status)) {
            @$tuple_status = ();
-       $tuple_batch_status = [ ];
-    }
+           $tuple_batch_status = [ ];
+       }
        while (1) {
            my @tuple_batch;
            for (my $i = 0; $i < $batch_size; $i++) {
                 push @tuple_batch, [ @{$fetch_tuple_sub->() || last} ];
-            }
-            last unless @tuple_batch;
-            my $res = ora_execute_array($sth,
-                                            \@tuple_batch,
-                                            scalar(@tuple_batch),
-                                            $tuple_batch_status);
-             if(defined($res) && defined($row_count)) {
+           }
+           last unless @tuple_batch;
+           my $res = ora_execute_array($sth,
+                                           \@tuple_batch,
+                                           scalar(@tuple_batch),
+                                           $tuple_batch_status);
+           if(defined($res) && defined($row_count)) {
                 $row_count += $res;
-             } else {
+           } else {
                 $row_count = undef;
-             }
-             push @$tuple_status, @$tuple_batch_status
-                 if defined($tuple_status);
-            }
-            return $row_count;
-   }
+           }
+           $tuple_count+=@$tuple_batch_status;
+           push @$tuple_status, @$tuple_batch_status
+           if defined($tuple_status);
+       }
+       if (!wantarray) {
+	   return undef if !defined $row_count;
+   	   return $tuple_count;
+       }
+       return (defined $row_count ? $tuple_count : undef, $row_count);
+    }
 
 }
 
@@ -988,7 +994,7 @@ B<Note:> Some of these formats may not work with Oracle 8+.
   #  - or -
   $dbh = DBI->connect('dbi:Oracle:','scott/tiger');
 
-Refer to your Oracle documentatiion for valid values of TWO_TASK.
+Refer to your Oracle documentation for valid values of TWO_TASK.
 
 Here are some variations (not setting TWO_TASK) in order of preference:
 
@@ -1094,7 +1100,7 @@ SQL scripts to get at V$ info.
   my $dbuser = "xxx";
   my $dbpass = "xxx";
   my $dbh = DBI->connect("dbi:Oracle:$dbname", $dbuser, $dbpass)
-             || die "Unale to connect to $dbname: $DBI::errstr\n";
+             || die "Unbale to connect to $dbname: $DBI::errstr\n";
 
 =head2 Oracle utilities
 
@@ -1108,7 +1114,7 @@ and check the output. The "Protocol Adapters" section should be the
 same.  It should include at least "IPC Protocol Adapter" and "TCP/IP
 Protocol Adapter".
 
-If it generates any errors which look relevant then please talk to yor
+If it generates any errors which look relevant then please talk to your
 Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
 
@@ -1145,7 +1151,7 @@ In numeric context ORA_OCI returns the major.minor version number
 (8.1, 9.2, 10.0 etc).  But note that version numbers are not actually
 floating point and so if Oracle ever makes a release that has a two
 digit minor version, such as C<9.10> it will have a lower numeric
-value than the preceeding C<9.9> release. So use with care.
+value than the preceding C<9.9> release. So use with care.
 
 The contents and format of ORA_OCI are subject to change (it may,
 for example, become a I<version object> in later releases).
@@ -1338,8 +1344,8 @@ All other values have the same effect as 1.
 
 =item ora_auto_lob
 
-If true (the default), fetching retreives the contents of the CLOB or
-BLOB column in most circumstances.  If false, fetching retreives the
+If true (the default), fetching retrieves the contents of the CLOB or
+BLOB column in most circumstances.  If false, fetching retrieves the
 Oracle "LOB Locator" of the CLOB or BLOB value.
 
 See L</Handling LOBs> for more details.
@@ -1562,10 +1568,10 @@ many misconceptions about Unicode and you may be holding some of them.
 
 =head2 Perl and Unicode
 
-Perl began implementing Unicode with version 5.6, but the implementaion
+Perl began implementing Unicode with version 5.6, but the implementation
 did not mature until version 5.8 and later. If you plan to use Unicode
 you are I<strongly> urged to use perl 5.8.2 or later and to I<carefully> read
-the perl documention on Unicode:
+the perl documentaion on Unicode:
 
    perldoc perluniintro    # in perl 5.8 or later
    perldoc perlunicode
@@ -1742,7 +1748,7 @@ them as strings and Oracle converts them to the appropriate type,
 such as DATE, when used.
 
 Some of these automatic conversions to and from strings use NLS
-setings to control the formating for output and the parsing for
+settings to control the formating for output and the parsing for
 input. The most common example is the DATE type. The default NLS
 format for DATE might be DD-MON-YYYY and so when a DATE type is
 fetched that's how Oracle will format the date. NLS settings also
@@ -2653,7 +2659,7 @@ attribute C<RowCacheSize> (q.v.).
 
 In Oracle, server side open cursors are a controlled resource, limited in
 number, on a per session basis, to the value of the initialization
-parameter C<OPEN_CURSORS>. Nested cursors count towards ths limit.
+parameter C<OPEN_CURSORS>. Nested cursors count towards this limit.
 Each nested cursor in the current row counts 1, as does
 each nested cursor in a pre-fetched row. Defunct nested cursors do not count.
 
