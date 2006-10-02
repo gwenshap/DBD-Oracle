@@ -1100,7 +1100,7 @@ SQL scripts to get at V$ info.
   my $dbuser = "xxx";
   my $dbpass = "xxx";
   my $dbh = DBI->connect("dbi:Oracle:$dbname", $dbuser, $dbpass)
-             || die "Unbale to connect to $dbname: $DBI::errstr\n";
+             || die "Unable to connect to $dbname: $DBI::errstr\n";
 
 =head2 Oracle utilities
 
