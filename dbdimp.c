@@ -1863,7 +1863,6 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
 
     phs = safemalloc(param_count*sizeof(*phs));
     memset(phs, 0, param_count*sizeof(*phs));
-
     /* Loop over values, computing maximum lengths. */
     if(columns_av) {
         /* Column-wise operation; tuples_av holds a list of columns. */
@@ -1908,6 +1907,14 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
                     croak("Cannot fetch value for param %d in element %d", i, j);
                 }
                 sv = *sv_p;
+				if (SvTYPE(*sv_p) == SVt_NULL)
+				{
+					 av_store(av, phs[i]->idx, newSVpv((char *) "",0));
+		  	    	/*store an empty scalar at current inxex to initialize the value
+		  	    	  this get rid of nasty (but harmless) perl warning*/
+		 			 sv_p = av_fetch(av, phs[i]->idx, 0);
+			    	//fetch the value again so we can do a SvPV on it
+		        }
 
                 /* Find the value length, and increase maxlen if needed. */
                 if(SvROK(sv)) {
@@ -1915,6 +1922,7 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
                     croak("Can't bind a reference (%s) for param %d, entry %d",
                           neatsvpv(sv,0), i, j);
                 }
+
                 SvPV(sv, len);
                 if(len > (unsigned int) phs[i]->maxlen)
                     phs[i]->maxlen = len;
@@ -1959,12 +1967,23 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
                 }
 
                 sv_p = av_fetch(av, phs[i]->idx, 0);
+
                 if(sv_p == NULL) {
                     Safefree(phs);
                     croak("Cannot fetch value for param %d in entry %d", i, j);
                 }
-                sv = *sv_p;
 
+                 //check to see if value at sv_p is a null (undef)
+				if (SvTYPE(*sv_p) == SVt_NULL)
+				{
+					 av_store(av, phs[i]->idx, newSVpv((char *) "",0));
+		  	    	/*store an empty scalar at current inxex to initialize the value
+		  	    	  this get rid of nasty (but harmless) perl warning*/
+		 			 sv_p = av_fetch(av, phs[i]->idx, 0);
+			    	//fetch the value again so we can do a SvPV on it
+		        }
+
+                sv = *sv_p;
                 /* Find the value length, and increase maxlen if needed. */
                 if(SvROK(sv)) {
                     Safefree(phs);
@@ -2569,4 +2588,3 @@ dump_env_to_trace() {
 	PerlIO_printf(fp,"\t%s\n",p);
     } while ((char*)environ[i] != '\0');
 }
-
