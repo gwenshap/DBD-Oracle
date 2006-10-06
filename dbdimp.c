@@ -1910,7 +1910,7 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
 				if (SvTYPE(*sv_p) == SVt_NULL)
 				{
 					 av_store(av, phs[i]->idx, newSVpv((char *) "",0));
-		  	    	/*store an empty scalar at current inxex to initialize the value
+		  	    	/*store an empty scalar at current index to initialize the value
 		  	    	  this get rid of nasty (but harmless) perl warning*/
 		 			 sv_p = av_fetch(av, phs[i]->idx, 0);
 			    	//fetch the value again so we can do a SvPV on it
@@ -1977,7 +1977,7 @@ ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, colu
 				if (SvTYPE(*sv_p) == SVt_NULL)
 				{
 					 av_store(av, phs[i]->idx, newSVpv((char *) "",0));
-		  	    	/*store an empty scalar at current inxex to initialize the value
+		  	    	/*store an empty scalar at current index to initialize the value
 		  	    	  this get rid of nasty (but harmless) perl warning*/
 		 			 sv_p = av_fetch(av, phs[i]->idx, 0);
 			    	//fetch the value again so we can do a SvPV on it
