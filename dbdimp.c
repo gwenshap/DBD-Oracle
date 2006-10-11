@@ -1843,6 +1843,8 @@ init_bind_for_array_exec(phs)
 
 /* Re-bind placeholders for array execute, to get the correct
    max-length values. */
+/* not used some sort of bug when called as a function.*/
+
 static int
 ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, columns_av)
     SV *sth;
@@ -2029,8 +2031,15 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     AV *tuples_av, *tuples_status_av, *columns_av;
     ub4 oci_mode;
     ub4 num_errs;
-    int i;
+    int i,j;
     int autocommit = DBIc_has(imp_dbh,DBIcf_AutoCommit);
+    SV **sv_p;
+	phs_t **phs;
+	SV *sv;
+	AV *av;
+    int param_count;
+    char namebuf[30];
+    STRLEN len;
 
     if (debug >= 2)
  PerlIO_printf(DBILOGFP, "    ora_st_execute_array %s count=%d (%s %s %s)...\n",
@@ -2085,10 +2094,86 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     if(exe_count <= 0)
       return 0;
 
-    /* Ensure proper OCIBindByName() calls for all placeholders. */
+    /* Ensure proper OCIBindByName() calls for all placeholders.
     if(!ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count,
                                    DBIc_NUM_PARAMS(imp_sth), columns_av))
         return -2;
+
+   fix for Perl undefined warning. Moved out of function back out to main code
+   Still ensures proper OCIBindByName*/
+
+        param_count=DBIc_NUM_PARAMS(imp_sth);
+        phs = safemalloc(param_count*sizeof(*phs));
+        memset(phs, 0, param_count*sizeof(*phs));
+        for(j = 0; (unsigned int) j < exe_count; j++) {
+            sv_p = av_fetch(tuples_av, j, 0);
+            if(sv_p == NULL) {
+                Safefree(phs);
+                croak("Cannot fetch tuple %d", j);
+            }
+            sv = *sv_p;
+            if(!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVAV) {
+                Safefree(phs);
+                croak("Not an array ref in element %d", j);
+            }
+            av = (AV*)SvRV(sv);
+            for(i = 0; i < param_count; i++) {
+                if(!phs[i]) {
+                    SV **phs_svp;
+
+                    sprintf(namebuf, ":p%d", i+1);
+                    phs_svp = hv_fetch(imp_sth->all_params_hv,
+                                       namebuf, strlen(namebuf), 0);
+                    if (phs_svp == NULL) {
+                        Safefree(phs);
+                        croak("Can't execute for non-existent placeholder :%d", i);
+                    }
+                    phs[i] = (phs_t*)(void*)SvPVX(*phs_svp); /* placeholder struct */
+                    if(phs[i]->idx < 0) {
+                        Safefree(phs);
+                        croak("Placeholder %d not of ?/:1 type", i);
+                    }
+                    init_bind_for_array_exec(phs[i]);
+                }
+
+                sv_p = av_fetch(av, phs[i]->idx, 0);
+
+                if(sv_p == NULL) {
+                    Safefree(phs);
+                    croak("Cannot fetch value for param %d in entry %d", i, j);
+                }
+
+				sv = *sv_p;
+
+                 //check to see if value sv is a null (undef) if it is upgrade it
+ 				if (!SvOK(sv))
+ 	           	{
+					SvUPGRADE(sv, SVt_PV);
+				}
+				else
+				{
+            		SvPV(sv, len);
+            	}
+
+
+                /* Find the value length, and increase maxlen if needed. */
+                if(SvROK(sv)) {
+                    Safefree(phs);
+                    croak("Can't bind a reference (%s) for param %d, entry %d",
+                          neatsvpv(sv,0), i, j);
+                }
+                if(len > (unsigned int) phs[i]->maxlen)
+                    phs[i]->maxlen = len;
+
+                /* Do OCI bind calls on last iteration. */
+                if(j == exe_count - 1) {
+                  if(!do_bind_array_exec(sth, imp_sth, phs[i])) {
+                    Safefree(phs);
+                  }
+                }
+            }
+	  }
+			Safefree(phs);
 
     /* Store array of bind typles, for use in OCIBindDynamic() callback. */
     imp_sth->bind_tuples = tuples_av;
