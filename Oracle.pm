@@ -1280,7 +1280,8 @@ Only the following values are permitted for this attribute.
 
 =item ORA_VARCHAR2
 
-Strip trailing spaces and allow embedded \0 bytes.
+Oracle clients using OCI 8 will strip trailing spaces and allow embedded \0 bytes.
+Oracle clients using OCI 9.2 do not strip trailing spaces and allow embedded \0 bytes.
 This is the normal default placeholder type.
 
 =item ORA_STRING
@@ -1291,6 +1292,19 @@ Don't strip trailing spaces and end the string at the first \0.
 
 Don't strip trailing spaces and allow embedded \0.
 Force 'blank-padded comparison semantics'.
+
+For example:
+
+  use DBD::Oracle qw(:ora_types);
+  
+  $sql="select username from all_users where username = ?";
+  #username is a char(8)
+   
+  $sth=$dbh->prepare($sql)";
+   
+  $sth->bind_param(1,'bloggs',{ ora_type => ORA_CHAR});
+   
+Will pad bloggs out to 8 chracters and return the username.  
 
 =back
 
@@ -1417,8 +1431,8 @@ causes the data to use more space and so fail with a truncation error.
 
 =head2 Trailing Spaces
 
-The Oracle strips trailing spaces from VARCHAR placeholder
-values and uses Nonpadded Comparison Semantics with the result.
+Please note that only the Oracle OCI 8 strips trailing spaces from VARCHAR placeholder
+values and uses Nonpadded Comparison Semantics with the result. 
 This causes trouble if the spaces are needed for
 comparison with a CHAR value or to prevent the value from
 becoming '' which Oracle treats as NULL.
@@ -1426,17 +1440,27 @@ Look for Blank-padded Comparison Semantics and Nonpadded
 Comparison Semantics in Oracle's SQL Reference or Server
 SQL Reference for more details.
 
-Please remember that using spaces as a value or at the end of
-a value makes visually distinguishing values with different
-numbers of spaces difficult and should be avoided.
-
-To preserve trailing spaces in placeholder values, either change
-the default placeholder type with L</ora_ph_type> or the placeholder
+To preserve trailing spaces in placeholder values for Oracle clients that use OCI 8, 
+either change the default placeholder type with L</ora_ph_type> or the placeholder
 type for a particular call to L<DBI/bind> or L<DBI/bind_param_inout>
 with L</ora_type> or C<TYPE>.
 Using L<ORA_CHAR> with L<ora_type> or C<SQL_CHAR> with C<TYPE>
 allows the placeholder to be used with Padded Comparison Semantics
 if the value it is being compared to is a CHAR, NCHAR, or literal.
+
+Please remember that using spaces as a value or at the end of
+a value makes visually distinguishing values with different
+numbers of spaces difficult and should be avoided.
+
+Oracle Clients that use OCI 9.2 do not strip trailing spaces.
+
+=head2 Padded Char Fields
+
+Oracle Clients after OCI 9.2 will automatically pad CHAR placeholder values to the size of the CHAR.
+As the default placeholder type value in DBD::Oracle is ORA_VARCHAR2 to access this behavior you will 
+have to change the default placeholder type with L</ora_ph_type> or placeholder 
+type for a particular call with L<DBI/bind> or L<DBI/bind_param_inout>
+with L</ORA_CHAR> or C<ORA_CHARZ>.
 
 =head1 Metadata
 
