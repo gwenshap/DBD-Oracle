@@ -836,13 +836,15 @@ SQL
        my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
        my $row_count = 0;
        my $tuple_count=0;
-       my $batch_size = ($sth->{ora_array_chunk_size} ||= 1000);
        my $tuple_batch_status;
-    
+       my $dbh = $sth->{Database};
+       my $batch_size =($dbh->{'ora_array_chunk_size'}||= 1000);
+        
        if(defined($tuple_status)) {
            @$tuple_status = ();
            $tuple_batch_status = [ ];
        }
+       
        while (1) {
            my @tuple_batch;
            for (my $i = 0; $i < $batch_size; $i++) {
@@ -1316,11 +1318,9 @@ error was found.
 
 =back
 
-=head2 Statement Handle Attributes
-
 =over 4
 
-=item C<ora_array_chunk_size>
+=item ora_array_chunk_size
 
 Because of OCI limitations, DBD::Oracle needs to buffer up rows of
 bind values in its C<execute_for_fetch> implementation. This attribute

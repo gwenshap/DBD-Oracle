@@ -832,29 +832,35 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
     int cacheit = 1;
 
     if (kl==10 && strEQ(key, "AutoCommit")) {
-	DBIc_set(imp_dbh,DBIcf_AutoCommit, on);
+		DBIc_set(imp_dbh,DBIcf_AutoCommit, on);
     }
     else if (kl==12 && strEQ(key, "RowCacheSize")) {
-	imp_dbh->RowCacheSize = SvIV(valuesv);
+		imp_dbh->RowCacheSize = SvIV(valuesv);
     }
     else if (kl==22 && strEQ(key, "ora_max_nested_cursors")) {
-	imp_dbh->max_nested_cursors = SvIV(valuesv);
+		imp_dbh->max_nested_cursors = SvIV(valuesv);
+    }
+    else if (kl==20 && strEQ(key, "ora_array_chunk_size")) {
+			imp_dbh->array_chunk_size = SvIV(valuesv);
     }
     else if (kl==11 && strEQ(key, "ora_ph_type")) {
         if (SvIV(valuesv)!=1 && SvIV(valuesv)!=5 && SvIV(valuesv)!=96 && SvIV(valuesv)!=97)
-	    warn("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
-	else
-	    imp_dbh->ph_type = SvIV(valuesv);
-    }
+		    warn("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
+		else
+		    imp_dbh->ph_type = SvIV(valuesv);
+   		 }
+
     else if (kl==13 && strEQ(key, "ora_ph_csform")) {
-        if (SvIV(valuesv)!=SQLCS_IMPLICIT && SvIV(valuesv)!=SQLCS_NCHAR)
-	    warn("ora_ph_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR)");
-	else
-	    imp_dbh->ph_csform = (ub1)SvIV(valuesv);
+       	if (SvIV(valuesv)!=SQLCS_IMPLICIT && SvIV(valuesv)!=SQLCS_NCHAR)
+		    warn("ora_ph_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR)");
+		else
+		    imp_dbh->ph_csform = (ub1)SvIV(valuesv);
+	    }
+    else
+    {
+		return FALSE;
     }
-    else {
-	return FALSE;
-    }
+
     if (cacheit) /* cache value for later DBI 'quick' fetch? */
 	hv_store((HV*)SvRV(dbh), key, kl, newSVsv(valuesv), 0);
     return TRUE;

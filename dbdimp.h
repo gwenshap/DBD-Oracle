@@ -84,6 +84,7 @@ struct imp_dbh_st {
     ub1 ph_csform;		/* default charset for placeholders */
     int parse_error_offset;	/* position in statement of last error */
     int max_nested_cursors;     /* limit on cached nested cursors per stmt */
+    int array_chunk_size;  /* the max size for an array bind */
 };
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
