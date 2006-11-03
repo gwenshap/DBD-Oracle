@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.19 (scn rev 66??)
+=head1 Changes in DBD-Oracle 1.19 (svn rev 8002) 3rd November 2006
 
   Fixed execute_array to comply with DBI standard from Martin J. Evans, Xho Jingleheimerschmidt and others 
   Fixed execute_array so it will not throw a Perl warning on undef values in Tuples from John Scoles
@@ -12,7 +12,7 @@
   Updated POD to reflect that OCI after 9.2 no longer strips trialing spaces
   
   
-=head1 Changes in DBD-Oracle 1.18 (scn rev 6697)
+=head1 Changes in DBD-Oracle 1.18 (svn rev 6697)
 
   Added support for native Oracle Array interface thanks Kristian Nielsen 
   Added suppot for LOB Locators from Jeffrey Klein.
@@ -22,7 +22,7 @@
   
 please enjoy.
 
-=head1 Changes in DBD-Oracle 1.17 (scn rev 3726)
+=head1 Changes in DBD-Oracle 1.17 (svn rev 3726)
   
   Updated README.win32.txt fixed some typos
   Fixed expanded support for Lobs support from Jeffrey Klein
