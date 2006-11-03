@@ -4,7 +4,7 @@ use DBI;
 use DBD::Oracle qw(ORA_RSET SQLCS_NCHAR);
 use strict;
 
-use Test::More tests =>13 ;
+use Test::More tests =>14 ;
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
 
@@ -74,19 +74,35 @@ cmp_ok(scalar @{$tuple_status}, '==', 10, '... we should have 10 tuple_status');
 
 @var2         = (2,2,2,2,'s',2,2,2,2,2);
 
-ok (!$sth->execute_array(
-      {ArrayTupleStatus => $tuple_status},
-        \@var1,
-        \@var2,
-       \@var2,
- ), '... execute_array should return flase');
+{
+  # trap the intentional failure of one of these rows
+  my $warn_count = 0;
+  local $SIG{__WARN__} = sub {
+    my $msg = shift;
+    if ($warn_count++ == 0 && $msg =~ /ORA-24381/) {
+      # this is the first warning, and it's the expected one
+      return;
+    }
 
+    # unexpected warning, pass it through
+    warn $msg;
+  };
+  
+  ok (!$sth->execute_array(
+        {ArrayTupleStatus => $tuple_status},
+          \@var1,
+          \@var2,
+          \@var2,
+   ), '... execute_array should return false');
+  
   cmp_ok(scalar @{$tuple_status}, '==', 10, '... we should have 10 tuple_status');
-
+  
   cmp_ok( $tuple_status->[4]->[1],'ne','-1','... we should get text');
-
+  
   cmp_ok( $tuple_status->[3],'==',-1,'... we should get -1');
-
+  is($warn_count, 1, "... we should get a warning");
+   
+}
 
 # siple test with execute_for_fetch
 # need some datat
@@ -101,7 +117,7 @@ $sth = $dbh->prepare("INSERT INTO  $table ( row_1,  row_2, row_3) VALUES (?,?,?)
 
  ok($sth->execute_for_fetch( sub { shift @$problems },$tuple_status), '... execute_for_fetch should return true');
 
-  cmp_ok(scalar @{$tuple_status}, '==',19 , '... we should have 19 tuple_status');
+ cmp_ok(scalar @{$tuple_status}, '==',19 , '... we should have 19 tuple_status');
 
 
 #simple test for array bind param 

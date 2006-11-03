@@ -103,8 +103,10 @@ See the oracle_test_dsn() sub in t/nchar_test_lib.pl
 
 The supplied tests will connect to the database using the value of the
 ORACLE_USERID environment variable to supply the username/password.
-So you should set that to a valid value (e.g. 'scott/tiger') before starting
-the test. Using 'system/manager' might work but is not recommended! See also
+So you should set that to a valid user (e.g. 'scott/tiger') and ensure that
+this user has sufficient privileges to create, insert into, select from and 
+drop a table, and is able to select from systemtables like 'v$sessions'.
+Using 'system/manager' might work but is not recommended! See also
 README.login.txt.
 
     make test

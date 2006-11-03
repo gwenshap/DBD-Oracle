@@ -832,29 +832,35 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
     int cacheit = 1;
 
     if (kl==10 && strEQ(key, "AutoCommit")) {
-	DBIc_set(imp_dbh,DBIcf_AutoCommit, on);
+		DBIc_set(imp_dbh,DBIcf_AutoCommit, on);
     }
     else if (kl==12 && strEQ(key, "RowCacheSize")) {
-	imp_dbh->RowCacheSize = SvIV(valuesv);
+		imp_dbh->RowCacheSize = SvIV(valuesv);
     }
     else if (kl==22 && strEQ(key, "ora_max_nested_cursors")) {
-	imp_dbh->max_nested_cursors = SvIV(valuesv);
+		imp_dbh->max_nested_cursors = SvIV(valuesv);
+    }
+    else if (kl==20 && strEQ(key, "ora_array_chunk_size")) {
+			imp_dbh->array_chunk_size = SvIV(valuesv);
     }
     else if (kl==11 && strEQ(key, "ora_ph_type")) {
         if (SvIV(valuesv)!=1 && SvIV(valuesv)!=5 && SvIV(valuesv)!=96 && SvIV(valuesv)!=97)
-	    warn("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
-	else
-	    imp_dbh->ph_type = SvIV(valuesv);
-    }
+		    warn("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
+		else
+		    imp_dbh->ph_type = SvIV(valuesv);
+   		 }
+
     else if (kl==13 && strEQ(key, "ora_ph_csform")) {
-        if (SvIV(valuesv)!=SQLCS_IMPLICIT && SvIV(valuesv)!=SQLCS_NCHAR)
-	    warn("ora_ph_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR)");
-	else
-	    imp_dbh->ph_csform = (ub1)SvIV(valuesv);
+       	if (SvIV(valuesv)!=SQLCS_IMPLICIT && SvIV(valuesv)!=SQLCS_NCHAR)
+		    warn("ora_ph_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR)");
+		else
+		    imp_dbh->ph_csform = (ub1)SvIV(valuesv);
+	    }
+    else
+    {
+		return FALSE;
     }
-    else {
-	return FALSE;
-    }
+
     if (cacheit) /* cache value for later DBI 'quick' fetch? */
 	hv_store((HV*)SvRV(dbh), key, kl, newSVsv(valuesv), 0);
     return TRUE;
@@ -1841,157 +1847,6 @@ init_bind_for_array_exec(phs)
     }
 }
 
-/* Re-bind placeholders for array execute, to get the correct
-   max-length values. */
-static int
-ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count, param_count, columns_av)
-    SV *sth;
-    imp_sth_t *imp_sth;
-    AV *tuples_av;
-    ub4 exe_count;
-    int param_count;
-    AV *columns_av;
-{
-    int i, j;
-    char namebuf[30];
-    SV **sv_p;
-    SV *sv;
-    AV *av;
-    phs_t **phs;
-    STRLEN len;
-    /*sword status;*/
-
-    phs = safemalloc(param_count*sizeof(*phs));
-    memset(phs, 0, param_count*sizeof(*phs));
-
-    /* Loop over values, computing maximum lengths. */
-    if(columns_av) {
-        /* Column-wise operation; tuples_av holds a list of columns. */
-        for(i = 0; i < param_count; i++) {
-            char *name;
-
-            sv_p = av_fetch(columns_av, i, 0);
-            if(sv_p == NULL) {
-                Safefree(phs);
-                croak("Missing column entry %d", i);
-            }
-            sv = *sv_p;
-            if (DBIS->debug >= 9)
-                PerlIO_printf(DBILOGFP, "   arrbind %d->'%s'\n", i, neatsvpv(sv,0));
-            name = SvPV(sv, len);
-            sv_p = hv_fetch(imp_sth->all_params_hv, name, len, 0);
-            if (sv_p == NULL) {
-                Safefree(phs);
-                croak("Can't execute for non-existent placeholder %s",
-                      neatsvpv(sv,0));
-            }
-            phs[i] = (phs_t*)(void*)SvPVX(*sv_p); /* placeholder struct */
-            phs[i]->idx = i;
-            init_bind_for_array_exec(phs[i]);
-
-            sv_p = av_fetch(tuples_av, i, 0);
-            if(sv_p == NULL) {
-                Safefree(phs);
-                croak("Cannot fetch column %d from tuple array", i);
-            }
-            sv = *sv_p;
-            if(!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVAV) {
-                Safefree(phs);
-                croak("Not an array ref in column %d", i);
-            }
-            av = (AV*)SvRV(sv);
-
-            for(j = 0; (unsigned int) j <  exe_count; j++) {
-                sv_p = av_fetch(av, j, 0);
-                if(sv_p == NULL) {
-                    Safefree(phs);
-                    croak("Cannot fetch value for param %d in element %d", i, j);
-                }
-                sv = *sv_p;
-
-                /* Find the value length, and increase maxlen if needed. */
-                if(SvROK(sv)) {
-                    Safefree(phs);
-                    croak("Can't bind a reference (%s) for param %d, entry %d",
-                          neatsvpv(sv,0), i, j);
-                }
-                SvPV(sv, len);
-                if(len > (unsigned int) phs[i]->maxlen)
-                    phs[i]->maxlen = len;
-            }
-
-            if(!do_bind_array_exec(sth, imp_sth, phs[i])) {
-                Safefree(phs);
-                return 0;
-            }
-        }
-    } else {
-        /* Row-wise operation; tuples_av holds a list of bind value tuples. */
-        for(j = 0; (unsigned int) j < exe_count; j++) {
-            sv_p = av_fetch(tuples_av, j, 0);
-            if(sv_p == NULL) {
-                Safefree(phs);
-                croak("Cannot fetch tuple %d", j);
-            }
-            sv = *sv_p;
-            if(!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVAV) {
-                Safefree(phs);
-                croak("Not an array ref in element %d", j);
-            }
-            av = (AV*)SvRV(sv);
-            for(i = 0; i < param_count; i++) {
-                if(!phs[i]) {
-                    SV **phs_svp;
-
-                    sprintf(namebuf, ":p%d", i+1);
-                    phs_svp = hv_fetch(imp_sth->all_params_hv,
-                                       namebuf, strlen(namebuf), 0);
-                    if (phs_svp == NULL) {
-                        Safefree(phs);
-                        croak("Can't execute for non-existent placeholder :%d", i);
-                    }
-                    phs[i] = (phs_t*)(void*)SvPVX(*phs_svp); /* placeholder struct */
-                    if(phs[i]->idx < 0) {
-                        Safefree(phs);
-                        croak("Placeholder %d not of ?/:1 type", i);
-                    }
-                    init_bind_for_array_exec(phs[i]);
-                }
-
-                sv_p = av_fetch(av, phs[i]->idx, 0);
-                if(sv_p == NULL) {
-                    Safefree(phs);
-                    croak("Cannot fetch value for param %d in entry %d", i, j);
-                }
-                sv = *sv_p;
-
-                /* Find the value length, and increase maxlen if needed. */
-                if(SvROK(sv)) {
-                    Safefree(phs);
-                    croak("Can't bind a reference (%s) for param %d, entry %d",
-                          neatsvpv(sv,0), i, j);
-                }
-                SvPV(sv, len);
-                if(len > (unsigned int) phs[i]->maxlen)
-                    phs[i]->maxlen = len;
-
-                /* Do OCI bind calls on last iteration. */
-                if(j == exe_count - 1) {
-                  if(!do_bind_array_exec(sth, imp_sth, phs[i])) {
-                    Safefree(phs);
-                    return 0;
-                  }
-                }
-            }
-            /* ToDo: Maybe extract common code from here and dbd_bind_ph() and put
-               it in some function(s) that can be called from both places. */
-        }
-    }
-
-    Safefree(phs);
-    return 1;                   /* Success. */
-}
-
  int
 ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     SV *sth;
@@ -2010,8 +1865,15 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     AV *tuples_av, *tuples_status_av, *columns_av;
     ub4 oci_mode;
     ub4 num_errs;
-    int i;
+    int i,j;
     int autocommit = DBIc_has(imp_dbh,DBIcf_AutoCommit);
+    SV **sv_p;
+	phs_t **phs;
+	SV *sv;
+	AV *av;
+    int param_count;
+    char namebuf[30];
+    STRLEN len;
 
     if (debug >= 2)
  PerlIO_printf(DBILOGFP, "    ora_st_execute_array %s count=%d (%s %s %s)...\n",
@@ -2066,10 +1928,86 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     if(exe_count <= 0)
       return 0;
 
-    /* Ensure proper OCIBindByName() calls for all placeholders. */
+    /* Ensure proper OCIBindByName() calls for all placeholders.
     if(!ora_st_bind_for_array_exec(sth, imp_sth, tuples_av, exe_count,
                                    DBIc_NUM_PARAMS(imp_sth), columns_av))
         return -2;
+
+   fix for Perl undefined warning. Moved out of function back out to main code
+   Still ensures proper OCIBindByName*/
+
+        param_count=DBIc_NUM_PARAMS(imp_sth);
+        phs = safemalloc(param_count*sizeof(*phs));
+        memset(phs, 0, param_count*sizeof(*phs));
+        for(j = 0; (unsigned int) j < exe_count; j++) {
+            sv_p = av_fetch(tuples_av, j, 0);
+            if(sv_p == NULL) {
+                Safefree(phs);
+                croak("Cannot fetch tuple %d", j);
+            }
+            sv = *sv_p;
+            if(!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVAV) {
+                Safefree(phs);
+                croak("Not an array ref in element %d", j);
+            }
+            av = (AV*)SvRV(sv);
+            for(i = 0; i < param_count; i++) {
+                if(!phs[i]) {
+                    SV **phs_svp;
+
+                    sprintf(namebuf, ":p%d", i+1);
+                    phs_svp = hv_fetch(imp_sth->all_params_hv,
+                                       namebuf, strlen(namebuf), 0);
+                    if (phs_svp == NULL) {
+                        Safefree(phs);
+                        croak("Can't execute for non-existent placeholder :%d", i);
+                    }
+                    phs[i] = (phs_t*)(void*)SvPVX(*phs_svp); /* placeholder struct */
+                    if(phs[i]->idx < 0) {
+                        Safefree(phs);
+                        croak("Placeholder %d not of ?/:1 type", i);
+                    }
+                    init_bind_for_array_exec(phs[i]);
+                }
+
+                sv_p = av_fetch(av, phs[i]->idx, 0);
+
+                if(sv_p == NULL) {
+                    Safefree(phs);
+                    croak("Cannot fetch value for param %d in entry %d", i, j);
+                }
+
+				sv = *sv_p;
+
+                 //check to see if value sv is a null (undef) if it is upgrade it
+ 				if (!SvOK(sv))
+ 	           	{
+					SvUPGRADE(sv, SVt_PV);
+				}
+				else
+				{
+            		SvPV(sv, len);
+            	}
+
+
+                /* Find the value length, and increase maxlen if needed. */
+                if(SvROK(sv)) {
+                    Safefree(phs);
+                    croak("Can't bind a reference (%s) for param %d, entry %d",
+                          neatsvpv(sv,0), i, j);
+                }
+                if(len > (unsigned int) phs[i]->maxlen)
+                    phs[i]->maxlen = len;
+
+                /* Do OCI bind calls on last iteration. */
+                if(j == exe_count - 1) {
+                  if(!do_bind_array_exec(sth, imp_sth, phs[i])) {
+                    Safefree(phs);
+                  }
+                }
+            }
+	  }
+			Safefree(phs);
 
     /* Store array of bind typles, for use in OCIBindDynamic() callback. */
     imp_sth->bind_tuples = tuples_av;

@@ -1638,18 +1638,28 @@ You have an old copy which you should delete when installing this one.\n";
 
     sub const_loadlibs {
 	my $self = shift;
-	local($_) = $self->SUPER::const_loadlibs(@_);
+	
+	# ExtUtils::MM_Unix v1.50 (invoked by ExtUtils::MakeMaker)
+	# requires that $self->{LD_RUN_PATH} be defined and not be
+	# an empty string for Makefile to specify its use during the 
+	# build. This is required by both SUPER::const_loadlibs
+	# and SUPER::dynamic_lib. hence it is best if we define
+	# or modify $self->{LD_RUN_PATH} here *before* calling 
+	# SUPER::const_loadlibs.
+
+
 	# edit LD_RUN_PATH ...
-	my ($ldrp) = m/^LD_RUN_PATH\s*=\s*(.*)/m;
+	my ($ldrp) = $self->{LD_RUN_PATH};
 	# remove redundant /lib or /usr/lib as it can cause problems
 	$ldrp =~ s!:(/usr)?/lib$!! if $ldrp;
         # if it's empty then set it manually
         #Lincoln: if pick the right library path
         my $libdir = main::ora_libdir();
         $ldrp ||= "$OH/$libdir:$OH/rdbms/$libdir";
+	$self->{LD_RUN_PATH} = $ldrp;
 
-	# stitch it back in
-	s/^LD_RUN_PATH\s*=\s*(.*)/LD_RUN_PATH=$ldrp/m;
+	local($_) = $self->SUPER::const_loadlibs(@_);
+
 	print "Ignoring LD_RUN_PATH='$ENV{LD_RUN_PATH}' in environment\n" if $ENV{LD_RUN_PATH};
 	print "LD_RUN_PATH=$ldrp\n";
 	return $_;
