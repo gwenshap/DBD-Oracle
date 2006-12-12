@@ -59,6 +59,15 @@ sub temp_lob_count {
     return $count;
 }
 
+sub have_v_session {
+ my $dbh = shift;
+ $dbh->do('select * from v$session where 0=1');
+ return if $dbh->err == 942;
+ return 1;
+}
+
+
+
 ## test writing / reading large data
 {
     # LOB locators cannot span transactions - turn off AutoCommit
@@ -163,6 +172,7 @@ sub temp_lob_count {
         undef $sth;
         # lobs are freed with statement handle
 
+        skip q{can't check num of temp lobs, no access to v$session}, 1, unless have_v_session($dbh);
         is(temp_lob_count($dbh), 0, "no temp lobs left");
     }
 }
