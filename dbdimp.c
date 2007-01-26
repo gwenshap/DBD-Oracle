@@ -1979,13 +1979,11 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 
 				sv = *sv_p;
 
-                 //check to see if value sv is a null (undef) if it is upgrade it
- 				if (!SvOK(sv))
- 	           	{
+                 /*check to see if value sv is a null (undef) if it is upgrade it*/
+ 				if (!SvOK(sv))	{
 					SvUPGRADE(sv, SVt_PV);
 				}
-				else
-				{
+				else {
             		SvPV(sv, len);
             	}
 
