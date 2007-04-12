@@ -21,7 +21,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	ora_types => [ qw(
 	    ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
 	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
-	    ORA_CLOB ORA_BLOB ORA_RSET
+	    ORA_CLOB ORA_BLOB ORA_RSET 
 	) ],
         ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
     );
@@ -835,7 +835,7 @@ SQL
     sub execute_for_fetch {
        my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
        my $row_count = 0;
-       my $tuple_count=0;
+       my $tuple_count="0E0";
        my $tuple_batch_status;
        my $dbh = $sth->{Database};
        my $batch_size =($dbh->{'ora_array_chunk_size'}||= 1000);
@@ -907,14 +907,14 @@ and sometimes complex ways of specifying and connecting to databases.
 (James Taylor and Lane Sharman have contributed much of the text in
 this section.)
 
-=head2 Connecting without environment variables or tnsname.ora file
+=head2 Connecting without environment variables or tnsnames.ora file
 
 If you use the C<host=$host;sid=$sid> style syntax, for example:
 
   $dbh = DBI->connect("dbi:Oracle:host=myhost.com;sid=ORCL", $user, $passwd);
 
 then DBD::Oracle will construct a full connection descriptor string
-for you and Oracle will not need to consult the tnsname.ora file.
+for you and Oracle will not need to consult the tnsnames.ora file.
 
 If a C<port> number is not specified then the descriptor will try both
 1526 and 1521 in that order (e.g., new then old).  You can check which
