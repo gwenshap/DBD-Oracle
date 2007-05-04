@@ -1258,6 +1258,17 @@ context, such as the local NLS environment. So by altering %ENV and
 setting ora_envhp to 0 you can create connections with different
 NLS settings. This is most useful for testing.
 
+=item ora_charset, ora_ncharset
+
+For oracle versions >= 9.2 you can specify the client charset and
+ncharset with the ora_charset and ora_ncharset attributes.  You
+still need to pass C<ora_envhp = 0> for all but the first connect.
+
+These attributes override the settings from environment variables.
+
+  $dbh = DBI->connect ($dsn, $user, $passwd,
+                       {ora_charset => 'AL32UTF8'});
+
 =back
 
 =head2 Database Handle Attributes

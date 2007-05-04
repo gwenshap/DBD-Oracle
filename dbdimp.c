@@ -323,6 +323,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     ub4 use_proc_connection = 0;
     SV **use_proc_connection_sv;
     D_imp_drh_from_dbh;
+    ub2 new_charsetid = 0;
+    ub2 new_ncharsetid = 0;
 
     imp_dbh->envhp = imp_drh->envhp;	/* will be NULL on first connect */
 
@@ -500,6 +502,43 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
                 oci_error(dbh, NULL, status,
                     "OCIEnvNlsCreate. Check ORACLE_HOME env var, NLS settings, permissions, etc.");
                 return 0;
+            }
+
+            svp = DBD_ATTRIB_GET_SVP(attr, "ora_charset", 11);
+            if (svp) {
+                if (!SvPOK(*svp)) {
+                    croak("ora_charset is not a string");
+                }
+
+                new_charsetid = OCINlsCharSetNameToId(imp_dbh->envhp, SvPV_nolen(*svp));
+                if (!new_charsetid) {
+                    croak("ora_charset value (%s) is not valid", SvPV_nolen(*svp));
+                }
+            }
+
+            svp = DBD_ATTRIB_GET_SVP(attr, "ora_ncharset", 12);
+            if (svp) {
+                if (!SvPOK(*svp)) {
+                    croak("ora_ncharset is not a string");
+                }
+
+                new_ncharsetid = OCINlsCharSetNameToId(imp_dbh->envhp, SvPV_nolen(*svp));
+                if (!new_ncharsetid) {
+                    croak("ora_ncharset value (%s) is not valid", SvPV_nolen(*svp));
+                }
+            }
+
+            if (new_charsetid || new_ncharsetid) {
+                if (new_charsetid) charsetid = new_charsetid;
+                if (new_ncharsetid) ncharsetid = new_ncharsetid;
+                imp_dbh->envhp = NULL;
+                OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
+                            charsetid, ncharsetid, status );
+                if (status != OCI_SUCCESS) {
+                    oci_error(dbh, NULL, status,
+                        "OCIEnvNlsCreate. Check ORACLE_HOME env var, NLS settings, permissions, etc.");
+                    return 0;
+                }
             }
 
             /* update the hard-coded csid constants for unicode charsets */
