@@ -132,7 +132,7 @@ if (!$OH) {
       The $ORACLE_ENV environment variable is not set and I couldn't guess it.
       It must be set to hold the path to an Oracle installation directory
       on this machine (or a machine with a compatible architecture).
-      See the README.clients.txt file for more information.
+      See the appropriate README file for your OS for more information.
       ABORTED!
   \n};
   $ENV{$ORACLE_ENV} = $OH;
@@ -146,7 +146,7 @@ die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture).
   For an Instant Client install, the directory should include an sdk subdirectory.
-  See the README.clients.txt file for more information.
+  See the appropriate README file for your OS for more information.
   ABORTED!
 } unless (-d $OH and $os eq 'VMS')
       or -d "$OH/sdk/." 	# Instant Client with SDK
@@ -1085,7 +1085,7 @@ sub find_mkfile {
 	somewhere non-standard you can specify where it is using the -m option:
 		perl Makefile.PL -m /path/to/your.mk
 
-	See README.clients.txt for more information and some alternatives.
+	See the appropriate README file for your OS for more information and some alternatives.
 
     } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile) || $::opt_F;
 
@@ -1434,7 +1434,7 @@ sub find_headers {
 	print "You probably need to install some more Oracle components.\n";
 	print "For Instant Client that means the SDK package.\n";
 	print "I'll keep going, but the compile will probably fail.\n";
-	print "See README.clients.txt for more information.$BELL\n";
+	print "See the appropriate README file for your OS for more information.$BELL\n";
 	print "*********************************************************\n\n";
 	sleep 5;
     }
