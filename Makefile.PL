@@ -1412,15 +1412,17 @@ sub find_headers {
    );
    unshift @try, $::opt_h if $::opt_h;
    @try = grep { -d $_ } @try;
+  
+    my %h_file;
+    if (@try) {
+      find( sub {
+         return unless /^o(ci.{3,4}|ratypes)\.h$/i;
+         my $dir = $File::Find::dir;
+         $h_file{$_} ||= $dir; # record first one found
+         print "Found $dir/$_\n" if $::opt_d;
+       }, @try);
+    }
 
-   my %h_file;
-   find( sub {
-	return unless /^o(ci.{3,4}|ratypes)\.h$/i;
-	my $dir = $File::Find::dir;
-	$h_file{$_} ||= $dir; # record first one found
-	print "Found $dir/$_\n" if $::opt_d;
-    }, @try);
-       
     my %h_dir = reverse %h_file; # distinct first found dirs
     my @h_dir = keys %h_dir;
 
