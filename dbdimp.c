@@ -61,12 +61,12 @@ static void dump_env_to_trace();
 static sb4
 oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 {
+	dTHX;
     text errbuf[1024];
     ub4 recno = 0;
     sb4 errcode = 0;
     sb4 eg_errcode = 0;
     sword eg_status;
-
     if (!SvOK(errstr))
 	sv_setpv(errstr,"");
     if (!errhp) {
@@ -131,6 +131,7 @@ char *
 ora_env_var(char *name, char *buf, unsigned long size)
 {
 #define WIN32_REG_BUFSIZE 80
+    dTHX;
     char last_home_id[WIN32_REG_BUFSIZE+1];
     char ora_home_key[WIN32_REG_BUFSIZE+1];
     unsigned long len = WIN32_REG_BUFSIZE;
@@ -179,6 +180,7 @@ ora_cygwin_set_env(char *name, char *value)
 void
 dbd_init(dbistate_t *dbistate)
 {
+	dTHX;
     DBIS = dbistate;
     dbd_init_oci(dbistate);
 }
@@ -188,7 +190,7 @@ int
 dbd_discon_all(SV *drh, imp_drh_t *imp_drh)
 {
     dTHR;
-
+    dTHX;
     /* The disconnect_all concept is flawed and needs more work */
     if (!dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
 	DBIh_SET_ERR_CHAR(drh, (imp_xxh_t*)imp_drh, Nullch, 1, "disconnect_all not implemented", Nullch, Nullch);
@@ -202,6 +204,7 @@ dbd_discon_all(SV *drh, imp_drh_t *imp_drh)
 void
 dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx)
 {
+	dTHX;
     PerlIO *fp = DBILOGFP;
     PerlIO_printf(fp, "    fbh %d: '%s'\t%s, ",
 		i, fbh->name, (fbh->nullok) ? "NULLable" : "NO null ");
@@ -310,6 +313,7 @@ int
 dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, SV *attr)
 {
     dTHR;
+    dTHX;
     sword status;
     SV **svp;
     shared_sv * shared_dbh_ssv = NULL ;
@@ -754,6 +758,7 @@ dbd_db_login6_out:
 int
 dbd_db_commit(SV *dbh, imp_dbh_t *imp_dbh)
 {
+	dTHX;
     sword status;
     OCITransCommit_log_stat(imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
     if (status != OCI_SUCCESS) {
@@ -783,6 +788,7 @@ dbd_st_cancel(SV *sth, imp_sth_t *imp_sth)
 int
 dbd_db_rollback(SV *dbh, imp_dbh_t *imp_dbh)
 {
+	dTHX;
     sword status;
     OCITransRollback_log_stat(imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
     if (status != OCI_SUCCESS) {
@@ -796,6 +802,7 @@ dbd_db_rollback(SV *dbh, imp_dbh_t *imp_dbh)
 int
 dbd_db_disconnect(SV *dbh, imp_dbh_t *imp_dbh)
 {
+	dTHX;
     dTHR;
     int refcnt = 1 ;
 
@@ -865,6 +872,7 @@ dbd_db_destroy_out:
 int
 dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 {
+	dTHX;
     STRLEN kl;
     char *key = SvPV(keysv,kl);
     int on = SvTRUE(valuesv);
@@ -909,6 +917,7 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 SV *
 dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 {
+	dTHX;
     STRLEN kl;
     char *key = SvPV(keysv,kl);
     SV *retsv = Nullsv;
@@ -957,6 +966,7 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 void
 dbd_preparse(imp_sth_t *imp_sth, char *statement)
 {
+	dTHX;
     D_imp_dbh_from_sth;
     bool in_literal = FALSE;
     char in_comment = '\0';
@@ -1136,6 +1146,7 @@ ora_sql_type(imp_sth_t *imp_sth, char *name, int sql_type)
 static int
 dbd_rebind_ph_char(SV *sth, imp_sth_t *imp_sth, phs_t *phs, ub2 **alen_ptr_ptr)
 {
+	dTHX;
     STRLEN value_len;
     int at_exec = 0;
     at_exec = (phs->desc_h == NULL);
@@ -1225,7 +1236,8 @@ dbd_rebind_ph_char(SV *sth, imp_sth_t *imp_sth, phs_t *phs, ub2 **alen_ptr_ptr)
 int
 pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
-    /*dTHR; -- do we need to do this??? */
+	dTHX;
+    dTHR;
     SV * sth_csr = phs->sv;
     D_impdata(imp_sth_csr, imp_sth_t, sth_csr);
     sword status;
@@ -1257,6 +1269,7 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 int
 pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 {
+	dTHX;
     if (pre_exec) {	/* pre-execute - allocate a statement handle */
 	dSP;
 	D_imp_dbh_from_sth;
@@ -1348,6 +1361,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 static int
 dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
+	dTHX;
     ub2 *alen_ptr = NULL;
     sword status;
     int done = 0;
@@ -1485,6 +1499,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 int
 dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_type, SV *attribs, int is_inout, IV maxlen)
 {
+	dTHX;
     SV **phs_svp;
     STRLEN name_len;
     char *name = Nullch;
@@ -1622,6 +1637,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 void
 dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 {
+	dTHX;
     char *note = "";
     /* XXX doesn't check arcode for error, caller is expected to */
     if (phs->indp == 0) {                       /* is okay      */
@@ -1676,6 +1692,7 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 void
 dbd_phs_avsv_complete(phs_t *phs, I32 index, I32 debug)
 {
+	dTHX;
     AV *av = (AV*)SvRV(phs->sv);
     SV *sv = *av_fetch(av, index, 1);
     dbd_phs_sv_complete(phs, sv, 0);
@@ -1692,6 +1709,7 @@ int
 dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-1=unknown count) */
 {
     dTHR;
+    dTHX;
     ub4 row_count = 0;
     int debug = DBIS->debug;
     int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
@@ -1843,6 +1861,7 @@ do_bind_array_exec(sth, imp_sth, phs)
     imp_sth_t *imp_sth;
     phs_t *phs;
 {
+	dTHX;
     sword status;
 
     OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
@@ -1874,6 +1893,7 @@ static void
 init_bind_for_array_exec(phs)
     phs_t *phs;
 {
+	dTHX;
     if (phs->sv == &sv_undef) { /* first bind for this placeholder  */
         phs->is_inout = 0;
         phs->maxlen = 1;
@@ -1895,6 +1915,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     SV *columns;
     ub4 exe_count;
 {
+	dTHX;
     dTHR;
     /*ub4 row_count = 0;*/
     int debug = DBIS->debug;
@@ -2123,6 +2144,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 int
 dbd_st_blob_read(SV *sth, imp_sth_t *imp_sth, int field, long offset, long len, SV *destrv, long destoffset)
 {
+	dTHX;
     ub4 retl = 0;
     SV *bufsv;
     imp_fbh_t *fbh = &imp_sth->fbh[field];
@@ -2164,6 +2186,7 @@ dbd_st_blob_read(SV *sth, imp_sth_t *imp_sth, int field, long offset, long len, 
 int
 dbd_st_rows(SV *sth, imp_sth_t *imp_sth)
 {
+	dTHX;
     ub4 row_count = 0;
     sword status;
     OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
@@ -2179,6 +2202,7 @@ int
 dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
 {
     dTHR;
+    dTHX;
     D_imp_dbh_from_sth;
     sword status;
     int num_fields = DBIc_NUM_FIELDS(imp_sth);
@@ -2222,6 +2246,7 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
 void
 ora_free_fbh_contents(imp_fbh_t *fbh)
 {
+	dTHX;
     if (fbh->fb_ary)
 	fb_ary_free(fbh->fb_ary);
     sv_free(fbh->name_sv);
@@ -2232,6 +2257,7 @@ ora_free_fbh_contents(imp_fbh_t *fbh)
 void
 ora_free_phs_contents(phs_t *phs)
 {
+	dTHX;
     if (phs->desc_h)
 	OCIDescriptorFree_log(phs->desc_h, phs->desc_t);
 
@@ -2242,6 +2268,7 @@ ora_free_phs_contents(phs_t *phs)
 void
 ora_free_templob(SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc)
 {
+	dTHX;
 #if defined(OCI_HTYPE_DIRPATH_FN_CTX)	/* >= 9.0 */
     boolean is_temporary = 0;
     sword status;
@@ -2340,6 +2367,7 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 int
 dbd_st_STORE_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv, SV *valuesv)
 {
+	dTHX;
     STRLEN kl;
     SV *cachesv = NULL;
     char *key = SvPV(keysv,kl);
@@ -2362,6 +2390,7 @@ dbd_st_STORE_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv, SV *valuesv)
 SV *
 dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 {
+	dTHX;
     STRLEN kl;
     char *key = SvPV(keysv,kl);
     int i;
@@ -2532,6 +2561,7 @@ ora2sql_type(imp_fbh_t* fbh) {
 
 static void
 dump_env_to_trace() {
+	dTHX;
     PerlIO *fp = DBILOGFP;
     int i = 0;
     char *p;

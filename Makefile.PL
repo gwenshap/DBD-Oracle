@@ -16,7 +16,7 @@ use strict;
 # For those not using Dynamic loading this means building a
 # new static perl in the DBI directory by saying 'make perl'
 # and then using _that_ perl to make this one.
-use DBI 1.28;
+use DBI 1.51;
 use DBI::DBD;	# DBD creation tools
 
 
@@ -59,7 +59,7 @@ my %opts = (
 if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
     $opts{AUTHOR} = 'Tim Bunce (dbi-users@perl.org)';
     $opts{ABSTRACT_FROM} = 'Oracle.pm';
-    $opts{PREREQ_PM} = { DBI => 0 };
+    $opts{PREREQ_PM} = { DBI => 1.51 };
     $opts{CAPI} = 'TRUE' if $Config{archname} =~ /-object\b/i;
 }
 

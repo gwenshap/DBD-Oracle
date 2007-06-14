@@ -6,7 +6,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.19';
+$DBD::Oracle::VERSION = '1.20';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -31,7 +31,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
     my $Revision = substr(q$Revision: 1.103 $, 10);
 
-    require_version DBI 1.28;
+    require_version DBI 1.51;
 
     bootstrap DBD::Oracle $VERSION;
 
@@ -60,15 +60,13 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	DBD::Oracle::dr::init_oci($drh) ;
 	$drh->STORE('ShowErrorStatement', 1);
 
-	if ($DBI::VERSION >= 1.37) {
-	    DBD::Oracle::db->install_method("ora_lob_read");
-	    DBD::Oracle::db->install_method("ora_lob_write");
-	    DBD::Oracle::db->install_method("ora_lob_append");
-	    DBD::Oracle::db->install_method("ora_lob_trim");
-	    DBD::Oracle::db->install_method("ora_lob_length");
-	    DBD::Oracle::db->install_method("ora_nls_parameters");
-	    DBD::Oracle::db->install_method("ora_can_unicode");
-	}
+        DBD::Oracle::db->install_method("ora_lob_read");
+        DBD::Oracle::db->install_method("ora_lob_write");
+        DBD::Oracle::db->install_method("ora_lob_append");
+        DBD::Oracle::db->install_method("ora_lob_trim");
+        DBD::Oracle::db->install_method("ora_lob_length");
+        DBD::Oracle::db->install_method("ora_nls_parameters");
+        DBD::Oracle::db->install_method("ora_can_unicode");
 
 	$drh;
     }

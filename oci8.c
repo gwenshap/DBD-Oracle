@@ -22,12 +22,14 @@ DBISTATE_DECLARE;
 void
 dbd_init_oci(dbistate_t *dbistate)
 {
+	dTHX;
     DBIS = dbistate;
 }
 
 void
 dbd_init_oci_drh(imp_drh_t * imp_drh)
 {
+	dTHX;
     imp_drh->ora_long    = perl_get_sv("Oraperl::ora_long",      GV_ADDMULTI);
     imp_drh->ora_trunc   = perl_get_sv("Oraperl::ora_trunc",     GV_ADDMULTI);
     imp_drh->ora_cache   = perl_get_sv("Oraperl::ora_cache",     GV_ADDMULTI);
@@ -38,6 +40,7 @@ dbd_init_oci_drh(imp_drh_t * imp_drh)
 char *
 oci_status_name(sword status)
 {
+	dTHX;
     SV *sv;
     switch (status) {
     case OCI_SUCCESS:		return "SUCCESS";
@@ -59,6 +62,7 @@ oci_status_name(sword status)
 char *
 oci_stmt_type_name(int stmt_type)
 {
+	dTHX;
     SV *sv;
     switch (stmt_type) {
     case OCI_STMT_SELECT:	return "SELECT";
@@ -81,6 +85,7 @@ oci_stmt_type_name(int stmt_type)
 char *
 oci_hdtype_name(ub4 hdtype)
 {
+	dTHX;
     SV *sv;
     switch (hdtype) {
     /* Handles */
@@ -111,6 +116,7 @@ oci_hdtype_name(ub4 hdtype)
 static sb4
 oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 {
+	dTHX;
     text errbuf[1024];
     ub4 recno = 0;
     sb4 errcode = 0;
@@ -160,6 +166,7 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 int
 oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 {
+	dTHX;
     D_imp_xxh(h);
     sb4 errcode;
     SV *errstr = sv_newmortal();
@@ -181,6 +188,7 @@ oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 char *
 ora_sql_error(imp_sth_t *imp_sth, char *msg)
 {
+	dTHX;
 #ifdef OCI_ATTR_PARSE_ERROR_OFFSET
     D_imp_dbh_from_sth;
     SV  *msgsv, *sqlsv;
@@ -210,6 +218,7 @@ ora_sql_error(imp_sth_t *imp_sth, char *msg)
 void *
 oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags)
 {
+	dTHX;
      switch(handle_type) {
      case OCI_HTYPE_ENV:	return imp_dbh->envhp;
      case OCI_HTYPE_ERROR:	return imp_dbh->errhp;
@@ -225,6 +234,7 @@ oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags)
 void *
 oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags)
 {
+	dTHX;
      switch(handle_type) {
      case OCI_HTYPE_ENV:	return imp_sth->envhp;
      case OCI_HTYPE_ERROR:	return imp_sth->errhp;
@@ -241,6 +251,7 @@ oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags)
 int
 dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 {
+	dTHX;
     D_imp_dbh_from_sth;
     sword status = 0;
     ub4   oparse_lng   = 1;  /* auto v6 or v7 as suits db connected to	*/
@@ -353,6 +364,7 @@ sb4
 dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 	      dvoid **bufpp, ub4 *alenp, ub1 *piecep, dvoid **indpp)
 {
+	dTHX;
     phs_t *phs = (phs_t*)octxp;
     STRLEN phs_len;
     AV *tuples_av;
@@ -458,6 +470,7 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 			/* value or a pointer to an indicator structure for named data types.	*/
 	ub2 **rcodepp)	/* Returns a pointer to contains the return code.	*/
 {
+	dTHX;
     phs_t *phs = (phs_t*)octxp;	/* context */
     /*imp_sth_t *imp_sth = phs->imp_sth;*/
 
@@ -496,6 +509,7 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 static ub4
 ora_utf8_to_bytes (ub1 *buffer, ub4 chars_wanted, ub4 max_bytes)
 {
+	dTHX;
     ub4 i = 0;
     while (i < max_bytes && (chars_wanted-- > 0)) {
 	i += UTF8SKIP(&buffer[i]);
@@ -531,6 +545,7 @@ set_utf8(SV *sv) {
 static int	/* LONG and LONG RAW */
 fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 {
+	dTHX;
     D_imp_sth(sth);
     D_imp_dbh_from_sth ;
     D_imp_drh_from_dbh ;
@@ -601,6 +616,7 @@ fetch_func_nty(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 static void
 fetch_cleanup_rset(SV *sth, imp_fbh_t *fbh)
 {
+	dTHX;
     SV *sth_nested = (SV *)fbh->special;
     fbh->special = NULL;
 
@@ -627,9 +643,9 @@ fetch_cleanup_rset(SV *sth, imp_fbh_t *fbh)
 static int
 fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 {
+	dTHX;
     OCIStmt *stmhp_nested = ((OCIStmt **)fbh->fb_ary->abuf)[0];
-
-    dTHR;
+	dTHR;
     D_imp_sth(sth);
     D_imp_dbh_from_sth;
     dSP;
@@ -688,6 +704,7 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 int
 dbd_rebind_ph_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
+  dTHX;
   /* Only do this part for inout cursor refs because pp_exec_rset only gets called for all the output params */
   if (phs->is_inout) {
     phs->out_prepost_exec = pp_exec_rset;
@@ -707,6 +724,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 static int
 lob_phs_post_execute(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 {
+	dTHX;
     if (pre_exec)
 	return 1;
 	/* fetch PL/SQL LOB data */
@@ -724,6 +742,7 @@ lob_phs_post_execute(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 int
 dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
+	dTHX;
 	D_imp_dbh_from_sth ;
     sword status;
     ub4 lobEmpty = 0;
@@ -837,6 +856,7 @@ ub4
 ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
   SV *dest_sv, long offset, UV len, long destoffset)
 {
+	dTHX;
     ub4 loblen = 0;
     ub4 buflen;
     ub4 amtp = 0;
@@ -939,6 +959,7 @@ ub4
 ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 		    long offset, UV len, long destoffset)
 {
+	dTHX;
     ub4 loblen = 0;
     ub4 buflen;
     ub4 amtp = 0;
@@ -1064,6 +1085,7 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 static int
 fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *dest_sv, char *name)
 {
+	dTHX;
     ub4 loblen = 0;
     ub4 buflen;
     ub4 amtp = 0;
@@ -1196,6 +1218,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 static int
 fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 {
+	dTHX;
     char name[64];
     sprintf(name, "field %d of %d", fbh->field_num, DBIc_NUM_FIELDS(fbh->imp_sth));
 
@@ -1206,6 +1229,7 @@ fetch_func_autolob(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 static int
 fetch_func_getrefpv(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 {
+	dTHX;
     /* See the Oracle::OCI module for how to actually use this! */
     sv_setref_pv(dest_sv, fbh->bless, (void*)fbh->desc_h);
     return 1;
@@ -1215,6 +1239,7 @@ fetch_func_getrefpv(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 static void
 fbh_setup_getrefpv(imp_fbh_t *fbh, int desc_t, char *bless)
 {
+	dTHX;
     if (DBIS->debug >= 2)
 	PerlIO_printf(DBILOGFP,
 	    "    col %d: otype %d, desctype %d, %s", fbh->field_num, fbh->dbtype, desc_t, bless);
@@ -1231,6 +1256,7 @@ fbh_setup_getrefpv(imp_fbh_t *fbh, int desc_t, char *bless)
 static int
 calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs)
 {
+	dTHX;
     if (has_longs)			/* override/disable caching	*/
 	cache_rows = 1;			/* else read_blob can't work	*/
     else
@@ -1264,6 +1290,7 @@ calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs)
 static int			/* --- Setup the row cache for this sth --- */
 sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields, int has_longs)
 {
+	dTHX;
     D_imp_dbh_from_sth;
     D_imp_drh_from_dbh;
     int num_errors = 0;
@@ -1324,6 +1351,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 int
 dbd_describe(SV *h, imp_sth_t *imp_sth)
 {
+	dTHX;
     D_imp_dbh_from_sth;
     D_imp_drh_from_dbh;
     UV	long_readlen;
@@ -1634,6 +1662,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 AV *
 dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 {
+	dTHX;
     sword status;
     int num_fields = DBIc_NUM_FIELDS(imp_sth);
     int ChopBlanks;
@@ -1778,6 +1807,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
 ub4
 ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 {
+	dTHX;
     sword status;
     /* OCI 8 does not seem to allow uid to be "name/pass" :-( */
     /* so we have to split it up ourselves */
@@ -1804,6 +1834,7 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 int
 ora_db_reauthenticate(SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd)
 {
+	dTHX;
     sword status;
     /* XXX should possibly create new session before ending the old so	*/
     /* that if the new one can't be created, the old will still work.	*/
@@ -1823,7 +1854,7 @@ ora_db_reauthenticate(SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd)
 static char *
 rowid2hex(OCIRowid *rowid)
 {
-    int i;
+	int i;
     SV *sv = sv_2mortal(newSVpv("",0));
     for (i = 0; i < OCI_ROWID_LEN; i++) {
 	char buf[6];
@@ -1838,6 +1869,7 @@ rowid2hex(OCIRowid *rowid)
 static void *
 alloc_via_sv(STRLEN len, SV **svp, int mortal)
 {
+	dTHX;
     SV *sv = newSVpv("",0);
     sv_grow(sv, len+1);
     memset(SvPVX(sv), 0, len);
@@ -1852,6 +1884,7 @@ alloc_via_sv(STRLEN len, SV **svp, int mortal)
 char *
 find_ident_after(char *src, char *after, STRLEN *len, int copy)
 {
+
     int seen_key = 0;
     char *orig = src;
     char *p;
@@ -1913,6 +1946,7 @@ struct lob_refetch_st {
 static int
 init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 {
+	dTHX;
     SV *sv;
     SV *sql_select;
     HV *lob_cols_hv = NULL;
@@ -2201,6 +2235,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
     /* To insert a new LOB transparently (without using 'INSERT . RETURNING .')	*/
     /* we have to insert an empty LobLocator and then fetch it back from the	*/
     /* server before we can call OCILobWrite on it! This function handles that.	*/
+    dTHX;
     sword status;
     int i;
     OCIError *errhp = imp_sth->errhp;
@@ -2304,6 +2339,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 void
 ora_free_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 {
+	dTHX;
     lob_refetch_t *lr = imp_sth->lob_refetch;
     int i;
     sword status;

@@ -10,6 +10,8 @@
 
 #define PERL_POLLUTE
 
+#define PERL_NO_GET_CONTEXT  /*for Threaded Perl */
+
 #include <DBIXS.h>		/* installed by the DBI module	*/
 
 #include "dbdimp.h"
@@ -18,8 +20,8 @@
 
 #include <dbd_xsh.h>		/* installed by the DBI module	*/
 
-/* These prototypes are for dbdimp.c funcs used in the XS file          */ 
-/* These names are #defined to driver specific names in dbdimp.h        */ 
+/* These prototypes are for dbdimp.c funcs used in the XS file          */
+/* These names are #defined to driver specific names in dbdimp.h        */
 
 void	dbd_init _((dbistate_t *dbistate));
 void	dbd_init_oci_drh _((imp_drh_t * imp_drh));
