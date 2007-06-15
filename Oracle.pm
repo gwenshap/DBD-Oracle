@@ -237,6 +237,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	$dbh;
     }
+    
+     sub private_attribute_info {
+            return { ora_home_key=>undef};
+    }
 
 }
 
@@ -288,6 +292,25 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	return $v;
     }
 
+    sub private_attribute_info {
+        return { ora_max_nested_cursors => undef,
+                 ora_array_chunk_size   => undef,
+                 ora_ph_type		=> undef,
+                 ora_ph_csform		=> undef,
+                 ora_parse_error_offset => undef,
+                 ora_dbh_share		=> undef,
+                 ora_use_proc_connection=> undef,
+                 ora_envhp		=> undef,
+                 ora_context		=> undef,
+                 ora_svchp		=> undef,
+                 ora_errhp		=> undef,
+                 ora_init_mode		=> undef,
+                 ora_charset		=> undef,	
+                 ora_ncharset		=> undef,
+                 ora_session_mode	=> undef,
+                 };
+    }
+   
 
     sub table_info {
 	my($dbh, $CatVal, $SchVal, $TblVal, $TypVal) = @_;
@@ -869,6 +892,22 @@ SQL
        return (defined $row_count ? $tuple_count : undef, $row_count);
     }
 
+    sub private_attribute_info {
+        return { ora_lengths 		=> undef,
+                 ora_types   		=> undef,
+                 ora_rowid		=> undef,
+                 ora_est_row_width	=> undef,
+                 ora_type               => undef,
+                 ora_field              => undef,
+                 ora_csform		=> undef,
+                 ora_maxdata_size	=> undef,
+                 ora_parse_lang		=> undef,
+                 ora_placeholders	=> undef,
+                 ora_auto_lob		=> undef,
+                 ora_check_sql		=> undef
+                 };
+    }
+   
 }
 
 1;
