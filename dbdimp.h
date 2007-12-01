@@ -91,49 +91,53 @@ struct imp_dbh_st {
 #define DBH_DUP_LEN (sizeof(struct imp_dbh_st) - sizeof(dbih_dbc_t))
 
 
-typedef struct lob_refetch_st lob_refetch_t;
+typedef struct lob_refetch_st lob_refetch_t; /* Define sth implementor data structure */
 
-/* Define sth implementor data structure */
+
+
 struct imp_sth_st {
+
     dbih_stc_t com;		/* MUST be first element in structure	*/
 
     void *(*get_oci_handle) _((imp_sth_t *imp_sth, int handle_type, int flags));
-    OCIEnv	*envhp;		/* copy of dbh pointer	*/
-    OCIError	*errhp;		/* copy of dbh pointer	*/
-    OCIServer	*srvhp;		/* copy of dbh pointer	*/
-    OCISvcCtx	*svchp;		/* copy of dbh pointer	*/
-    OCIStmt	*stmhp;
-    ub2 	stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
-    U16		auto_lob;
-    int  	has_lobs;
+    OCIEnv			 *envhp;	/* copy of dbh pointer	*/
+    OCIError		 *errhp;	/* copy of dbh pointer	*/
+    OCIServer		 *srvhp;	/* copy of dbh pointer	*/
+    OCISvcCtx		 *svchp;	/* copy of dbh pointer	*/
+    OCIStmt		     *stmhp;    /* oci statement  handle */
+    OCIDescribe 	 *dschp;    /* oci describe handle */
+   	ub2 		stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
+    U16			auto_lob;
+    int  		has_lobs;
 
     lob_refetch_t *lob_refetch;
-    int  	nested_cursor;  /* cursors fetched from SELECTs */
-    AV          *bind_tuples;  /* Bind tuples in array execute, or NULL */int         rowwise;       /* If true, bind_tuples is list of */
+    int  		nested_cursor;  /* cursors fetched from SELECTs */
+    AV          *bind_tuples;  /* Bind tuples in array execute, or NULL */
+    int         rowwise;       /* If true, bind_tuples is list of */
 		                       /* tuples, otherwise list of columns. */
 
     /* Input Details	*/
-    char      *statement;	/* sql (see sth_scan)		*/
-    HV        *all_params_hv;	/* all params, keyed by name	*/
-    AV        *out_params_av;	/* quick access to inout params	*/
-    int        ora_pad_empty;	/* convert ""->" " when binding	*/
+    char		*statement;	/* sql (see sth_scan)		*/
+    HV        	*all_params_hv;	/* all params, keyed by name	*/
+    AV        	*out_params_av;	/* quick access to inout params	*/
+    int       	ora_pad_empty;	/* convert ""->" " when binding	*/
 
     /* Select Column Output Details	*/
-    int        done_desc;   /* have we described this sth yet ?	*/
-    imp_fbh_t *fbh;	    /* array of imp_fbh_t structs	*/
-    char      *fbh_cbuf;    /* memory for all field names       */
-    int       t_dbsize;     /* raw data width of a row		*/
-    UV        long_readlen; /* local copy to handle oraperl	*/
-
-    /* Select Row Cache Details */
-    int       cache_rows;
-    int       in_cache;
-    int       next_entry;
-    int       eod_errno;
-    int       est_width;    /* est'd avg row width on-the-wire	*/
-
+    int       	done_desc;   /* have we described this sth yet ?	*/
+    imp_fbh_t 	*fbh;	    /* array of imp_fbh_t structs	*/
+    char      	*fbh_cbuf;    /* memory for all field names       */
+    int       	t_dbsize;     /* raw data width of a row		*/
+    UV        	long_readlen; /* local copy to handle oraperl	*/
+    HV        	*fbh_tdo_hv;   /* hash of row #(0 based) and tdo object name from ora_oci_type_names hash
+     /* Select Row Cache Details */
+    int       	cache_rows;
+    int       	in_cache;
+    int       	next_entry;
+    int       	eod_errno;
+    int      	est_width;    /* est'd avg row width on-the-wire	*/
     /* (In/)Out Parameter Details */
-    bool  has_inout_params;
+    bool  		has_inout_params;
+
 };
 #define IMP_STH_EXECUTING	0x0001
 
@@ -147,39 +151,63 @@ struct fb_ary_st { 	/* field buffer array EXPERIMENTAL	*/
     ub2  *arcode;	/* field level error status		*/
 };
 
+
+
+
+typedef struct fbh_obj_st fbh_obj_t;
+
+struct fbh_obj_st {  /* embedded object or table will work recursively*/
+	text        	*type_name;    		/*object's name (TDO)*/
+    ub4         	type_namel;    		/*length of the name*/
+    OCIParam    	*parmdp;            /*Describe attributes of the object OCI_DTYPE_PARAM*/
+	OCIParam    	*parmap;            /*Describe attributes of the object OCI_ATTR_COLLECTION_ELEMENT OCI_ATTR_PARAM*/
+ 	OCIType     	*tdo;				/*object's TDO handle */
+	OCITypeCode 	typecode;			/*object's OOCI_ATTR_TYPECODE */
+	OCITypeCode 	col_typecode;    	/*if collection this is its OCI_ATTR_COLLECTION_TYPECODE */
+    OCITypeCode 	element_typecode;	/*if collection this is its element's OCI_ATTR_TYPECODE*/
+	OCIRef      	*obj_ref;			/*if an embeded object this is ref handle to its TDO*/
+ 	OCIComplexObject *obj_value;        /*the actual value from the DB*/
+ 	OCIType      	*obj_type;         	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
+    fbh_obj_t       *fields;			/*one object for each field/property*/
+    int             field_count;		/*The number of fields Not really needed but nice to have*/
+
+};
+
 struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     imp_sth_t *imp_sth;	/* 'parent' statement	*/
     int field_num;	/* 0..n-1		*/
 
     /* Oracle's description of the field	*/
-    OCIParam  *parmdp;
-    OCIDefine *defnp;
-    void *desc_h;	/* descriptor if needed (LOBs etc)	*/
-    ub4   desc_t;	/* OCI type of descriptorh		*/
-    int  (*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
-    void (*fetch_cleanup) _((SV *sth, imp_fbh_t *fbh));
-
-    ub2  dbtype;	/* actual type of field (see ftype)	*/
-    ub2  dbsize;
-    ub2  prec;		/* XXX docs say ub1 but ub2 is needed	*/
-    sb1  scale;
-    ub1  nullok;
-    char *name;
-    SV   *name_sv;	/* only set for OCI8			*/
+    OCIParam  	*parmdp;
+    OCIDefine 	*defnp;
+    void 		*desc_h;	/* descriptor if needed (LOBs etc)	*/
+    ub4  		desc_t;	/* OCI type of descriptor		*/
+    int  		(*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
+    void 		(*fetch_cleanup) _((SV *sth, imp_fbh_t *fbh));
+    ub2  		dbtype;	/* actual type of field (see ftype)	*/
+    ub2  		dbsize;
+    ub2  		prec;		/* XXX docs say ub1 but ub2 is needed	*/
+    sb1  		scale;
+    ub1  		nullok;
+    char 		*name;
+    SV   		*name_sv;	/* only set for OCI8			*/
     /* OCI docs say OCI_ATTR_CHAR_USED is ub4, they're wrong	*/
-    ub1  len_char_used;	/* OCI_ATTR_CHAR_USED			*/
-    ub2  len_char_size;	/* OCI_ATTR_CHAR_SIZE			*/
-    ub2  csid;		/* OCI_ATTR_CHARSET_ID			*/
-    ub1  csform;	/* OCI_ATTR_CHARSET_FORM		*/
+    ub1  		len_char_used;	/* OCI_ATTR_CHAR_USED			*/
+    ub2  		len_char_size;	/* OCI_ATTR_CHAR_SIZE			*/
+    ub2  		csid;		/* OCI_ATTR_CHARSET_ID			*/
+    ub1  		csform;	/* OCI_ATTR_CHARSET_FORM		*/
 
-    sb4  disize;	/* max display/buffer size		*/
-    char *bless;	/* for Oracle::OCI style handle data	*/
-    void *special;	/* hook for special purposes (LOBs etc)	*/
+    sb4  		disize;	/* max display/buffer size		*/
+    char 		*bless;	/* for Oracle::OCI style handle data	*/
+    void 		*special;	/* hook for special purposes (LOBs etc)	*/
 
     /* Our storage space for the field data as it's fetched	*/
-    sword ftype;	/* external datatype we wish to get	*/
-    fb_ary_t *fb_ary;	/* field buffer array			*/
-};
+    sword  		ftype;	/* external datatype we wish to get	*/
+    fb_ary_t 	*fb_ary ;	/* field buffer array			*/
+    /* if this is an embedded object we use this */
+    fbh_obj_t   *obj;
+
+ };
 
 
 typedef struct phs_st phs_t;    /* scalar placeholder   */
@@ -260,8 +288,14 @@ char *oci_stmt_type_name _((int stmt_type));
 char *oci_status_name _((sword status));
 char * oci_hdtype_name _((ub4 hdtype));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
+
+int dbd_rebind_ph_nty _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
+
 int ora_st_execute_array _((SV *sth, imp_sth_t *imp_sth, SV *tuples,
                             SV *tuples_status, SV *columns, ub4 exe_count));
+
+
+SV * ora_create_xml _((SV *dbh, char *source));
 
 void ora_free_lob_refetch _((SV *sth, imp_sth_t *imp_sth));
 void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));
@@ -292,10 +326,10 @@ void fb_ary_free(fb_ary_t *fb_ary);
 
 /* These defines avoid name clashes for multiple statically linked DBD's	*/
 
-#define dbd_init		ora_init
+#define dbd_init		    ora_init
 #define dbd_db_login		ora_db_login
 #define dbd_db_login6		ora_db_login6
-#define dbd_db_do		ora_db_do
+#define dbd_db_do		    ora_db_do
 #define dbd_db_commit		ora_db_commit
 #define dbd_db_rollback		ora_db_rollback
 #define dbd_db_cancel		ora_db_cancel
@@ -304,7 +338,7 @@ void fb_ary_free(fb_ary_t *fb_ary);
 #define dbd_db_STORE_attrib	ora_db_STORE_attrib
 #define dbd_db_FETCH_attrib	ora_db_FETCH_attrib
 #define dbd_st_prepare		ora_st_prepare
-#define dbd_st_rows		ora_st_rows
+#define dbd_st_rows		    ora_st_rows
 #define dbd_st_cancel		ora_st_cancel
 #define dbd_st_execute		ora_st_execute
 #define dbd_st_fetch		ora_st_fetch
@@ -314,7 +348,7 @@ void fb_ary_free(fb_ary_t *fb_ary);
 #define dbd_st_STORE_attrib	ora_st_STORE_attrib
 #define dbd_st_FETCH_attrib	ora_st_FETCH_attrib
 #define dbd_describe		ora_describe
-#define dbd_bind_ph		ora_bind_ph
+#define dbd_bind_ph		    ora_bind_ph
 
 /* end */
 

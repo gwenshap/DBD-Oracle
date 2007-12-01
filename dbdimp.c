@@ -435,6 +435,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	SV **init_mode_sv;
 	ub4 init_mode = OCI_OBJECT;	/* needed for LOBs (8.0.4)	*/
 	DBD_ATTRIB_GET_IV(attr, "ora_init_mode",13, init_mode_sv, init_mode);
+
 #if defined(USE_ITHREADS) || defined(MULTIPLICITY) || defined(USE_5005THREADS)
 	init_mode |= OCI_THREADED;
 #endif
@@ -1793,6 +1794,8 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 		(ub4)((DBIc_has(imp_dbh,DBIcf_AutoCommit) && !is_select)
 			? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT),
 		status);
+
+
     if (status != OCI_SUCCESS) { /* may be OCI_ERROR or OCI_SUCCESS_WITH_INFO etc */
 	/* we record the error even for OCI_SUCCESS_WITH_INFO */
 	oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIStmtExecute"));
@@ -2223,8 +2226,8 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
     DBIc_ACTIVE_off(imp_sth);
 
     for(i=0; i < num_fields; ++i) {
-	imp_fbh_t *fbh = &imp_sth->fbh[i];
-	if (fbh->fetch_cleanup) fbh->fetch_cleanup(sth, fbh);
+ 		imp_fbh_t *fbh = &imp_sth->fbh[i];
+		if (fbh->fetch_cleanup) fbh->fetch_cleanup(sth, fbh);
     }
 
     if (dirty)			/* don't walk on the wild side	*/
@@ -2305,6 +2308,10 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
        free these handles. Experiment shows that Oracle frees them
        when they are no longer needed.
     */
+    /* get rid of describe handle if used*/
+    if (imp_sth->dschp){
+		OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
+	}
 
     if (DBIc_DBISTATE(imp_sth)->debug >= 6)
 	PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_destroy %s\n",
@@ -2328,8 +2335,9 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
     imp_sth->in_cache  = 0;
     imp_sth->eod_errno = 1403;
     for(i=0; i < fields; ++i) {
-	imp_fbh_t *fbh = &imp_sth->fbh[i];
-	ora_free_fbh_contents(fbh);
+		imp_fbh_t *fbh = &imp_sth->fbh[i];
+		ora_free_fbh_contents(fbh);
+
     }
     Safefree(imp_sth->fbh);
     if (imp_sth->fbh_cbuf)
@@ -2340,27 +2348,26 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 	sv_free((SV*)imp_sth->out_params_av);
 
     if (imp_sth->all_params_hv) {
-	HV *hv = imp_sth->all_params_hv;
-	SV *sv;
-	char *key;
-	I32 retlen;
-	hv_iterinit(hv);
-	while( (sv = hv_iternextsv(hv, &key, &retlen)) != NULL ) {
-	    if (sv != &sv_undef) {
-		  phs_t *phs = (phs_t*)(void*)SvPVX(sv);
+		HV *hv = imp_sth->all_params_hv;
+		SV *sv;
+		char *key;
+		I32 retlen;
+		hv_iterinit(hv);
+		while( (sv = hv_iternextsv(hv, &key, &retlen)) != NULL ) {
+		    if (sv != &sv_undef) {
+			  	phs_t *phs = (phs_t*)(void*)SvPVX(sv);
+				if (phs->desc_h && phs->desc_t == OCI_DTYPE_LOB)
+	        		ora_free_templob(sth, imp_sth, (OCILobLocator*)phs->desc_h);
 
 
-	      if (phs->desc_h && phs->desc_t == OCI_DTYPE_LOB)
-	        ora_free_templob(sth, imp_sth, (OCILobLocator*)phs->desc_h);
-
-
-	      ora_free_phs_contents(phs);
-	    }
-	}
-	sv_free((SV*)imp_sth->all_params_hv);
+	      		ora_free_phs_contents(phs);
+	    	}
+		}
+		sv_free((SV*)imp_sth->all_params_hv);
     }
 
     DBIc_IMPSET_off(imp_sth);		/* let DBI know we've done it	*/
+
 }
 
 

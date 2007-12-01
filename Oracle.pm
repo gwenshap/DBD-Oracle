@@ -2899,6 +2899,92 @@ running a perl script at the end of the previous month even though it
 was the 6th of the new month.  I had the dba start up a listener with
 TZ=X+144.  (144 hours = 6 days)"]
 
+=head1 Object & Collection Data Types 
+Oracle databases allow for the creation of object oriented like user-defined types.  
+There are two types of objects, Embedded--an object stored in a column of a regular table 
+and REF--an object that uses the REF retrieval mechanism. 
+
+DBD::Oracle supports only the 'selection' of embedded objects of the following types OBJECT, VARRAY
+and TABLE in any combination. Support is seamless and recursive, meaning you 
+need only supply a simple SQL statement to get all the values in an embedded object 
+as an array of scalars. 
+
+For example, given this type and table:
+
+  CREATE OR REPLACE TYPE  "PHONE_NUMBERS" as varray(10) of varchar(30);
+  
+  CREATE TABLE  "CONTACT" 
+     (	"COMPANYNAME" VARCHAR2(40), 
+  	"ADDRESS" VARCHAR2(100), 
+  	"PHONE_NUMBERS"  "PHONE_NUMBERS" 
+   )
+  
+  
+The code to access all the data would be something like this;
+
+   my $sth = $dbh->prepare('SELECT * FROM CONTACT');
+   $sth->execute;
+   while ( my ($company, $address, $phone) = $sth->fetchrow()) {
+        print "Company: ".$company."\n";
+        print "Address: ".$address."\n";
+        print "Phone #: ";
+        
+        foreach my $items (@$phone){
+           print $items.", ";
+        }
+        print "\n";
+   }
+
+Note that $phone is returned as an array.
+
+As stated before DBD::Oracle will automatically recurse into the embedded object and extract 
+all of the data. The example below has OBJECT type embedded in a TABLE type embedded in an
+SQL TABLE;
+
+   CREATE OR REPLACE TYPE GRADELIST AS TABLE OF NUMBER;
+
+   CREATE OR REPLACE TYPE STUDENT AS OBJECT(
+       NAME          VARCHAR2(60),
+       SOME_GRADES   GRADELIST);
+
+   CREATE OR REPLACE TYPE STUDENTS_T AS TABLE OF STUDENT;
+
+   CREATE TABLE GROUPS( 
+       GRP_ID        NUMBER(4),
+       GRP_NAME      VARCHAR2(10),
+       STUDENTS      STUDENTS_T)
+     NESTED TABLE STUDENTS STORE AS GROUP_STUDENTS_TAB
+      (NESTED TABLE SOME_GRADES STORE AS GROUP_STUDENT_GRADES_TAB);
+
+The following code will access all of the embedded data;
+
+   $sql='select grp_id,grp_name,students as my_students_test from groups';
+   $sth=$dbh->prepare($sql);
+   $sth->execute();
+   
+   while (my ($grp_id,$grp_name,$students)=$sth->fetchrow()){
+
+      print "Group ID#".$grp_id." Group Name =".$grp_name."\n";
+      
+      foreach my $student (@$students){
+
+         print "Name:".$student->[0]."\n";
+         print "Marks:";
+
+         foreach my $grades (@$student->[1]){
+
+            foreach my $marks (@$grades){
+
+               print $marks.",";     
+            }
+         }
+         print "\n";
+      }
+      print "\n";
+   }
+ 
+So far DBD::Oracle has been tested on a table with 20 embedded Objects, Varrays and Tables 
+nested to 10 levels.
 
 =head1 Oracle Related Links
 
