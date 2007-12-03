@@ -1473,6 +1473,12 @@ sub get_client_version {
 	print FH "DEFINE _SQLPLUS_RELEASE\nQUIT\n";
 	close FH;
 	my $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
+	if ($sqlplus_release =~ /SP2-0750/) {
+	                my $x = $ENV{ORACLE_HOME};
+	                delete $ENV{ORACLE_HOME};
+	                $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
+	                $ENV{ORACLE_HOME} = $x;
+        } 
 	unlink "define.sql";
 	print $sqlplus_release; # the _SQLPLUS_RELEASE may not be on first line:
 	if ($sqlplus_release =~ /DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
