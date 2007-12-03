@@ -181,10 +181,18 @@
 #define OCIBindByName_log_stat(sh,bp,eh,p1,pl,v,vs,dt,in,al,rc,mx,cu,md,stat)  \
 	stat=OCIBindByName(sh,bp,eh,p1,pl,v,vs,dt,in,al,rc,mx,cu,md);	\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-	  "%sBindByName(%p,%p,%p,\"%s\",%ld,%p,%ld,%u,%p,%p,%p,%lu,%p,%lu)=%s\n",\
-	  OciTp, (void*)sh,(void*)bp,(void*)eh,p1,sl_t(pl),(void*)(v),	\
+	  "%sBindByName(%p,%p,%p,\"%s\",placeh_len=%ld,value_p=%p,value_sz=%ld," \
+	  "dty=%u,indp=%p,alenp=%p,rcodep=%p,maxarr_len=%lu,curelep=%p (*=%d),mode=%lu)=%s\n",\
+ 	  OciTp, (void*)sh,(void*)bp,(void*)eh,p1,sl_t(pl),(void*)(v),	\
 	  sl_t(vs),(ub2)(dt),(void*)(in),(ub2*)(al),(ub2*)(rc),		\
-	  ul_t((mx)),pul_t((cu)),ul_t((md)),				\
+	  ul_t((mx)),pul_t((cu)),(cu ? *(int*)cu : 0 ) ,ul_t((md)),				\
+	  oci_status_name(stat)),stat : stat
+
+#define	OCIBindArrayOfStruct_log_stat(bp,ep,sd,si,sl,sr,stat)	\
+	stat=OCIBindArrayOfStruct(bp,ep,sd,si,sl,sr);		\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,	\
+	  "%sOCIBindArrayOfStruct(%p,%p,%u,%u,%u,%u)=%s\n",	\
+	  OciTp,(void*)bp,(void*)ep,sd,si,sl,sr,		\
 	  oci_status_name(stat)),stat : stat
 
 #define OCIBindDynamic_log(bh,eh,icx,cbi,ocx,cbo,stat)                 \

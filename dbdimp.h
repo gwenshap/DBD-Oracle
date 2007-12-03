@@ -108,7 +108,7 @@ struct imp_sth_st {
     OCIDescribe 	 *dschp;    /* oci describe handle */
    	ub2 		stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
     U16			auto_lob;
-    int  		has_lobs;
+    int  		has_lobs;  /* Statement has boud LOBS*/
 
     lob_refetch_t *lob_refetch;
     int  		nested_cursor;  /* cursors fetched from SELECTs */
@@ -209,6 +209,9 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
 
  };
 
+ /* Placeholder structure */
+ /* Note: phs_t is serialized into scalar value, and de-serialized then. */
+ /* Be carefull! */
 
 typedef struct phs_st phs_t;    /* scalar placeholder   */
 
@@ -225,7 +228,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     bool is_inout;
 
     IV  maxlen;		/* max possible len (=allocated buffer)	*/
-
+					/* Note: for array bind = buffer for each entry */
     OCIBind *bndhp;
     void *desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4   desc_t;	/* OCI type of desc_h			*/
@@ -239,7 +242,19 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     int (*out_prepost_exec)_((SV *, imp_sth_t *, phs_t *, int pre_exec));
     SV	*ora_field;	/* from attribute (for LOB binds)	*/
     int alen_incnull;	/* 0 or 1 if alen should include null	*/
-    char name[1];	/* struct is malloc'd bigger as needed	*/
+    /* Array bind support */
+    char   * array_buf;            /* Temporary buffer = malloc(array_buflen) */
+	int      array_buflen;         /* Allocated length of array_buf */
+	int      array_numstruct;      /* Number of bound structures in buffer */
+	OCIInd * array_indicators;     /* Indicator array       = malloc( array_numallocated * sizeof(OCIInd) ) */
+	unsigned short *array_lengths; /* Array entries lengths = malloc( array_numallocated * sizeof(unsigned short) ) */
+	int      array_numallocated;   /* Allocated number of indicators/lengths */
+	int      ora_maxarray_numentries; /* Number of entries to send allocated to Oracle. (may be less, than total allocated) */
+
+	/* Support for different internal C-types, representing Oracle data */
+	int ora_internal_type; /* Which C-type would be bound instead of SQLT_CHR. */
+
+   char name[1];	/* struct is malloc'd bigger as needed	*/
 };
 
 

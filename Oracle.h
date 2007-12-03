@@ -58,4 +58,9 @@ ub4    ora_blob_read_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *d
 ub4    ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 		   long offset, UV len, long destoffset));
 
+/* Oracle types */
+
+#define ORA_VARCHAR2_TABLE	201
+#define ORA_NUMBER_TABLE	202
+
 /* end of Oracle.h */

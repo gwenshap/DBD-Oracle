@@ -21,7 +21,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	ora_types => [ qw(
 	    ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
 	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
-	    ORA_CLOB ORA_BLOB ORA_RSET 
+	    ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
+	    SQLT_INT SQLT_FLT
 	) ],
         ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
     );
@@ -1168,14 +1169,24 @@ Thanks to Mark Dedlow for this information.
 
   ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
   ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
-  ORA_CLOB ORA_BLOB ORA_RSET
-
+  ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
+  SQLT_INT SQLT_FLT
+ 
 =item SQLCS_IMPLICIT
 
 =item SQLCS_NCHAR
 
 SQLCS_IMPLICIT and SQLCS_NCHAR are I<character set form> values.
 See notes about Unicode elsewhere in this document.
+
+=item SQLT_INT
+
+=item SQLT_FLT
+
+These types are used only internally, and may be specified as internal
+bind type for ORA_NUMBER_TABLE. See notes about ORA_NUMBER_TABLE elsewhere
+in this document
+
 
 =item ORA_OCI
 
@@ -1448,11 +1459,13 @@ Potentially useful values when DBD::Oracle was built using OCI 7 and later:
 
 Additional values when DBD::Oracle was built using OCI 8 and later:
 
-  ORA_CLOB, ORA_BLOB, ORA_NTY
+  ORA_CLOB, ORA_BLOB, ORA_NTY, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE
 
 See L</Binding Cursors> for the correct way to use ORA_RSET.
 
 See L</Handling LOBs> for how to use ORA_CLOB and ORA_BLOB.
+
+See L</SYS.DBMS_SQL datatypes> for ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE.
 
 See L</Other Data Types> for more information.
 
@@ -1474,6 +1487,18 @@ Character set names can't be used currently.
 Specify the integer OCI_ATTR_MAXDATA_SIZE for the bind value. 
 May be needed if a character set conversion from client to server
 causes the data to use more space and so fail with a truncation error.
+
+=item ora_maxarray_numentries
+
+Specify the maximum number of array entries to allocate. Used with
+ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE. Define the maximum number of
+array entries Oracle can pass back to you in OUT variable of type
+TABLE OF ... .
+
+=item ora_internal_type
+
+Specify internal data representation. Currently is supported only for
+ORA_NUMBER_TABLE.
 
 =back
 
@@ -1810,6 +1835,144 @@ character set is AL32UTF8.
 
 The only multi-byte Oracle character set supported by DBD::Oracle is
 "AL32UTF8" (and "UTF8"). Single-byte character sets should work well.
+
+=head1 SYS.DBMS_SQL datatypes
+
+DBD::Oracle has built-in support for B<SYS.DBMS_SQL.VARCHAR2_TABLE>
+and B<SYS.DBMS_SQL.NUMBER_TABLE> data types. The simple example is here:
+
+    my $statement='
+    DECLARE
+    	tbl	SYS.DBMS_SQL.VARCHAR2_TABLE;
+    BEGIN
+    	tbl := :mytable;
+    	:cc := tbl.count();
+    	tbl(1) := \'def\';
+    	tbl(2) := \'ijk\';
+    	:mytable := tbl;
+    END;
+    ';
+
+    my $sth=$dbh->prepare( $statement );
+
+    my @arr=( "abc" );
+
+    $sth->bind_param_inout(":mytable", \@arr, 10, {
+            ora_type => ORA_VARCHAR2_TABLE,
+            ora_maxarray_numentries => 100
+    } ) );
+    $sth->bind_param_inout(":cc", \$cc, 100 ) );
+    $sth->execute();
+    print	"Result: cc=",$cc,"\n",
+    	"\tarr=",Data::Dumper::Dumper(\@arr),"\n";
+
+=over
+
+=item OCI_VARCHAR2_TABLE
+
+SYS.DBMS_SQL.VARCHAR2_TABLE object is always bound to array reference.
+( in bind_param() and bind_param_inout() ). When you bind array, you need
+to specify full buffer size for OUT data. So, there are two parameters:
+I<max_len> (specified as 3rd argument of bind_param_inout() ),
+and I<ora_maxarray_numentries>. They define maximum array entry length and
+maximum rows, that can be passed to Oracle and back to you. In this
+example we send array with 1 element with length=3, but allocate space for 100
+Oracle array entries with maximum length 10 of each. So, you can get no more
+than 100 array entries with length <= 10. 
+
+If you set I<max_len> to zero, maximum array entry length is calculated
+as maximum length of entry of array bound. If 0 < I<max_len> < length( $some_element ),
+truncation occur.
+
+If you set I<ora_maxarray_numentries> to zero, current (at bind time) bound
+array length is used as maximum. If 0 < I<ora_maxarray_numentries> < scalar(@array),
+not all array entries are bound.
+
+=item OCI_NUMBER_TABLE
+
+SYS.DBMS_SQL.NUMBER_TABLE object handling is much alike ORA_VARCHAR2_TABLE.
+The main difference is internal data representation. Currently 2 types of
+bind is allowed : as C-integer, or as C-double type. To select one of them,
+you may specify additional bind parameter I<ora_internal_type> as either
+B<SQLT_INT> or B<SQLT_FLT> for C-integer and C-double types.
+Integer size is architecture-specific and is usually 32 or 64 bit.
+Double is standard IEEE 754 type.
+
+I<ora_internal_type> defaults to double (SQLT_FLT).
+
+I<max_len> is ignored for OCI_NUMBER_TABLE.
+
+Currently, you cannot bind full native Oracle NUMBER(38). If you really need,
+send request to dbi-dev list.
+
+The usage example is here:
+
+    $statement='
+    DECLARE
+            tbl     SYS.DBMS_SQL.NUMBER_TABLE;
+    BEGIN
+            tbl := :mytable;
+            :cc := tbl(2);
+            tbl(4) := -1;
+            tbl(5) := -2;
+            :mytable := tbl;
+    END;
+    ';
+    
+    $sth=$dbh->prepare( $statement );
+    
+    if( ! defined($sth) ){
+            die "Prapare error: ",$dbh->errstr,"\n";
+    }
+    
+    @arr=( 1,"2E0","3.5" );
+    
+    # note, that ora_internal_type defaults to SQLT_FLT for ORA_NUMBER_TABLE .
+    if( not $sth->bind_param_inout(":mytable", \@arr, 10, {
+                    ora_type => ORA_NUMBER_TABLE,
+                    ora_maxarray_numentries => (scalar(@arr)+2),
+                    ora_internal_type => SQLT_FLT
+              } ) ){
+            die "bind :mytable error: ",$dbh->errstr,"\n";
+    }
+    $cc=undef;
+    if( not $sth->bind_param_inout(":cc", \$cc, 100 ) ){
+            die "bind :cc error: ",$dbh->errstr,"\n";
+    }
+    
+    if( not $sth->execute() ){
+            die "Execute failed: ",$dbh->errstr,"\n";
+    }
+    print   "Result: cc=",$cc,"\n",
+            "\tarr=",Data::Dumper::Dumper(\@arr),"\n";
+
+The result is like:
+
+    Result: cc=2
+            arr=$VAR1 = [
+              '1',
+              '2',
+              '3.5',
+              '-1',
+              '-2'
+            ];
+
+If you change bind type to B<SQLT_INT>, like:
+
+    ora_internal_type => SQLT_INT
+
+you get:
+
+    Result: cc=2
+            arr=$VAR1 = [
+              1,
+              2,
+              3,
+              -1,
+              -2
+            ];
+
+=back
 
 =head1 Other Data Types
 
