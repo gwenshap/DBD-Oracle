@@ -3,6 +3,43 @@ The main thing to remember is you will have to compile using 32 bit Perl and com
 which sort of defeats the purpose of having a 64bit box.  
 So until 64bit Perl comes out we will be posing in this README any success stories we have come across
 
+fyi
+
+-------- Original Message --------
+Subject:     Tip: Compiling 32bit modules against 64bit Oracle 10g on solaris
+Date:     Thu, 1 Nov 2007 16:41:28 -0400
+From:     Edgecombe, Jason <jwedgeco@uncc.edu>
+To:     <pause@pythian.com>
+CC:     <cartmanltd@hotmail.com>
+
+
+
+Hi There,
+
+I just wanted to thank both of you.
+
+The tip from cartmanltd@hotmail.com was the trick for getting
+DBD::Oracle compiled in 32bit format against the Oracle 10g client on
+solaris.
+
+Here was the command that worked:
+  perl Makefile.PL -m $ORACLE_HOME/rdbms/demo/demo_rdbms32.mk
+
+Even though the tip was for aix, it fixed my build issue on solaris 9
+(sparc)
+
+I've been banging my head on this problem for a few days.
+
+Thanks,
+Jason
+
+Jason Edgecombe
+Solaris & Linux Administrator
+Mosaic Computing Group, College of Engineering
+UNC-Charlotte
+Phone: (704) 687-3514
+
+
 
 Source:Tom Reinertson
 Platform:Amd64
