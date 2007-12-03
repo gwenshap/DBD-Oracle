@@ -1134,7 +1134,10 @@ sub fetch_oci_macros {
     # deal with (some subversions) of Oracle8.0.3's incompatible use of OBJ_EXT
     my $incompat_ext = ($MK{OBJ_EXT} && $MK{OBJ_EXT} !~ /^\./);
     warn "OBJ_EXT correction enabled ($MK{OBJ_EXT})\n" if $incompat_ext;
-
+    # Don't include compiler options for these compilers
+    my @ignore_def = qw( BUILD_CCC296 BUILD_ICC );
+    my %ignore_def; @ignore_def{@ignore_def} = ('1') x @ignore_def;
+ 
     my $mkver = 0;
     my $lastline = '';
     my @lines = read_inc_file($file);
@@ -1149,6 +1152,14 @@ sub fetch_oci_macros {
 	    s/\.(\$\(OBJ_EXT\))/$1/g;
 	    s/\.(\$\(LIB_EXT\))/$1/g;
 	}
+	# skip compiler options for undesirable compilers
+	m/^ifdef (\w+)/ and do {
+		if ($ignore_def{$1}) {
+			$_ = shift @lines until m/^endif/;
+			next;
+		}
+	};
+
 
         if (m!^([-\w/+.\$()\s]+)\s*:+\s*([^=]*)!) {     # skip targets
             my @tgts = split(/ /, $1);  # multiple target names in Oracle9i's demo_rdbms.mk
