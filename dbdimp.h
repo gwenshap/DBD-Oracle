@@ -111,24 +111,24 @@ struct imp_sth_st {
     int  		has_lobs;  /* Statement has boud LOBS*/
 
     lob_refetch_t *lob_refetch;
-    int  		nested_cursor;  /* cursors fetched from SELECTs */
+    int  		nested_cursor; /* cursors fetched from SELECTs */
     AV          *bind_tuples;  /* Bind tuples in array execute, or NULL */
     int         rowwise;       /* If true, bind_tuples is list of */
 		                       /* tuples, otherwise list of columns. */
 
     /* Input Details	*/
-    char		*statement;	/* sql (see sth_scan)		*/
+    char		*statement;		/* sql (see sth_scan)		*/
     HV        	*all_params_hv;	/* all params, keyed by name	*/
     AV        	*out_params_av;	/* quick access to inout params	*/
     int       	ora_pad_empty;	/* convert ""->" " when binding	*/
 
     /* Select Column Output Details	*/
-    int       	done_desc;   /* have we described this sth yet ?	*/
-    imp_fbh_t 	*fbh;	    /* array of imp_fbh_t structs	*/
-    char      	*fbh_cbuf;    /* memory for all field names       */
-    int       	t_dbsize;     /* raw data width of a row		*/
-    UV        	long_readlen; /* local copy to handle oraperl	*/
-    HV        	*fbh_tdo_hv;   /* hash of row #(0 based) and tdo object name from ora_oci_type_names hash
+    int       	done_desc;  	/* have we described this sth yet ?	*/
+    imp_fbh_t 	*fbh;	    	/* array of imp_fbh_t structs	*/
+    char      	*fbh_cbuf;  	/* memory for all field names       */
+    int       	t_dbsize;     	/* raw data width of a row		*/
+    UV        	long_readlen; 	/* local copy to handle oraperl	*/
+    HV        	*fbh_tdo_hv;  	 /* hash of row #(0 based) and tdo object name from ora_oci_type_names hash */
      /* Select Row Cache Details */
     int       	cache_rows;
     int       	in_cache;
@@ -152,9 +152,7 @@ struct fb_ary_st { 	/* field buffer array EXPERIMENTAL	*/
 };
 
 
-
-
-typedef struct fbh_obj_st fbh_obj_t;
+typedef struct fbh_obj_st fbh_obj_t; /*Ebbedded Object Descriptor */
 
 struct fbh_obj_st {  /* embedded object or table will work recursively*/
 	text        	*type_name;    		/*object's name (TDO)*/

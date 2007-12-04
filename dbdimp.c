@@ -2639,19 +2639,6 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 	while(--i >= 0) {
 	    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
 	    SV *sv = phs->sv;
-	    if (debug >= 2) {
-			PerlIO_printf(DBILOGFP,
-			"dbd_st_execute(): Analyzing inout parameter '%s'\n",
-			phs->name);
-	    }
-	    if( phs->ftype == ORA_VARCHAR2_TABLE ){
-			dbd_phs_ora_varchar2_table_fixup_after_execute(phs);
-			continue;
-	    }
-	    if( phs->ftype == ORA_NUMBER_TABLE ){
-			dbd_phs_ora_number_table_fixup_after_execute(phs);
-			continue;
-	    }
 	    /* Make sure we have the value in string format. Typically a number	*/
 	    /* will be converted back into a string using the same bound buffer	*/
 	    /* so the progv test below will not trip.			*/
@@ -2752,6 +2739,19 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
  	    /* phs->alen has been updated by Oracle to hold the length of the result */
 	    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
 	    SV *sv = phs->sv;
+	    if (debug >= 2) {
+			PerlIO_printf(DBILOGFP,
+			"dbd_st_execute(): Analyzing inout parameter '%s'\n",
+			phs->name);
+	    }
+	    if( phs->ftype == ORA_VARCHAR2_TABLE ){
+			dbd_phs_ora_varchar2_table_fixup_after_execute(phs);
+			continue;
+	    }
+	    if( phs->ftype == ORA_NUMBER_TABLE ){
+			dbd_phs_ora_number_table_fixup_after_execute(phs);
+			continue;
+	    }
 
 	    if (phs->out_prepost_exec) {
 		if (!phs->out_prepost_exec(sth, imp_sth, phs, 0))
