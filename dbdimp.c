@@ -2301,10 +2301,10 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
     if (!csform && SvUTF8(phs->sv)) {
     	/* try to default csform to avoid translation through non-unicode */
-	if (CSFORM_IMPLIES_UTF8(SQLCS_NCHAR))		/* prefer NCHAR */
-	    csform = SQLCS_NCHAR;
-	else if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT))
-	    csform = SQLCS_IMPLICIT;
+    	if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT))           /* prefer IMPLICIT! */
+			csform = SQLCS_IMPLICIT;
+		else if (CSFORM_IMPLIES_UTF8(SQLCS_NCHAR))
+			csform = SQLCS_NCHAR; 
 	/* else leave csform == 0 */
 	if (trace_level)
 	    PerlIO_printf(DBILOGFP, "dbd_rebind_ph() (2): rebinding %s with UTF8 value %s", phs->name,
