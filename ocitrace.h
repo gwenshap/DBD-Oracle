@@ -110,7 +110,7 @@
     stat = OCITypeByName(envhp,errhp,svchp,"",0,p1,l,0,0,OCI_DURATION_SESSION,OCI_TYPEGET_ALL,tdo);\
     (DBD_OCI_TRACEON) \
 	   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-	         "%OCITypeByName(%p,%p,%p,%n,%d)=%s\n",\
+	         "%OCITypeByName(%p,%p,%p,%s,%d)=%s\n",\
 	         OciTp, (void*)envhp, (void*)errhp, (void*)svchp, (void*)(p1),(l),oci_status_name(stat)),stat \
    : stat
 
