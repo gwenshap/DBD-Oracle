@@ -39,7 +39,8 @@
 #include <oci.h>
 #include <oratypes.h>
 #include <ocidfn.h>
-
+#include <orid.h>
+#include <ori.h>
 /* ------ end of Oracle include files ------ */
 
 

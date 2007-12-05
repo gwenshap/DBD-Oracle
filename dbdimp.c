@@ -1411,7 +1411,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	    phs->array_lengths,	/* ub2 *alen_ptr not needed with OCIBindDynamic */
 	    (ub2)0,
 	    (ub4)phs->ora_maxarray_numentries, /* max elements that can fit in allocated array	*/
-	    &(phs->array_numstruct),	/* (ptr to) current number of elements in array	*/
+	    (ub4 *)&(phs->array_numstruct),	/* (ptr to) current number of elements in array	*/
 	    OCI_DEFAULT,                /* OCI_DATA_AT_EXEC (bind with callbacks) or OCI_DEFAULT  */
 	    status
     );
@@ -1818,7 +1818,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	    phs->array_lengths,
 	    (ub2)0,
 	    (ub4)phs->ora_maxarray_numentries, /* max elements that can fit in allocated array	*/
-	    &(phs->array_numstruct),	/* (ptr to) current number of elements in array	*/
+	    (ub4 *)&(phs->array_numstruct),	/* (ptr to) current number of elements in array	*/
 	    OCI_DEFAULT,                /* OCI_DATA_AT_EXEC (bind with callbacks) or OCI_DEFAULT  */
 	    status
     );
