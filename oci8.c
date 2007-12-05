@@ -1743,7 +1743,7 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 			}
 
 			if (DBIS->debug >= 6) {
-				PerlIO_printf(DBILOGFP, "Getting property #%d, named=%n of \n",pos,fld->type_name);
+				PerlIO_printf(DBILOGFP, "Getting property #%d, named=%s of \n",pos,fld->type_name);
 			}
 
 			if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
