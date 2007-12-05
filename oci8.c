@@ -1406,7 +1406,6 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 	    		}
 				if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
                		AV *emb_list = newAV();
-					fbh_obj_t *emb_obj = &fld->fields[0]; /*get the field */
 					attr_value = *(dvoid **)attr_value;
 					get_object (sth,emb_list, fbh, &fld->fields[0],attr_value,attr_null_struct);
 					av_push(list, newRV_noinc((SV *) emb_list));
@@ -1537,7 +1536,6 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
     dTHX;
     dvoid   *null_struct= (dvoid *) 0;
     AV 		*list = newAV();
-	int 	num_errors = 0;
 
 	if (DBIS->debug >= 4) {
 		PerlIO_printf(DBILOGFP, " getting an embedded object named  %s with typecode=%d\n",fbh->obj->type_name,fbh->obj->typecode);
@@ -1622,7 +1620,6 @@ int
 describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level )
 {
 	dTHX;
-	D_imp_dbh_from_sth;
 	sword status;
 
 	if (DBIS->debug >= 5) {
@@ -1673,7 +1670,6 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 
     if (obj->typecode == OCI_TYPECODE_OBJECT){
 		OCIParam *list_attr= (OCIParam *) 0;
-		text     *namef=NULL;
 		ub2      pos;
 
 		if (DBIS->debug >= 6) {
@@ -1756,7 +1752,6 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 	    }
     } else {
 		/*well this is an embedded table or varray of some form so find out what is in it*/
-		OCIParam *parmap= (OCIParam *) 0;
 
 		if (DBIS->debug >= 6) {
 			PerlIO_printf(DBILOGFP, "Object named =%s at level %d is an Varray or Table\n",obj->type_name,level);
@@ -1802,7 +1797,6 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 int
 dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level){
 	dTHX;
-   	D_imp_dbh_from_sth;
 	int i;
 
 /*dumps the contents of the current fbh->obj*/

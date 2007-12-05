@@ -3151,12 +3151,13 @@ nested to 10 levels.
 
 =head1 Oracle Related Links
 
+=head2 Oracle Instant Client
+
+  http://www.oracle.com/technology/tech/oci/instantclient/index.html
+  
 =head2 Oracle on Linux
 
-  http://www.datamgmt.com/maillist.html
   http://www.eGroups.com/list/oracle-on-linux
-  http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
-  ftp://oracle-ftp.oracle.com/server/patch_sets/LINUX
   http://www.ixora.com.au/
 
 =head2 Free Oracle Tools and Links
