@@ -1543,9 +1543,11 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 
 	/*will return referance to an array of scalars*/
   	if (!get_object(sth,list,fbh,fbh->obj,fbh->obj->obj_value,null_struct)){
-		return 0;
+  		return 0;
 	} else {
 		sv_setsv(dest_sv, newRV_noinc((SV *) list));
+		list=NULL;
+		fbh->obj->obj_value=NULL;
 		return 1;
 	}
 
