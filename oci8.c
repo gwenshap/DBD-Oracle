@@ -1367,9 +1367,10 @@ static void get_attr_val(AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typ
 /*gets the properties of an object from a fetch by using the attributes saved in the describe */
 
 int
-get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *value,dvoid   *null_obj){
+get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *value){
   	dTHX;
-  	sword 		status;
+
+   	sword 		status;
 	OCIIter  	*itr = (OCIIter *) 0;
   	dvoid    	*element = (dvoid *) 0;
   	dvoid    	*null_element = (dvoid *) 0;
@@ -1381,6 +1382,8 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
    	OCIType 	*attr_tdo;
    	sb4 		index;
    	fbh_obj_t	*fld;
+
+
 
 
 	if (DBIS->debug >= 5) {
@@ -1395,7 +1398,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
               for (pos = 0; pos < obj->field_count; pos++){
   	  			fld = &obj->fields[pos]; /*get the field */
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
-										null_obj, obj->obj_type,
+										(dvoid *) 0, obj->obj_type,
 										&fld->type_name, &fld->type_namel, 1,
 										(ub4 *)0, 0, &attr_null_ind, &attr_null_struct,
 										&attr_value, &attr_tdo);
@@ -1405,10 +1408,11 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 					return 0;
 	    		}
 				if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
-               		AV *emb_list = newAV();
+
+               		fld->fields[0].value = newAV();
 					attr_value = *(dvoid **)attr_value;
-					get_object (sth,emb_list, fbh, &fld->fields[0],attr_value,attr_null_struct);
-					av_push(list, newRV_noinc((SV *) emb_list));
+					get_object (sth,fld->fields[0].value, fbh, &fld->fields[0],attr_value);
+					av_push(list, newRV_noinc((SV *) fld->fields[0].value));
 
                 } else{  /* else, display the scaler type attribute */
 
@@ -1445,9 +1449,9 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
               		{
 
 						if (obj->element_typecode == OCI_TYPECODE_OBJECT){
-                    		AV *emb_list = newAV();
-                 			get_object (sth,emb_list, fbh, fld,element,null_obj);
-							av_push(list, newRV_noinc((SV *) emb_list));
+							fld->value = newAV();
+                 			get_object (sth,fld->value, fbh, fld,element);
+							av_push(list, newRV_noinc((SV *) fld->value));
 						} else{  /* else, display the scaler type attribute */
 							get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
 
@@ -1477,9 +1481,9 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 	    			}
 
 					if (obj->element_typecode == OCI_TYPECODE_OBJECT){
-	                	AV *emb_list = newAV();
-						get_object (sth,emb_list, fbh, fld,element,null_obj);
-						av_push(list, newRV_noinc((SV *) emb_list));
+	                	fld->value = newAV();
+						get_object (sth,fld->value, fbh, fld,element);
+						av_push(list, newRV_noinc((SV *) fld->value));
 
 					}else{
 
@@ -1502,9 +1506,9 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 							return 0;
 	    				}
 						if (obj->element_typecode == OCI_TYPECODE_OBJECT){
-	                   		AV *emb_list = newAV();
-						 	get_object (sth,emb_list, fbh, fld,element,null_obj);
-							av_push(list, newRV_noinc((SV *) emb_list));
+	                   		fld->value = newAV();
+						 	get_object (sth,fld->value, fbh, fld,element);
+							av_push(list, newRV_noinc((SV *) fld->value));
 						}else{
 
 	                   		get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
@@ -1534,20 +1538,19 @@ static int
 fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 {
     dTHX;
-    dvoid   *null_struct= (dvoid *) 0;
-    AV 		*list = newAV();
+   OCIComplexObject *item = (dvoid *) 0;
 
 	if (DBIS->debug >= 4) {
 		PerlIO_printf(DBILOGFP, " getting an embedded object named  %s with typecode=%d\n",fbh->obj->type_name,fbh->obj->typecode);
 	}
 
 	/*will return referance to an array of scalars*/
-  	if (!get_object(sth,list,fbh,fbh->obj,fbh->obj->obj_value,null_struct)){
+  	if (!get_object(sth,fbh->obj->value,fbh,fbh->obj,fbh->obj->obj_value)){
   		return 0;
 	} else {
-		sv_setsv(dest_sv, newRV_noinc((SV *) list));
-		list=NULL;
-		fbh->obj->obj_value=NULL;
+		sv_setsv(dest_sv, newRV_noinc((SV *) fbh->obj->value));
+/*		list=NULL;*/
+
 		return 1;
 	}
 
@@ -2213,6 +2216,15 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
     for(i=0; i < num_fields; ++i) {
 		imp_fbh_t *fbh = &imp_sth->fbh[i];
 		if (fbh->fetch_cleanup) fbh->fetch_cleanup(sth, fbh);
+
+		if (fbh->obj){
+			if(fbh->obj->value){
+		    	PerlIO_printf(DBILOGFP, "   hi mom %d\n",fbh->obj->value);
+		    	av_undef(fbh->obj->value);
+			} else {
+				fbh->obj->value=newAV();
+			}
+		}
     }
 
     if (ora_fetchtest && DBIc_ROW_COUNT(imp_sth)>0) {
@@ -2285,7 +2297,10 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		if (rc == 0) {			/* the normal case		*/
 			if (fbh->fetch_func) {
 
+
 				if (!fbh->fetch_func(sth, fbh, sv)){
+
+
 					++err;	/* fetch_func already called oci_error */
 				}
 
