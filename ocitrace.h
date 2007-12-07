@@ -37,7 +37,7 @@
 */
 
 #define OCIObjectPin_log_stat(envhp,errhp,or,ot,stat)\
-    stat = OCIObjectPin(envhp,errhp,or,(OCIComplexObject *)0,OCI_PIN_LATEST,OCI_DURATION_SESSION,OCI_LOCK_NONE,ot);\
+    stat = OCIObjectPin(envhp,errhp,or,(OCIComplexObject *)0,OCI_PIN_LATEST,OCI_DURATION_TRANS,OCI_LOCK_NONE,ot);\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
 		         "%OCIObjectPin_log_stat(%p,%p,%d,%d)=%s\n",\
@@ -107,7 +107,7 @@
    : stat
 
 #define OCITypeByName_log_stat(envhp,errhp,svchp,p1,l,tdo,stat)\
-    stat = OCITypeByName(envhp,errhp,svchp,"",0,p1,l,0,0,OCI_DURATION_SESSION,OCI_TYPEGET_ALL,tdo);\
+    stat = OCITypeByName(envhp,errhp,svchp,"",0,p1,l,0,0,OCI_DURATION_TRANS,OCI_TYPEGET_ALL,tdo);\
     (DBD_OCI_TRACEON) \
 	   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
 	         "%OCITypeByName(%p,%p,%p,%s,%d)=%s\n",\
@@ -398,12 +398,11 @@
 	  oci_status_name(stat)),stat : stat
 
 #define OCIStmtFetch_log_stat(sh,eh,nr,or,md,stat)                     \
-	stat=OCIStmtFetch(sh,eh,nr,or,md);				\
+	stat=OCIStmtFetch2(sh,eh,nr,or,0,md);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
 	  "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",				\
 	  OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,ul_t(md),		\
 	  oci_status_name(stat)),stat : stat
-
 #define OCIStmtPrepare_log_stat(sh,eh,s1,sl,l,m,stat)                   \
 	stat=OCIStmtPrepare(sh,eh,s1,sl,l,m);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
