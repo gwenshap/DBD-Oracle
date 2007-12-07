@@ -1369,7 +1369,6 @@ static void get_attr_val(AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typ
 int
 get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *value){
   	dTHX;
-
    	sword 		status;
 	OCIIter  	*itr = (OCIIter *) 0;
   	dvoid    	*element = (dvoid *) 0;
@@ -1382,9 +1381,6 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
    	OCIType 	*attr_tdo;
    	sb4 		index;
    	fbh_obj_t	*fld;
-
-
-
 
 	if (DBIS->debug >= 5) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%d\n",obj->type_name,obj->typecode);
@@ -1538,23 +1534,59 @@ static int
 fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 {
     dTHX;
-   OCIComplexObject *item = (dvoid *) 0;
-
 	if (DBIS->debug >= 4) {
 		PerlIO_printf(DBILOGFP, " getting an embedded object named  %s with typecode=%d\n",fbh->obj->type_name,fbh->obj->typecode);
 	}
+
+	fbh->obj->value=newAV();
 
 	/*will return referance to an array of scalars*/
   	if (!get_object(sth,fbh->obj->value,fbh,fbh->obj,fbh->obj->obj_value)){
   		return 0;
 	} else {
-		sv_setsv(dest_sv, newRV_noinc((SV *) fbh->obj->value));
-/*		list=NULL;*/
-
+		sv_setsv(dest_sv, sv_2mortal(newRV_noinc((SV *) fbh->obj->value)));
 		return 1;
 	}
 
 }
+
+int
+empty_oci_object(AV *values,fbh_obj_t *obj,int level){
+	dTHX;
+	int i;
+
+	for (i = 0; i < obj->field_count;i++){
+		fbh_obj_t *fld = &obj->fields[i];
+		if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
+
+			empty_oci_object(fld->value,fld,level+1);
+			 av_clear(values);
+			 av_undef(values);
+       
+		} else {
+		  
+		    if (values && SvTYPE(values) <16){ 
+				av_undef(values);
+			}
+			return 1;
+		}
+		
+    }
+    return 1;
+}
+int 
+fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
+	dTHX;
+
+	if (fbh->obj){
+		if(fbh->obj->value){
+	    	empty_oci_object(fbh->obj->value,fbh->obj,0);
+		}
+	}
+	return 1;
+}
+
+
 
 static int			/* --- Setup the row cache for this sth --- */
 sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields, int has_longs)
@@ -1803,7 +1835,6 @@ int
 dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level){
 	dTHX;
 	int i;
-
 /*dumps the contents of the current fbh->obj*/
 
 	PerlIO_printf(DBILOGFP, " level=%d   type_name = %s\n",level,obj->type_name);
@@ -1830,6 +1861,10 @@ dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level){
 
 	return 1;
 }
+
+
+	
+
 
 int
 dbd_describe(SV *h, imp_sth_t *imp_sth)
@@ -2018,6 +2053,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
   	        fbh->ftype  = fbh->dbtype;  /*varray or alike */
   	        fbh->fetch_func = fetch_func_oci_object; /* need a new fetch function for it */
+  	        fbh->fetch_cleanup = fetch_cleanup_oci_object; /* clean up any AV  from the fetch*/
   	        fbh->desc_t = SQLT_NTY;
             if (!imp_sth->dschp){
    	         	OCIHandleAlloc_ok(imp_sth->envhp, &imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
@@ -2216,16 +2252,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
     for(i=0; i < num_fields; ++i) {
 		imp_fbh_t *fbh = &imp_sth->fbh[i];
 		if (fbh->fetch_cleanup) fbh->fetch_cleanup(sth, fbh);
-
-		if (fbh->obj){
-			if(fbh->obj->value){
-		    	PerlIO_printf(DBILOGFP, "   hi mom %d\n",fbh->obj->value);
-		    	av_undef(fbh->obj->value);
-			} else {
-				fbh->obj->value=newAV();
-			}
-		}
-    }
+	}
 
     if (ora_fetchtest && DBIc_ROW_COUNT(imp_sth)>0) {
 

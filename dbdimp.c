@@ -290,7 +290,22 @@ fb_ary_free(fb_ary_t *fb_ary)
     Safefree(fb_ary);
 }
 
-
+void
+fb_obj_free(fbh_obj_t *fb_obj)
+{
+    if (fb_obj->parmdp)
+	    Safefree(fb_obj->parmdp);            
+	if (fb_obj->parmap)
+		Safefree(fb_obj->parmap);            
+	if (fb_obj->obj_ref)
+		Safefree(fb_obj->obj_ref);			
+	if (fb_obj->obj_type)
+	 	Safefree(fb_obj->obj_type);         
+    if (fb_obj->fields)
+      	Safefree(fb_obj->fields);
+    Safefree(fb_obj);
+	
+}
 /* ================================================================== */
 
 
@@ -3168,6 +3183,8 @@ ora_free_fbh_contents(imp_fbh_t *fbh)
     sv_free(fbh->name_sv);
     if (fbh->desc_h)
 	OCIDescriptorFree_log(fbh->desc_h, fbh->desc_t);
+	if (fbh->obj)
+	fb_obj_free(fbh->obj);
 }
 
 void
