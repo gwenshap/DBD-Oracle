@@ -1374,10 +1374,12 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
   	dvoid    	*element = (dvoid *) 0;
   	dvoid    	*null_element = (dvoid *) 0;
   	dvoid    	*attr_value = (dvoid *) 0;
+  		dvoid    	**null_struct = (dvoid *) 0;
+
   	boolean  	eoc,exist;
   	ub2     	pos;
-  	OCIInd 		attr_null_ind;
-   	dvoid 		*attr_null_struct;
+  	OCIInd 		*attr_null_ind= (dvoid *) 0;
+   	dvoid 		*attr_null_struct= (dvoid *) 0;
    	OCIType 	*attr_tdo;
    	sb4 		index;
    	fbh_obj_t	*fld;
@@ -1390,16 +1392,20 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 	switch (obj->typecode) {
 
        	case OCI_TYPECODE_OBJECT :                            /* embedded ADT */
-		
-		               
+
+			status = OCIObjectGetInd ( fbh->imp_sth->envhp,
+                        fbh->imp_sth->errhp,
+                        value,
+                        null_struct );
+PerlIO_printf(DBILOGFP, "status =%d",status);
        		for (pos = 0; pos < obj->field_count; pos++){
   	  			fld = &obj->fields[pos]; /*get the field */
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
 										(dvoid *) 0, obj->obj_type,
 										&fld->type_name, &fld->type_namel, 1,
-										(ub4 *)0, 0, &attr_null_ind, &attr_null_struct,
+										(ub4 *)0, 0, attr_null_ind, attr_null_struct,
 										(dvoid *) &attr_value, &attr_tdo);
-
+PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %d attr_null_ind= %d, attr_null_struct= 2%d\n",OCI_IND_BADNULL,OCI_IND_NULL,OCI_IND_NOTNULL,attr_null_ind, attr_null_struct);
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetAttr");
 					return 0;
@@ -1410,22 +1416,22 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 					attr_value = *(dvoid **)attr_value;
 					get_object (sth,fld->fields[0].value, fbh, &fld->fields[0],attr_value);
 					av_push(list, newRV_noinc((SV *) fld->fields[0].value));
-					
+
                 } else{  /* else, display the scaler type attribute */
 
                     get_attr_val(list, fbh, fld->type_name, fld->typecode, attr_value);
-					
+
                 }
-				
+
            	}
-           	
+
             status = OCIObjectFree(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
 		                                    OCI_OBJECTFREE_NONULL);
           	if (status != OCI_SUCCESS) {
 		  		oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectFree");
 		   		return 0;
-	    	}              
-			
+	    	}
+
            break;
        case OCI_TYPECODE_REF :                               /* embedded ADT */
 			croak("panic: OCI_TYPECODE_REF objets () are not supported ");
@@ -1469,7 +1475,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
                		PerlIO_printf(DBILOGFP, " bug #1\n %d",value);
 
 					OCITableFirst_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,(CONST OCITable*) value, &index,status);
- 				
+
  				    if (status != OCI_SUCCESS ) {
 						/*oci_error(sth, fbh->imp_sth->errhp, status, "OCITableFirst");*/
 						/*not really an error just no data */
@@ -1526,7 +1532,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 	                    }
 	                }
 	                 PerlIO_printf(DBILOGFP, " bug #5\n");
-	                
+
 	               	break;
              	default:
                		break;
@@ -1563,53 +1569,65 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	} else {
 		sv_setsv(dest_sv, sv_2mortal(newRV_noinc((SV *) fbh->obj->value)));
 		return 1;
-		
+
 	}
 
 }
 
 int
-empty_oci_object(AV *values,fbh_obj_t *obj){
+empty_oci_object(fbh_obj_t *obj){
 	dTHX;
-	int i,x;
+	int pos=0;
+	fbh_obj_t	*fld;
 
-	for (i = 0; i < obj->field_count;i++){
-		fbh_obj_t *fld = &obj->fields[i];
-		printf("type_name=%s/n",fld->type_name);
+	switch (obj->typecode) {
 
-		if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
+       	case OCI_TYPECODE_OBJECT :                            /* embedded ADT */
 
-  		 	 empty_oci_object(fld->value,fld);
+       		for (pos = 0; pos < obj->field_count; pos++){
+				fld = &obj->fields[pos]; /*get the field */
+				if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
+					empty_oci_object(fld);
+					if (SvTYPE(fld->value) == SVt_PVAV){
+						av_clear(fld->value);
+			 			av_undef(fld->value);
 
-  		 	 for (x = 0; x < av_len(fld->value;x++){   
-		
-			 }			 
-			 av_clear(values);
-			 av_undef(values);
-       
-		} else {
-		  
-		     printf("SvTYPE=%d/n",SvTYPE(fld->value));
-		  	sv_2mortal(fld->value);
-		  
-			
-		}
-		
+                	}
+
+				} else {
+					return 1;
+				}
+           	}
+           break;
+
+       	case OCI_TYPECODE_NAMEDCOLLECTION :
+			fld = &obj->fields[0]; /*get the field */
+			if (obj->element_typecode == OCI_TYPECODE_OBJECT){
+				empty_oci_object(fld);
+			}
+			if (SvTYPE(fld->value) == SVt_PVAV){
+				av_clear(fld->value);
+				av_undef(fld->value);
+			}
+			break;
+		 default:
+		 	break;
     }
+    if (SvTYPE(fld->value) == SVt_PVAV){
+		av_clear(obj->value);
+		av_undef(obj->value);
+	}
     return 1;
 }
-int 
+
+int
 fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 	dTHX;
 	if (fbh->obj){
 		if(fbh->obj->value){
-	    	empty_oci_object(fbh->obj->value,fbh->obj);
-	    	
+	    	empty_oci_object(fbh->obj);
 		}
-		
 	}
-	
-    
 	return 1;
 }
 
@@ -1890,7 +1908,7 @@ dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level){
 }
 
 
-	
+
 
 
 int
