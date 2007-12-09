@@ -1372,19 +1372,20 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
    	sword 		status;
 	OCIIter  	*itr = (OCIIter *) 0;
   	dvoid    	*element = (dvoid *) 0;
-  	dvoid    	*null_element = (dvoid *) 0;
+  	OCIInd     	*null_element;
   	dvoid    	*attr_value = (dvoid *) 0;
-  		dvoid    	**null_struct = (dvoid *) 0;
-
+  	dvoid    	**null_struct = (dvoid *) 0;
   	boolean  	eoc,exist;
   	ub2     	pos;
-  	OCIInd 		*attr_null_ind= (dvoid *) 0;
+  	OCIInd 		*attr_null_ind= (OCIInd *) 0;
    	dvoid 		*attr_null_struct= (dvoid *) 0;
    	OCIType 	*attr_tdo;
    	sb4 		index;
    	fbh_obj_t	*fld;
 
-	if (DBIS->debug >= 5) {
+
+
+	if (DBIS->debug <= 5) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%d\n",obj->type_name,obj->typecode);
 	}
 
@@ -1393,11 +1394,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 
        	case OCI_TYPECODE_OBJECT :                            /* embedded ADT */
 
-			status = OCIObjectGetInd ( fbh->imp_sth->envhp,
-                        fbh->imp_sth->errhp,
-                        value,
-                        null_struct );
-PerlIO_printf(DBILOGFP, "status =%d",status);
+
        		for (pos = 0; pos < obj->field_count; pos++){
   	  			fld = &obj->fields[pos]; /*get the field */
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
@@ -1405,7 +1402,7 @@ PerlIO_printf(DBILOGFP, "status =%d",status);
 										&fld->type_name, &fld->type_namel, 1,
 										(ub4 *)0, 0, attr_null_ind, attr_null_struct,
 										(dvoid *) &attr_value, &attr_tdo);
-PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %d attr_null_ind= %d, attr_null_struct= 2%d\n",OCI_IND_BADNULL,OCI_IND_NULL,OCI_IND_NOTNULL,attr_null_ind, attr_null_struct);
+
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetAttr");
 					return 0;
@@ -1441,12 +1438,22 @@ PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %
 
        		switch (obj->col_typecode) {
 
-            	case OCI_TYPECODE_VARRAY :                    /* variable array */
+				case OCI_TYPECODE_TABLE :                       /* nested table */
+				case OCI_TYPECODE_VARRAY :                    /* variable array */
                		fld = &obj->fields[0]; /*get the field */
+
+               		PerlIO_printf(DBILOGFP, " ping 1\n");
+
               		OCIIterCreate_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
                        (CONST OCIColl*) value, &itr,status);
 
+                       status =OCIIterInit ( fbh->imp_sth->envhp,
+					                      fbh->imp_sth->errhp,
+					                      (CONST OCIColl*) value,              itr );
+PerlIO_printf(DBILOGFP, " ping 2%d\n",status);
 					if (status != OCI_SUCCESS) {
+						PerlIO_printf(DBILOGFP, " ping 3%d\n",status);
+
 						/*not really an error just no data
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterCreate");*/
 						status = OCI_SUCCESS;
@@ -1455,9 +1462,9 @@ PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %
 
 					for(eoc = FALSE;!OCIIterNext(fbh->imp_sth->envhp, fbh->imp_sth->errhp, itr,
                                (dvoid **) &element,
-                               (dvoid **)&null_element, &eoc) && !eoc;)
+                               &null_element, &eoc) && !eoc;)
               		{
-
+PerlIO_printf(DBILOGFP, " ping 4 %d,%d\n",null_element,OCI_IND_BADNULL);
 						if (obj->element_typecode == OCI_TYPECODE_OBJECT){
 							fld->value = newAV();
                  			get_object (sth,fld->value, fbh, fld,element);
@@ -1467,12 +1474,31 @@ PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %
 
                 		}
                		}
+
+               		status=OCIIterDelete( fbh->imp_sth->envhp,
+					                      fbh->imp_sth->errhp, &itr );
+                    if (status != OCI_SUCCESS) {
+						/*not really an error just no data*/
+						oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterDelete");
+						status = OCI_SUCCESS;
+						return 0;
+	    			}
                		break;
 
-             	case OCI_TYPECODE_TABLE :                       /* nested table */
+             	case OCI_TYPECODE_REF :                       /* nested table */
 
                		fld = &obj->fields[0]; /*get the field */
-               		PerlIO_printf(DBILOGFP, " bug #1\n %d",value);
+
+               			OCIIterCreate_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
+					                       (CONST OCIColl*) value, &itr,status);
+							PerlIO_printf(DBILOGFP, "status=%d\n",status);
+
+					if (status != OCI_SUCCESS) {
+											/*not really an error just no data
+											oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterCreate");*/
+											status = OCI_SUCCESS;
+											return 0;
+	    			}
 
 					OCITableFirst_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,(CONST OCITable*) value, &index,status);
 
@@ -1480,7 +1506,6 @@ PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %
 						/*oci_error(sth, fbh->imp_sth->errhp, status, "OCITableFirst");*/
 						/*not really an error just no data */
 						status = OCI_SUCCESS;
-						PerlIO_printf(DBILOGFP, " bug #2\n");
 
 						return 0;
 	    			}
@@ -1492,7 +1517,6 @@ PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %
 
 					if (status != OCI_SUCCESS) {
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCICollGetElem");
-						PerlIO_printf(DBILOGFP, " bug #2\n");
 
 						return 0;
 	    			}
@@ -1503,7 +1527,6 @@ PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %
 						av_push(list, newRV_noinc((SV *) fld->value));
 
 					}else{
-					    PerlIO_printf(DBILOGFP, " bug #3\n");
 	                   	get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
 	                }
 
@@ -1512,7 +1535,6 @@ PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %
                               (CONST OCITable *) value,
                               &index, &exist) && exist;)
                 	{
- PerlIO_printf(DBILOGFP, " bug #4\n");
                    		OCICollGetElem_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
                                           (CONST OCIColl *)  value, index,
                                           &exist, (dvoid **) &element,
@@ -1531,7 +1553,6 @@ PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %
 	                   		get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
 	                    }
 	                }
-	                 PerlIO_printf(DBILOGFP, " bug #5\n");
 
 	               	break;
              	default:
@@ -1539,11 +1560,15 @@ PerlIO_printf(DBILOGFP, "OCI_IND_BADNULL= %d,OCI_IND_NULL= %d,OCI_IND_NOTNULL= %
            	}
            	break;
        default:
+
            if (value  ) {
+
                get_attr_val(list, fbh, obj->type_name, obj->typecode, value);
            }
-           else
-              return 1;
+           else {
+		       return 1;
+
+	   		}
            break;
     	}
     	return 1;

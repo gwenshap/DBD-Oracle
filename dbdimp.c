@@ -256,7 +256,7 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
     case 113:	/* SQLT_BLOB / long	*/
     case 116:	/* SQLT_RSET	OCI 8 cursor variable	*/
  	case ORA_VARCHAR2_TABLE: /* 201 */
-    case ORA_NUMBER_TABLE: /* 202 */   
+    case ORA_NUMBER_TABLE: /* 202 */
 	return 1;
     }
     return 0;
@@ -290,22 +290,7 @@ fb_ary_free(fb_ary_t *fb_ary)
     Safefree(fb_ary);
 }
 
-void
-fb_obj_free(fbh_obj_t *fb_obj)
-{
-    if (fb_obj->parmdp)
-	    Safefree(fb_obj->parmdp);            
-	if (fb_obj->parmap)
-		Safefree(fb_obj->parmap);            
-	if (fb_obj->obj_ref)
-		Safefree(fb_obj->obj_ref);			
-	if (fb_obj->obj_type)
-	 	Safefree(fb_obj->obj_type);         
-    if (fb_obj->fields)
-      	Safefree(fb_obj->fields);
-    Safefree(fb_obj);
-	
-}
+
 /* ================================================================== */
 
 
@@ -1160,10 +1145,10 @@ ora_sql_type(imp_sth_t *imp_sth, char *name, int sql_type)
 }
 
 
- 
+
 /* ############### Array bind ######################################### */
 /* Added by Alexander V Alekseev. alex@alemate.ru                       */
-/* 
+/*
  *
  * Realloc temporary array buffer to match required number of entries
  * and buffer size.
@@ -1176,7 +1161,7 @@ int ora_realloc_phs_array(phs_t *phs,int newentries, int newbufsize){
     dTHR;
     int i; /* Loop variable */
     unsigned short *newal;
-    
+
     if( newbufsize < 0 ){
 	newbufsize=0;
     }
@@ -1270,7 +1255,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     {
 	unsigned int maxlen=0;
 	int i;
-	
+
 	for(i=0;i<av_len(arr)+1;i++){
 	    SV *item;
 	    item=*(av_fetch(arr,i,0));
@@ -1350,7 +1335,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     }
 
     need_allocate_rows=phs->ora_maxarray_numentries;
-    
+
     if( need_allocate_rows< phs->array_numstruct ){
 	need_allocate_rows=phs->array_numstruct;
     }
@@ -1366,7 +1351,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	}
     }
     /* If maximum allowed bind numentries is less than allowed,
-     * do not bind full array 
+     * do not bind full array
      */
     if( phs->array_numstruct > phs->ora_maxarray_numentries ){
 	phs->array_numstruct = phs->ora_maxarray_numentries;
@@ -1534,7 +1519,7 @@ int dbd_phs_ora_varchar2_table_fixup_after_execute(phs_t *phs){
     /* Extend array, if needed. */
     if( av_len(arr)+1 < phs->array_numstruct ){
 	av_extend(arr,phs->array_numstruct-1);
-    } 
+    }
     /* Fill array with buffer data */
     {
 	/* phs_t */
@@ -1617,7 +1602,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
     int need_allocate_rows;
     int buflen;
     int flag_data_is_utf8=0;
-   
+
     if( ( ! SvROK(phs->sv) )  || (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) ) { /* Allow only array binds */
 	croak("dbd_rebind_ph_number_table(): bad bind variable. ARRAY reference required, but got %s for '%s'.",
 		    neatsvpv(phs->sv,0), phs->name);
@@ -1690,7 +1675,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
     }
 
     need_allocate_rows=phs->ora_maxarray_numentries;
-    
+
     if( need_allocate_rows< phs->array_numstruct ){
 	need_allocate_rows=phs->array_numstruct;
     }
@@ -1707,7 +1692,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	}
     }
     /* If maximum allowed bind numentries is less than allowed,
-     * do not bind full array 
+     * do not bind full array
      */
     if( phs->array_numstruct > phs->ora_maxarray_numentries ){
 	phs->array_numstruct = phs->ora_maxarray_numentries;
@@ -1739,7 +1724,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 			    }
 			    if( SvIOK( item ) || val_found ){
 				if( ! val_found ){
-				    ival=SvIV( item ); 
+				    ival=SvIV( item );
 				}
 				/* as phs->array_buf=malloc(), proper alignment is guaranteed */
 				*(int*)(phs->array_buf+phs->maxlen*i)=ival;
@@ -1772,7 +1757,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 				SvNVx( item );
 			    }
 			    if( SvNOK( item ) ){
-				double val=SvNVx( item ); 
+				double val=SvNVx( item );
 				/* as phs->array_buf=malloc(), proper alignment is guaranteed */
 				*(double*)(phs->array_buf+phs->maxlen*i)=val;
 				phs->array_indicators[i]=0;
@@ -1905,7 +1890,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
     /* Extend array, if needed. */
     if( av_len(arr)+1 < phs->array_numstruct ){
 	av_extend(arr,phs->array_numstruct-1);
-    } 
+    }
     /* Fill array with buffer data */
     {
 	/* phs_t */
@@ -2416,7 +2401,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 		&& !IS_DBI_HANDLE(newvalue)	/* dbi handle allowed for cursor variables */
 		&& !SvAMAGIC(newvalue)		/* overload magic allowed (untested) */
 	   	&& !sv_derived_from(newvalue, "OCILobLocatorPtr" )  /* input LOB locator*/
-		&& !(SvTYPE(SvRV(newvalue))==SVt_PVAV) /* Allow array binds */  
+		&& !(SvTYPE(SvRV(newvalue))==SVt_PVAV) /* Allow array binds */
 		)
 		croak("Can't bind a reference (%s)", neatsvpv(newvalue,0));
 	if (SvTYPE(newvalue) > SVt_PVAV) /* Array binding supported */
@@ -2462,7 +2447,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 	 * the same as scalar(@array) bound (see dbd_rebind_ph_varchar2_table() ).
 	 */
 	phs->array_numstruct=0;
-	
+
 	if (attribs) {	/* only look for ora_type on first bind of var	*/
 	    SV **svp;
 	    /* Setup / Clear attributes as defined by attribs.		*/
@@ -2493,7 +2478,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 	    }
 	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_internal_type", 17, 0)) != NULL) {
 			phs->ora_internal_type=SvUV(*svp);
-	    }	    
+	    }
 	}
 	if (sql_type)
 	    phs->ftype = ora_sql_type(imp_sth, phs->name, (int)sql_type);
@@ -3184,7 +3169,8 @@ ora_free_fbh_contents(imp_fbh_t *fbh)
     if (fbh->desc_h)
 	OCIDescriptorFree_log(fbh->desc_h, fbh->desc_t);
 	if (fbh->obj)
-	fb_obj_free(fbh->obj);
+		Safefree(fbh->obj);
+
 }
 
 void
