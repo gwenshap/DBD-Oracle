@@ -1372,36 +1372,32 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
    	sword 		status;
 	OCIIter  	*itr = (OCIIter *) 0;
   	dvoid    	*element = (dvoid *) 0;
-  	OCIInd     	*null_element;
-  	dvoid    	*attr_value = (dvoid *) 0;
-  	dvoid    	**null_struct = (dvoid *) 0;
+  	dvoid    	*null_element = (dvoid *) 0;
+  	dvoid    	*attr_value;
   	boolean  	eoc,exist;
   	ub2     	pos;
-  	OCIInd 		*attr_null_ind= (OCIInd *) 0;
-   	dvoid 		*attr_null_struct= (dvoid *) 0;
+  	OCIInd 		attr_null_ind;
+   	dvoid 		*attr_null_struct;
    	OCIType 	*attr_tdo;
    	sb4 		index;
    	fbh_obj_t	*fld;
 
-
-
-	if (DBIS->debug <= 5) {
+	if (DBIS->debug >= 5) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%d\n",obj->type_name,obj->typecode);
 	}
 
 
 	switch (obj->typecode) {
 
-       	case OCI_TYPECODE_OBJECT :                            /* embedded ADT */
+       case OCI_TYPECODE_OBJECT :                            /* embedded ADT */
 
-
-       		for (pos = 0; pos < obj->field_count; pos++){
+              for (pos = 0; pos < obj->field_count; pos++){
   	  			fld = &obj->fields[pos]; /*get the field */
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
 										(dvoid *) 0, obj->obj_type,
 										&fld->type_name, &fld->type_namel, 1,
-										(ub4 *)0, 0, attr_null_ind, attr_null_struct,
-										(dvoid *) &attr_value, &attr_tdo);
+										(ub4 *)0, 0, &attr_null_ind, &attr_null_struct,
+										&attr_value, &attr_tdo);
 
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetAttr");
@@ -1420,7 +1416,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 
                 }
 
-           	}
+             }
 
             status = OCIObjectFree(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
 		                                    OCI_OBJECTFREE_NONULL);
@@ -1428,7 +1424,6 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 		  		oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectFree");
 		   		return 0;
 	    	}
-
            break;
        case OCI_TYPECODE_REF :                               /* embedded ADT */
 			croak("panic: OCI_TYPECODE_REF objets () are not supported ");
@@ -1441,9 +1436,6 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 				case OCI_TYPECODE_TABLE :                       /* nested table */
 				case OCI_TYPECODE_VARRAY :                    /* variable array */
                		fld = &obj->fields[0]; /*get the field */
-
-               		PerlIO_printf(DBILOGFP, " ping 1\n");
-
               		OCIIterCreate_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
                        (CONST OCIColl*) value, &itr,status);
 
@@ -1452,8 +1444,6 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 					                      (CONST OCIColl*) value,              itr );
 PerlIO_printf(DBILOGFP, " ping 2%d\n",status);
 					if (status != OCI_SUCCESS) {
-						PerlIO_printf(DBILOGFP, " ping 3%d\n",status);
-
 						/*not really an error just no data
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterCreate");*/
 						status = OCI_SUCCESS;
@@ -1462,9 +1452,9 @@ PerlIO_printf(DBILOGFP, " ping 2%d\n",status);
 
 					for(eoc = FALSE;!OCIIterNext(fbh->imp_sth->envhp, fbh->imp_sth->errhp, itr,
                                (dvoid **) &element,
-                               &null_element, &eoc) && !eoc;)
+                               (dvoid **)&null_element, &eoc) && !eoc;)
               		{
-PerlIO_printf(DBILOGFP, " ping 4 %d,%d\n",null_element,OCI_IND_BADNULL);
+
 						if (obj->element_typecode == OCI_TYPECODE_OBJECT){
 							fld->value = newAV();
                  			get_object (sth,fld->value, fbh, fld,element);
@@ -1474,7 +1464,6 @@ PerlIO_printf(DBILOGFP, " ping 4 %d,%d\n",null_element,OCI_IND_BADNULL);
 
                 		}
                		}
-
                		status=OCIIterDelete( fbh->imp_sth->envhp,
 					                      fbh->imp_sth->errhp, &itr );
                     if (status != OCI_SUCCESS) {
@@ -1488,25 +1477,11 @@ PerlIO_printf(DBILOGFP, " ping 4 %d,%d\n",null_element,OCI_IND_BADNULL);
              	case OCI_TYPECODE_REF :                       /* nested table */
 
                		fld = &obj->fields[0]; /*get the field */
-
-               			OCIIterCreate_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
-					                       (CONST OCIColl*) value, &itr,status);
-							PerlIO_printf(DBILOGFP, "status=%d\n",status);
-
-					if (status != OCI_SUCCESS) {
-											/*not really an error just no data
-											oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterCreate");*/
-											status = OCI_SUCCESS;
-											return 0;
-	    			}
-
 					OCITableFirst_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,(CONST OCITable*) value, &index,status);
-
- 				    if (status != OCI_SUCCESS ) {
+ 					if (status != OCI_SUCCESS ) {
 						/*oci_error(sth, fbh->imp_sth->errhp, status, "OCITableFirst");*/
 						/*not really an error just no data */
 						status = OCI_SUCCESS;
-
 						return 0;
 	    			}
 
@@ -1517,7 +1492,6 @@ PerlIO_printf(DBILOGFP, " ping 4 %d,%d\n",null_element,OCI_IND_BADNULL);
 
 					if (status != OCI_SUCCESS) {
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCICollGetElem");
-
 						return 0;
 	    			}
 
@@ -1527,6 +1501,7 @@ PerlIO_printf(DBILOGFP, " ping 4 %d,%d\n",null_element,OCI_IND_BADNULL);
 						av_push(list, newRV_noinc((SV *) fld->value));
 
 					}else{
+
 	                   	get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
 	                }
 
@@ -1535,6 +1510,7 @@ PerlIO_printf(DBILOGFP, " ping 4 %d,%d\n",null_element,OCI_IND_BADNULL);
                               (CONST OCITable *) value,
                               &index, &exist) && exist;)
                 	{
+
                    		OCICollGetElem_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
                                           (CONST OCIColl *)  value, index,
                                           &exist, (dvoid **) &element,
@@ -1553,22 +1529,17 @@ PerlIO_printf(DBILOGFP, " ping 4 %d,%d\n",null_element,OCI_IND_BADNULL);
 	                   		get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
 	                    }
 	                }
-
 	               	break;
              	default:
                		break;
            	}
            	break;
        default:
-
            if (value  ) {
-
                get_attr_val(list, fbh, obj->type_name, obj->typecode, value);
            }
-           else {
-		       return 1;
-
-	   		}
+           else
+              return 1;
            break;
     	}
     	return 1;
@@ -1594,7 +1565,6 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	} else {
 		sv_setsv(dest_sv, sv_2mortal(newRV_noinc((SV *) fbh->obj->value)));
 		return 1;
-
 	}
 
 }
@@ -1604,8 +1574,7 @@ empty_oci_object(fbh_obj_t *obj){
 	dTHX;
 	int pos=0;
 	fbh_obj_t	*fld;
-
-	switch (obj->typecode) {
+	switch (obj->element_typecode) {
 
        	case OCI_TYPECODE_OBJECT :                            /* embedded ADT */
 
@@ -1616,7 +1585,6 @@ empty_oci_object(fbh_obj_t *obj){
 					if (SvTYPE(fld->value) == SVt_PVAV){
 						av_clear(fld->value);
 			 			av_undef(fld->value);
-
                 	}
 
 				} else {
@@ -1630,16 +1598,18 @@ empty_oci_object(fbh_obj_t *obj){
 			if (obj->element_typecode == OCI_TYPECODE_OBJECT){
 				empty_oci_object(fld);
 			}
-			if (SvTYPE(fld->value) == SVt_PVAV){
-				av_clear(fld->value);
-				av_undef(fld->value);
+			if (SvTYPE(fld->value)){ 
+				if (SvTYPE(fld->value) == SVt_PVAV){
+					av_clear(fld->value);
+					av_undef(fld->value);
+				}
 			}
 			break;
-		 default:
+		default:
 		 	break;
     }
     if (SvTYPE(fld->value) == SVt_PVAV){
-		av_clear(obj->value);
+   		av_clear(obj->value);
 		av_undef(obj->value);
 	}
     return 1;
@@ -1648,8 +1618,9 @@ empty_oci_object(fbh_obj_t *obj){
 int
 fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 	dTHX;
-	if (fbh->obj){
+   if (fbh->obj){
 		if(fbh->obj->value){
+		
 	    	empty_oci_object(fbh->obj);
 		}
 	}
@@ -1887,11 +1858,10 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 
         if (obj->element_typecode == OCI_TYPECODE_OBJECT || obj->element_typecode == OCI_TYPECODE_VARRAY || obj->element_typecode == OCI_TYPECODE_TABLE || obj->element_typecode == OCI_TYPECODE_NAMEDCOLLECTION){
 	    	 /*this is some sort of object or collection so lets drill down some more*/
-
             fbh_obj_t *fld;
             Newz(1, obj->fields, 1, fbh_obj_t);
+            fld = &obj->fields[0]; /*get the field holder*/
             obj->field_count=1; /*not really needed but used internally*/
-			fld = &obj->fields[0]; /*get the field holder*/
    		    status=describe_obj(sth,imp_sth,obj->parmap,fld,level+1);
 	    }
 
@@ -1933,7 +1903,7 @@ dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level){
 }
 
 
-
+	
 
 
 int
