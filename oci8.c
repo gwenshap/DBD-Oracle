@@ -1374,15 +1374,17 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
   	dvoid    	*element = (dvoid *) 0;
   	dvoid    	*null_element = (dvoid *) 0;
   	dvoid    	*attr_value;
-  	boolean  	eoc,exist;
+  	boolean  	eoc;
   	ub2     	pos;
-  		dvoid 		*attr_null_struct;
+  	dvoid 		*attr_null_struct;
+	OCIInd 		attr_null_status = OCI_IND_NULL;
    	OCIType 	*attr_tdo;
-   	sb4 		index;
    	fbh_obj_t	*fld;
-	OCIInd *names_null = (OCIInd *) 0;
-	
-	if (DBIS->debug >= 5) {
+	OCIInd *names_null = (OCIInd *) -1;
+	 dvoid   *addr_obj = (dvoid *)0;
+	dvoid *nind = (dvoid *)0;
+	sb4             *size;
+	if (DBIS->debug <= 5) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%d\n",obj->type_name,obj->typecode);
 	}
 
@@ -1392,14 +1394,17 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 
        case OCI_TYPECODE_OBJECT :                            /* embedded ADT */
 
-              for (pos = 0; pos < obj->field_count; pos++){
+
+        for (pos = 0; pos < obj->field_count; pos++){
   	  			fld = &obj->fields[pos]; /*get the field */
+  	  			
+  	  			
+  	  			
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
 										(dvoid *) 0, obj->obj_type,
 										&fld->type_name, &fld->type_namel, 1,
-										(ub4 *)0, 0, (dvoid *) &names_null, &attr_null_struct,
+										(ub4 *)0, 0, &attr_null_status, &attr_null_struct,
 										&attr_value, &attr_tdo);
-PerlIO_printf(DBILOGFP, " OCI_TYPECODE_OBJECT null indicator is %d\n", names_null);
 
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetAttr");
@@ -1438,17 +1443,15 @@ PerlIO_printf(DBILOGFP, " OCI_TYPECODE_OBJECT null indicator is %d\n", names_nul
 				case OCI_TYPECODE_TABLE :                       /* nested table */
 				case OCI_TYPECODE_VARRAY :                    /* variable array */
                		fld = &obj->fields[0]; /*get the field */
+           
               		OCIIterCreate_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
                        (CONST OCIColl*) value, &itr,status);
 
-                       status =OCIIterInit ( fbh->imp_sth->envhp,
-					                      fbh->imp_sth->errhp,
-					                      (CONST OCIColl*) value,              itr );
-PerlIO_printf(DBILOGFP, " ping 2%d\n",status);
 					if (status != OCI_SUCCESS) {
 						/*not really an error just no data
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterCreate");*/
 						status = OCI_SUCCESS;
+						 av_push(list,  &sv_undef);
 						return 0;
 	    			}
 
@@ -1456,7 +1459,8 @@ PerlIO_printf(DBILOGFP, " ping 2%d\n",status);
                                (dvoid **) &element,
                                (dvoid **) &names_null, &eoc) && !eoc;)
               		{
-PerlIO_printf(DBILOGFP, " ping 2 null indicator is %d,%d\n", *names_null,OCI_IND_NULL);
+
+PerlIO_printf(DBILOGFP, " ping 2 null indicator is %d\n", *names_null);
 
 						if (*names_null==OCI_IND_NULL){
 						
@@ -1479,64 +1483,7 @@ PerlIO_printf(DBILOGFP, " ping 2 null indicator is %d,%d\n", *names_null,OCI_IND
 						status = OCI_SUCCESS;
 						return 0;
 	    			}
-               		break;
-
-             	case OCI_TYPECODE_REF :                       /* nested table */
-
-               		fld = &obj->fields[0]; /*get the field */
-					OCITableFirst_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,(CONST OCITable*) value, &index,status);
- 					if (status != OCI_SUCCESS ) {
-						/*oci_error(sth, fbh->imp_sth->errhp, status, "OCITableFirst");*/
-						/*not really an error just no data */
-						status = OCI_SUCCESS;
-						return 0;
-	    			}
-
-                   	OCICollGetElem_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
-                                          (CONST OCIColl *)  value, index,
-                                          &exist, (dvoid **) &element,
-                                          (dvoid **) &null_element,status);
-
-					if (status != OCI_SUCCESS) {
-						oci_error(sth, fbh->imp_sth->errhp, status, "OCICollGetElem");
-						return 0;
-	    			}
-
-					if (obj->element_typecode == OCI_TYPECODE_OBJECT){
-	                	fld->value = newAV();
-						get_object (sth,fld->value, fbh, fld,element);
-						av_push(list, newRV_noinc((SV *) fld->value));
-
-					}else{
-
-	                   	get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
-	                }
-
-
-					for(;!OCITableNext(fbh->imp_sth->envhp, fbh->imp_sth->errhp, index,
-                              (CONST OCITable *) value,
-                              &index, &exist) && exist;)
-                	{
-
-                   		OCICollGetElem_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
-                                          (CONST OCIColl *)  value, index,
-                                          &exist, (dvoid **) &element,
-                                          (dvoid **) &null_element,status);
-
-						if (status != OCI_SUCCESS) {
-							oci_error(sth, fbh->imp_sth->errhp, status, "OCICollGetElem");
-							return 0;
-	    				}
-						if (obj->element_typecode == OCI_TYPECODE_OBJECT){
-	                   		fld->value = newAV();
-						 	get_object (sth,fld->value, fbh, fld,element);
-							av_push(list, newRV_noinc((SV *) fld->value));
-						}else{
-
-	                   		get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
-	                    }
-	                }
-	               	break;
+               		break;    
              	default:
                		break;
            	}
@@ -2355,10 +2302,6 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		fb_ary_t *fb_ary = fbh->fb_ary;
 		int rc = fb_ary->arcode[0];
 		SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/;
-PerlIO_printf(DBILOGFP, "aindp value=%d\n",fb_ary->aindp[i]);
-PerlIO_printf(DBILOGFP, "arlen value=%d\n",fb_ary->arlen[i]);
-PerlIO_printf(DBILOGFP, "arcode value=%d\n",rc);
-
 		if (rc == 1406				/* field was truncated	*/
 		    && ora_dbtype_is_long(fbh->dbtype)/* field is a LONG	*/
 		){
