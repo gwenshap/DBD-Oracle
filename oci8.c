@@ -1376,15 +1376,16 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
   	dvoid    	*attr_value;
   	boolean  	eoc,exist;
   	ub2     	pos;
-  	OCIInd 		attr_null_ind;
-   	dvoid 		*attr_null_struct;
+  		dvoid 		*attr_null_struct;
    	OCIType 	*attr_tdo;
    	sb4 		index;
    	fbh_obj_t	*fld;
-
+	OCIInd *names_null = (OCIInd *) 0;
+	
 	if (DBIS->debug >= 5) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%d\n",obj->type_name,obj->typecode);
 	}
+
 
 
 	switch (obj->typecode) {
@@ -1396,8 +1397,9 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
 										(dvoid *) 0, obj->obj_type,
 										&fld->type_name, &fld->type_namel, 1,
-										(ub4 *)0, 0, &attr_null_ind, &attr_null_struct,
+										(ub4 *)0, 0, (dvoid *) &names_null, &attr_null_struct,
 										&attr_value, &attr_tdo);
+PerlIO_printf(DBILOGFP, " OCI_TYPECODE_OBJECT null indicator is %d\n", names_null);
 
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetAttr");
@@ -1418,12 +1420,12 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 
              }
 
-            status = OCIObjectFree(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
+        /*    status = OCIObjectFree(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
 		                                    OCI_OBJECTFREE_NONULL);
           	if (status != OCI_SUCCESS) {
 		  		oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectFree");
 		   		return 0;
-	    	}
+	    	}*/
            break;
        case OCI_TYPECODE_REF :                               /* embedded ADT */
 			croak("panic: OCI_TYPECODE_REF objets () are not supported ");
@@ -1452,16 +1454,21 @@ PerlIO_printf(DBILOGFP, " ping 2%d\n",status);
 
 					for(eoc = FALSE;!OCIIterNext(fbh->imp_sth->envhp, fbh->imp_sth->errhp, itr,
                                (dvoid **) &element,
-                               (dvoid **)&null_element, &eoc) && !eoc;)
+                               (dvoid **) &names_null, &eoc) && !eoc;)
               		{
+PerlIO_printf(DBILOGFP, " ping 2 null indicator is %d,%d\n", *names_null,OCI_IND_NULL);
 
-						if (obj->element_typecode == OCI_TYPECODE_OBJECT){
-							fld->value = newAV();
-                 			get_object (sth,fld->value, fbh, fld,element);
-							av_push(list, newRV_noinc((SV *) fld->value));
-						} else{  /* else, display the scaler type attribute */
-							get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
-
+						if (*names_null==OCI_IND_NULL){
+						
+						     av_push(list,  &sv_undef);
+						} else {
+							if (obj->element_typecode == OCI_TYPECODE_OBJECT){
+								fld->value = newAV();
+                 				get_object (sth,fld->value, fbh, fld,element);
+								av_push(list, newRV_noinc((SV *) fld->value));
+							} else{  /* else, display the scaler type attribute */
+								get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
+							}
                 		}
                		}
                		status=OCIIterDelete( fbh->imp_sth->envhp,
@@ -1769,6 +1776,8 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 			return 0;
 		}
 
+		
+                        
 		OCIAttrGet_parmdp(imp_sth,  obj->parmdp, (dvoid *)&obj->field_count,(ub4 *) 0, OCI_ATTR_NUM_TYPE_ATTRS, status);
 
 		if (status != OCI_SUCCESS) {
@@ -2202,13 +2211,16 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 	    OCIDefineByPos_log_stat(imp_sth->stmhp,
 	        &fbh->defnp,
-		    imp_sth->errhp, (ub4) i,
+		    imp_sth->errhp,
+		    (ub4) i,
 		    (fbh->desc_h) ? (dvoid*)&fbh->desc_h : (dvoid*)fb_ary->abuf,
 		    (fbh->desc_h) ?                   -1 :         define_len,
 		    (ub2)fbh->ftype,
 		    fb_ary->aindp,
 		    (ftype==94||ftype==95) ? NULL : fb_ary->arlen,
-		    fb_ary->arcode, OCI_DEFAULT, status);
+		    fb_ary->arcode, 
+		    OCI_DEFAULT, 
+		    status);
 
 		if (fbh->ftype == 108)  { /* Embedded object bind it differently*/
 
@@ -2343,6 +2355,9 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		fb_ary_t *fb_ary = fbh->fb_ary;
 		int rc = fb_ary->arcode[0];
 		SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/;
+PerlIO_printf(DBILOGFP, "aindp value=%d\n",fb_ary->aindp[i]);
+PerlIO_printf(DBILOGFP, "arlen value=%d\n",fb_ary->arlen[i]);
+PerlIO_printf(DBILOGFP, "arcode value=%d\n",rc);
 
 		if (rc == 1406				/* field was truncated	*/
 		    && ora_dbtype_is_long(fbh->dbtype)/* field is a LONG	*/
@@ -2364,8 +2379,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		if (rc == 0) {			/* the normal case		*/
 			if (fbh->fetch_func) {
 
-
-				if (!fbh->fetch_func(sth, fbh, sv)){
+ 				if (!fbh->fetch_func(sth, fbh, sv)){
 
 
 					++err;	/* fetch_func already called oci_error */
