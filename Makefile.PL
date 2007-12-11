@@ -1761,7 +1761,7 @@ ORACLE_HOME = '.$OH.'
 			      "\t\$(NMEDIT) -R ./hints/macos_bundle.syms \$(INST_DYNAMIC) || true\n";
 		}
 		elsif ($os eq 'hpux') {
-			$m =~ s/LD_RUN_PATH=(\S+)\s+(\S+)/$2 +b $1/;
+		 	$m =~ s/LD_RUN_PATH=(\S+)\s+(\S+)/$2 -Wl,+b$1/; 
 		}
 		return ($m);
 	}
