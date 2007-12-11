@@ -1398,35 +1398,36 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
        for (pos = 0; pos < obj->field_count; pos++){
   	  			fld = &obj->fields[pos]; /*get the field */
 
-/* status = OCITypeAttrs(fbh->imp_sth->envhp, obj->obj_type);*/
-
+status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,&obj->obj_ind);
+PerlIO_printf(DBILOGFP, "OCIObjectGetInd=%d\n",status);
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
 										obj->obj_ind, obj->tdo,
 										&fld->type_name, &fld->type_namel, 1,
 										(ub4 *)0, 0, &attr_null_status, &attr_null_struct,
 										&attr_value, &attr_tdo);
 
-										OCIObjectPin_log_stat(fbh->imp_sth->envhp,fbh->imp_sth->errhp, attr_tdo,(dvoid  **)&obj->obj_type,status);
-										PerlIO_printf(DBILOGFP, "OCIObjectPin_log_stat=%d\n",attr_null_status);
-
 PerlIO_printf(DBILOGFP, "attr_null_status=%d\n",attr_null_status);
-				if (status != OCI_SUCCESS) {
+						if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetAttr");
 					return 0;
 	    		}
-				if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
+	    		
+	    		if (attr_null_status==OCI_IND_NULL){
+				     av_push(list,  &sv_undef);
+				} else {
+					if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
 
-               		fld->fields[0].value = newAV();
-					attr_value = *(dvoid **)attr_value;
-					get_object (sth,fld->fields[0].value, fbh, &fld->fields[0],attr_value);
-					av_push(list, newRV_noinc((SV *) fld->fields[0].value));
+               			fld->fields[0].value = newAV();
+						attr_value = *(dvoid **)attr_value;
+						get_object (sth,fld->fields[0].value, fbh, &fld->fields[0],attr_value);
+						av_push(list, newRV_noinc((SV *) fld->fields[0].value));
 
-                } else{  /* else, display the scaler type attribute */
+                	} else{  /* else, display the scaler type attribute */
 
-                    get_attr_val(list, fbh, fld->type_name, fld->typecode, attr_value);
+                	    get_attr_val(list, fbh, fld->type_name, fld->typecode, attr_value);
 
-                }
-
+                	}
+				}
              }
 
         /*    status = OCIObjectFree(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
@@ -1718,25 +1719,7 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 		}
 		/*we will need a reff to the TDO for the pin operation*/
 
-
-
-status=OCIObjectNew (imp_sth->envhp,
-                     imp_sth->errhp,
-                     imp_sth->svchp,
-                    OCI_TYPECODE_OBJECT,
-                    obj->tdo,
-                    (dvoid *)0,
-                     OCI_DURATION_TRANS,
-                     1,
-                     obj->obj_instance );
-                     PerlIO_printf(DBILOGFP, "OCIObjectNew status=%d\n",status);
-
-
- status=OCIObjectGetInd(imp_sth->envhp,imp_sth->errhp,obj->obj_instance,(dvoid  **) &obj->obj_ind);
-
-PerlIO_printf(DBILOGFP, "OCIObjectGetInd status=%d\n",status);
-
-		OCIObjectPin_log_stat(imp_sth->envhp,imp_sth->errhp, obj->obj_ref,(dvoid  **)&obj->obj_type,status);
+		OCIObjectPin_log_stat(imp_sth->envhp,imp_sth->errhp, obj->obj_ref,(dvoid  **)&obj->obj_instance,status);
 
 
 		if (status != OCI_SUCCESS) {
