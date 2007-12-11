@@ -3063,6 +3063,7 @@ was the 6th of the new month.  I had the dba start up a listener with
 TZ=X+144.  (144 hours = 6 days)"]
 
 =head1 Object & Collection Data Types 
+
 Oracle databases allow for the creation of object oriented like user-defined types.  
 There are two types of objects, Embedded--an object stored in a column of a regular table 
 and REF--an object that uses the REF retrieval mechanism. 
@@ -3072,7 +3073,7 @@ and TABLE in any combination. Support is seamless and recursive, meaning you
 need only supply a simple SQL statement to get all the values in an embedded object 
 as an array of scalars. 
 
-For example, given this type and table:
+For example, given this type and table;
 
   CREATE OR REPLACE TYPE  "PHONE_NUMBERS" as varray(10) of varchar(30);
   
@@ -3081,9 +3082,8 @@ For example, given this type and table:
   	"ADDRESS" VARCHAR2(100), 
   	"PHONE_NUMBERS"  "PHONE_NUMBERS" 
    )
-  
-  
-The code to access all the data would be something like this;
+
+The code to access all the data in the table could be something like this;
 
    my $sth = $dbh->prepare('SELECT * FROM CONTACT');
    $sth->execute;
@@ -3098,10 +3098,10 @@ The code to access all the data would be something like this;
         print "\n";
    }
 
-Note that $phone is returned as an array.
+Note that values in PHONE_NUMBERS are returned as an array reference '@$phone'.
 
-As stated before DBD::Oracle will automatically recurse into the embedded object and extract 
-all of the data. The example below has OBJECT type embedded in a TABLE type embedded in an
+As stated before DBD::Oracle will automatically drill into the embedded object and extract 
+all of the data as reference arrays of scalars. The example below has OBJECT type embedded in a TABLE type embedded in an
 SQL TABLE;
 
    CREATE OR REPLACE TYPE GRADELIST AS TABLE OF NUMBER;
@@ -3124,20 +3124,13 @@ The following code will access all of the embedded data;
    $sql='select grp_id,grp_name,students as my_students_test from groups';
    $sth=$dbh->prepare($sql);
    $sth->execute();
-   
    while (my ($grp_id,$grp_name,$students)=$sth->fetchrow()){
-
       print "Group ID#".$grp_id." Group Name =".$grp_name."\n";
-      
       foreach my $student (@$students){
-
          print "Name:".$student->[0]."\n";
          print "Marks:";
-
          foreach my $grades (@$student->[1]){
-
             foreach my $marks (@$grades){
-
                print $marks.",";     
             }
          }
@@ -3145,9 +3138,11 @@ The following code will access all of the embedded data;
       }
       print "\n";
    }
- 
+
 So far DBD::Oracle has been tested on a table with 20 embedded Objects, Varrays and Tables 
 nested to 10 levels.
+
+Any NULL values found in the embedded object will be returned as 'undef'.
 
 =head1 Oracle Related Links
 
