@@ -80,6 +80,14 @@
    : stat
 
 
+#define OCIIterDelete_log_stat(envhp,errhp,itr,stat)\
+	stat = OCIIterDelete(envhp,errhp,itr );\
+	(DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%OCIIterDelete_log_stat(%p,%p,%d)=%s\n",\
+		         OciTp, (void*)envhp, (void*)errhp,itr,oci_status_name(stat)),stat \
+   : stat
+
 
 #define OCIIterCreate_log_stat(envhp,errhp,coll,itr,stat)\
     stat = OCIIterCreate(envhp,errhp,coll,itr);\

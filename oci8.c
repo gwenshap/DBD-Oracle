@@ -1398,16 +1398,20 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
        for (pos = 0; pos < obj->field_count; pos++){
   	  			fld = &obj->fields[pos]; /*get the field */
 
-status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,&obj->obj_ind);
-PerlIO_printf(DBILOGFP, "OCIObjectGetInd=%d\n",status);
+				status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,&obj->obj_ind);
+
+				if (status != OCI_SUCCESS) {
+					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetInd");
+					return 0;
+	    		}
+
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
 										obj->obj_ind, obj->tdo,
 										&fld->type_name, &fld->type_namel, 1,
 										(ub4 *)0, 0, &attr_null_status, &attr_null_struct,
 										&attr_value, &attr_tdo);
 
-PerlIO_printf(DBILOGFP, "attr_null_status=%d\n",attr_null_status);
-						if (status != OCI_SUCCESS) {
+				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetAttr");
 					return 0;
 	    		}
@@ -1429,14 +1433,8 @@ PerlIO_printf(DBILOGFP, "attr_null_status=%d\n",attr_null_status);
                 	}
 				}
              }
-
-        /*    status = OCIObjectFree(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
-		                                    OCI_OBJECTFREE_NONULL);
-          	if (status != OCI_SUCCESS) {
-		  		oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectFree");
-		   		return 0;
-	    	}*/
            break;
+           
        case OCI_TYPECODE_REF :                               /* embedded ADT */
 			croak("panic: OCI_TYPECODE_REF objets () are not supported ");
 		   break;
@@ -1456,7 +1454,7 @@ PerlIO_printf(DBILOGFP, "attr_null_status=%d\n",attr_null_status);
 						/*not really an error just no data
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterCreate");*/
 						status = OCI_SUCCESS;
-						 av_push(list,  &sv_undef);
+			  		 	av_push(list,  &sv_undef);
 						return 0;
 	    			}
 
@@ -1466,7 +1464,6 @@ PerlIO_printf(DBILOGFP, "attr_null_status=%d\n",attr_null_status);
               		{
 
 						if (*names_null==OCI_IND_NULL){
-
 						     av_push(list,  &sv_undef);
 						} else {
 							if (obj->element_typecode == OCI_TYPECODE_OBJECT){
@@ -1478,12 +1475,12 @@ PerlIO_printf(DBILOGFP, "attr_null_status=%d\n",attr_null_status);
 							}
                 		}
                		}
-               		status=OCIIterDelete( fbh->imp_sth->envhp,
-					                      fbh->imp_sth->errhp, &itr );
+               		
+               		OCIIterDelete_log_stat( fbh->imp_sth->envhp,
+					                      fbh->imp_sth->errhp, &itr,status );
+					                      
                     if (status != OCI_SUCCESS) {
-						/*not really an error just no data*/
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterDelete");
-						status = OCI_SUCCESS;
 						return 0;
 	    			}
                		break;
@@ -1719,7 +1716,7 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 		}
 		/*we will need a reff to the TDO for the pin operation*/
 
-		OCIObjectPin_log_stat(imp_sth->envhp,imp_sth->errhp, obj->obj_ref,(dvoid  **)&obj->obj_instance,status);
+		OCIObjectPin_log_stat(imp_sth->envhp,imp_sth->errhp, obj->obj_ref,(dvoid  **)&obj->obj_type,status);
 
 
 		if (status != OCI_SUCCESS) {
