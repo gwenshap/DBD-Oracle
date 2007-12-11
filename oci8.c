@@ -1370,36 +1370,44 @@ int
 get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *value){
   	dTHX;
    	sword 		status;
-	OCIIter  	*itr = (OCIIter *) 0;
-  	dvoid    	*element = (dvoid *) 0;
-  	dvoid    	*null_element = (dvoid *) 0;
-  	dvoid    	*attr_value;
+	dvoid    	*element ;
+   	dvoid    	*attr_value;
   	boolean  	eoc;
   	ub2     	pos;
   	dvoid 		*attr_null_struct;
-	OCIInd 		attr_null_status = OCI_IND_NULL;
-   	OCIType 	*attr_tdo;
-   	fbh_obj_t	*fld;
-	OCIInd *names_null = (OCIInd *) -1;
-	 dvoid   *addr_obj = (dvoid *)0;
-	dvoid *nind = (dvoid *)0;
-	sb4             *size;
+	OCIInd 		attr_null_status;
+	OCIInd 		*element_null;
+	OCIType 	*attr_tdo;
+	OCIIter  	*itr;
+  	fbh_obj_t	*fld;
+	
 	if (DBIS->debug >= 5) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%d\n",obj->type_name,obj->typecode);
 	}
-
-
 
 	switch (obj->typecode) {
 
        case OCI_TYPECODE_OBJECT :                            /* embedded ADT */
 
-
-       for (pos = 0; pos < obj->field_count; pos++){
+    	   for (pos = 0; pos < obj->field_count; pos++){
   	  			fld = &obj->fields[pos]; /*get the field */
 
 				status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,&obj->obj_ind);
 
+/*the little bastard above took me ages to find out
+seems Oracle does not like people to know that it can do this
+the concept is simple really
+ 1. pin the object 
+ 2. bind with dty = SQLT_NTY
+ 3. OCIDefineObject using the TDO
+ 4. on fetech get the null indicator of the objcet with OCIObjectGetInd
+ 5. interate over the atributes of the object
+ 
+The thing to remember is that OCI and C have no way of representing a DB NULLs so we use the OCIInd find out
+if the object or any of its properties are NULL, This is one little line in a 20 chapter book and even then
+id only shows you examples with the C struct built in. Nowhere does it say you can do it this way.
+ */
+ 
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetInd");
 					return 0;
@@ -1439,14 +1447,13 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 			croak("panic: OCI_TYPECODE_REF objets () are not supported ");
 		   break;
 
-       	case OCI_TYPECODE_NAMEDCOLLECTION :
+       	case OCI_TYPECODE_NAMEDCOLLECTION : /*this works for both as I am using CONST OCIColl */
 
        		switch (obj->col_typecode) {
 
 				case OCI_TYPECODE_TABLE :                       /* nested table */
 				case OCI_TYPECODE_VARRAY :                    /* variable array */
                		fld = &obj->fields[0]; /*get the field */
-
               		OCIIterCreate_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
                        (CONST OCIColl*) value, &itr,status);
 
@@ -1460,10 +1467,10 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 
 					for(eoc = FALSE;!OCIIterNext(fbh->imp_sth->envhp, fbh->imp_sth->errhp, itr,
                                (dvoid **) &element,
-                               (dvoid **) &names_null, &eoc) && !eoc;)
+                               (dvoid **) &element_null, &eoc) && !eoc;)
               		{
 
-						if (*names_null==OCI_IND_NULL){
+						if (*element_null==OCI_IND_NULL){
 						     av_push(list,  &sv_undef);
 						} else {
 							if (obj->element_typecode == OCI_TYPECODE_OBJECT){
@@ -1475,7 +1482,8 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 							}
                 		}
                		}
-               		
+               		/*nasty surprise here. one has to get rid of the iterator or you will leak memory
+               		  not documented in oci or in demos */
                		OCIIterDelete_log_stat( fbh->imp_sth->envhp,
 					                      fbh->imp_sth->errhp, &itr,status );
 					                      
@@ -1718,18 +1726,10 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 
 		OCIObjectPin_log_stat(imp_sth->envhp,imp_sth->errhp, obj->obj_ref,(dvoid  **)&obj->obj_type,status);
 
-
 		if (status != OCI_SUCCESS) {
 			oci_error(sth,imp_sth->errhp, status, "OCIObjectPin");
 			return 0;
 		}
-
-
-		if (status != OCI_SUCCESS) {
-			oci_error(sth,imp_sth->errhp, status, "OCIObjectPin");
-			return 0;
-		}
-
 
 		OCIAttrGet_parmdp(imp_sth,  obj->parmdp, (dvoid *)&obj->field_count,(ub4 *) 0, OCI_ATTR_NUM_TYPE_ATTRS, status);
 
@@ -1741,7 +1741,7 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 		/*now get the differnt fields of this object add one field object for property*/
 		Newz(1, obj->fields, obj->field_count, fbh_obj_t);
 
-		/*a field is just another instance of an obj not a new type*/
+		/*a field is just another instance of an obj not a new struct*/
 
 		OCIAttrGet_parmdp(imp_sth,  obj->parmdp, (dvoid *)&list_attr,(ub4 *) 0, OCI_ATTR_LIST_TYPE_ATTRS, status);
 

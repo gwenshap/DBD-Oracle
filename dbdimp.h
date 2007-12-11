@@ -165,14 +165,12 @@ struct fbh_obj_st {  /* embedded object or table will work recursively*/
 	OCITypeCode 	col_typecode;    	/*if collection this is its OCI_ATTR_COLLECTION_TYPECODE */
     OCITypeCode 	element_typecode;	/*if collection this is its element's OCI_ATTR_TYPECODE*/
 	OCIRef      	*obj_ref;			/*if an embeded object this is ref handle to its TDO*/
-
-	OCIComplexObject			**obj_instance;
-	OCIComplexObject			*obj_ind;
+	OCIComplexObject *obj_ind;			/*Null indictator for object */
  	OCIComplexObject *obj_value;        /*the actual value from the DB*/
  	OCIType      	*obj_type;         	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
     fbh_obj_t       *fields;			/*one object for each field/property*/
     int             field_count;		/*The number of fields Not really needed but nice to have*/
-    AV				*value;				/*The */
+    AV				*value;				/*The value to send back to Perl This way there are no memory leaks*/
 };
 
 struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
