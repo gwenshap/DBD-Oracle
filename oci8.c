@@ -1384,7 +1384,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 	 dvoid   *addr_obj = (dvoid *)0;
 	dvoid *nind = (dvoid *)0;
 	sb4             *size;
-	if (DBIS->debug <= 5) {
+	if (DBIS->debug >= 5) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%d\n",obj->type_name,obj->typecode);
 	}
 
@@ -1395,17 +1395,21 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
        case OCI_TYPECODE_OBJECT :                            /* embedded ADT */
 
 
-        for (pos = 0; pos < obj->field_count; pos++){
+       for (pos = 0; pos < obj->field_count; pos++){
   	  			fld = &obj->fields[pos]; /*get the field */
-  	  			
-  	  			
-  	  			
+
+/* status = OCITypeAttrs(fbh->imp_sth->envhp, obj->obj_type);*/
+
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
-										(dvoid *) 0, obj->obj_type,
+										obj->obj_ind, obj->tdo,
 										&fld->type_name, &fld->type_namel, 1,
 										(ub4 *)0, 0, &attr_null_status, &attr_null_struct,
 										&attr_value, &attr_tdo);
 
+										OCIObjectPin_log_stat(fbh->imp_sth->envhp,fbh->imp_sth->errhp, attr_tdo,(dvoid  **)&obj->obj_type,status);
+										PerlIO_printf(DBILOGFP, "OCIObjectPin_log_stat=%d\n",attr_null_status);
+
+PerlIO_printf(DBILOGFP, "attr_null_status=%d\n",attr_null_status);
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetAttr");
 					return 0;
@@ -1443,7 +1447,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 				case OCI_TYPECODE_TABLE :                       /* nested table */
 				case OCI_TYPECODE_VARRAY :                    /* variable array */
                		fld = &obj->fields[0]; /*get the field */
-           
+
               		OCIIterCreate_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
                        (CONST OCIColl*) value, &itr,status);
 
@@ -1460,10 +1464,8 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
                                (dvoid **) &names_null, &eoc) && !eoc;)
               		{
 
-PerlIO_printf(DBILOGFP, " ping 2 null indicator is %d\n", *names_null);
-
 						if (*names_null==OCI_IND_NULL){
-						
+
 						     av_push(list,  &sv_undef);
 						} else {
 							if (obj->element_typecode == OCI_TYPECODE_OBJECT){
@@ -1483,7 +1485,7 @@ PerlIO_printf(DBILOGFP, " ping 2 null indicator is %d\n", *names_null);
 						status = OCI_SUCCESS;
 						return 0;
 	    			}
-               		break;    
+               		break;
              	default:
                		break;
            	}
@@ -1552,7 +1554,7 @@ empty_oci_object(fbh_obj_t *obj){
 			if (obj->element_typecode == OCI_TYPECODE_OBJECT){
 				empty_oci_object(fld);
 			}
-			if (SvTYPE(fld->value)){ 
+			if (SvTYPE(fld->value)){
 				if (SvTYPE(fld->value) == SVt_PVAV){
 					av_clear(fld->value);
 					av_undef(fld->value);
@@ -1574,7 +1576,7 @@ fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 	dTHX;
    if (fbh->obj){
 		if(fbh->obj->value){
-		
+
 	    	empty_oci_object(fbh->obj);
 		}
 	}
@@ -1716,15 +1718,39 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 		}
 		/*we will need a reff to the TDO for the pin operation*/
 
+
+
+status=OCIObjectNew (imp_sth->envhp,
+                     imp_sth->errhp,
+                     imp_sth->svchp,
+                    OCI_TYPECODE_OBJECT,
+                    obj->tdo,
+                    (dvoid *)0,
+                     OCI_DURATION_TRANS,
+                     1,
+                     obj->obj_instance );
+                     PerlIO_printf(DBILOGFP, "OCIObjectNew status=%d\n",status);
+
+
+ status=OCIObjectGetInd(imp_sth->envhp,imp_sth->errhp,obj->obj_instance,(dvoid  **) &obj->obj_ind);
+
+PerlIO_printf(DBILOGFP, "OCIObjectGetInd status=%d\n",status);
+
 		OCIObjectPin_log_stat(imp_sth->envhp,imp_sth->errhp, obj->obj_ref,(dvoid  **)&obj->obj_type,status);
+
 
 		if (status != OCI_SUCCESS) {
 			oci_error(sth,imp_sth->errhp, status, "OCIObjectPin");
 			return 0;
 		}
 
-		
-                        
+
+		if (status != OCI_SUCCESS) {
+			oci_error(sth,imp_sth->errhp, status, "OCIObjectPin");
+			return 0;
+		}
+
+
 		OCIAttrGet_parmdp(imp_sth,  obj->parmdp, (dvoid *)&obj->field_count,(ub4 *) 0, OCI_ATTR_NUM_TYPE_ATTRS, status);
 
 		if (status != OCI_SUCCESS) {
@@ -1859,7 +1885,7 @@ dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level){
 }
 
 
-	
+
 
 
 int
@@ -2165,8 +2191,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		    (ub2)fbh->ftype,
 		    fb_ary->aindp,
 		    (ftype==94||ftype==95) ? NULL : fb_ary->arlen,
-		    fb_ary->arcode, 
-		    OCI_DEFAULT, 
+		    fb_ary->arcode,
+		    OCI_DEFAULT,
 		    status);
 
 		if (fbh->ftype == 108)  { /* Embedded object bind it differently*/
