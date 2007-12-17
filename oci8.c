@@ -1380,7 +1380,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 	OCIType 	*attr_tdo;
 	OCIIter  	*itr;
   	fbh_obj_t	*fld;
-	
+
 	if (DBIS->debug >= 5) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%d\n",obj->type_name,obj->typecode);
 	}
@@ -1397,17 +1397,17 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 /*the little bastard above took me ages to find out
 seems Oracle does not like people to know that it can do this
 the concept is simple really
- 1. pin the object 
+ 1. pin the object
  2. bind with dty = SQLT_NTY
  3. OCIDefineObject using the TDO
  4. on fetech get the null indicator of the objcet with OCIObjectGetInd
  5. interate over the atributes of the object
- 
+
 The thing to remember is that OCI and C have no way of representing a DB NULLs so we use the OCIInd find out
 if the object or any of its properties are NULL, This is one little line in a 20 chapter book and even then
 id only shows you examples with the C struct built in. Nowhere does it say you can do it this way.
  */
- 
+
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetInd");
 					return 0;
@@ -1423,7 +1423,7 @@ id only shows you examples with the C struct built in. Nowhere does it say you c
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetAttr");
 					return 0;
 	    		}
-	    		
+
 	    		if (attr_null_status==OCI_IND_NULL){
 				     av_push(list,  &sv_undef);
 				} else {
@@ -1442,7 +1442,7 @@ id only shows you examples with the C struct built in. Nowhere does it say you c
 				}
              }
            break;
-           
+
        case OCI_TYPECODE_REF :                               /* embedded ADT */
 			croak("panic: OCI_TYPECODE_REF objets () are not supported ");
 		   break;
@@ -1486,7 +1486,7 @@ id only shows you examples with the C struct built in. Nowhere does it say you c
                		  not documented in oci or in demos */
                		OCIIterDelete_log_stat( fbh->imp_sth->envhp,
 					                      fbh->imp_sth->errhp, &itr,status );
-					                      
+
                     if (status != OCI_SUCCESS) {
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterDelete");
 						return 0;
@@ -1544,7 +1544,7 @@ empty_oci_object(fbh_obj_t *obj){
 				fld = &obj->fields[pos]; /*get the field */
 				if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
 					empty_oci_object(fld);
-					if (SvTYPE(fld->value) == SVt_PVAV){
+					if (fld->value && SvTYPE(fld->value) == SVt_PVAV){
 						av_clear(fld->value);
 			 			av_undef(fld->value);
                 	}
@@ -1560,7 +1560,7 @@ empty_oci_object(fbh_obj_t *obj){
 			if (obj->element_typecode == OCI_TYPECODE_OBJECT){
 				empty_oci_object(fld);
 			}
-			if (SvTYPE(fld->value)){
+			if (fld->value && SvTYPE(fld->value)){
 				if (SvTYPE(fld->value) == SVt_PVAV){
 					av_clear(fld->value);
 					av_undef(fld->value);
