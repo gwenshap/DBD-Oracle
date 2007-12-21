@@ -36,7 +36,15 @@ isa_ok($dbh, "DBI::db");
 my $table = "table_embed";
 my $type = $table.'a_type';
 
-
+#do not warn if already there
+eval { 
+  local $dbh->{PrintError} = 0;
+  $dbh->do(qq{drop TABLE $table }); 
+};
+eval { 
+  local $dbh->{PrintError} = 0;
+  $dbh->do(qq{drop TYPE  $type }); 
+};
 $dbh->do(qq{CREATE or replace TYPE  $type as varray(10) of varchar(30) }); 
 
 $dbh->do(qq{
