@@ -5,46 +5,6 @@
 
 */
 
-
-
-/* ====== Include Oracle Header Files ====== */
-
-#ifndef CAN_PROTOTYPE
-#define signed	/* Oracle headers use signed */
-#endif
-
-/* The following define avoids a problem with Oracle >=7.3 where
- * ociapr.h has the line:
- *	sword  obindps(struct cda_def *cursor, ub1 opcode, text *sqlvar, ...
- * In some compilers that clashes with perls 'opcode' enum definition.
- */
-#define opcode opcode_redefined
-
-/* Hack to fix broken Oracle oratypes.h on OSF Alpha. Sigh.	*/
-#if defined(__osf__) && defined(__alpha)
-#ifndef A_OSF
-#define A_OSF
-#endif
-#endif
-
-/* egcs-1.1.2 does not have _int64 */
-#if defined(__MINGW32__) || defined(__CYGWIN32__)
-#define _int64 long long
-#endif
-
-
-/* ori.h uses 'dirty' as an arg name in prototypes so we use this */
-/* hack to prevent ori.h being read (since we don't need it)	  */
-#define ORI_ORACLE
-#include <oci.h>
-#include <oratypes.h>
-#include <ocidfn.h>
-#include <orid.h>
-#include <ori.h>
-/* ------ end of Oracle include files ------ */
-
-
-
 /* ====== define data types ====== */
 
 typedef struct imp_fbh_st imp_fbh_t;
@@ -220,7 +180,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     sword ftype;	/* external OCI field type		*/
 
     SV	*sv;		/* the scalar holding the value		*/
-    int sv_type;	/* original sv type at time of bind	*/
+    U32 sv_type;	/* original sv type at time of bind	*/
     ub2 csid_orig;	/* original oracle default csid 	*/
     ub2 csid;		/* 0 for automatic			*/
     ub1 csform;		/* 0 for automatic			*/
@@ -240,8 +200,8 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
     char *progv;
 
     int (*out_prepost_exec)_((SV *, imp_sth_t *, phs_t *, int pre_exec));
-    SV	*ora_field;	/* from attribute (for LOB binds)	*/
-    int alen_incnull;	/* 0 or 1 if alen should include null	*/
+    SV	*ora_field;		/* from attribute (for LOB binds)	*/
+    ub4 alen_incnull;	/* 0 or 1 if alen should include null	*/
     /* Array bind support */
     char   * array_buf;            /* Temporary buffer = malloc(array_buflen) */
 	int      array_buflen;         /* Allocated length of array_buf */

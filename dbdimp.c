@@ -123,6 +123,11 @@ GetRegKey(char *key, char *val, char *data, unsigned long *size)
         return 0;
     return 1;
 #else
+    /* For gcc not to warn on unused parameters. */
+    if( key ){}
+    if( val ){}
+    if( data ){}
+    if( size ){}
     return 0;
 #endif
 }
@@ -273,9 +278,9 @@ fb_ary_alloc(int bufl, int size)
     /* and setup the pointers in the head fb_ary struct	*/
     Newz(42, fb_ary, sizeof(fb_ary_t), fb_ary_t);
     Newz(42, fb_ary->abuf,   size * bufl, ub1);
-    Newz(42, fb_ary->aindp,  size,        sb2);
-    Newz(42, fb_ary->arlen,  size,        ub2);
-    Newz(42, fb_ary->arcode, size,        ub2);
+    Newz(42, fb_ary->aindp,  (unsigned)size,        sb2);
+    Newz(42, fb_ary->arlen,  (unsigned)size,        ub2);
+    Newz(42, fb_ary->arcode, (unsigned)size,        ub2);
     fb_ary->bufl = bufl;
     return fb_ary;
 }
@@ -517,7 +522,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
                     croak("ora_charset is not a string");
                 }
 
-                new_charsetid = OCINlsCharSetNameToId(imp_dbh->envhp, SvPV_nolen(*svp));
+                new_charsetid = OCINlsCharSetNameToId(imp_dbh->envhp, (oratext*)SvPV_nolen(*svp));
+               
                 if (!new_charsetid) {
                     croak("ora_charset value (%s) is not valid", SvPV_nolen(*svp));
                 }
@@ -529,7 +535,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
                     croak("ora_ncharset is not a string");
                 }
 
-                new_ncharsetid = OCINlsCharSetNameToId(imp_dbh->envhp, SvPV_nolen(*svp));
+                new_ncharsetid = OCINlsCharSetNameToId(imp_dbh->envhp, (oratext*)SvPV_nolen(*svp));
                 if (!new_ncharsetid) {
                     croak("ora_ncharset value (%s) is not valid", SvPV_nolen(*svp));
                 }
@@ -1263,16 +1269,16 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		if( phs->maxlen <=0 ){ /* Analyze maxlength only if not forced */
 		    STRLEN length=0;
 		    if (!SvPOK(item)) {     /* normalizations for special cases     */
-			if (SvOK(item)) {    /* ie a number, convert to string ASAP  */
-			    if (!(SvROK(item) && phs->is_inout)){
-				sv_2pv(item, &length);
-			    }
-			} else { /* ensure we're at least an SVt_PV (so SvPVX etc work)     */
-			    SvUPGRADE(item, SVt_PV);
-			}
+				if (SvOK(item)) {    /* ie a number, convert to string ASAP  */
+				    if (!(SvROK(item) && phs->is_inout)){
+						sv_2pv(item, &length);
+				    }
+				} else { /* ensure we're at least an SVt_PV (so SvPVX etc work)     */
+				    if(SvUPGRADE(item, SVt_PV)){}
+				}
 		    }
 		    if( length == 0 ){
-			length=SvCUR(item);
+				length=SvCUR(item);
 		    }
 		    if( length+1 > maxlen ){
 			maxlen=length+1;
@@ -1310,13 +1316,13 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	if( phs->maxlen <=0 ){
 	    phs->maxlen=maxlen;
 	    if (trace_level >= 2){
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): phs->maxlen calculated  =%d\n",
-			(int)maxlen);
+		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): phs->maxlen calculated  =%ld\n",
+			(long)maxlen);
 	    }
 	} else{
 	    if (trace_level >= 2){
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): phs->maxlen forsed =%d\n",
-			(int)maxlen);
+			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): phs->maxlen forsed =%ld\n",
+					(long)maxlen);
 	    }
 	}
     }
@@ -1420,7 +1426,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	return 0;
     }
     OCIBindArrayOfStruct_log_stat(phs->bndhp, imp_sth->errhp,
-	    phs->maxlen,            /* Skip parameter for the next data value */
+	    (unsigned)phs->maxlen,  /* Skip parameter for the next data value */
 	    sizeof (OCIInd),        /* Skip parameter for the next indicator value */
 	    sizeof(unsigned short), /* Skip parameter for the next actual length value */
 	    0,                      /* Skip parameter for the next column-level error code */
@@ -1499,10 +1505,10 @@ int dbd_phs_ora_varchar2_table_fixup_after_execute(phs_t *phs){
     }
     if (trace_level >= 1){
 	PerlIO_printf(DBILOGFP,
-		"dbd_phs_ora_varchar2_table_fixup_after_execute(): Called for '%s' : array_numstruct=%d, maxlen=%d \n",
+		"dbd_phs_ora_varchar2_table_fixup_after_execute(): Called for '%s' : array_numstruct=%d, maxlen=%ld \n",
 		phs->name,
 		phs->array_numstruct,
-		phs->maxlen
+		(long)phs->maxlen
 		);
     }
     arr=(AV*)(SvRV(phs->sv));
@@ -1587,8 +1593,8 @@ int dbd_phs_ora_varchar2_table_fixup_after_execute(phs_t *phs){
     }
     if (trace_level >= 2){
 	PerlIO_printf(DBILOGFP,
-		"dbd_phs_ora_varchar2_table_fixup_after_execute(): scalar(@arr)=%d.\n",
-		av_len(arr)+1);
+		"dbd_phs_ora_varchar2_table_fixup_after_execute(): scalar(@arr)=%ld.\n",
+		(long)av_len(arr)+1);
     }
     return 1;
 }
@@ -1601,7 +1607,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
     AV *arr;
     int need_allocate_rows;
     int buflen;
-    int flag_data_is_utf8=0;
+    /*int flag_data_is_utf8=0;*/
 
     if( ( ! SvROK(phs->sv) )  || (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) ) { /* Allow only array binds */
 	croak("dbd_rebind_ph_number_table(): bad bind variable. ARRAY reference required, but got %s for '%s'.",
@@ -1651,8 +1657,8 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	    phs->maxlen=sizeof(double);
     }
     if (trace_level >= 2){
-	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): phs->maxlen calculated  =%d\n",
-		(int)phs->maxlen);
+	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): phs->maxlen calculated  =%ld\n",
+		(long)phs->maxlen);
     }
 
     if( phs->array_numstruct == 0 ){
@@ -1665,12 +1671,12 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 
 	if (trace_level >= 2){
 	    PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): ora_maxarray_numentries assumed=phs->array_numstruct=%d\n",
-		    (int)phs->array_numstruct);
+		    phs->array_numstruct);
 	}
     }else{
 	if (trace_level >= 2){
 	    PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): ora_maxarray_numentries=%d\n",
-		    (int)phs->ora_maxarray_numentries);
+		    phs->ora_maxarray_numentries);
 	}
     }
 
@@ -1708,7 +1714,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 		switch( phs->ora_internal_type ){
 		    case SQLT_INT:
 			{
-			    int ival;
+			    int ival     =0;
 			    int val_found=0;
 			    /* Double values are converted as int(val) */
 			    if( SvOK( item ) && ! SvIOK( item ) ){
@@ -1827,7 +1833,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	return 0;
     }
     OCIBindArrayOfStruct_log_stat(phs->bndhp, imp_sth->errhp,
-	    phs->maxlen,            /* Skip parameter for the next data value */
+	    (unsigned)phs->maxlen,  /* Skip parameter for the next data value */
 	    sizeof (OCIInd),        /* Skip parameter for the next indicator value */
 	    sizeof(unsigned short), /* Skip parameter for the next actual length value */
 	    0,                      /* Skip parameter for the next column-level error code */
@@ -1863,10 +1869,10 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
     }
     if (trace_level >= 1){
 	PerlIO_printf(DBILOGFP,
-		"dbd_phs_ora_number_table_fixup_after_execute(): Called for '%s' : array_numstruct=%d, maxlen=%d \n",
+		"dbd_phs_ora_number_table_fixup_after_execute(): Called for '%s' : array_numstruct=%d, maxlen=%ld \n",
 		phs->name,
 		phs->array_numstruct,
-		phs->maxlen
+		(long)phs->maxlen
 		);
     }
     /* At this point, ora_internal_type can't be default. It must be set at bind time. */
@@ -2000,8 +2006,8 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
     }
     if (trace_level >= 2){
 	PerlIO_printf(DBILOGFP,
-		"dbd_phs_ora_number_table_fixup_after_execute(): scalar(@arr)=%d.\n",
-		av_len(arr)+1);
+		"dbd_phs_ora_number_table_fixup_after_execute(): scalar(@arr)=%ld.\n",
+		(long)av_len(arr)+1);
     }
     return 1;
 }
@@ -2010,7 +2016,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 
 
 static int
-dbd_rebind_ph_char(SV *sth, imp_sth_t *imp_sth, phs_t *phs, ub2 **alen_ptr_ptr)
+dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 {
 	dTHX;
     STRLEN value_len;
@@ -2023,8 +2029,8 @@ dbd_rebind_ph_char(SV *sth, imp_sth_t *imp_sth, phs_t *phs, ub2 **alen_ptr_ptr)
 		sv_2pv(phs->sv, &na);
 	}
 	else /* ensure we're at least an SVt_PV (so SvPVX etc work)	*/
-	    SvUPGRADE(phs->sv, SVt_PV);
-    }
+    	if(SvUPGRADE(phs->sv, SVt_PV)){} /* For gcc not to warn on unused result)*/;
+	}
 
     if (DBIS->debug >= 2) {
 		char *val = neatsvpv(phs->sv,0);
@@ -2228,7 +2234,7 @@ static int
 dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
 	dTHX;
-    ub2 *alen_ptr = NULL;
+    /*ub2 *alen_ptr = NULL;*/
     sword status;
     int done = 0;
     int at_exec;
@@ -2256,7 +2262,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	    done = dbd_rebind_ph_rset(sth, imp_sth, phs);
 	    break;
     default:
-	    done = dbd_rebind_ph_char(sth, imp_sth, phs, &alen_ptr);
+	    done = dbd_rebind_ph_char(imp_sth, phs);
     }
     if (done == 2) { /* the dbd_rebind_* did the OCI bind call itself successfully */
 	if (trace_level >= 3)
@@ -2957,7 +2963,8 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 
                  /*check to see if value sv is a null (undef) if it is upgrade it*/
  				if (!SvOK(sv))	{
-					SvUPGRADE(sv, SVt_PV);
+					if(SvUPGRADE(sv, SVt_PV)){} /* For GCC not to warn on unused result */
+	
 				}
 				else {
             		SvPV(sv, len);
@@ -2974,7 +2981,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
                     phs[i]->maxlen = len;
 
                 /* Do OCI bind calls on last iteration. */
-                if(j == exe_count - 1) {
+                if( ((unsigned int) j ) == exe_count - 1 ) {                
                   if(!do_bind_array_exec(sth, imp_sth, phs[i])) {
                     Safefree(phs);
                   }
@@ -3308,6 +3315,7 @@ dbd_st_STORE_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv, SV *valuesv)
     STRLEN kl;
     SV *cachesv = NULL;
     char *key = SvPV(keysv,kl);
+    if( imp_sth ) { /* For GCC not to warn on unused argument */}    
 /*
     int on = SvTRUE(valuesv);
     int oraperl = DBIc_COMPAT(imp_sth); */

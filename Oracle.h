@@ -5,6 +5,42 @@
 
 */
 
+/* ====== Include Oracle Header Files ====== */
+
+#ifndef CAN_PROTOTYPE
+#define signed	/* Oracle headers use signed */
+#endif
+
+/* The following define avoids a problem with Oracle >=7.3 where
+ * ociapr.h has the line:
+ *	sword  obindps(struct cda_def *cursor, ub1 opcode, text *sqlvar, ...
+ * In some compilers that clashes with perls 'opcode' enum definition.
+ */
+#define opcode opcode_redefined
+
+/* Hack to fix broken Oracle oratypes.h on OSF Alpha. Sigh.	*/
+#if defined(__osf__) && defined(__alpha)
+#ifndef A_OSF
+#define A_OSF
+#endif
+#endif
+
+/* egcs-1.1.2 does not have _int64 */
+#if defined(__MINGW32__) || defined(__CYGWIN32__)
+#define _int64 long long
+#endif
+
+
+/* ori.h uses 'dirty' as an arg name in prototypes so we use this */
+/* hack to prevent ori.h being read (since we don't need it)	  */
+//#define ORI_ORACLE
+#include <oci.h>
+#include <oratypes.h>
+#include <ocidfn.h>
+#include <orid.h>
+#include <ori.h>
+/* ------ end of Oracle include files ------ */
+
 
 #define NEED_DBIXS_VERSION 93
 

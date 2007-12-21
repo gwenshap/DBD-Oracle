@@ -40,7 +40,7 @@
     stat = OCIObjectPin(envhp,errhp,or,(OCIComplexObject *)0,OCI_PIN_LATEST,OCI_DURATION_TRANS,OCI_LOCK_NONE,ot);\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%OCIObjectPin_log_stat(%p,%p,%d,%d)=%s\n",\
+		         "%sObjectPin_log_stat(%p,%p,%p,%p)=%s\n",\
 		         OciTp, (void*)envhp, (void*)errhp,or,ot,oci_status_name(stat)),stat \
    : stat
 
@@ -49,7 +49,7 @@
     stat = OCICollGetElem(envhp,errhp, v,i,ex,e,ne);\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%OCICollGetElem_log_stat(%p,%p,%d,%d,%d,%d,%d)=%s\n",\
+		         "%sOCICollGetElem_log_stat(%p,%p,%d,%d,%d,%d,%d)=%s\n",\
 		         OciTp, (void*)envhp, (void*)errhp,v,i,ex,e,ne,oci_status_name(stat)),stat \
    : stat
 
@@ -58,7 +58,7 @@
     stat = OCITableFirst(envhp,errhp,v,i);\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%OCITableFirst_log_stat(%p,%p,%d,%d)=%s\n",\
+		         "%sOCITableFirst_log_stat(%p,%p,%d,%d)=%s\n",\
 		         OciTp, (void*)envhp, (void*)errhp,v,i,oci_status_name(stat)),stat \
    : stat
 
@@ -66,7 +66,7 @@
     stat = OCIObjectGetAttr(errhp,errhp,v,no,ot,tn,tnl,1,(ub4 *)0, 0,ani,ans,av,atdo,stat);\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%OCIObjectGetAttr_log_stat(%p,%p,%d,%d,%d,%d,%d,%d,%d,%d,%d)=%s\n",\
+		         "%sOCIObjectGetAttr_log_stat(%p,%p,%d,%d,%d,%d,%d,%d,%d,%d,%d)=%s\n",\
 		         OciTp, (void*)envhp,(void*)errhp,v,no,ot,tn,tnl,ani,ans,av,atdo,(void*)errhp,oci_status_name(stat)),stat \
    : stat
 
@@ -75,16 +75,16 @@
     stat = OCIDateToText(errhp, (CONST OCIDate *) d,(CONST text*) "Month dd, SYYYY, HH:MI A.M.",(ub1) 27, (CONST text*) "American", (ub4) 8,(ub4 *)sl,sb );\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%OCIDateToText_log_stat(%p,%d,%d,%s)=%s\n",\
-		         OciTp, (void*)errhp, d,sl,sb,(void*)errhp,oci_status_name(stat)),stat \
-   : stat
+		         "%sDateToText_log_stat(%p,%p,%p,%s)=%s\n",\
+		         OciTp, (void*)errhp, d,sl,sb,oci_status_name(stat)),stat \
+  : stat
 
 
 #define OCIIterDelete_log_stat(envhp,errhp,itr,stat)\
 	stat = OCIIterDelete(envhp,errhp,itr );\
 	(DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%OCIIterDelete_log_stat(%p,%p,%d)=%s\n",\
+		         "%sOCIIterDelete_log_stat(%p,%p,%d)=%s\n",\
 		         OciTp, (void*)envhp, (void*)errhp,itr,oci_status_name(stat)),stat \
    : stat
 
@@ -93,15 +93,15 @@
     stat = OCIIterCreate(envhp,errhp,coll,itr);\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%OCIIterCreate_log_stat(%p,%p,%d)=%s\n",\
-		         OciTp, (void*)envhp, (void*)errhp,oci_status_name(stat)),stat \
+		         "%sIterCreate_log_stat(%p,%p,%p)=%s\n",\
+		         OciTp, (void*)envhp, (void*)errhp,(void*)coll,oci_status_name(stat)),stat \
    : stat
 
 #define OCICollSize_log_stat(envhp,errhp,coll,coll_siz,stat)\
     stat = OCICollSize(envhp,errhp,(CONST OCIColl *)coll,coll_siz);\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%OCICollSize_log_stat(%p,%p,%d)=%s\n",\
+		         "%sOCICollSize_log_stat(%p,%p,%d)=%s\n",\
 		         OciTp, (void*)envhp, (void*)errhp,oci_status_name(stat)),stat \
    : stat
 
@@ -110,16 +110,16 @@
     stat = OCIDefineObject(defnp,errhp,tdo,eo_buff,0,0, 0);\
    (DBD_OCI_TRACEON) \
 	   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-	         "%OCIDefineObject(%p,%p,%d)=%s\n",\
+	         "%sOCIDefineObject(%p,%p,%d)=%s\n",\
 	         OciTp, (void*)defnp, (void*)errhp, (void*)tdo,oci_status_name(stat)),stat \
    : stat
 
 #define OCITypeByName_log_stat(envhp,errhp,svchp,p1,l,tdo,stat)\
-    stat = OCITypeByName(envhp,errhp,svchp,"",0,p1,l,0,0,OCI_DURATION_TRANS,OCI_TYPEGET_ALL,tdo);\
+    stat = OCITypeByName(envhp,errhp,svchp,(const oratext*)"",0,p1,l,0,0,OCI_DURATION_TRANS,OCI_TYPEGET_ALL,tdo);\
     (DBD_OCI_TRACEON) \
 	   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-	         "%OCITypeByName(%p,%p,%p,%s,%d)=%s\n",\
-	         OciTp, (void*)envhp, (void*)errhp, (void*)svchp, (void*)(p1),(l),oci_status_name(stat)),stat \
+	         "%sTypeByName(%p,%p,%p,%s,%d)=%s\n",\
+	         OciTp, (void*)envhp, (void*)errhp, (void*)svchp, (char*)(p1),(l),oci_status_name(stat)),stat \
    : stat
 
 /* added by lab */
