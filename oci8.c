@@ -226,7 +226,7 @@ oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags)
      case OCI_HTYPE_SESSION:	return imp_dbh->authp;
      }
      croak("Can't get OCI handle type %d from DBI database handle", handle_type);
-     if( flags ) {/* For GCC not to warn on unused parameter */} 
+     if( flags ) {/* For GCC not to warn on unused parameter */}
      /* satisfy compiler warning, even though croak will never return */
      return 0;
 }
@@ -375,7 +375,7 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 	AV *av;
 	SV **sv_p;
 	if( bindp ) { /* For GCC not to warn on unused parameter*/ }
-	
+
 	/* Check for bind values supplied by tuple array. */
 	tuples_av = phs->imp_sth->bind_tuples;
 	if(tuples_av) {
@@ -478,9 +478,9 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 	dTHX;
     phs_t *phs = (phs_t*)octxp;	/* context */
     /*imp_sth_t *imp_sth = phs->imp_sth;*/
-    
+
 	if( bindp ) { /* For GCC not to warn on unused parameter */ }
-    
+
     if (phs->desc_h) {
 		*bufpp  = phs->desc_h;
 		phs->alen = 0;
@@ -673,7 +673,7 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
         croak("panic: DBI::_new_sth returned %d values instead of 2", count);
 
     if(POPs){} /* For GCC not to warn on unused result */
-    
+
     sv_setsv(dest_sv, POPs);
     SvREFCNT_dec(init_attr);
     PUTBACK; FREETMPS; LEAVE;
@@ -1400,7 +1400,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
   	  			fld = &obj->fields[pos]; /*get the field */
 
 				status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,(dvoid**)&obj->obj_ind);
- 
+
 /*the little bastard above took me ages to find out
 seems Oracle does not like people to know that it can do this
 the concept is simple really
@@ -1541,7 +1541,8 @@ int
 empty_oci_object(fbh_obj_t *obj){
 	dTHX;
 	int       pos  = 0;
-	fbh_obj_t *fld;
+	fbh_obj_t *fld=NULL;
+
 
 
 	switch (obj->element_typecode) {
@@ -1578,7 +1579,7 @@ empty_oci_object(fbh_obj_t *obj){
 		default:
 		 	break;
     }
-    if (fld->value && SvTYPE(fld->value) == SVt_PVAV){ 
+    if ( fld && fld->value && (SvTYPE(fld->value) == SVt_PVAV) ){
    		av_clear(obj->value);
 		av_undef(obj->value);
 	}
@@ -1596,15 +1597,15 @@ empty_oci_object(fbh_obj_t *obj){
 static void
 fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 	dTHX;
-	
-	if( sth ) { /* For GCC not to warn on unused parameter*/  }	
-	
+
+	if( sth ) { /* For GCC not to warn on unused parameter*/  }
+
    	if (fbh->obj){
 		if(fbh->obj->value){
 	    	empty_oci_object(fbh->obj);
 		}
 	}
-	
+
 	if (DBIS->debug >= 3)
 		    PerlIO_printf(DBILOGFP,"  fetch_cleanup_oci_object \n");
 	return;
@@ -1873,7 +1874,7 @@ dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level){
 	PerlIO_printf(DBILOGFP, "    obj_type = %p\n",obj->obj_type);
  	PerlIO_printf(DBILOGFP, "    field_count = %d\n",obj->field_count);
 	PerlIO_printf(DBILOGFP, "    fields = %p\n",obj->fields);
- 
+
 	for (i = 0; i < obj->field_count;i++){
 		fbh_obj_t *fld = &obj->fields[i];
 		PerlIO_printf(DBILOGFP, "  \n--->sub objects\n  ");
@@ -2215,7 +2216,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 			}
 
 			OCIDefineObject_log_stat(fbh->defnp,imp_sth->errhp,fbh->obj->tdo,(dvoid**)&fbh->obj->obj_value,status);
- 
+
 			if (status != OCI_SUCCESS) {
 				oci_error(h,imp_sth->errhp, status, "OCIDefineObject");
 				++num_errors;
@@ -2837,7 +2838,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 int
 post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handles on error */
 {
-	
+
     /* To insert a new LOB transparently (without using 'INSERT . RETURNING .')	*/
     /* we have to insert an empty LobLocator and then fetch it back from the	*/
     /* server before we can call OCILobWrite on it! This function handles that.	*/
@@ -2885,7 +2886,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 		ub4 amtp;
 
     	if(SvUPGRADE(phs->sv, SVt_PV)){/* For GCC not to warn on unused result */ };	/* just in case */
-  
+
 		amtp = SvCUR(phs->sv);		/* XXX UTF8? */
 		if (rc == 1405) {		/* NULL - return undef */
 		    sv_set_undef(phs->sv);
@@ -2912,11 +2913,11 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
        		if (DBIS->debug >= 3)
                 PerlIO_printf(DBILOGFP, "      calling OCILobWrite fbh->csid=%d fbh->csform=%d amtp=%d\n",
                     fbh->csid, fbh->csform, amtp );
-	   		
+
 	   		OCILobWrite_log_stat(imp_sth->svchp, errhp,
 			    (OCILobLocator*)fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
 			    0,0, fbh->csid ,fbh->csform, status);
-            
+
             if (status != OCI_SUCCESS) {
                 return oci_error(sth, errhp, status, "OCILobWrite in post_execute_lobs");
        		}

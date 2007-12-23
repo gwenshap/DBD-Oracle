@@ -670,6 +670,9 @@ $opts{DEFINE} .= ($os ne 'VMS')
 $opts{DEFINE} .= " -DORA_OCI_8" if ($::opt_V && $client_version == 8.0)
 				or ($^O eq 'VMS' && $client_version < 9.0); # OCILobIsTemporary
 
+# OCIStmntFetch2() is a feature of OCI 9.0.0
+$opts{DEFINE} .= " -DUSE_ORA_OCI_STMNT_FETCH " if ( $client_version < 9.0 );
+ 
 
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($is_developer){  # a reasonable guess
