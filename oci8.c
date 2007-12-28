@@ -1309,6 +1309,8 @@ static void get_attr_val(AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typ
   ub4      	i = 0;
   sword		status;
   SV		*raw_sv;
+   
+  
   /* get the data based on the type code*/
   if (DBIS->debug >= 5) {
 	PerlIO_printf(DBILOGFP, " getting value of object attribute named  %s with typecode=%d\n",name,typecode);
@@ -1316,6 +1318,61 @@ static void get_attr_val(AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typ
 
   switch (typecode)
   {
+
+	 case OCI_TYPECODE_INTERVAL_YM  :
+	 case OCI_TYPECODE_INTERVAL_DS  :
+	
+		OCIIntervalToText_log_stat(fbh->imp_sth->envhp,
+	 	 						fbh->imp_sth->errhp,
+	 	 						attr_value,
+	 	 						str_buf,
+	 	 						200,
+	 	 						&str_len,
+	 						status);
+	  	str_buf[str_len+1] = '\0';
+	 	av_push(list, newSVpv( (char *) str_buf,0));
+	 	break;
+	 	
+ 	 case OCI_TYPECODE_TIMESTAMP_TZ :
+     case OCI_TYPECODE_TIMESTAMP_LTZ :
+     case OCI_TYPECODE_TIMESTAMP :
+     
+         
+	     str_len = 200;
+	     OCIDateTimeToText_log_stat(fbh->imp_sth->envhp, 
+		                           fbh->imp_sth->errhp,attr_value,&str_len,str_buf,status);
+		                            
+		                            
+		                            
+		if (typecode == OCI_TYPECODE_TIMESTAMP_TZ || typecode == OCI_TYPECODE_TIMESTAMP_LTZ){
+			char s_tz_hour[3]="000";
+			char s_tz_min[3]="000";
+            sb1 tz_hour;
+  		    sb1 tz_minute;
+			status = OCIDateTimeGetTimeZoneOffset (fbh->imp_sth->envhp, 
+			                                     fbh->imp_sth->errhp, 
+			                                     *(OCIDateTime**)attr_value, 
+			                                     &tz_hour,
+                                    &tz_minute );
+                                    
+            if (  (tz_hour<0) && (tz_hour>-10) ){
+               sprintf(s_tz_hour," %03ld",tz_hour);
+            } else {
+               sprintf(s_tz_hour," %02ld",tz_hour);
+            }
+            
+            sprintf(s_tz_min,":%02ld",tz_minute);
+            strcat(str_buf,s_tz_hour);
+            strcat(str_buf, s_tz_min);
+            str_buf[str_len+7] = '\0'; 
+          
+		} else {
+		  str_buf[str_len+1] = '\0';
+		}
+		
+		av_push(list, newSVpv( (char *) str_buf,0));
+		break;
+	    
      case OCI_TYPECODE_DATE :                         /* fixed length string*/
          str_len = 200;
          OCIDateToText_log_stat(fbh->imp_sth->errhp, (CONST OCIDate *) attr_value,&str_len,str_buf,status);
@@ -2346,6 +2403,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		    }
 	    /* else fall through and let rc trigger failure below	*/
 		}
+
 
 		if (rc == 0) {			/* the normal case		*/
 			if (fbh->fetch_func) {

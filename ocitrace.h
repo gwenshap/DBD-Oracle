@@ -71,8 +71,26 @@
    : stat
 
 
+
+#define OCIIntervalToText_log_stat(envhp,errhp,di,sb,ln,sl,stat)\
+    stat = OCIIntervalToText(envhp,errhp, *(OCIInterval**)di,3,3,sb,ln,sl);\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "% OCIIntervalToText(%p,%p,%p,%s)=%s\n",\
+		         OciTp, (void*)errhp, di,sl,sb,oci_status_name(stat)),stat \
+  : stat
+
+#define OCIDateTimeToText_log_stat(envhp,errhp,d,sl,sb,stat)\
+    stat = OCIDateTimeToText(envhp,errhp, *(OCIDateTime**)d,(CONST text*) 0,(ub1) 0,0, (CONST text*) 0, (ub4) 0,(ub4 *)sl,sb );\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "% OCIDateTimeToText(%p,%p,%p,%s)=%s\n",\
+		         OciTp, (void*)errhp, d,sl,sb,oci_status_name(stat)),stat \
+  : stat
+
+
 #define OCIDateToText_log_stat(errhp,d,sl,sb,stat)\
-    stat = OCIDateToText(errhp, (CONST OCIDate *) d,(CONST text*) "Month dd, SYYYY, HH:MI A.M.",(ub1) 27, (CONST text*) "American", (ub4) 8,(ub4 *)sl,sb );\
+    stat = OCIDateToText(errhp, (CONST OCIDate *) d,(CONST text*) 0,(ub1) 0, (CONST text*) 0, (ub4) 0,(ub4 *)sl,sb );\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
 		         "%sDateToText_log_stat(%p,%p,%p,%s)=%s\n",\
