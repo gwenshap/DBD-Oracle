@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.xx (svn rev xxxx) xrd xxx 2007
+=head1 Changes in DBD-Oracle 1.20(svn rev 10463) 11th January 2008
 
   Fixed lob test so it skips the one test that relies on it if v$ session. from Rafael Kitover 
   Fixed // with /* */ in dbdimp.c from John Scoles
