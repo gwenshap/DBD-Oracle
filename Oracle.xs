@@ -1,5 +1,7 @@
 #include "Oracle.h"
 
+#define BIND_PARAM_INOUT_ALLOW_ARRAY
+
 DBISTATE_DECLARE;
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle
@@ -23,10 +25,14 @@ constant(name=Nullch)
     ORA_CLOB	 = 112
     ORA_BLOB	 = 113
     ORA_RSET	 = 116
+    ORA_VARCHAR2_TABLE = ORA_VARCHAR2_TABLE
+    ORA_NUMBER_TABLE   = ORA_NUMBER_TABLE
     ORA_SYSDBA	 = 0x0002
     ORA_SYSOPER	 = 0x0004
     SQLCS_IMPLICIT = SQLCS_IMPLICIT
     SQLCS_NCHAR    = SQLCS_NCHAR
+    SQLT_INT     = SQLT_INT
+    SQLT_FLT     = SQLT_FLT    
     CODE:
     if (!ix) {
 	if (!name) name = GvNAME(CvGV(cv));

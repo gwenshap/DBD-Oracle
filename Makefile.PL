@@ -16,7 +16,7 @@ use strict;
 # For those not using Dynamic loading this means building a
 # new static perl in the DBI directory by saying 'make perl'
 # and then using _that_ perl to make this one.
-use DBI 1.28;
+use DBI 1.51;
 use DBI::DBD;	# DBD creation tools
 
 
@@ -59,7 +59,7 @@ my %opts = (
 if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
     $opts{AUTHOR} = 'Tim Bunce (dbi-users@perl.org)';
     $opts{ABSTRACT_FROM} = 'Oracle.pm';
-    $opts{PREREQ_PM} = { DBI => 0 };
+    $opts{PREREQ_PM} = { DBI => 1.51 };
     $opts{CAPI} = 'TRUE' if $Config{archname} =~ /-object\b/i;
 }
 
@@ -132,7 +132,7 @@ if (!$OH) {
       The $ORACLE_ENV environment variable is not set and I couldn't guess it.
       It must be set to hold the path to an Oracle installation directory
       on this machine (or a machine with a compatible architecture).
-      See the README.clients.txt file for more information.
+      See the appropriate README file for your OS for more information.
       ABORTED!
   \n};
   $ENV{$ORACLE_ENV} = $OH;
@@ -146,7 +146,7 @@ die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture).
   For an Instant Client install, the directory should include an sdk subdirectory.
-  See the README.clients.txt file for more information.
+  See the appropriate README file for your OS for more information.
   ABORTED!
 } unless (-d $OH and $os eq 'VMS')
       or -d "$OH/sdk/." 	# Instant Client with SDK
@@ -670,6 +670,9 @@ $opts{DEFINE} .= ($os ne 'VMS')
 $opts{DEFINE} .= " -DORA_OCI_8" if ($::opt_V && $client_version == 8.0)
 				or ($^O eq 'VMS' && $client_version < 9.0); # OCILobIsTemporary
 
+# OCIStmntFetch2() is a feature of OCI 9.0.0
+$opts{DEFINE} .= " -DUSE_ORA_OCI_STMNT_FETCH " if ( $client_version < 9.0 );
+ 
 
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($is_developer){  # a reasonable guess
@@ -1085,7 +1088,7 @@ sub find_mkfile {
 	somewhere non-standard you can specify where it is using the -m option:
 		perl Makefile.PL -m /path/to/your.mk
 
-	See README.clients.txt for more information and some alternatives.
+	See the appropriate README file for your OS for more information and some alternatives.
 
     } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile) || $::opt_F;
 
@@ -1134,7 +1137,10 @@ sub fetch_oci_macros {
     # deal with (some subversions) of Oracle8.0.3's incompatible use of OBJ_EXT
     my $incompat_ext = ($MK{OBJ_EXT} && $MK{OBJ_EXT} !~ /^\./);
     warn "OBJ_EXT correction enabled ($MK{OBJ_EXT})\n" if $incompat_ext;
-
+    # Don't include compiler options for these compilers
+    my @ignore_def = qw( BUILD_CCC296 BUILD_ICC );
+    my %ignore_def; @ignore_def{@ignore_def} = ('1') x @ignore_def;
+ 
     my $mkver = 0;
     my $lastline = '';
     my @lines = read_inc_file($file);
@@ -1149,6 +1155,14 @@ sub fetch_oci_macros {
 	    s/\.(\$\(OBJ_EXT\))/$1/g;
 	    s/\.(\$\(LIB_EXT\))/$1/g;
 	}
+	# skip compiler options for undesirable compilers
+	m/^ifdef (\w+)/ and do {
+		if ($ignore_def{$1}) {
+			$_ = shift @lines until m/^endif/;
+			next;
+		}
+	};
+
 
         if (m!^([-\w/+.\$()\s]+)\s*:+\s*([^=]*)!) {     # skip targets
             my @tgts = split(/ /, $1);  # multiple target names in Oracle9i's demo_rdbms.mk
@@ -1412,15 +1426,17 @@ sub find_headers {
    );
    unshift @try, $::opt_h if $::opt_h;
    @try = grep { -d $_ } @try;
+  
+    my %h_file;
+    if (@try) {
+      find( sub {
+         return unless /^o(ci.{3,4}|ratypes)\.h$/i;
+         my $dir = $File::Find::dir;
+         $h_file{$_} ||= $dir; # record first one found
+         print "Found $dir/$_\n" if $::opt_d;
+       }, @try);
+    }
 
-   my %h_file;
-   find( sub {
-	return unless /^o(ci.{3,4}|ratypes)\.h$/i;
-	my $dir = $File::Find::dir;
-	$h_file{$_} ||= $dir; # record first one found
-	print "Found $dir/$_\n" if $::opt_d;
-    }, @try);
-       
     my %h_dir = reverse %h_file; # distinct first found dirs
     my @h_dir = keys %h_dir;
 
@@ -1432,7 +1448,7 @@ sub find_headers {
 	print "You probably need to install some more Oracle components.\n";
 	print "For Instant Client that means the SDK package.\n";
 	print "I'll keep going, but the compile will probably fail.\n";
-	print "See README.clients.txt for more information.$BELL\n";
+	print "See the appropriate README file for your OS for more information.$BELL\n";
 	print "*********************************************************\n\n";
 	sleep 5;
     }
@@ -1471,6 +1487,12 @@ sub get_client_version {
 	print FH "DEFINE _SQLPLUS_RELEASE\nQUIT\n";
 	close FH;
 	my $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
+	if ($sqlplus_release =~ /SP2-0750/) {
+	                my $x = $ENV{ORACLE_HOME};
+	                delete $ENV{ORACLE_HOME};
+	                $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
+	                $ENV{ORACLE_HOME} = $x;
+        } 
 	unlink "define.sql";
 	print $sqlplus_release; # the _SQLPLUS_RELEASE may not be on first line:
 	if ($sqlplus_release =~ /DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
@@ -1742,7 +1764,7 @@ ORACLE_HOME = '.$OH.'
 			      "\t\$(NMEDIT) -R ./hints/macos_bundle.syms \$(INST_DYNAMIC) || true\n";
 		}
 		elsif ($os eq 'hpux') {
-			$m =~ s/LD_RUN_PATH=(\S+)\s+(\S+)/$2 +b $1/;
+		 	$m =~ s/LD_RUN_PATH=(\S+)\s+(\S+)/$2 -Wl,+b$1/; 
 		}
 		return ($m);
 	}

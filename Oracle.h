@@ -5,10 +5,48 @@
 
 */
 
+/* ====== Include Oracle Header Files ====== */
+
+#ifndef CAN_PROTOTYPE
+#define signed	/* Oracle headers use signed */
+#endif
+
+/* The following define avoids a problem with Oracle >=7.3 where
+ * ociapr.h has the line:
+ *	sword  obindps(struct cda_def *cursor, ub1 opcode, text *sqlvar, ...
+ * In some compilers that clashes with perls 'opcode' enum definition.
+ */
+#define opcode opcode_redefined
+
+/* Hack to fix broken Oracle oratypes.h on OSF Alpha. Sigh.	*/
+#if defined(__osf__) && defined(__alpha)
+#ifndef A_OSF
+#define A_OSF
+#endif
+#endif
+
+/* egcs-1.1.2 does not have _int64 */
+#if defined(__MINGW32__) || defined(__CYGWIN32__)
+#define _int64 long long
+#endif
+
+
+/* ori.h uses 'dirty' as an arg name in prototypes so we use this */
+/* hack to prevent ori.h being read (since we don't need it)	  */
+//#define ORI_ORACLE
+#include <oci.h>
+#include <oratypes.h>
+#include <ocidfn.h>
+#include <orid.h>
+#include <ori.h>
+/* ------ end of Oracle include files ------ */
+
 
 #define NEED_DBIXS_VERSION 93
 
 #define PERL_POLLUTE
+
+#define PERL_NO_GET_CONTEXT  /*for Threaded Perl */
 
 #include <DBIXS.h>		/* installed by the DBI module	*/
 
@@ -18,8 +56,8 @@
 
 #include <dbd_xsh.h>		/* installed by the DBI module	*/
 
-/* These prototypes are for dbdimp.c funcs used in the XS file          */ 
-/* These names are #defined to driver specific names in dbdimp.h        */ 
+/* These prototypes are for dbdimp.c funcs used in the XS file          */
+/* These names are #defined to driver specific names in dbdimp.h        */
 
 void	dbd_init _((dbistate_t *dbistate));
 void	dbd_init_oci_drh _((imp_drh_t * imp_drh));
@@ -55,5 +93,10 @@ ub4    ora_blob_read_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *d
                    long offset, UV len, long destoffset));
 ub4    ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 		   long offset, UV len, long destoffset));
+
+/* Oracle types */
+
+#define ORA_VARCHAR2_TABLE	201
+#define ORA_NUMBER_TABLE	202
 
 /* end of Oracle.h */

@@ -36,6 +36,110 @@
 	If done well the log will read like a compilable program.
 */
 
+#define OCIObjectPin_log_stat(envhp,errhp,or,ot,stat)\
+    stat = OCIObjectPin(envhp,errhp,or,(OCIComplexObject *)0,OCI_PIN_LATEST,OCI_DURATION_TRANS,OCI_LOCK_NONE,ot);\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sObjectPin_log_stat(%p,%p,%p,%p)=%s\n",\
+		         OciTp, (void*)envhp, (void*)errhp,or,ot,oci_status_name(stat)),stat \
+   : stat
+
+
+#define OCICollGetElem_log_stat(envhp,errhp,v,i,ex,e,ne,stat)\
+    stat = OCICollGetElem(envhp,errhp, v,i,ex,e,ne);\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCICollGetElem_log_stat(%p,%p,%d,%d,%d,%d,%d)=%s\n",\
+		         OciTp, (void*)envhp, (void*)errhp,v,i,ex,e,ne,oci_status_name(stat)),stat \
+   : stat
+
+
+#define OCITableFirst_log_stat(envhp,errhp,v,i,stat)\
+    stat = OCITableFirst(envhp,errhp,v,i);\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCITableFirst_log_stat(%p,%p,%d,%d)=%s\n",\
+		         OciTp, (void*)envhp, (void*)errhp,v,i,oci_status_name(stat)),stat \
+   : stat
+
+#define OCIObjectGetAttr_log_stat(envhp,errhp,v,no,ot,tn,tnl,ani,ans,av,atdo, stat)\
+    stat = OCIObjectGetAttr(errhp,errhp,v,no,ot,tn,tnl,1,(ub4 *)0, 0,ani,ans,av,atdo,stat);\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCIObjectGetAttr_log_stat(%p,%p,%d,%d,%d,%d,%d,%d,%d,%d,%d)=%s\n",\
+		         OciTp, (void*)envhp,(void*)errhp,v,no,ot,tn,tnl,ani,ans,av,atdo,(void*)errhp,oci_status_name(stat)),stat \
+   : stat
+
+
+
+#define OCIIntervalToText_log_stat(envhp,errhp,di,sb,ln,sl,stat)\
+    stat = OCIIntervalToText(envhp,errhp, *(OCIInterval**)di,3,3,sb,ln,sl);\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "% OCIIntervalToText(%p,%p,%p,%s)=%s\n",\
+		         OciTp, (void*)errhp, di,sl,sb,oci_status_name(stat)),stat \
+  : stat
+
+#define OCIDateTimeToText_log_stat(envhp,errhp,d,sl,sb,stat)\
+    stat = OCIDateTimeToText(envhp,errhp, *(OCIDateTime**)d,(CONST text*) 0,(ub1) 0,0, (CONST text*) 0, (ub4) 0,(ub4 *)sl,sb );\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "% OCIDateTimeToText(%p,%p,%p,%s)=%s\n",\
+		         OciTp, (void*)errhp, d,sl,sb,oci_status_name(stat)),stat \
+  : stat
+
+
+#define OCIDateToText_log_stat(errhp,d,sl,sb,stat)\
+    stat = OCIDateToText(errhp, (CONST OCIDate *) d,(CONST text*) 0,(ub1) 0, (CONST text*) 0, (ub4) 0,(ub4 *)sl,sb );\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sDateToText_log_stat(%p,%p,%p,%s)=%s\n",\
+		         OciTp, (void*)errhp, d,sl,sb,oci_status_name(stat)),stat \
+  : stat
+
+
+#define OCIIterDelete_log_stat(envhp,errhp,itr,stat)\
+	stat = OCIIterDelete(envhp,errhp,itr );\
+	(DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCIIterDelete_log_stat(%p,%p,%d)=%s\n",\
+		         OciTp, (void*)envhp, (void*)errhp,itr,oci_status_name(stat)),stat \
+   : stat
+
+
+#define OCIIterCreate_log_stat(envhp,errhp,coll,itr,stat)\
+    stat = OCIIterCreate(envhp,errhp,coll,itr);\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sIterCreate_log_stat(%p,%p,%p)=%s\n",\
+		         OciTp, (void*)envhp, (void*)errhp,(void*)coll,oci_status_name(stat)),stat \
+   : stat
+
+#define OCICollSize_log_stat(envhp,errhp,coll,coll_siz,stat)\
+    stat = OCICollSize(envhp,errhp,(CONST OCIColl *)coll,coll_siz);\
+    (DBD_OCI_TRACEON) \
+		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCICollSize_log_stat(%p,%p,%d)=%s\n",\
+		         OciTp, (void*)envhp, (void*)errhp,oci_status_name(stat)),stat \
+   : stat
+
+
+#define OCIDefineObject_log_stat(defnp,errhp,tdo,eo_buff,stat)\
+    stat = OCIDefineObject(defnp,errhp,tdo,eo_buff,0,0, 0);\
+   (DBD_OCI_TRACEON) \
+	   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+	         "%sOCIDefineObject(%p,%p,%d)=%s\n",\
+	         OciTp, (void*)defnp, (void*)errhp, (void*)tdo,oci_status_name(stat)),stat \
+   : stat
+
+#define OCITypeByName_log_stat(envhp,errhp,svchp,p1,l,tdo,stat)\
+    stat = OCITypeByName(envhp,errhp,svchp,(const oratext*)"",0,p1,l,0,0,OCI_DURATION_TRANS,OCI_TYPEGET_ALL,tdo);\
+    (DBD_OCI_TRACEON) \
+	   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
+	         "%sTypeByName(%p,%p,%p,%s,%d)=%s\n",\
+	         OciTp, (void*)envhp, (void*)errhp, (void*)svchp, (char*)(p1),(l),oci_status_name(stat)),stat \
+   : stat
+
 /* added by lab */
 #define OCILobCharSetId_log_stat( envhp, errhp, locp, csidp, stat ) \
    stat = OCILobCharSetId( envhp, errhp, locp, csidp ); \
@@ -80,6 +184,11 @@
 	  OciTp, (void*)th,oci_hdtype_name(ht),(void*)ah,pul_t(sp),ul_t(at),(void*)eh,\
 	  oci_status_name(stat)),stat : stat
 
+ #define OCIAttrGet_parmap(imp_sth,dh, ht, p1, l, stat)              \
+		  	OCIAttrGet_log_stat(dh, ht,			\
+		(void*)(p1), (l), OCI_ATTR_PARAM, imp_sth->errhp, stat)
+
+
 #define OCIAttrGet_parmdp(imp_sth, parmdp, p1, l, a, stat)              \
 	OCIAttrGet_log_stat(parmdp, OCI_DTYPE_PARAM,			\
 		(void*)(p1), (l), (a), imp_sth->errhp, stat)
@@ -98,10 +207,18 @@
 #define OCIBindByName_log_stat(sh,bp,eh,p1,pl,v,vs,dt,in,al,rc,mx,cu,md,stat)  \
 	stat=OCIBindByName(sh,bp,eh,p1,pl,v,vs,dt,in,al,rc,mx,cu,md);	\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-	  "%sBindByName(%p,%p,%p,\"%s\",%ld,%p,%ld,%u,%p,%p,%p,%lu,%p,%lu)=%s\n",\
-	  OciTp, (void*)sh,(void*)bp,(void*)eh,p1,sl_t(pl),(void*)(v),	\
+	  "%sBindByName(%p,%p,%p,\"%s\",placeh_len=%ld,value_p=%p,value_sz=%ld," \
+	  "dty=%u,indp=%p,alenp=%p,rcodep=%p,maxarr_len=%lu,curelep=%p (*=%d),mode=%lu)=%s\n",\
+ 	  OciTp, (void*)sh,(void*)bp,(void*)eh,p1,sl_t(pl),(void*)(v),	\
 	  sl_t(vs),(ub2)(dt),(void*)(in),(ub2*)(al),(ub2*)(rc),		\
-	  ul_t((mx)),pul_t((cu)),ul_t((md)),				\
+	  ul_t((mx)),pul_t((cu)),(cu ? *(int*)cu : 0 ) ,ul_t((md)),				\
+	  oci_status_name(stat)),stat : stat
+
+#define	OCIBindArrayOfStruct_log_stat(bp,ep,sd,si,sl,sr,stat)	\
+	stat=OCIBindArrayOfStruct(bp,ep,sd,si,sl,sr);		\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,	\
+	  "%sOCIBindArrayOfStruct(%p,%p,%u,%u,%u,%u)=%s\n",	\
+	  OciTp,(void*)bp,(void*)ep,sd,si,sl,sr,		\
 	  oci_status_name(stat)),stat : stat
 
 #define OCIBindDynamic_log(bh,eh,icx,cbi,ocx,cbo,stat)                 \
@@ -305,13 +422,21 @@
 	  OciTp, (void*)sv,(void*)st,(void*)eh,ul_t((i)),		\
 	  ul_t((ro)),(void*)(si),(void*)(so),ul_t((md)),		\
 	  oci_status_name(stat)),stat : stat
-
+#if !defined(USE_ORA_OCI_STMNT_FETCH)
+ #define OCIStmtFetch_log_stat(sh,eh,nr,or,md,stat)                     \
+         stat=OCIStmtFetch2(sh,eh,nr,or,0,md);                                \
+         (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,                        \
+           "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",                                \
+           OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,ul_t(md),                \
+           oci_status_name(stat)),stat : stat
+#else
 #define OCIStmtFetch_log_stat(sh,eh,nr,or,md,stat)                     \
-	stat=OCIStmtFetch(sh,eh,nr,or,md);				\
-	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-	  "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",				\
-	  OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,ul_t(md),		\
-	  oci_status_name(stat)),stat : stat
+        stat=OCIStmtFetch(sh,eh,nr,or,md);                                \
+        (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,                        \
+          "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",                                \
+          OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,ul_t(md),                \
+          oci_status_name(stat)),stat : stat
+#endif
 
 #define OCIStmtPrepare_log_stat(sh,eh,s1,sl,l,m,stat)                   \
 	stat=OCIStmtPrepare(sh,eh,s1,sl,l,m);				\

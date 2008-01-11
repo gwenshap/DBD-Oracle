@@ -1,3 +1,25 @@
+=head1 Changes in DBD-Oracle 1.20(svn rev 10517) 11th January 2008
+
+  Fixed lob test so it skips the one test that relies on it if v$ session. from Rafael Kitover 
+  Fixed // with /* */ in dbdimp.c from John Scoles
+  Fixed for execute_for_fetch in Oracle.pm returning 0 instead of 0E0.  from Martin J. Evans
+  Added README.64bit.txt that contains help for compiling on 64 bit boxes from John Scoles
+  Fixed typo in Oracle.pm from Tom R.
+  Added support for ora_charset, ora_ncharset from Stephen J. Smith
+  Fixed Makefile.PL for better handling of empty array in File::Find::find from Slaven Rezic
+  Fixed references to README.clients.txt in Makefile.PL from  John Scoles
+  Added PERL_NO_GET_CONTEXT for better multi-threaded support from John Scoles
+  Changed required version of DBI to be 1.51 from John Scoles
+  Fixed bug in 31lob.t from John Scoles
+  Added notes on installing Instantclient .rpm to README.Lunix.txt
+  Added support for OCI array bind from Alexander V Alekseev
+  Added support for select of OCI Embedded Objects from John Scoles
+  Added a tip in README.64bit.txt from cartmanltd
+  Added fix to Makefile.PL for finding SQLplus for Ubuntu Server (but should work for others) from Martin J. Evans  
+  Added fix to Makefile.PL for Gentoo AMD64 from Tom R.
+  Added fix to dbdimp.c for speed up of Null-Operations from Andreas Behal 
+  Added fix to dbdimp.c for SQLCS_NCHAR index use on varchar2s from  Peter J. Holzer
+  
 =head1 Changes in DBD-Oracle 1.19 (svn rev 8002) 3rd November 2006
 
   Fixed execute_array to comply with DBI standard from Martin J. Evans, Xho Jingleheimerschmidt and others 

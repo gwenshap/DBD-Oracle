@@ -1,3 +1,13 @@
+From: John Scoles
+Date: Fri, 25 May 2007 
+
+Installing with Instantclient .rpm files.
+Nothing special with this you just have to set up you permissions as follows;
+ 1) Have permission for RWE on 'usr/lib/oracle/10.2.0.3/client/' or the other directory where you RPMed to
+ 2) Set export ORACLE_HOME=/usr/lib/oracle/10.2.0.3/client/lib
+ 3) Set export LD_LIBRARY_PATH=$ORACLE_HOME
+ 4) You will also have to tell DBD:Oracle where the TNS names is with Export TNS_ADMIN=dir to where your tnsnames.ora file is
+
 From: William Fishburne <william.fishburne@verizon.net>
 Date: Tue, 20 May 2003 09:22:30 -0400
 
