@@ -1444,6 +1444,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 	OCIType 	*attr_tdo;
 	OCIIter  	*itr;
   	fbh_obj_t	*fld;
+  	OCIInd       *obj_ind;
 
 	if (DBIS->debug >= 5) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%d\n",obj->type_name,obj->typecode);
@@ -1453,12 +1454,24 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 
        case OCI_TYPECODE_OBJECT :                            /* embedded ADT */
 
+           if (obj->obj_ind) {
+		      obj_ind = obj->obj_ind;
+		   } else {
+		   
+		     status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,(dvoid**)&obj_ind);
+
+		     if (status != OCI_SUCCESS) {
+		       oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetInd");
+		       return 0;
+		     }
+		   }
+		   
     	   for (pos = 0; pos < obj->field_count; pos++){
   	  			fld = &obj->fields[pos]; /*get the field */
 
-				status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,(dvoid**)&obj->obj_ind);
+/*				status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,(dvoid**)&obj->obj_ind);
 
-/*the little bastard above took me ages to find out
+the little bastard above took me ages to find out
 seems Oracle does not like people to know that it can do this
 the concept is simple really
  1. pin the object
@@ -1469,15 +1482,15 @@ the concept is simple really
 
 The thing to remember is that OCI and C have no way of representing a DB NULLs so we use the OCIInd find out
 if the object or any of its properties are NULL, This is one little line in a 20 chapter book and even then
-id only shows you examples with the C struct built in and only a single record. Nowhere does it say you can do it this way. */
+id only shows you examples with the C struct built in and only a single record. Nowhere does it say you can do it this way. 
 
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetInd");
 					return 0;
-	    		}
+	    		}*/
 
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
-										obj->obj_ind, obj->tdo,
+										obj_ind, obj->tdo,
 										(CONST oratext**)&fld->type_name, &fld->type_namel, 1,
 										(ub4 *)0, 0, &attr_null_status, &attr_null_struct,
 										&attr_value, &attr_tdo);
@@ -1582,6 +1595,11 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 		PerlIO_printf(DBILOGFP, " getting an embedded object named  %s with typecode=%d\n",fbh->obj->type_name,fbh->obj->typecode);
 	}
 
+    if (fbh->obj->obj_ind && fbh->obj->obj_ind[0] == OCI_IND_NULL) {
+      sv_set_undef(dest_sv);
+      return 1;
+    }
+
 	fbh->obj->value=newAV();
 
 	/*will return referance to an array of scalars*/
@@ -1658,7 +1676,7 @@ fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 	if( sth ) { /* For GCC not to warn on unused parameter*/  }
 
    	if (fbh->obj){
-		if(fbh->obj->value){
+		if(fbh->obj->obj_value || fbh->obj->obj_ind){
 	    	empty_oci_object(fbh->obj);
 		}
 	}
@@ -2272,7 +2290,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				dump_struct(imp_sth,fbh->obj,0);
 			}
 
-			OCIDefineObject_log_stat(fbh->defnp,imp_sth->errhp,fbh->obj->tdo,(dvoid**)&fbh->obj->obj_value,status);
+			OCIDefineObject_log_stat(fbh->defnp,imp_sth->errhp,fbh->obj->tdo,(dvoid**)&fbh->obj->obj_value,(dvoid**)&fbh->obj->obj_ind,status);
 
 			if (status != OCI_SUCCESS) {
 				oci_error(h,imp_sth->errhp, status, "OCIDefineObject");

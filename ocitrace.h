@@ -123,10 +123,9 @@
 		         OciTp, (void*)envhp, (void*)errhp,oci_status_name(stat)),stat \
    : stat
 
-
-#define OCIDefineObject_log_stat(defnp,errhp,tdo,eo_buff,stat)\
-    stat = OCIDefineObject(defnp,errhp,tdo,eo_buff,0,0, 0);\
-   (DBD_OCI_TRACEON) \
+#define OCIDefineObject_log_stat(defnp,errhp,tdo,eo_buff,eo_ind,stat)\
+    stat = OCIDefineObject(defnp,errhp,tdo,eo_buff,0,eo_ind, 0);\
+    (DBD_OCI_TRACEON) \
 	   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
 	         "%sOCIDefineObject(%p,%p,%d)=%s\n",\
 	         OciTp, (void*)defnp, (void*)errhp, (void*)tdo,oci_status_name(stat)),stat \
