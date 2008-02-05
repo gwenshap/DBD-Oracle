@@ -78,6 +78,40 @@ INCLUDE: Oracle.xsi
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::st
 
 void
+ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
+    SV *	sth
+    SV *	param
+    SV *	av_ref
+    IV 		maxlen
+    SV *	attribs
+    PREINIT:
+    D_imp_sth(sth);
+    CODE:
+    {
+    IV sql_type = 0;
+    D_imp_sth(sth);
+    SV *av_value;
+    if (!SvROK(av_ref) || SvTYPE(SvRV(av_ref)) != SVt_PVAV)
+	croak("bind_param_inout_array needs a reference to a array value");
+    av_value = av_ref;
+    if (SvREADONLY(av_value))
+	croak("Modification of a read-only value attempted");
+    if (attribs) {
+    	if (SvNIOK(attribs)) {
+	    sql_type = SvIV(attribs);
+	    attribs = Nullsv;
+	}
+	else {
+	    SV **svp;
+	    DBD_ATTRIBS_CHECK("bind_param", sth, attribs);
+	    DBD_ATTRIB_GET_IV(attribs, "ora_type",4, svp, sql_type);
+	}
+    }
+    ST(0) = dbd_bind_ph(sth, imp_sth, param,av_value, sql_type, attribs, TRUE, maxlen)
+		? &sv_yes : &sv_no;
+}
+    
+void
 ora_fetch(sth)
     SV *	sth
     PPCODE:
@@ -188,12 +222,12 @@ ora_lob_write(dbh, locator, offset, data)
     /* if (0 && SvUTF8(data) && !IN_BYTES) { amtp = sv_len_utf8(data); }  */
     /* added by lab: */
     /* LAB do something about length here? see above comment */
-    OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
+     OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
 	ST(0) = &sv_undef;
         return;
-    }
+    }    
 #ifdef OCI_ATTR_CHARSET_ID
     /* Effectively only used so AL32UTF8 works properly */
     OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );

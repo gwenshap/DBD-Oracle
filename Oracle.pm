@@ -6,7 +6,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.20';
+$DBD::Oracle::VERSION = '1.21';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -854,6 +854,29 @@ SQL
 
 {   package DBD::Oracle::st; # ====== STATEMENT ======
 
+
+   sub bind_param_inout_array {
+	my $sth = shift;
+	my ($p_id, $value_array,$maxlen, $attr) = @_;
+	return $sth->set_err($DBI::stderr, "Value for parameter $p_id must be an arrayref, not a ".ref($value_array))
+	   if defined $value_array and ref $value_array and ref $value_array ne 'ARRAY';
+	   
+	return $sth->set_err($DBI::stderr, "Can't use named placeholder '$p_id' for non-driver supported bind_param_inout_array")
+	   unless DBI::looks_like_number($p_id); # because we rely on execute(@ary) here
+	   
+	return $sth->set_err($DBI::stderr, "Placeholder '$p_id' is out of range")
+	   if $p_id <= 0; # can't easily/reliably test for too big
+	   
+	# get/create arrayref to hold params
+	my $hash_of_arrays = $sth->{ParamArrays} ||= { };
+	   
+        $$hash_of_arrays{$p_id} = $value_array;
+	return ora_bind_param_inout_array($sth, $p_id, $value_array,$maxlen, $attr);
+	1;
+	
+    }
+    
+    
     sub execute_for_fetch {
        my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
        my $row_count = 0;
@@ -861,7 +884,6 @@ SQL
        my $tuple_batch_status;
        my $dbh = $sth->{Database};
        my $batch_size =($dbh->{'ora_array_chunk_size'}||= 1000);
-        
        if(defined($tuple_status)) {
            @$tuple_status = ();
            $tuple_batch_status = [ ];
@@ -2927,6 +2949,34 @@ If you have many columns to bind you can use code like this:
   $sth->bind_param($_, $params[$_-1]) for (1..@params);
   $sth->bind_param_inout(@params+1, \my $new_id, 99);
   $sth->execute;
+
+If you have many rows to insert you can take advantage of Oracle's built in execute array feature
+with code like this:
+
+  my @in_values=('1',2,'3','4',5,'6',7,'8',9,'10');
+  my @out_values;
+  my @status;
+  my $sth = $dbh->prepare(qq{
+        INSERT INTO foo (id, bar)
+        VALUES (foo_id_seq.nextval, ?)
+        RETURNING id INTO ?
+  });
+  $sth->bind_param_array(1,\@in_values);
+  $sth->bind_param_inout_array(2,\@out_values,0,{ora_type => ORA_VARCHAR2});
+  $sth->execute_array({ArrayTupleStatus=>\@status}) or die "error inserting";
+  foreach my $id (@out_values){
+	print 'returned id='.$id.'\n';
+  }
+	
+Which will return all the ids into @out_values. 
+
+Note: 
+
+1) This will only work for numbered placeholders,
+
+2) The third parameter of bind_param_inout_array "maxlen" is required by DBI but not used by DBD::Oracle
+
+3) The "ora_type" attribute is not needed but only ORA_VARCHAR2 will work.
 
 =head1 Returning A Recordset
 

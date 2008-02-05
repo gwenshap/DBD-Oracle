@@ -523,7 +523,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
                 }
 
                 new_charsetid = OCINlsCharSetNameToId(imp_dbh->envhp, (oratext*)SvPV_nolen(*svp));
-               
+
                 if (!new_charsetid) {
                     croak("ora_charset value (%s) is not valid", SvPV_nolen(*svp));
                 }
@@ -986,7 +986,6 @@ dbd_preparse(imp_sth_t *imp_sth, char *statement)
     char *style="", *laststyle=Nullch;
     STRLEN namelen;
     phs_t *phs;
-
     /* allocate room for copy of statement with spare capacity	*/
     /* for editing '?' or ':1' into ':p1' so we can use obndrv.	*/
     /* XXX should use SV and append to it */
@@ -1230,7 +1229,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     arr=(AV*)(SvRV(phs->sv));
 
     if (trace_level >= 2){
-	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): array_numstruct=%d\n",
+		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): array_numstruct=%d\n",
 	      phs->array_numstruct);
     }
     /* If no number of entries to bind specified,
@@ -1333,17 +1332,17 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
     if( phs->array_numstruct == 0 ){
 	/* Oracle doesn't allow NULL buffers even for empty tables. Don't know why. */
-	phs->array_numstruct=1;
+		phs->array_numstruct=1;
     }
     if( phs->ora_maxarray_numentries== 0 ){
 	/* Zero means "use current array length". */
-	phs->ora_maxarray_numentries=phs->array_numstruct;
+		phs->ora_maxarray_numentries=phs->array_numstruct;
     }
 
     need_allocate_rows=phs->ora_maxarray_numentries;
 
     if( need_allocate_rows< phs->array_numstruct ){
-	need_allocate_rows=phs->array_numstruct;
+		need_allocate_rows=phs->array_numstruct;
     }
     buflen=need_allocate_rows* phs->maxlen; /* We need buffer for at least ora_maxarray_numentries entries */
     /* Upgrade array buffer to new length */
@@ -1360,7 +1359,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
      * do not bind full array
      */
     if( phs->array_numstruct > phs->ora_maxarray_numentries ){
-	phs->array_numstruct = phs->ora_maxarray_numentries;
+		phs->array_numstruct = phs->ora_maxarray_numentries;
     }
     /* Fill array buffer with string data */
 
@@ -1627,7 +1626,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
     arr=(AV*)(SvRV(phs->sv));
 
     if (trace_level >= 2){
-	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): array_numstruct=%d\n",
+		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): array_numstruct=%d\n",
 	      phs->array_numstruct);
     }
     /* If no number of entries to bind specified,
@@ -1635,14 +1634,14 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
      */
     if( phs->array_numstruct <= 0 ){
 /* av_len() returns last array index, or -1 is array is empty */
-	int numarrayentries=av_len( arr );
-	if( numarrayentries >= 0 ){
-	    phs->array_numstruct = numarrayentries+1;
-	    if (trace_level >= 2){
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): array_numstruct=%d (calculated) \n",
-			phs->array_numstruct);
-	    }
-	}
+		int numarrayentries=av_len( arr );
+		if( numarrayentries >= 0 ){
+		    phs->array_numstruct = numarrayentries+1;
+		    if (trace_level >= 2){
+				PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): array_numstruct=%d (calculated) \n",
+				phs->array_numstruct);
+		    }
+		}
     }
     /* Calculate each bound structure maxlen.
      * maxlen(int) = sizeof(int);
@@ -1657,27 +1656,27 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	    phs->maxlen=sizeof(double);
     }
     if (trace_level >= 2){
-	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): phs->maxlen calculated  =%ld\n",
+		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): phs->maxlen calculated  =%ld\n",
 		(long)phs->maxlen);
     }
 
     if( phs->array_numstruct == 0 ){
-	/* Oracle doesn't allow NULL buffers even for empty tables. Don't know why. */
-	phs->array_numstruct=1;
+		/* Oracle doesn't allow NULL buffers even for empty tables. Don't know why. */
+		phs->array_numstruct=1;
     }
     if( phs->ora_maxarray_numentries== 0 ){
 	/* Zero means "use current array length". */
-	phs->ora_maxarray_numentries=phs->array_numstruct;
+		phs->ora_maxarray_numentries=phs->array_numstruct;
 
-	if (trace_level >= 2){
-	    PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): ora_maxarray_numentries assumed=phs->array_numstruct=%d\n",
-		    phs->array_numstruct);
-	}
+		if (trace_level >= 2){
+		    PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): ora_maxarray_numentries assumed=phs->array_numstruct=%d\n",
+			    phs->array_numstruct);
+		}
     }else{
-	if (trace_level >= 2){
-	    PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): ora_maxarray_numentries=%d\n",
+		if (trace_level >= 2){
+		    PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): ora_maxarray_numentries=%d\n",
 		    phs->ora_maxarray_numentries);
-	}
+		}
     }
 
     need_allocate_rows=phs->ora_maxarray_numentries;
@@ -2024,13 +2023,14 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
     at_exec = (phs->desc_h == NULL);
 
     if (!SvPOK(phs->sv)) {	/* normalizations for special cases	*/
-	if (SvOK(phs->sv)) {	/* ie a number, convert to string ASAP	*/
+	  if (SvOK(phs->sv)) {	/* ie a number, convert to string ASAP	*/
 	    if (!(SvROK(phs->sv) && phs->is_inout))
-		sv_2pv(phs->sv, &na);
-	}
-	else /* ensure we're at least an SVt_PV (so SvPVX etc work)	*/
+	  	  sv_2pv(phs->sv, &na);
+	  }
+	  else /* ensure we're at least an SVt_PV (so SvPVX etc work)	*/
     	if(SvUPGRADE(phs->sv, SVt_PV)){} /* For gcc not to warn on unused result)*/;
 	}
+
 
     if (DBIS->debug >= 2) {
 		char *val = neatsvpv(phs->sv,0);
@@ -2049,51 +2049,66 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
     /* just copy the value & length over and not rebind.	*/
 
     if (phs->is_inout) {	/* XXX */
-	if (SvREADONLY(phs->sv))
-	    croak("Modification of a read-only value attempted");
-	if (imp_sth->ora_pad_empty)
-	    croak("Can't use ora_pad_empty with bind_param_inout");
-	if (1 || !at_exec) {
-	    /* ensure room for result, 28 is magic number (see sv_2pv)	*/
-	    /* don't apply 28 char min to CHAR types - probably shouldn't	*/
-	    /* apply it anywhere really, trying to be too helpful.		*/
-	    STRLEN min_len = (phs->ftype != 96) ? 28 : 0;
-	    /* phs->sv _is_ the real live variable, it may 'mutate' later	*/
-	    /* pre-upgrade to high'ish type to reduce risk of SvPVX realloc/move */
-	    (void)SvUPGRADE(phs->sv, SVt_PVNV);
-	    SvGROW(phs->sv, (STRLEN)(((unsigned int) phs->maxlen < min_len) ? min_len : (unsigned int) phs->maxlen)+1/*for null*/);
-	}
+    	if (SvREADONLY(phs->sv))
+	  	  croak("Modification of a read-only value attempted");
+  	  	if (imp_sth->ora_pad_empty)
+	  	  croak("Can't use ora_pad_empty with bind_param_inout");
+	  	if (SvTYPE(phs->sv)!=SVt_RV || !at_exec) {
+			 STRLEN min_len = (phs->ftype != 96) ? 28 : 0;
+
+
+	  /*  if (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) {*/
+
+	      /* if not an array ref then do this */
+	      /* ensure room for result, 28 is magic number (see sv_2pv)	*/
+	      /* don't apply 28 char min to CHAR types - probably shouldn't	*/
+	      /* apply it anywhere really, trying to be too helpful.		*/
+
+	      /* phs->sv _is_ the real live variable, it may 'mutate' later	*/
+	      /* pre-upgrade to high'ish type to reduce risk of SvPVX realloc/move */
+	      (void)SvUPGRADE(phs->sv, SVt_PVNV);
+	      SvGROW(phs->sv, (STRLEN)(((unsigned int) phs->maxlen < min_len) ? min_len : (unsigned int) phs->maxlen)+1/*for null*/);
+	   /* }*/
+	  }
     }
 
     /* At this point phs->sv must be at least a PV with a valid buffer,	*/
     /* even if it's undef (null)					*/
     /* Here we set phs->progv, phs->indp, and value_len.		*/
+
     if (SvOK(phs->sv)) {
-	phs->progv = SvPV(phs->sv, value_len);
-	phs->indp  = 0;
+		phs->progv = SvPV(phs->sv, value_len);
+	  	phs->indp  = 0;
+    } else {	/* it's null but point to buffer incase it's an out var	*/
+		phs->progv = (phs->is_inout) ? SvPVX(phs->sv) : NULL;
+		phs->indp  = -1;
+		value_len  = 0;
     }
-    else {	/* it's null but point to buffer incase it's an out var	*/
-	phs->progv = (phs->is_inout) ? SvPVX(phs->sv) : NULL;
-	phs->indp  = -1;
-	value_len  = 0;
-    }
+
+
     if (imp_sth->ora_pad_empty && value_len==0) {
-	sv_setpv(phs->sv, " ");
-	phs->progv = SvPV(phs->sv, value_len);
+ 	  sv_setpv(phs->sv, " ");
+	  phs->progv = SvPV(phs->sv, value_len);
     }
+
     phs->sv_type = SvTYPE(phs->sv);	/* part of mutation check	*/
+
+
     phs->maxlen  = ((IV)SvLEN(phs->sv))-1; /* avail buffer space (64bit safe) */
+
+
     if (phs->maxlen < 0)		/* can happen with nulls	*/
-	phs->maxlen = 0;
+	  phs->maxlen = 0;
+
     phs->alen = value_len + phs->alen_incnull;
 
     if (DBIS->debug >= 3) {
-	UV neatsvpvlen = (UV)DBIc_DBISTATE(imp_sth)->neatsvpvlen;
-	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (2): bind %s <== '%.*s' (size %ld/%ld, otype %d, indp %d, at_exec %d)\n",
- 	    phs->name,
-	    (int)(phs->alen > neatsvpvlen ? neatsvpvlen : phs->alen),
-	    (phs->progv) ? phs->progv : "",
- 	    (long)phs->alen, (long)phs->maxlen, phs->ftype, phs->indp, at_exec);
+ 	  	UV neatsvpvlen = (UV)DBIc_DBISTATE(imp_sth)->neatsvpvlen;
+	  	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (2): bind %s <== '%.*s' (size %ld/%ld, otype %d, indp %d, at_exec %d)\n",
+ 	   	 	phs->name,
+	    	(int)(phs->alen > neatsvpvlen ? neatsvpvlen : phs->alen),
+	    	(phs->progv) ? phs->progv : "",
+ 	    	(long)phs->alen, (long)phs->maxlen, phs->ftype, phs->indp, at_exec);
     }
 
     return 1;
@@ -2264,17 +2279,22 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     default:
 	    done = dbd_rebind_ph_char(imp_sth, phs);
     }
+
+
     if (done == 2) { /* the dbd_rebind_* did the OCI bind call itself successfully */
-	if (trace_level >= 3)
-	    PerlIO_printf(DBILOGFP, "       bind %s done with ftype %d\n",
-		    phs->name, phs->ftype);
-	return 1;
+		if (trace_level >= 3)
+		    PerlIO_printf(DBILOGFP, "       bind %s done with ftype %d\n",
+			    phs->name, phs->ftype);
+		return 1;
     }
+
     if (done != 1) {
-	return 0;	 /* the rebind failed	*/
+		return 0;	 /* the rebind failed	*/
     }
 
     at_exec = (phs->desc_h == NULL);
+
+
     OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 	    (text*)phs->name, (sb4)strlen(phs->name),
 	    phs->progv,
@@ -2288,13 +2308,14 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	    status
     );
     if (status != OCI_SUCCESS) {
-	oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
-	return 0;
+		oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
+		return 0;
     }
     if (at_exec) {
-	OCIBindDynamic_log(phs->bndhp, imp_sth->errhp,
+		OCIBindDynamic_log(phs->bndhp, imp_sth->errhp,
 		    (dvoid *)phs, dbd_phs_in,
 		    (dvoid *)phs, dbd_phs_out, status);
+
 	if (status != OCI_SUCCESS) {
 	    oci_error(sth, imp_sth->errhp, status, "OCIBindDynamic");
 	    return 0;
@@ -2384,32 +2405,36 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
     phs_t *phs;
 
     /* check if placeholder was passed as a number	*/
-
     if (SvGMAGICAL(ph_namesv))	/* eg tainted or overloaded */
-	mg_get(ph_namesv);
+		mg_get(ph_namesv);
+
     if (!SvNIOKp(ph_namesv)) {
-	STRLEN i;
-	name = SvPV(ph_namesv, name_len);
-	if (name_len > sizeof(namebuf)-1)
-	    croak("Placeholder name %s too long", neatsvpv(ph_namesv,0));
-	for (i=0; i<name_len; i++) namebuf[i] = toLOWER(name[i]);
-	namebuf[i] = '\0';
-	name = namebuf;
+		STRLEN i;
+		name = SvPV(ph_namesv, name_len);
+		if (name_len > sizeof(namebuf)-1)
+		    croak("Placeholder name %s too long", neatsvpv(ph_namesv,0));
+
+	    for (i=0; i<name_len; i++) namebuf[i] = toLOWER(name[i]);
+			namebuf[i] = '\0';
+		name = namebuf;
     }
+
     if (SvNIOKp(ph_namesv) || (name && isDIGIT(name[0]))) {
-	sprintf(namebuf, ":p%d", (int)SvIV(ph_namesv));
-	name = namebuf;
-	name_len = strlen(name);
+		sprintf(namebuf, ":p%d", (int)SvIV(ph_namesv));
+		name = namebuf;
+		name_len = strlen(name);
     }
+
     assert(name != Nullch);
 
     if (SvROK(newvalue)
-		&& !IS_DBI_HANDLE(newvalue)	/* dbi handle allowed for cursor variables */
-		&& !SvAMAGIC(newvalue)		/* overload magic allowed (untested) */
-	   	&& !sv_derived_from(newvalue, "OCILobLocatorPtr" )  /* input LOB locator*/
-		&& !(SvTYPE(SvRV(newvalue))==SVt_PVAV) /* Allow array binds */
-		)
+			&& !IS_DBI_HANDLE(newvalue)	/* dbi handle allowed for cursor variables */
+			&& !SvAMAGIC(newvalue)		/* overload magic allowed (untested) */
+		   	&& !sv_derived_from(newvalue, "OCILobLocatorPtr" )  /* input LOB locator*/
+			&& !(SvTYPE(SvRV(newvalue))==SVt_PVAV) /* Allow array binds */
+	)
 		croak("Can't bind a reference (%s)", neatsvpv(newvalue,0));
+
 	if (SvTYPE(newvalue) > SVt_PVAV) /* Array binding supported */
 		croak("Can't bind a non-scalar, non-array value (%s)", neatsvpv(newvalue,0));
 	if (SvTYPE(newvalue) == SVt_PVLV && is_inout)	/* may allow later */
@@ -2427,22 +2452,24 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
     }
 
     phs_svp = hv_fetch(imp_sth->all_params_hv, name, name_len, 0);
+
+
     if (phs_svp == NULL)
 		croak("Can't bind unknown placeholder '%s' (%s)", name, neatsvpv(ph_namesv,0));
 
-	/* This value is not a string, but a binary structure phs_st instead. */
+		/* This value is not a string, but a binary structure phs_st instead. */
     phs = (phs_t*)(void*)SvPVX(*phs_svp);	/* placeholder struct	*/
 
     if (phs->sv == &sv_undef) {	/* first bind for this placeholder	*/
-	phs->is_inout = is_inout;
-	if (is_inout) {
-	    /* phs->sv assigned in the code below */
-	    ++imp_sth->has_inout_params;
-	    /* build array of phs's so we can deal with out vars fast	*/
-	    if (!imp_sth->out_params_av)
-		imp_sth->out_params_av = newAV();
-	    av_push(imp_sth->out_params_av, SvREFCNT_inc(*phs_svp));
-	}
+		phs->is_inout = is_inout;
+		if (is_inout) {
+		    /* phs->sv assigned in the code below */
+		    ++imp_sth->has_inout_params;
+		    /* build array of phs's so we can deal with out vars fast	*/
+		    if (!imp_sth->out_params_av)
+				imp_sth->out_params_av = newAV();
+		    av_push(imp_sth->out_params_av, SvREFCNT_inc(*phs_svp));
+		}
 
 	/*
 	 * Init number of bound array entries to zero.
@@ -2452,88 +2479,108 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 	 * If no ora_maxarray_numentries specified, let it be
 	 * the same as scalar(@array) bound (see dbd_rebind_ph_varchar2_table() ).
 	 */
-	phs->array_numstruct=0;
+		phs->array_numstruct=0;
 
-	if (attribs) {	/* only look for ora_type on first bind of var	*/
-	    SV **svp;
-	    /* Setup / Clear attributes as defined by attribs.		*/
-	    /* XXX If attribs is EMPTY then reset attribs to default?	*/
-	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_type",8, 0)) != NULL) {
-		int ora_type = SvIV(*svp);
-		if (!oratype_bind_ok(ora_type))
-		    croak("Can't bind %s, ora_type %d not supported by DBD::Oracle",
-			    phs->name, ora_type);
+		if (attribs) {	/* only look for ora_type on first bind of var	*/
+		    SV **svp;
+		    /* Setup / Clear attributes as defined by attribs.		*/
+		    /* XXX If attribs is EMPTY then reset attribs to default?	*/
+
+		    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_type",8, 0)) != NULL) {
+				int ora_type = SvIV(*svp);
+				if (!oratype_bind_ok(ora_type))
+				    croak("Can't bind %s, ora_type %d not supported by DBD::Oracle", phs->name, ora_type);
+				if (sql_type)
+				    croak("Can't specify both TYPE (%d) and ora_type (%d) for %s", sql_type, ora_type, phs->name);
+				phs->ftype = ora_type;
+		    }
+		    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_field",9, 0)) != NULL) {
+				phs->ora_field = SvREFCNT_inc(*svp);
+		    }
+		    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_csform", 10, 0)) != NULL) {
+				if (SvIV(*svp) == SQLCS_IMPLICIT || SvIV(*svp) == SQLCS_NCHAR)
+				    phs->csform = (ub1)SvIV(*svp);
+				else warn("ora_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR), not %d", SvIV(*svp));
+		    }
+		    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_maxdata_size", 16, 0)) != NULL) {
+				phs->maxdata_size = SvUV(*svp);
+    		}
+	    	if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_maxarray_numentries", 23, 0)) != NULL) {
+				phs->ora_maxarray_numentries=SvUV(*svp);
+	    	}
+	    	if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_internal_type", 17, 0)) != NULL) {
+				phs->ora_internal_type=SvUV(*svp);
+	    	}
+		}
+
+
 		if (sql_type)
-		    croak("Can't specify both TYPE (%d) and ora_type (%d) for %s",
-			    sql_type, ora_type, phs->name);
-		phs->ftype = ora_type;
-	    }
-	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_field",9, 0)) != NULL) {
-		phs->ora_field = SvREFCNT_inc(*svp);
-	    }
-	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_csform", 10, 0)) != NULL) {
-			if (SvIV(*svp) == SQLCS_IMPLICIT || SvIV(*svp) == SQLCS_NCHAR)
-			    phs->csform = (ub1)SvIV(*svp);
-			else warn("ora_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR), not %d", SvIV(*svp));
-	    }
-	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_maxdata_size", 16, 0)) != NULL) {
-			phs->maxdata_size = SvUV(*svp);
-	    }
-	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_maxarray_numentries", 23, 0)) != NULL) {
-			phs->ora_maxarray_numentries=SvUV(*svp);
-	    }
-	    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_internal_type", 17, 0)) != NULL) {
-			phs->ora_internal_type=SvUV(*svp);
-	    }
-	}
-	if (sql_type)
-	    phs->ftype = ora_sql_type(imp_sth, phs->name, (int)sql_type);
-
+		    phs->ftype = ora_sql_type(imp_sth, phs->name, (int)sql_type);
 	/* treat Oracle7 SQLT_CUR as SQLT_RSET for Oracle8	*/
-	if (phs->ftype==102)
-	    phs->ftype = 116;
+		if (phs->ftype==102)
+		    phs->ftype = 116;
 
 	/* some types require the trailing null included in the length.	*/
 	/* SQLT_STR=5=STRING, SQLT_AVC=97=VARCHAR	*/
-	phs->alen_incnull = (phs->ftype==SQLT_STR || phs->ftype==SQLT_AVC);
+		phs->alen_incnull = (phs->ftype==SQLT_STR || phs->ftype==SQLT_AVC);
 
     }	/* was first bind for this placeholder  */
 
 	/* check later rebinds for any changes */
     else if (is_inout != phs->is_inout) {
-	croak("Can't rebind or change param %s in/out mode after first bind (%d => %d)",
-		phs->name, phs->is_inout , is_inout);
+		croak("Can't rebind or change param %s in/out mode after first bind (%d => %d)",
+			phs->name, phs->is_inout , is_inout);
+
     }
     else if (sql_type && phs->ftype != ora_sql_type(imp_sth, phs->name, (int)sql_type)) {
-	croak("Can't change TYPE of param %s to %d after initial bind",
-		phs->name, sql_type);
+		croak("Can't change TYPE of param %s to %d after initial bind",
+			phs->name, sql_type);
+
     }
     /* Array binding is supported for a limited number of data types. */
+
     if( SvROK(newvalue) ){
 		if( SvTYPE(SvRV(newvalue))==SVt_PVAV ){
 		    if(  (phs->ftype == ORA_VARCHAR2_TABLE) ||
-		         (phs->ftype == ORA_NUMBER_TABLE)) {
+		         (phs->ftype == ORA_NUMBER_TABLE)   ||
+		         (phs->ftype == 1)) /*ORA_VARCHAR2*/ {
 			/* Supported */
 		    }else{
 				/* All the other types are not supported */
 				croak("Array bind is supported only for ORA_%_TABLE types. Unable to bind '%s'.",phs->name);
+
 		    }
 		}
+	}
+/*    if( SvROK(newvalue) ){
+		if( SvTYPE(SvRV(newvalue))!=SVt_PVAV ){
+
+/*		    if(  (phs->ftype == ORA_VARCHAR2_TABLE) ||
+		         (phs->ftype == ORA_NUMBER_TABLE)) {
+			/* Supported *
+		    }else{*/
+				/* All the other types are not supported 
+				croak("Array bind is supported only for ORA_%_TABLE types. Unable to bind '%s'.",phs->name);
+		    /*}
+		}*./
+		
+		
 	/* Add checks for other reference types here ? */
-    }
+    
     phs->maxlen = maxlen;		/* 0 if not inout		*/
 
     if (!is_inout) {	/* normal bind so take a (new) copy of current value	*/
-	if (phs->sv == &sv_undef)	/* (first time bind) */
-	    phs->sv = newSV(0);
-	sv_setsv(phs->sv, newvalue);
-	if (SvAMAGIC(phs->sv)) /* overloaded. XXX hack, logic ought to be pushed deeper */
-	    sv_pvn_force(phs->sv, &na);
+ 		if (phs->sv == &sv_undef)	/* (first time bind) */
+		    phs->sv = newSV(0);
+		sv_setsv(phs->sv, newvalue);
+		if (SvAMAGIC(phs->sv)) /* overloaded. XXX hack, logic ought to be pushed deeper */
+		    sv_pvn_force(phs->sv, &na);
     }
     else if (newvalue != phs->sv) {
-	if (phs->sv)
-	    SvREFCNT_dec(phs->sv);
-	phs->sv = SvREFCNT_inc(newvalue);	/* point to live var	*/
+		if (phs->sv)
+		    SvREFCNT_dec(phs->sv);
+
+ 		phs->sv = SvREFCNT_inc(newvalue);	/* point to live var	*/
     }
 
     return dbd_rebind_ph(sth, imp_sth, phs);
@@ -2546,57 +2593,64 @@ void
 dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 {
 	dTHX;
-    char *note = "";
+	char *note = "";
     /* XXX doesn't check arcode for error, caller is expected to */
+  
     if (phs->indp == 0) {                       /* is okay      */
-	if (phs->is_inout && phs->alen == SvLEN(sv)) {
-	    /* if the placeholder has not been assigned to then phs->alen */
-	    /* is left untouched: still set to SvLEN(sv). If we use that  */
-	    /* then we'll get garbage bytes beyond the original contents. */
-	    phs->alen = SvCUR(sv);
-	    note = " UNTOUCHED?";
-	}
-	if (SvPVX(sv)) {
-	    SvCUR_set(sv, phs->alen);
-	    *SvEND(sv) = '\0';
-	    SvPOK_only_UTF8(sv);
-	}
-	else {	/* shouldn't happen */
-	    debug = 2;
-	    note = " [placeholder has no data buffer]";
-	}
-	if (debug >= 2)
-	    PerlIO_printf(DBILOGFP, "       out %s = %s (arcode %d, ind %d, len %d)%s\n",
-		phs->name, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen, note);
-    }
-    else
-    if (phs->indp > 0 || phs->indp == -2) {     /* truncated    */
-	if (SvPVX(sv)) {
-	    SvCUR_set(sv, phs->alen);
-	    *SvEND(sv) = '\0';
-	    SvPOK_only_UTF8(sv);
-	}
-	else {	/* shouldn't happen */
-	    debug = 2;
-	    note = " [placeholder has no data buffer]";
-	}
-	if (debug >= 2)
-	    PerlIO_printf(DBILOGFP,
-		"       out %s = %s\t(TRUNCATED from %d to %ld, arcode %d)%s\n",
-		phs->name, neatsvpv(sv,0), phs->indp, (long)phs->alen, phs->arcode, note);
-    }
-    else
-    if (phs->indp == -1) {                      /* is NULL      */
-	(void)SvOK_off(phs->sv);
-	if (debug >= 2)
-	    PerlIO_printf(DBILOGFP,
-		"       out %s = undef (NULL, arcode %d)\n",
-		phs->name, phs->arcode);
-    }
-    else
-	croak("panic dbd_phs_sv_complete: %s bad indp %d, arcode %d", phs->name, phs->indp, phs->arcode);
-}
 
+		if (phs->is_inout && phs->alen == SvLEN(sv)) {
+
+		    /* if the placeholder has not been assigned to then phs->alen */
+		    /* is left untouched: still set to SvLEN(sv). If we use that  */
+		    /* then we'll get garbage bytes beyond the original contents. */
+		    phs->alen = SvCUR(sv);
+		    note = " UNTOUCHED?";
+		}
+
+		if (SvPVX(sv)) {
+		    SvCUR_set(sv, phs->alen);
+		    *SvEND(sv) = '\0';
+		    SvPOK_only_UTF8(sv);
+		}
+		else {	/* shouldn't happen */
+		  	debug = 2;
+		  	note = " [placeholder has no data buffer]";
+		}
+
+		if (debug >= 2)
+		    PerlIO_printf(DBILOGFP, "  out %s = %s (arcode %d, ind %d, len %d)%s\n",
+			phs->name, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen, note);
+    }
+    else {
+    	if (phs->indp > 0 || phs->indp == -2) {     /* truncated    */
+    		if (SvPVX(sv)) {
+	    		SvCUR_set(sv, phs->alen);
+	    		*SvEND(sv) = '\0';
+	    		SvPOK_only_UTF8(sv);
+			}
+			else {	/* shouldn't happen */
+				debug = 2;
+				note = " [placeholder has no data buffer]";
+			}
+			if (debug >= 2)
+				PerlIO_printf(DBILOGFP,
+				"       out %s = %s\t(TRUNCATED from %d to %ld, arcode %d)%s\n",
+					phs->name, neatsvpv(sv,0), phs->indp, (long)phs->alen, phs->arcode, note);
+    	}
+    	else {
+    		if (phs->indp == -1) {                      /* is NULL      */
+				(void)SvOK_off(phs->sv);
+				if (debug >= 2)
+	    			PerlIO_printf(DBILOGFP,
+							"       out %s = undef (NULL, arcode %d)\n",
+						phs->name, phs->arcode);
+    		}
+    		else {
+				croak("panic dbd_phs_sv_complete: %s bad indp %d, arcode %d", phs->name, phs->indp, phs->arcode);
+			}
+		}
+	}
+}
 void
 dbd_phs_avsv_complete(phs_t *phs, I32 index, I32 debug)
 {
@@ -2605,8 +2659,8 @@ dbd_phs_avsv_complete(phs_t *phs, I32 index, I32 debug)
     SV *sv = *av_fetch(av, index, 1);
     dbd_phs_sv_complete(phs, sv, 0);
     if (debug >= 2)
-	PerlIO_printf(DBILOGFP, "       out '%s'[%ld] = %s (arcode %d, ind %d, len %d)\n",
-		phs->name, (long)index, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen);
+		PerlIO_printf(DBILOGFP, " dbd_phs_avsv_complete out '%s'[%ld] = %s (arcode %d, ind %d, len %d)\n",
+	   	phs->name, (long)index, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen);
 }
 
 
@@ -2633,99 +2687,99 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
     /* Don't attempt execute for nested cursor. It would be meaningless,
        and Oracle code has been seen to core dump */
     if (imp_sth->nested_cursor) {
-	oci_error(sth, NULL, OCI_ERROR,
-	    "explicit execute forbidden for nested cursor");
-	return -2;
+		oci_error(sth, NULL, OCI_ERROR,
+		    "explicit execute forbidden for nested cursor");
+		return -2;
     }
 
 
     if (outparams) {	/* check validity of bind_param_inout SV's	*/
-	int i = outparams;
-	while(--i >= 0) {
-	    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
-	    SV *sv = phs->sv;
+		int i = outparams;
+		while(--i >= 0) {
+		    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
+		    SV *sv = phs->sv;
 	    /* Make sure we have the value in string format. Typically a number	*/
 	    /* will be converted back into a string using the same bound buffer	*/
 	    /* so the progv test below will not trip.			*/
 
 	    /* is the value a null? */
-	    phs->indp = (SvOK(sv)) ? 0 : -1;
+		    phs->indp = (SvOK(sv)) ? 0 : -1;
 
-	    if (phs->out_prepost_exec) {
-		if (!phs->out_prepost_exec(sth, imp_sth, phs, 1))
-		    return -2; /* out_prepost_exec already called ora_error()	*/
-	    }
-	    else
-	    if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
-		if (debug >= 2)
- 		    PerlIO_printf(DBILOGFP,
- 		        "      with %s = [] (len %ld/%ld, indp %d, otype %d, ptype %d)\n",
- 			phs->name,
-			(long)phs->alen, (long)phs->maxlen, phs->indp,
-			phs->ftype, (int)SvTYPE(sv));
-		av_clear((AV*)SvRV(sv));
-	    }
-	    else
+		    if (phs->out_prepost_exec) {
+			if (!phs->out_prepost_exec(sth, imp_sth, phs, 1))
+			    return -2; /* out_prepost_exec already called ora_error()	*/
+		    }
+		    else
+		    if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
+				if (debug >= 2)
+		 		    PerlIO_printf(DBILOGFP,
+	 		        "      with %s = [] (len %ld/%ld, indp %d, otype %d, ptype %d)\n",
+ 				phs->name,
+				(long)phs->alen, (long)phs->maxlen, phs->indp,
+				phs->ftype, (int)SvTYPE(sv));
+				av_clear((AV*)SvRV(sv));
+	    	}
+	    	else
 	    /* Some checks for mutated storage since we pointed oracle at it.	*/
-	    if (SvTYPE(sv) != phs->sv_type
-		    || (SvOK(sv) && !SvPOK(sv))
+	    	if (SvTYPE(sv) != phs->sv_type
+			    || (SvOK(sv) && !SvPOK(sv))
 		    /* SvROK==!SvPOK so cursor (SQLT_CUR) handle will call dbd_rebind_ph */
 		    /* that suits us for now */
-		    || SvPVX(sv) != phs->progv
-		    || (SvPOK(sv) && SvCUR(sv) > UB2MAXVAL)
-	    ) {
-		if (!dbd_rebind_ph(sth, imp_sth, phs))
-		    croak("Can't rebind placeholder %s", phs->name);
-	    }
-	    else {
- 		/* String may have grown or shrunk since it was bound	*/
- 		/* so tell Oracle about it's current length		*/
-		ub2 prev_alen = phs->alen;
-		phs->alen = (SvOK(sv)) ? SvCUR(sv) + phs->alen_incnull : 0+phs->alen_incnull;
-		if (debug >= 2)
- 		    PerlIO_printf(DBILOGFP,
- 		        "      with %s = '%.*s' (len %ld(%ld)/%ld, indp %d, otype %d, ptype %d)\n",
- 			phs->name, (int)phs->alen,
-			(phs->indp == -1) ? "" : SvPVX(sv),
-			(long)phs->alen, (long)prev_alen, (long)phs->maxlen, phs->indp,
-			phs->ftype, (int)SvTYPE(sv));
-	    }
-	}
-    }
+			    || SvPVX(sv) != phs->progv
+			    || (SvPOK(sv) && SvCUR(sv) > UB2MAXVAL)
+	    	) {
+				if (!dbd_rebind_ph(sth, imp_sth, phs))
+			    	croak("Can't rebind placeholder %s", phs->name);
+	    		}
+	   		 	else {
+ 					/* String may have grown or shrunk since it was bound	*/
+ 					/* so tell Oracle about it's current length		*/
+					ub2 prev_alen = phs->alen;
+					phs->alen = (SvOK(sv)) ? SvCUR(sv) + phs->alen_incnull : 0+phs->alen_incnull;
+					if (debug >= 2)
+ 			    		PerlIO_printf(DBILOGFP,
+ 				        "      with %s = '%.*s' (len %ld(%ld)/%ld, indp %d, otype %d, ptype %d)\n",
+ 							phs->name, (int)phs->alen,
+						(phs->indp == -1) ? "" : SvPVX(sv),
+						(long)phs->alen, (long)prev_alen, (long)phs->maxlen, phs->indp,
+						phs->ftype, (int)SvTYPE(sv));
+	    		}
+	  		}
+    	}
 
-    OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
-		(ub4)(is_select ? 0 : 1),
-		0, 0, 0,
-		/* we don't AutoCommit on select so LOB locators work */
-		(ub4)((DBIc_has(imp_dbh,DBIcf_AutoCommit) && !is_select)
-			? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT),
-		status);
+    	OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
+			(ub4)(is_select ? 0 : 1),
+			0, 0, 0,
+			/* we don't AutoCommit on select so LOB locators work */
+			(ub4)((DBIc_has(imp_dbh,DBIcf_AutoCommit) && !is_select)
+				? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT),
+			status);
 
-
-    if (status != OCI_SUCCESS) { /* may be OCI_ERROR or OCI_SUCCESS_WITH_INFO etc */
+		if (status != OCI_SUCCESS) { /* may be OCI_ERROR or OCI_SUCCESS_WITH_INFO etc */
 	/* we record the error even for OCI_SUCCESS_WITH_INFO */
-	oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIStmtExecute"));
+			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIStmtExecute"));
 	/* but only bail out here if not OCI_SUCCESS_WITH_INFO */
-	if (status != OCI_SUCCESS_WITH_INFO)
-	    return -2;
+		if (status != OCI_SUCCESS_WITH_INFO)
+		    return -2;
     }
+
     if (is_select) {
-	DBIc_ACTIVE_on(imp_sth);
-	DBIc_ROW_COUNT(imp_sth) = 0; /* reset (possibly re-exec'ing) */
-	row_count = 0;
+		DBIc_ACTIVE_on(imp_sth);
+		DBIc_ROW_COUNT(imp_sth) = 0; /* reset (possibly re-exec'ing) */
+		row_count = 0;
     }
     else {
-	OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
+		OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
     }
 
     if (debug >= 2) {
-	ub2 sqlfncode;
-	OCIAttrGet_stmhp_stat(imp_sth, &sqlfncode, 0, OCI_ATTR_SQLFNCODE, status);
-	PerlIO_printf(DBILOGFP,
-	    "    dbd_st_execute %s returned (%s, rpc%ld, fn%d, out%d)\n",
-		oci_stmt_type_name(imp_sth->stmt_type),
-		oci_status_name(status),
-		(long)row_count, sqlfncode, imp_sth->has_inout_params);
+		ub2 sqlfncode;
+		OCIAttrGet_stmhp_stat(imp_sth, &sqlfncode, 0, OCI_ATTR_SQLFNCODE, status);
+		PerlIO_printf(DBILOGFP,
+		    "    dbd_st_execute %s returned (%s, rpc%ld, fn%d, out%d)\n",
+			oci_stmt_type_name(imp_sth->stmt_type),
+			oci_status_name(status),
+			(long)row_count, sqlfncode, imp_sth->has_inout_params);
     }
 
     if (is_select && !imp_sth->done_desc) {
@@ -2733,21 +2787,22 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 	if (!dbd_describe(sth, imp_sth))
 	    return -2; /* dbd_describe already called oci_error()	*/
     }
+
     if (imp_sth->has_lobs && imp_sth->stmt_type != OCI_STMT_SELECT) {
-	if (!post_execute_lobs(sth, imp_sth, row_count))
-	    return -2; /* post_insert_lobs already called oci_error()	*/
-    }
+		if (!post_execute_lobs(sth, imp_sth, row_count))
+		    return -2; /* post_insert_lobs already called oci_error()	*/
+   	}
 
     if (outparams) {	/* check validity of bound output SV's	*/
-	int i = outparams;
-	while(--i >= 0) {
- 	    /* phs->alen has been updated by Oracle to hold the length of the result */
-	    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
-	    SV *sv = phs->sv;
-	    if (debug >= 2) {
-			PerlIO_printf(DBILOGFP,
-			"dbd_st_execute(): Analyzing inout parameter '%s'\n",
-			phs->name);
+		int i = outparams;
+		while(--i >= 0) {
+ 		    /* phs->alen has been updated by Oracle to hold the length of the result */
+		    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
+		    SV *sv = phs->sv;
+		    if (debug >= 2) {
+				PerlIO_printf(DBILOGFP,
+				"dbd_st_execute(): Analyzing inout parameter '%s'\n",
+				phs->name);
 	    }
 	    if( phs->ftype == ORA_VARCHAR2_TABLE ){
 			dbd_phs_ora_varchar2_table_fixup_after_execute(phs);
@@ -2759,19 +2814,19 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 	    }
 
 	    if (phs->out_prepost_exec) {
-		if (!phs->out_prepost_exec(sth, imp_sth, phs, 0))
-		    return -2; /* out_prepost_exec already called ora_error()	*/
+			if (!phs->out_prepost_exec(sth, imp_sth, phs, 0))
+			    return -2; /* out_prepost_exec already called ora_error()	*/
 	    }
 	    else
-	    if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
-		AV *av = (AV*)SvRV(sv);
-		I32 avlen = AvFILL(av);
-		if (avlen >= 0)
-		    dbd_phs_avsv_complete(phs, avlen, debug);
-	    }
-	    else
-		dbd_phs_sv_complete(phs, sv, debug);
-	}
+		    if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
+				AV *av = (AV*)SvRV(sv);
+				I32 avlen = AvFILL(av);
+				if (avlen >= 0)
+				     dbd_phs_avsv_complete(phs, avlen, debug);
+		    }
+		    else
+			    dbd_phs_sv_complete(phs, sv, debug);
+		}
     }
 
     return row_count;	/* row count (0 will be returned as "0E0")	*/
@@ -2785,7 +2840,6 @@ do_bind_array_exec(sth, imp_sth, phs)
 {
 	dTHX;
     sword status;
-
     OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
             (text*)phs->name, (sb4)strlen(phs->name),
             0,
@@ -2801,6 +2855,8 @@ do_bind_array_exec(sth, imp_sth, phs)
         oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
         return 0;
     }
+
+
     OCIBindDynamic_log(phs->bndhp, imp_sth->errhp,
                        (dvoid *)phs, dbd_phs_in,
                        (dvoid *)phs, dbd_phs_out, status);
@@ -2856,9 +2912,10 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     int param_count;
     char namebuf[30];
     STRLEN len;
+    int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
 
     if (debug >= 2)
- PerlIO_printf(DBILOGFP, "    ora_st_execute_array %s count=%d (%s %s %s)...\n",
+ 		PerlIO_printf(DBILOGFP, "  ora_st_execute_array %s count=%d (%s %s %s)...\n",
                       oci_stmt_type_name(imp_sth->stmt_type), exe_count,
                       neatsvpv(tuples,0), neatsvpv(tuples_status,0),
                       neatsvpv(columns, 0));
@@ -2868,8 +2925,8 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
               "for array operation.");
     }
 
-    if (imp_sth->out_params_av || imp_sth->has_lobs) {
-        croak("ora_st_execute_array(): Output placeholders and LOBs not "
+    if (imp_sth->has_lobs) {
+        croak("ora_st_execute_array(): LOBs not "
               "supported for array operation.");
     }
 
@@ -2889,11 +2946,10 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     } else {
         columns_av = NULL;
     }
-
     /* Check the `tuples_status' parameter. */
     if(SvTRUE(tuples_status)) {
         if(!SvROK(tuples_status) || SvTYPE(SvRV(tuples_status)) != SVt_PVAV) {
-          croak("ora_st_execute_array(): tuples_status not an array reference.");
+          	croak("ora_st_execute_array(): tuples_status not an array reference.");
         }
         tuples_status_av = (AV*)SvRV(tuples_status);
         av_fill(tuples_status_av, exe_count - 1);
@@ -2918,77 +2974,75 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
    fix for Perl undefined warning. Moved out of function back out to main code
    Still ensures proper OCIBindByName*/
 
-        param_count=DBIc_NUM_PARAMS(imp_sth);
-        phs = safemalloc(param_count*sizeof(*phs));
-        memset(phs, 0, param_count*sizeof(*phs));
-        for(j = 0; (unsigned int) j < exe_count; j++) {
-            sv_p = av_fetch(tuples_av, j, 0);
+    param_count=DBIc_NUM_PARAMS(imp_sth);
+	phs = safemalloc(param_count*sizeof(*phs));
+    memset(phs, 0, param_count*sizeof(*phs));
+
+   	for(j = 0; (unsigned int) j < exe_count; j++) {
+
+    	sv_p = av_fetch(tuples_av, j, 0);
+        if(sv_p == NULL) {
+            Safefree(phs);
+             croak("Cannot fetch tuple %d", j);
+        }
+        sv = *sv_p;
+        if(!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVAV) {
+            Safefree(phs);
+            croak("Not an array ref in element %d", j);
+        }
+        av = (AV*)SvRV(sv);
+        for(i = 0; i < param_count; i++) {
+            if(!phs[i]) {
+               SV **phs_svp;
+               sprintf(namebuf, ":p%d", i+1);
+               phs_svp = hv_fetch(imp_sth->all_params_hv,
+                                namebuf, strlen(namebuf), 0);
+               if (phs_svp == NULL) {
+                    Safefree(phs);
+                    croak("Can't execute for non-existent placeholder :%d", i);
+               }
+               phs[i] = (phs_t*)(void*)SvPVX(*phs_svp); /* placeholder struct */
+               if(phs[i]->idx < 0) {
+                   Safefree(phs);
+                   croak("Placeholder %d not of ?/:1 type", i);
+                }
+                init_bind_for_array_exec(phs[i]);
+            }
+            sv_p = av_fetch(av, phs[i]->idx, 0);
             if(sv_p == NULL) {
                 Safefree(phs);
-                croak("Cannot fetch tuple %d", j);
-            }
-            sv = *sv_p;
-            if(!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVAV) {
-                Safefree(phs);
-                croak("Not an array ref in element %d", j);
-            }
-            av = (AV*)SvRV(sv);
-            for(i = 0; i < param_count; i++) {
-                if(!phs[i]) {
-                    SV **phs_svp;
+                croak("Cannot fetch value for param %d in entry %d", i, j);
+        	}
 
-                    sprintf(namebuf, ":p%d", i+1);
-                    phs_svp = hv_fetch(imp_sth->all_params_hv,
-                                       namebuf, strlen(namebuf), 0);
-                    if (phs_svp == NULL) {
-                        Safefree(phs);
-                        croak("Can't execute for non-existent placeholder :%d", i);
-                    }
-                    phs[i] = (phs_t*)(void*)SvPVX(*phs_svp); /* placeholder struct */
-                    if(phs[i]->idx < 0) {
-                        Safefree(phs);
-                        croak("Placeholder %d not of ?/:1 type", i);
-                    }
-                    init_bind_for_array_exec(phs[i]);
-                }
+			sv = *sv_p;
 
-                sv_p = av_fetch(av, phs[i]->idx, 0);
-
-                if(sv_p == NULL) {
-                    Safefree(phs);
-                    croak("Cannot fetch value for param %d in entry %d", i, j);
-                }
-
-				sv = *sv_p;
-
-                 /*check to see if value sv is a null (undef) if it is upgrade it*/
- 				if (!SvOK(sv))	{
-					if(SvUPGRADE(sv, SVt_PV)){} /* For GCC not to warn on unused result */
-	
-				}
-				else {
-            		SvPV(sv, len);
-            	}
+        	/*check to see if value sv is a null (undef) if it is upgrade it*/
+ 			if (!SvOK(sv))	{
+				if(SvUPGRADE(sv, SVt_PV)){} /* For GCC not to warn on unused result */
+			}
+			else {
+        	   	SvPV(sv, len);
+        	}
 
 
-                /* Find the value length, and increase maxlen if needed. */
-                if(SvROK(sv)) {
-                    Safefree(phs);
-                    croak("Can't bind a reference (%s) for param %d, entry %d",
-                          neatsvpv(sv,0), i, j);
-                }
-                if(len > (unsigned int) phs[i]->maxlen)
-                    phs[i]->maxlen = len;
+        	/* Find the value length, and increase maxlen if needed. */
+        	if(SvROK(sv)) {
+        	    Safefree(phs);
+        	    croak("Can't bind a reference (%s) for param %d, entry %d",
+        	    neatsvpv(sv,0), i, j);
+        	}
+        	if(len > (unsigned int) phs[i]->maxlen)
+        	    phs[i]->maxlen = len;
 
-                /* Do OCI bind calls on last iteration. */
-                if( ((unsigned int) j ) == exe_count - 1 ) {                
-                  if(!do_bind_array_exec(sth, imp_sth, phs[i])) {
-                    Safefree(phs);
-                  }
-                }
-            }
-	  }
-			Safefree(phs);
+        	/* Do OCI bind calls on last iteration. */
+        	if( ((unsigned int) j ) == exe_count - 1 ) {
+        	    if(!do_bind_array_exec(sth, imp_sth, phs[i])) {
+        	        Safefree(phs);
+        		}
+			}
+    	}
+  	}
+	Safefree(phs);
 
     /* Store array of bind typles, for use in OCIBindDynamic() callback. */
     imp_sth->bind_tuples = tuples_av;
@@ -2997,20 +3051,40 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     oci_mode = OCI_BATCH_ERRORS;
     if(autocommit)
         oci_mode |= OCI_COMMIT_ON_SUCCESS;
-    OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
+
+	OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
                             exe_count, 0, 0, 0, oci_mode, exe_status);
-    imp_sth->bind_tuples = NULL;
+
+	 imp_sth->bind_tuples = NULL;
 
     if (exe_status != OCI_SUCCESS) {
- oci_error(sth, imp_sth->errhp, exe_status, ora_sql_error(imp_sth,"OCIStmtExecute"));
+ 		oci_error(sth, imp_sth->errhp, exe_status, ora_sql_error(imp_sth,"OCIStmtExecute"));
         if(exe_status != OCI_SUCCESS_WITH_INFO)
             return -2;
     }
 
+    if (outparams){
+		i=outparams;
+		while(--i >= 0) {
+			phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
+	  		SV *sv = phs->sv;
+			if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
+		   		AV *av = (AV*)SvRV(sv);
+		   		I32 avlen = AvFILL(av);
+				for (j=0;j<=av_len(av);j++){
+					SV *sv2 = *av_fetch(av, j, 1);
+					dbd_phs_avsv_complete(phs, j, debug);
+				}
+	    	}
+		}
+	}
+
     OCIAttrGet_stmhp_stat(imp_sth, &num_errs, 0, OCI_ATTR_NUM_DML_ERRORS, status);
+
     if (debug >= 6)
- PerlIO_printf(DBILOGFP, "    ora_st_execute_array %d errors in batch.\n",
+		 PerlIO_printf(DBILOGFP, "    ora_st_execute_array %d errors in batch.\n",
                       num_errs);
+
     if(num_errs && tuples_status_av) {
         OCIError *row_errhp, *tmp_errhp;
         ub4 row_off;
@@ -3056,7 +3130,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
         return -2;
     } else {
         ub4 row_count = 0;
- OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
+ 		OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
         return row_count;
     }
 }
@@ -3315,7 +3389,7 @@ dbd_st_STORE_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv, SV *valuesv)
     STRLEN kl;
     SV *cachesv = NULL;
     char *key = SvPV(keysv,kl);
-    if( imp_sth ) { /* For GCC not to warn on unused argument */}    
+    if( imp_sth ) { /* For GCC not to warn on unused argument */}
 /*
     int on = SvTRUE(valuesv);
     int oraperl = DBIc_COMPAT(imp_sth); */
