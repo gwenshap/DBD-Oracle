@@ -212,6 +212,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
         (my $user_only = $user) =~ s:/.*::;
 	my ($dbh, $dbh_inner) = DBI::_new_dbh($drh, {
 	    'Name' => $dbname,
+	    'dbi_imp_data' => $attr->{dbi_imp_data},
 	    # these two are just for backwards compatibility
 	    'USER' => uc $user_only, 'CURRENT_USER' => uc $user_only,
 	    });

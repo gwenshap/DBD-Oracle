@@ -336,7 +336,22 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     D_imp_drh_from_dbh;
     ub2 new_charsetid = 0;
     ub2 new_ncharsetid = 0;
+    /* dbi_imp_data code adapted from DBD::mysql */
 
+    if (DBIc_has(imp_dbh, DBIcf_IMPSET)) {
+        /* dbi_imp_data from take_imp_data */
+        if (DBIc_has(imp_dbh, DBIcf_ACTIVE)) {
+            if (DBIS->debug >= 2)
+                PerlIO_printf(DBILOGFP, "dbd_db_login6 skip connect\n");
+            /* tell our parent we've adopted an active child */
+            ++DBIc_ACTIVE_KIDS(DBIc_PARENT_COM(imp_dbh));
+            return 1;
+        }
+        /* not ACTIVE so connect not skipped */
+        if (DBIS->debug >= 2)
+           PerlIO_printf(DBILOGFP,
+               "dbd_db_login6 IMPSET but not ACTIVE so connect not skipped\n");
+    }
     imp_dbh->envhp = imp_drh->envhp;	/* will be NULL on first connect */
 
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
@@ -2559,14 +2574,14 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 		         (phs->ftype == ORA_NUMBER_TABLE)) {
 			/* Supported *
 		    }else{*/
-				/* All the other types are not supported 
+				/* All the other types are not supported
 				croak("Array bind is supported only for ORA_%_TABLE types. Unable to bind '%s'.",phs->name);
 		    /*}
 		}*./
-		
-		
+
+
 	/* Add checks for other reference types here ? */
-    
+
     phs->maxlen = maxlen;		/* 0 if not inout		*/
 
     if (!is_inout) {	/* normal bind so take a (new) copy of current value	*/
@@ -2595,7 +2610,7 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 	dTHX;
 	char *note = "";
     /* XXX doesn't check arcode for error, caller is expected to */
-  
+
     if (phs->indp == 0) {                       /* is okay      */
 
 		if (phs->is_inout && phs->alen == SvLEN(sv)) {
