@@ -1724,7 +1724,8 @@ The default for the database character set is often US7ASCII.
 Although many experienced DBAs will consider an 8bit character set like
 WE8ISO8859P1 or WE8MSWIN1252.  To use any character set with Oracle
 other than US7ASCII, requires that the NLS_LANG environment variable be set.
-See the L<"International NLS / 8-bit text issues"> section below.
+See the L<"Oracle UTF8 is not UTF-8"> section below.
+
 
 You are strongly urged to read the Oracle Internationalization documentation
 specifically with respect the choices and trade offs for creating
@@ -2273,6 +2274,18 @@ Oracle 9.2 appears to have a bug where a variable bound
 with bind_param_inout() that isn't assigned to by the executed
 PL/SQL block may contain garbage.
 See L<http://www.mail-archive.com/dbi-users@perl.org/msg18835.html>
+
+=head2 Avoid Using "SQL Call"
+
+Avoid using the "SQL Call" statment with DBD:Oracle as you might find that
+DBD::Oracle will not raise an exception in some case.  Specificaly if you use
+"SQL Call" to run a procedure all "No data found" exceptions will be quietly 
+ignored and returned as null. Accorting to Oracle support this is part of the same
+mechanism where;
+
+  select (select * from dual where 0=1) from dual
+  
+returns a null value rather than an exception.
 
 =head1 Private database handle functions
 
