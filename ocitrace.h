@@ -36,6 +36,17 @@
 	If done well the log will read like a compilable program.
 */
 
+
+
+
+#define OCILobLocatorIsInit_log_stat(envhp,errhp,loc,is_init,stat)\
+    stat =OCILobLocatorIsInit (envhp,errhp,loc,is_init );\
+    (DBD_OCI_TRACEON) \
+    		? PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCILobLocatorIsInit_log_stat(%p,%p,%p,%d)=%s\n",\
+		         OciTp, (void*)envhp, (void*)errhp,loc,is_init,oci_status_name(stat)),stat \
+   : stat
+
 #define OCIObjectPin_log_stat(envhp,errhp,or,ot,stat)\
     stat = OCIObjectPin(envhp,errhp,or,(OCIComplexObject *)0,OCI_PIN_LATEST,OCI_DURATION_TRANS,OCI_LOCK_NONE,ot);\
     (DBD_OCI_TRACEON) \
