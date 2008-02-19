@@ -2452,7 +2452,20 @@ Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
 
 The value of an Oracle LOB column is not the content of the LOB. It's a
 'LOB Locator' which, after being selected or inserted needs extra
-processing to read or write the content of the LOB.
+processing to read or write the content of the LOB. This being said if your 
+LOB column is a NULL LOB then the locator is null and there is no locator for
+DBD::Oracle to work with and it will return a 
+
+  DBD::Oracle::db::ora_lob_read: locator is not of type OCILobLocatorPtr
+  
+error. 
+
+To correct for this you must use an SQL UPDATE statement to reset the 
+LOB column to a non-NULL (or empty) value with an SQL like this;
+
+     UPDATE lob_example 
+        SET bindata=EMPTY_BLOB()
+      WHERE bindata IS NULL.
 
 When fetching LOBs they are, by default, made to look just like LONGs and
 are subject to the LongReadLen and LongTruncOk attributes. Note that

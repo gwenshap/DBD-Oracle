@@ -1,3 +1,10 @@
+=head1 Changes in DBD-Oracle 1.21(svn rev xxxx) 
+
+  Added suppot for bind_param_inout_array with use with execute_array from John Scoles
+  Added enhancement for Embedded Objects handling from Paul G. Weiss
+  Fixed to Makefile.PL let it read makefiles from other makes from Alexander V Alekseev
+  Updated POD to account for rt.cpan.org #30910: "DBD-Oracle crashes when trying to read empty LOB" By John Scoles
+  
 =head1 Changes in DBD-Oracle 1.20(svn rev 10517) 11th January 2008
 
   Fixed lob test so it skips the one test that relies on it if v$ session. from Rafael Kitover 
