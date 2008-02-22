@@ -1,5 +1,6 @@
 =head1 Changes in DBD-Oracle 1.21(svn rev xxxx) 
 
+  Fixed memory leak (not releasing Temp Lob with OCILobFreeTemporary) when created for a bind John Scoles
   Added suppot for bind_param_inout_array with use with execute_array from John Scoles
   Added enhancement for Embedded Objects handling from Paul G. Weiss
   Fixed to Makefile.PL let it read makefiles from other makes from Alexander V Alekseev

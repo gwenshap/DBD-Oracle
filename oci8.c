@@ -733,7 +733,7 @@ lob_phs_post_execute(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 {
 	dTHX;
     if (pre_exec)
-	return 1;
+		return 1;
 	/* fetch PL/SQL LOB data */
 	if (imp_sth->auto_lob && (
 	    imp_sth->stmt_type == OCI_STMT_BEGIN || imp_sth->stmt_type == OCI_STMT_DECLARE )) {
@@ -808,12 +808,11 @@ if (sv_isobject(phs->sv) && sv_derived_from(phs->sv, "OCILobLocatorPtr")) {
 
        if (amtp > 0) {
            ub1 lobtype = (phs->ftype == 112 ? OCI_TEMP_CLOB : OCI_TEMP_BLOB);
-
            OCILobCreateTemporary_log_stat(imp_dbh->svchp, imp_sth->errhp,
                (OCILobLocator *) phs->desc_h, (ub2) OCI_DEFAULT,
                (ub1) OCI_DEFAULT, lobtype, TRUE, OCI_DURATION_SESSION, status);
 
-           if (status != OCI_SUCCESS) {
+	   	   if (status != OCI_SUCCESS) {
                oci_error(sth, imp_sth->errhp, status, "OCILobCreateTemporary");
                return 0;
            }
@@ -2927,25 +2926,38 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
     if (!imp_sth->auto_lob)
 	  return 1;	/* application doesn't want magical lob handling */
 
-
-	if (imp_sth->stmt_type == OCI_STMT_BEGIN || imp_sth->stmt_type == OCI_STMT_DECLARE)
-	  return 1; /* PL/SQL is handled by lob_phs_post_execute */
+	if (imp_sth->stmt_type == OCI_STMT_BEGIN || imp_sth->stmt_type == OCI_STMT_DECLARE){
+	  /* PL/SQL is handled by lob_phs_ora_free_templobpost_execute */
+	    if (imp_sth->has_lobs) { 	  /*get rid of OCILob Temporary used in non inout bind*/
+  			SV *phs_svp;
+		  	I32 i;
+    	  	char *p;
+    	  	hv_iterinit(imp_sth->all_params_hv);
+		  	while( (phs_svp = hv_iternextsv(imp_sth->all_params_hv, &p, &i)) != NULL ) {
+		  		phs_t *phs = (phs_t*)(void*)SvPVX(phs_svp);
+		  		if (phs->desc_h && !phs->is_inout){
+				   (sth, imp_sth, phs->desc_h);
+		  	  	}
+   			}
+		}
+		return 1;
+	}
 
     if (row_count == 0)
-	return 1;	/* nothing to do */
+		return 1;	/* nothing to do */
     if (row_count  > 1)
-	return oci_error(sth, errhp, OCI_ERROR, "LOB refetch attempted for multiple rows");
+		return oci_error(sth, errhp, OCI_ERROR, "LOB refetch attempted for multiple rows");
 
     if (!imp_sth->lob_refetch) {
-	if (!init_lob_refetch(sth, imp_sth))
-	    return 0;	/* init_lob_refetch already called oci_error */
+		if (!init_lob_refetch(sth, imp_sth))
+	    	return 0;	/* init_lob_refetch already called oci_error */
     }
     lr = imp_sth->lob_refetch;
 
     OCIAttrGet_stmhp_stat(imp_sth, lr->rowid, 0, OCI_ATTR_ROWID,
 			  status);
     if (status != OCI_SUCCESS)
-	return oci_error(sth, errhp, status, "OCIAttrGet OCI_ATTR_ROWID /LOB refetch");
+		return oci_error(sth, errhp, status, "OCIAttrGet OCI_ATTR_ROWID /LOB refetch");
 
 
 
