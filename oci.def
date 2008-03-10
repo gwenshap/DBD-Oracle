@@ -374,4 +374,4 @@ OCILobIsTemporary
 OCILobFreeTemporary
 OCILobLocatorAssign
 OCILobCreateTemporary
-
+OCIXMLTypeCreateFromSrc

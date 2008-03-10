@@ -262,6 +262,7 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
     case 116:	/* SQLT_RSET	OCI 8 cursor variable	*/
  	case ORA_VARCHAR2_TABLE: /* 201 */
     case ORA_NUMBER_TABLE: /* 202 */
+    case ORA_NTY:   /* SQLT_NTY   Well realy only XML clobs not embedded objects  */
 	return 1;
     }
     return 0;
@@ -985,6 +986,99 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 
 /* ================================================================== */
 
+#define MAX_OCISTRING_LEN 32766
+
+SV *
+createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
+
+  dTHX;
+  OCIXMLType *xml = NULL;
+  ub4 len;
+  sword status;
+  ub1 src_type;
+  dvoid* src_ptr = NULL;
+  D_imp_dbh_from_sth;
+  SV* sv_dest;
+  dvoid *bufp;
+  ub1 csform;
+  ub2 csid;
+  csid = 0;
+  csform = SQLCS_IMPLICIT;
+
+
+  len = SvLEN(source);
+  bufp = SvPV(source, len);
+
+  if (DBIS->debug >=3)
+     PerlIO_printf(DBILOGFP, " creating xml from string that is %d long\n",len);
+
+  if(len > MAX_OCISTRING_LEN) {
+     src_type = OCI_XMLTYPE_CREATE_CLOB;
+
+     if (DBIS->debug >=5)
+        PerlIO_printf(DBILOGFP, " use a temp lob locator for large xml \n");
+
+     OCIDescriptorAlloc_ok(imp_dbh->envhp, &src_ptr, OCI_DTYPE_LOB);
+
+     OCILobCreateTemporary_log_stat(imp_dbh->svchp, imp_sth->errhp,
+	                 (OCILobLocator *) src_ptr, (ub2) OCI_DEFAULT,
+	                 (ub1) OCI_DEFAULT, OCI_TEMP_CLOB, FALSE, OCI_DURATION_SESSION, status);
+
+	 if (status != OCI_SUCCESS) {
+        oci_error(sth, imp_sth->errhp, status, "OCILobCreateTemporary");
+     }
+     csid = (SvUTF8(source) && !CS_IS_UTF8(csid)) ? utf8_csid : CSFORM_IMPLIED_CSID(csform);
+
+     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, src_ptr,
+				       &len, bufp, (ub4)len, OCI_ONE_PIECE,
+				       NULL, NULL,
+			       csid, csform, status);
+
+     if (status != OCI_SUCCESS) {
+	 	oci_error(sth, imp_sth->errhp, status, "OCILobWriteAppend");
+     }
+
+  } else {
+      src_type = OCI_XMLTYPE_CREATE_OCISTRING;
+      if (DBIS->debug >=5)
+        PerlIO_printf(DBILOGFP, " use a OCIStringAssignText for small xml \n");
+
+
+	  OCIStringAssignText(imp_dbh->envhp,
+				    imp_dbh->errhp,
+				    (CONST text*) source,
+				    (ub2) SvLEN(source),
+				    (OCIString **) &src_ptr);
+  }
+
+
+
+  status=    OCIXMLTypeCreateFromSrc(imp_dbh->svchp,
+  				    imp_dbh->errhp,
+  				    (OCIDuration)OCI_DURATION_CALLOUT,
+  				    (ub1)src_type,
+  				    (dvoid *)src_ptr,
+  				    (sb4)OCI_IND_NOTNULL,
+				    &xml);
+
+  if (status != OCI_SUCCESS) {
+	 	oci_error(sth, imp_sth->errhp, status, "OCIXMLTypeCreateFromSrc");
+  }
+
+  /* free temporary resources */
+  if ( src_type == OCI_XMLTYPE_CREATE_CLOB ) {
+	 OCILobFreeTemporary(imp_dbh->svchp, imp_dbh->errhp,
+				    (OCILobLocator*) src_ptr);
+
+	 OCIDescriptorFree((dvoid *) src_ptr, (ub4) OCI_DTYPE_LOB);
+  }
+
+
+  sv_dest = newSViv(0);
+  sv_setref_pv(sv_dest, "OCIXMLTypePtr", xml);
+  return sv_dest;
+
+}
 
 
 void
@@ -1146,6 +1240,9 @@ ora_sql_type(imp_sth_t *imp_sth, char *name, int sql_type)
 
     case SQL_LONGVARCHAR:
 	return 8;	/* Oracle LONG		*/
+
+    case SQL_UDT:
+ 		return 108;     /* Oracle NTY           */
 
     case SQL_CLOB:
 	return 112;	/* Oracle CLOB		*/
@@ -2259,6 +2356,74 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
     return 1;
 }
 
+static int
+dbd_rebind_ph_xml( SV* sth, imp_sth_t *imp_sth, phs_t *phs) {
+   dTHX;
+   dTHR;
+   OCIType *tdo = NULL;
+   sword status;
+   SV* ptr;
+
+   if (DBIS->debug >= 3)
+   	 PerlIO_printf(DBILOGFP, " in  dbd_rebind_ph_xml\n");
+
+   /*go and create the XML dom from the passed in value*/
+
+   phs->sv=createxmlfromstring(sth, imp_sth, phs->sv );
+
+   if (phs->is_inout)
+ 	 croak("OUT binding for NTY is currently unsupported");
+
+     /* ensure that the value is a support named object type */
+     /* (currently only OCIXMLType*)                         */
+   if ( sv_isa(phs->sv, "OCIXMLTypePtr") ) {
+	  OCITypeByName(imp_sth->envhp, imp_sth->errhp, imp_sth->svchp,
+ 	 	      (CONST text*)"SYS", 3,
+ 	  	      (CONST text*)"XMLTYPE", 7,
+ 		      (CONST text*)0, 0,
+ 		      OCI_DURATION_CALLOUT, OCI_TYPEGET_HEADER,
+ 		      &tdo);
+ 	  ptr = SvRV(phs->sv);
+ 	  phs->progv  = (void*) SvIV(ptr);
+ 	  phs->maxlen = sizeof(OCIXMLType*);
+   }
+    else
+ 	  croak("Unsupported named object type for bind parameter");
+
+
+    /* bind by name */
+
+    OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+ 			   (text*)phs->name, (sb4)strlen(phs->name),
+ 			   (dvoid *) NULL, /* value supplied in BindObject later */
+ 			   0,
+ 			   (ub2)phs->ftype, 0,
+ 			   NULL,
+ 			   0, 0,
+ 			   NULL,
+ 			   (ub4)OCI_DEFAULT,
+ 			   status
+ 			   );
+
+    if (status != OCI_SUCCESS) {
+       oci_error(sth, imp_sth->errhp, status, "OCIBindByName SQLT_NTY");
+       return 0;
+    }
+    if (DBIS->debug >= 3)
+ 	   PerlIO_printf(DBILOGFP, "    pp_rebind_ph_nty: END\n");
+
+
+     /* bind the object */
+     OCIBindObject(phs->bndhp, imp_sth->errhp,
+ 		  (CONST OCIType*)tdo,
+ 		  (dvoid **)&phs->progv,
+ 		  (ub4*)NULL,
+ 		  (dvoid **)NULL,
+ 		  (ub4*)NULL);
+
+     return 2;
+ }
+
 
 static int
 dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
@@ -2277,6 +2442,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		phs->name, (SvPOK(phs->sv) ? neatsvpv(phs->sv,0) : "NULL"),(SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
 		phs->ftype, phs->csid, phs->csform, phs->is_inout);
 
+
     switch (phs->ftype) {
     case ORA_VARCHAR2_TABLE:
 		done = dbd_rebind_ph_varchar2_table(sth, imp_sth, phs);
@@ -2291,6 +2457,9 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     case SQLT_RSET:
 	    done = dbd_rebind_ph_rset(sth, imp_sth, phs);
 	    break;
+	 case ORA_NTY:
+	    done = dbd_rebind_ph_xml(sth, imp_sth, phs);
+ 	    break;
     default:
 	    done = dbd_rebind_ph_char(imp_sth, phs);
     }

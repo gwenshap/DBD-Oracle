@@ -22,7 +22,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
 	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
 	    ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
-	    SQLT_INT SQLT_FLT
+	    SQLT_INT SQLT_FLT XMLType
 	) ],
         ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
     );
@@ -1193,7 +1193,7 @@ Thanks to Mark Dedlow for this information.
   ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
   ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
   ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
-  SQLT_INT SQLT_FLT
+  SQLT_INT SQLT_FLT XMLType
  
 =item SQLCS_IMPLICIT
 
@@ -1482,7 +1482,7 @@ Potentially useful values when DBD::Oracle was built using OCI 7 and later:
 
 Additional values when DBD::Oracle was built using OCI 8 and later:
 
-  ORA_CLOB, ORA_BLOB, ORA_NTY, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE
+  ORA_CLOB, ORA_BLOB, ORA_NTY, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE, XMLType
 
 See L</Binding Cursors> for the correct way to use ORA_RSET.
 
@@ -3220,6 +3220,36 @@ So far DBD::Oracle has been tested on a table with 20 embedded Objects, Varrays 
 nested to 10 levels.
 
 Any NULL values found in the embedded object will be returned as 'undef'.
+
+=head1 Support for Insert of XMLType
+
+Inserting large XML data sets into tables with XMLType fields is now supported by DBD::Oracle. The only special 
+requirement is the use of bind_param() with an attribute hash parameter that specifies ora_type as ORA_NTY. For
+example with a table like this;
+
+   create table books (book_id number, book_xml XMLType);
+
+one can insert data using this code
+
+   $sql='insert into books values (1,:p_xml)';
+   $xml= '<Books>
+	           <Book id=1>
+	                <Title>Programming the Perl DBI</Title>
+	                <Subtitle>The Cheetah Book</Subtitle>
+	                <Authors>
+	                	<Author>T. Bunce</Author>
+	                	<Author>Alligator Descartes</Author>
+	                </Authors>
+	                
+	           </Book>
+	        </Books>....
+	        <Book id=10000> ...';
+   my $sth =$dbh-> prepare($sql);
+   $sth-> bind_param("p_xml", $xml, { ora_type => ORA_NTY }); 
+   $sth-> execute();
+       
+In the above case we will assume that $xml has 10000 Book nodes and is over 32k in size and is well formed XML. 
+This will also work for XML that is smaller than 32k as well. Attempting to insert malformed XML will cause an error. 
 
 =head1 Oracle Related Links
 

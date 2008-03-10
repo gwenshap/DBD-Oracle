@@ -38,6 +38,13 @@
 
 
 
+#define OCIXMLTypeCreateFromSrc_log_stat(svchp,envhp,src_type,src_ptr,xml,stat)\
+    stat =OCIXMLTypeCreateFromSrc (svchp,envhp,(OCIDuration)OCI_DURATION_CALLOUT,(ub1)src_type,(dvoid *)src_ptr,(sb4)OCI_IND_NOTNULL, xml);\
+    (DBD_OCI_TRACEON) \
+    		? PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCIXMLTypeCreateFromSrc_log_stat(%p,%p,%p,%p,%p)=%s\n",\
+		         OciTp,  (void*)svchp,(void*)envhp, src_type, src_ptr,oci_status_name(stat)),stat \
+   : stat
 
 #define OCILobLocatorIsInit_log_stat(envhp,errhp,loc,is_init,stat)\
     stat =OCILobLocatorIsInit (envhp,errhp,loc,is_init );\
