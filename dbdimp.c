@@ -992,6 +992,7 @@ SV *
 createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 
   dTHX;
+  dTHR;
   OCIXMLType *xml = NULL;
   ub4 len;
   sword status;
@@ -1046,8 +1047,8 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 
 	  OCIStringAssignText(imp_dbh->envhp,
 				    imp_dbh->errhp,
-				    (CONST text*) source,
-				    (ub2) SvLEN(source),
+				    bufp,
+				    (ub2) (ub4)len,
 				    (OCIString **) &src_ptr);
   }
 
@@ -2364,7 +2365,8 @@ dbd_rebind_ph_xml( SV* sth, imp_sth_t *imp_sth, phs_t *phs) {
    sword status;
    SV* ptr;
 
-   if (DBIS->debug >= 3)
+
+    if (DBIS->debug >= 3)
    	 PerlIO_printf(DBILOGFP, " in  dbd_rebind_ph_xml\n");
 
    /*go and create the XML dom from the passed in value*/
