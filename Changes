@@ -1,10 +1,11 @@
 =head1 Changes in DBD-Oracle 1.21(svn rev xxxx) 
 
-  Added support for direct insert of large XML data with XMLType from Hendrik Fuss
-  Fixed memory leak (not releasing Temp Lob with OCILobFreeTemporary) when created for a bind John Scoles
+  Added support for direct insert of large XML data into XMLType fields from Hendrik Fuss
+  Fixed memory leak (not releasing Temp Lob with OCILobFreeTemporary) when created for a bind from John Scoles
   Added suppot for bind_param_inout_array with use with execute_array from John Scoles
   Added enhancement for Embedded Objects handling from Paul G. Weiss
   Fixed to Makefile.PL let it read makefiles from other makes from Alexander V Alekseev
+  Updated POD to tell users to Avoid Using "SQL Call" from Charles Jardine   
   Updated POD to account for rt.cpan.org #30910: "DBD-Oracle crashes when trying to read empty LOB" By John Scoles
   
 =head1 Changes in DBD-Oracle 1.20(svn rev 10517) 11th January 2008

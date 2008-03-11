@@ -1504,7 +1504,8 @@ id only shows you examples with the C struct built in and only a single record. 
 					if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
 
                			fld->fields[0].value = newAV();
-						attr_value = *(dvoid **)attr_value;
+						if (fld->typecode != OCI_TYPECODE_OBJECT)
+						   attr_value = *(dvoid **)attr_value;
 						get_object (sth,fld->fields[0].value, fbh, &fld->fields[0],attr_value);
 						av_push(list, newRV_noinc((SV *) fld->fields[0].value));
 
