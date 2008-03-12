@@ -1,5 +1,6 @@
 =head1 Changes in DBD-Oracle 1.21(svn rev xxxx) 
-
+  Added support for Lobs in select of OCI Embedded Objects from John Scoles with a big thankyou to  Paul Weiss 
+  Fixed for embedded object in object from Paul Weiss
   Added support for direct insert of large XML data into XMLType fields from Hendrik Fuss
   Fixed memory leak (not releasing Temp Lob with OCILobFreeTemporary) when created for a bind from John Scoles
   Added suppot for bind_param_inout_array with use with execute_array from John Scoles

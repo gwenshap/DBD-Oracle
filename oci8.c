@@ -1106,8 +1106,8 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
     /* and in terms of characters for CLOBs				*/
     OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc, &loblen, status);
     if (status != OCI_SUCCESS) {
-	oci_error(sth, imp_sth->errhp, status, "OCILobGetLength fetch_lob");
- 	return 0;
+		oci_error(sth, imp_sth->errhp, status, "OCILobGetLength fetch_lob");
+ 		return 0;
     }
     loblen_is_chars = (ftype == 112);
 
@@ -1152,7 +1152,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 
     /* set char vs bytes and get right semantics for OCILobRead */
     if (loblen_is_chars) {
-	buflen = amtp * 4;  /* XXX bit of a hack, efective but wasteful */
+		buflen = amtp * 4;  /* XXX bit of a hack, efective but wasteful */
     }
     else buflen = amtp;
 
@@ -1294,7 +1294,7 @@ calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs)
 
 /* called by get_object to return the actual value in the proerty */
 
-static void get_attr_val(AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typecode, dvoid   *attr_value )
+static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typecode, dvoid   *attr_value )
 {
   dTHX;
   text		str_buf[200];
@@ -1307,7 +1307,6 @@ static void get_attr_val(AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typ
   ub4      	i = 0;
   sword		status;
   SV		*raw_sv;
-
 
   /* get the data based on the type code*/
   if (DBIS->debug >= 5) {
@@ -1377,6 +1376,16 @@ static void get_attr_val(AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typ
          str_buf[str_len+1] = '\0';
          av_push(list, newSVpv( (char *) str_buf,0));
          break;
+
+
+     case OCI_TYPECODE_CLOB:
+     case OCI_TYPECODE_BLOB:
+	 case OCI_TYPECODE_BFILE:
+		raw_sv = newSV(0);
+		fetch_lob(sth, fbh->imp_sth,*(OCILobLocator**)attr_value, typecode, raw_sv, name);
+		av_push(list, raw_sv);
+		break;
+
      case OCI_TYPECODE_RAW :/* RAW*/
 
  		raw_sv = newSV(0);
@@ -1387,6 +1396,7 @@ static void get_attr_val(AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typ
 			sv_catpvf(raw_sv,"0x%x ", temp[i]);
         }
         sv_catpv(raw_sv,"\n");
+
 		av_push(list, raw_sv);
 
          break;
@@ -1511,7 +1521,7 @@ id only shows you examples with the C struct built in and only a single record. 
 
                 	} else{  /* else, display the scaler type attribute */
 
-                	    get_attr_val(list, fbh, fld->type_name, fld->typecode, attr_value);
+                	    get_attr_val(sth,list, fbh, fld->type_name, fld->typecode, attr_value);
 
                 	}
 				}
@@ -1553,7 +1563,7 @@ id only shows you examples with the C struct built in and only a single record. 
                  				get_object (sth,fld->value, fbh, fld,element);
 								av_push(list, newRV_noinc((SV *) fld->value));
 							} else{  /* else, display the scaler type attribute */
-								get_attr_val(list, fbh, obj->type_name, obj->element_typecode, element);
+								get_attr_val(sth,list, fbh, obj->type_name, obj->element_typecode, element);
 							}
                 		}
                		}
@@ -1573,7 +1583,7 @@ id only shows you examples with the C struct built in and only a single record. 
            	break;
        default:
            if (value  ) {
-               get_attr_val(list, fbh, obj->type_name, obj->typecode, value);
+               get_attr_val(sth,list, fbh, obj->type_name, obj->typecode, value);
            }
            else
               return 1;
@@ -1875,7 +1885,7 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 			}
 
 			if (DBIS->debug >= 6) {
-				PerlIO_printf(DBILOGFP, "Getting property #%d, named=%s of \n",pos,fld->type_name);
+				PerlIO_printf(DBILOGFP, "Getting property #%d, named=%s and its typecode is %d \n",pos,fld->type_name,fld->typecode);
 			}
 
 			if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
@@ -1884,7 +1894,6 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
   			    fld->field_count=1;/*not really needed but used internally*/
 		   		status=describe_obj(sth,imp_sth,parmdf,fld->fields,level+1);
         	}
-
 	    }
     } else {
 		/*well this is an embedded table or varray of some form so find out what is in it*/
@@ -2160,7 +2169,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				}
 
 	        }
-
             break;
 
 	case 112:				/* CLOB	& NCLOB	*/
