@@ -440,18 +440,18 @@
 	  ul_t((ro)),(void*)(si),(void*)(so),ul_t((md)),		\
 	  oci_status_name(stat)),stat : stat
 #if !defined(USE_ORA_OCI_STMNT_FETCH)
- #define OCIStmtFetch_log_stat(sh,eh,nr,or,md,stat)                     \
-         stat=OCIStmtFetch2(sh,eh,nr,or,0,md);                                \
+ #define OCIStmtFetch_log_stat(sh,eh,nr,or,os,stat)                     \
+         stat=OCIStmtFetch2(sh,eh,nr,or,os,OCI_DEFAULT);                                \
          (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,                        \
            "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",                                \
-           OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,ul_t(md),                \
+           OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,(ub2)os,                \
            oci_status_name(stat)),stat : stat
 #else
-#define OCIStmtFetch_log_stat(sh,eh,nr,or,md,stat)                     \
-        stat=OCIStmtFetch(sh,eh,nr,or,md);                                \
+#define OCIStmtFetch_log_stat(sh,eh,nr,or,os,stat)                     \
+        stat=OCIStmtFetch(sh,eh,nr,or,OCI_DEFAULT);                                \
         (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,                        \
-          "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",                                \
-          OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,ul_t(md),                \
+          "%sStmtFetch(%p,%p,%lu,%lu)=%s\n",                                \
+          OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,                \
           oci_status_name(stat)),stat : stat
 #endif
 

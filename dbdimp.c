@@ -955,30 +955,32 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
         retsv = boolSV(DBIc_has(imp_dbh,DBIcf_AutoCommit));
     }
     else if (kl==12 && strEQ(key, "RowCacheSize")) {
-	retsv = newSViv(imp_dbh->RowCacheSize);
+		retsv = newSViv(imp_dbh->RowCacheSize);
     }
     else if (kl==22 && strEQ(key, "ora_max_nested_cursors")) {
-	retsv = newSViv(imp_dbh->max_nested_cursors);
+		retsv = newSViv(imp_dbh->max_nested_cursors);
     }
     else if (kl==11 && strEQ(key, "ora_ph_type")) {
-	retsv = newSViv(imp_dbh->ph_type);
+		retsv = newSViv(imp_dbh->ph_type);
     }
     else if (kl==13 && strEQ(key, "ora_ph_csform")) {
-	retsv = newSViv(imp_dbh->ph_csform);
+		retsv = newSViv(imp_dbh->ph_csform);
     }
     else if (kl==22 && strEQ(key, "ora_parse_error_offset")) {
        retsv = newSViv(imp_dbh->parse_error_offset);
     }
     if (!retsv)
-	return Nullsv;
+		return Nullsv;
     if (cacheit) {	/* cache for next time (via DBI quick_FETCH)	*/
-	SV **svp = hv_fetch((HV*)SvRV(dbh), key, kl, 1);
-	sv_free(*svp);
-	*svp = retsv;
-	(void)SvREFCNT_inc(retsv);	/* so sv_2mortal won't free it	*/
+		SV **svp = hv_fetch((HV*)SvRV(dbh), key, kl, 1);
+		sv_free(*svp);
+		*svp = retsv;
+		(void)SvREFCNT_inc(retsv);	/* so sv_2mortal won't free it	*/
     }
+    
     if (retsv == &sv_yes || retsv == &sv_no)
-	return retsv; /* no need to mortalize yes or no */
+		return retsv; /* no need to mortalize yes or no */
+		
     return sv_2mortal(retsv);
 }
 
@@ -2859,18 +2861,20 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
     dTHR;
     dTHX;
     ub4 row_count = 0;
-    int debug = DBIS->debug;
+    int debug 	  = DBIS->debug;
     int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
-
     D_imp_dbh_from_sth;
     sword status;
     int is_select = (imp_sth->stmt_type == OCI_STMT_SELECT);
+    ub4 exe_mode  = imp_sth->exe_mode;
+   
 
     if (debug >= 2)
-	PerlIO_printf(DBILOGFP, "    dbd_st_execute %s (out%d, lob%d)...\n",
+  	   PerlIO_printf(DBILOGFP, "    dbd_st_execute %s (out%d, lob%d)...\n",
 	    oci_stmt_type_name(imp_sth->stmt_type), outparams, imp_sth->has_lobs);
 
-    /* Don't attempt execute for nested cursor. It would be meaningless,
+
+   /* Don't attempt execute for nested cursor. It would be meaningless,
        and Oracle code has been seen to core dump */
     if (imp_sth->nested_cursor) {
 		oci_error(sth, NULL, OCI_ERROR,
@@ -2932,15 +2936,19 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 	    		}
 	  		}
     	}
-
-    	OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
-			(ub4)(is_select ? 0 : 1),
-			0, 0, 0,
-			/* we don't AutoCommit on select so LOB locators work */
-			(ub4)((DBIc_has(imp_dbh,DBIcf_AutoCommit) && !is_select)
-				? OCI_COMMIT_ON_SUCCESS : OCI_DEFAULT),
-			status);
-
+ 
+         
+		if (DBIc_has(imp_dbh,DBIcf_AutoCommit) && !is_select) {
+		    imp_sth->exe_mode=OCI_COMMIT_ON_SUCCESS;
+		    /* we don't AutoCommit on select so LOB locators work */
+		}
+		
+	    
+	
+		OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
+					(ub4)(is_select ? 0 : 1),
+					0, 0, 0,(ub4)imp_sth->exe_mode,status);
+	    			
 		if (status != OCI_SUCCESS) { /* may be OCI_ERROR or OCI_SUCCESS_WITH_INFO etc */
 	/* we record the error even for OCI_SUCCESS_WITH_INFO */
 			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIStmtExecute"));
@@ -3396,7 +3404,7 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
         PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_finish\n");
 
     if (!DBIc_ACTIVE(imp_sth))
-	return 1;
+		return 1;
 
     /* Cancel further fetches from this cursor.                 */
     /* We don't close the cursor till DESTROY (dbd_st_destroy). */
@@ -3411,16 +3419,22 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
     }
 
     if (dirty)			/* don't walk on the wild side	*/
-	return 1;
+		return 1;
 
     if (!DBIc_ACTIVE(imp_dbh))		/* no longer connected	*/
-	return 1;
+		return 1;
 
+    /*fetching on a cursor with row =0 will explicitly free any
+    server side resources this is what the next statment does,
+    not sure if we need this for non scrolling cursors they should die on
+    a OER(1403) no records)*/
+    
     OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0,
-		OCI_FETCH_NEXT, OCI_DEFAULT, status);
+    	OCI_FETCH_NEXT,0,  status);
+    	
     if (status != OCI_SUCCESS && status != OCI_SUCCESS_WITH_INFO) {
-	oci_error(sth, imp_sth->errhp, status, "Finish OCIStmtFetch");
-	return 0;
+		oci_error(sth, imp_sth->errhp, status, "Finish OCIStmtFetch");
+		return 0;
     }
     return 1;
 }

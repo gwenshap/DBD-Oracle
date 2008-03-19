@@ -33,6 +33,7 @@ dbd_init_oci_drh(imp_drh_t * imp_drh)
     imp_drh->ora_trunc   = perl_get_sv("Oraperl::ora_trunc",     GV_ADDMULTI);
     imp_drh->ora_cache   = perl_get_sv("Oraperl::ora_cache",     GV_ADDMULTI);
     imp_drh->ora_cache_o = perl_get_sv("Oraperl::ora_cache_o",   GV_ADDMULTI);
+    
 }
 
 
@@ -110,6 +111,29 @@ oci_hdtype_name(ub4 hdtype)
     sv = sv_2mortal(newSViv((IV)hdtype));
     return SvPV(sv,na);
 }
+
+/*used to look up the name of a fetchtype constant
+  used only for debugging */
+char *
+oci_fetch_options(ub4 fetchtype)
+{
+	dTHX;
+    SV *sv;
+    switch (fetchtype) {
+    /* fetch options */
+    	case OCI_FETCH_CURRENT:     return "OCI_FETCH_CURRENT";
+    	case OCI_FETCH_NEXT:        return "OCI_FETCH_NEXT";
+    	case OCI_FETCH_FIRST:       return "OCI_FETCH_FIRST";
+    	case OCI_FETCH_LAST:        return "OCI_FETCH_LAST";
+    	case OCI_FETCH_PRIOR:       return "OCI_FETCH_PRIOR";
+    	case OCI_FETCH_ABSOLUTE:    return "OCI_FETCH_ABSOLUTE";
+    	case OCI_FETCH_RELATIVE:	return "OCI_FETCH_RELATIVE";
+    }
+    sv = sv_2mortal(newSViv((IV)fetchtype));
+    return SvPV(sv,na);
+}
+
+
 
 
 static sb4
@@ -254,17 +278,17 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 {
     dTHX;
     D_imp_dbh_from_sth;
-    sword status = 0;
-    ub4   oparse_lng   = 1;  /* auto v6 or v7 as suits db connected to	*/
-    int   ora_check_sql = 1;	/* to force a describe to check SQL	*/
-    IV    ora_placeholders = 1;	/* find and handle placeholders */
+    sword status 		 = 0;
+    ub4	oparse_lng   	 = 1;  /* auto v6 or v7 as suits db connected to	*/
+    int ora_check_sql 	 = 1;	/* to force a describe to check SQL	*/
+    IV  ora_placeholders = 1;	/* find and handle placeholders */
 	/* XXX we set ora_check_sql on for now to force setup of the	*/
 	/* row cache. Change later to set up row cache using just a	*/
 	/* a memory size, perhaps also default $RowCacheSize to a	*/
 	/* negative value. OCI_ATTR_PREFETCH_MEMORY */
 
     if (!DBIc_ACTIVE(imp_dbh)) {
-	oci_error(sth, NULL, OCI_ERROR, "Database disconnected");
+		oci_error(sth, NULL, OCI_ERROR, "Database disconnected");
         return 0;
     }
 
@@ -274,30 +298,37 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
     imp_sth->get_oci_handle = oci_st_handle;
 
     if (DBIc_COMPAT(imp_sth)) {
-	static SV *ora_pad_empty;
-	if (!ora_pad_empty) {
-	    ora_pad_empty= perl_get_sv("Oraperl::ora_pad_empty", GV_ADDMULTI);
-	    if (!SvOK(ora_pad_empty) && getenv("ORAPERL_PAD_EMPTY"))
-		sv_setiv(ora_pad_empty, atoi(getenv("ORAPERL_PAD_EMPTY")));
-	}
-	imp_sth->ora_pad_empty = (SvOK(ora_pad_empty)) ? SvIV(ora_pad_empty) : 0;
+		static SV *ora_pad_empty;
+		if (!ora_pad_empty) {
+		    ora_pad_empty= perl_get_sv("Oraperl::ora_pad_empty", GV_ADDMULTI);
+		    if (!SvOK(ora_pad_empty) && getenv("ORAPERL_PAD_EMPTY"))
+				sv_setiv(ora_pad_empty, atoi(getenv("ORAPERL_PAD_EMPTY")));
+		}
+		imp_sth->ora_pad_empty = (SvOK(ora_pad_empty)) ? SvIV(ora_pad_empty) : 0;
     }
 
     imp_sth->auto_lob = 1;
-    if (attribs) {
-	SV **svp;
-	IV ora_auto_lob = 1;
-	DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
-	DBD_ATTRIB_GET_IV(  attribs, "ora_placeholders", 16, svp, ora_placeholders);
-	DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob",   12, svp, ora_auto_lob);
-	imp_sth->auto_lob = (ora_auto_lob) ? 1 : 0;
-	/* ora_check_sql only works for selects owing to Oracle behaviour */
-	DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql",  13, svp, ora_check_sql);
-   }
+	imp_sth->exe_mode  = OCI_DEFAULT;
+	
+   	if (attribs) {
+		SV **svp;
+		IV ora_auto_lob = 1;
+		DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_placeholders", 16, svp, ora_placeholders);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob",   12, svp, ora_auto_lob);
+		imp_sth->auto_lob = (ora_auto_lob) ? 1 : 0;
+		/* ora_check_sql only works for selects owing to Oracle behaviour */
+		DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql",  13, svp, ora_check_sql);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_exe_mode",  12, svp, imp_sth->exe_mode);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_prefetch_memory",  19, svp, imp_sth->prefetch_memory);
+  
+   	}
 
-    /* scan statement for '?', ':1' and/or ':foo' style placeholders	*/
+
+
+ 	/* scan statement for '?', ':1' and/or ':foo' style placeholders	*/
     if (ora_placeholders)
-	dbd_preparse(imp_sth, statement);
+		dbd_preparse(imp_sth, statement);
     else imp_sth->statement = savepv(statement);
 
     imp_sth->envhp = imp_dbh->envhp;
@@ -306,11 +337,11 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
     imp_sth->svchp = imp_dbh->svchp;
 
     switch(oparse_lng) {
-    case 0:  /* old: calls for V6 syntax - give them V7	*/
-    case 2:  /* old: calls for V7 syntax		*/
-    case 7:  oparse_lng = OCI_V7_SYNTAX;	break;
-    case 8:  oparse_lng = OCI_V8_SYNTAX;	break;
-    default: oparse_lng = OCI_NTV_SYNTAX;	break;
+    	case 0:  /* old: calls for V6 syntax - give them V7	*/
+    	case 2:  /* old: calls for V7 syntax		*/
+    	case 7:  oparse_lng = OCI_V7_SYNTAX;	break;
+    	case 8:  oparse_lng = OCI_V8_SYNTAX;	break;
+    	default: oparse_lng = OCI_NTV_SYNTAX;	break;
     }
 
     OCIHandleAlloc_ok(imp_dbh->envhp, &imp_sth->stmhp, OCI_HTYPE_STMT, status);
@@ -340,7 +371,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
     }
     else {
       /* set initial cache size by memory */
-      /* [I'm not now sure why this is here - from a patch sometime ago - Tim] */
+      /* [I'm not now sure why this is here - from a patch sometime ago - Tim]*/
       ub4 cache_mem;
       IV cache_mem_iv;
       D_imp_dbh_from_sth ;
@@ -1264,30 +1295,31 @@ calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs)
 {
 	dTHX;
     if (has_longs)			/* override/disable caching	*/
-	cache_rows = 1;			/* else read_blob can't work	*/
+		cache_rows = 1;			/* else read_blob can't work	*/
     else
-    if (cache_rows == 0) {		/* automatically size the cache	*/
+	    if (cache_rows == 0) {		/* automatically size the cache	*/
 
-	/* Oracle packets on ethernet have max size of around 1460.	*/
-	/* We'll aim to fill our row cache with around 10 per go.	*/
-	/* Using 10 means any 'runt' packets will have less impact.	*/
-	int txfr_size  = 10 * 1460;	/* desired transfer/cache size	*/
+			/* Oracle packets on ethernet have max size of around 1460.	*/
+			/* We'll aim to fill our row cache with around 10 per go.	*/
+			/* Using 10 means any 'runt' packets will have less impact.	*/
+			int txfr_size  = 10 * 1460;	/* desired transfer/cache size	*/
 
-	/* Use guessed average on-the-wire row width calculated above &	*/
-	/* add in overhead of 5 bytes per field plus 8 bytes per row.	*/
-	/* The n*5+8 was determined by studying SQL*Net v2 packets.	*/
-	/* It could probably benefit from a more detailed analysis.	*/
-	est_width += num_fields*5 + 8;
+			/* Use guessed average on-the-wire row width calculated above &	*/
+			/* add in overhead of 5 bytes per field plus 8 bytes per row.	*/
+			/* The n*5+8 was determined by studying SQL*Net v2 packets.	*/
+			/* It could probably benefit from a more detailed analysis.	*/
+			est_width += num_fields*5 + 8;
 
-	cache_rows = txfr_size / est_width;	      /* (maybe 1 or 0)	*/
+			cache_rows = txfr_size / est_width;	      /* (maybe 1 or 0)	*/
 
-	/* To ensure good performance with large rows (near or larger	*/
-	/* than our target transfer size) we set a minimum cache size.	*/
-	if (cache_rows < 6)	/* is cache a 'useful' size?	*/
-	    cache_rows = (cache_rows > 0) ? 6 : 4;
-    }
-    if (cache_rows > 32767)	/* keep within Oracle's limits  */
-	cache_rows = 32767;
+			/* To ensure good performance with large rows (near or larger	*/
+			/* than our target transfer size) we set a minimum cache size.	*/
+			if (cache_rows < 6)	/* is cache a 'useful' size?	*/
+			    cache_rows = (cache_rows > 0) ? 6 : 4;
+		}
+		    
+	if (cache_rows > 10000000)	/* keep within Oracle's limits  */
+		cache_rows = 10000000;	/* seems it was ub2 at one time now ub4 this number is arbitary on my part*/
 
     return cache_rows;
 }
@@ -1697,6 +1729,8 @@ fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 
 
 
+
+
 static int			/* --- Setup the row cache for this sth --- */
 sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields, int has_longs)
 {
@@ -1704,57 +1738,75 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
     D_imp_dbh_from_sth;
     D_imp_drh_from_dbh;
     int num_errors = 0;
-    ub4 cache_mem, cache_rows;
+    ub4 cache_mem=0;
+    ub4 cache_rows=10000;/* set high so memory is the limit */
     sword status;
 
-    /* number of rows to cache	*/
+    /* reworked this is little so the user can set up his own cache
+      basically if rowcachesize or prefetch_mem is set it uses those values
+      otherwise it does it itself
+      no sure what happens in the last case but I lwft it in for now
+      Also I think in later version of OCI this call does not really do anything
+    */
+    
+    /* number of rows to cache	 if using oraperl */
     if      (SvOK(imp_drh->ora_cache_o)) imp_sth->cache_rows = SvIV(imp_drh->ora_cache_o);
     else if (SvOK(imp_drh->ora_cache))   imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
-    else                                 imp_sth->cache_rows = imp_dbh->RowCacheSize;
+  
+   
+   	if (imp_dbh->RowCacheSize || imp_sth->prefetch_memory){
+	/*user set values */   	
+   		 cache_rows  =imp_dbh->RowCacheSize;
+	     cache_mem   =imp_sth->prefetch_memory;
+	     
+   	} else if (imp_sth->cache_rows >= 0) {	/* set cache size by row count	*/
 
-    if (imp_sth->cache_rows >= 0) {	/* set cache size by row count	*/
-	/* imp_sth->est_width needs to be set */
-	cache_mem  = 0;             /* so memory isn't the limit */
-	cache_rows = calc_cache_rows(imp_sth->cache_rows,
-		(int)num_fields, imp_sth->est_width, has_longs);
-	if (max_cache_rows && cache_rows > (unsigned long) max_cache_rows)
-	    cache_rows = max_cache_rows;
-	imp_sth->cache_rows = cache_rows;	/* record updated value */
-
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
-	    imp_sth->errhp, status);
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-		&cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
-		imp_sth->errhp, status);
-	if (status != OCI_SUCCESS) {
-	    oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
-	    ++num_errors;
-	}
+		/* imp_sth->est_width needs to be set */
+		cache_mem  = 0;             /* so memory isn't the limit */
+	
+		cache_rows = calc_cache_rows(imp_sth->cache_rows,(int)num_fields, imp_sth->est_width, has_longs);
+		
+		if (max_cache_rows && cache_rows > (unsigned long) max_cache_rows)
+		    cache_rows = max_cache_rows;
+	
+		imp_sth->cache_rows = cache_rows;	/* record updated value */
+		
     }
     else {				/* set cache size by memory	*/
-	cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
-	cache_rows = 100000;	/* set high so memory is the limit */
-	if (max_cache_rows &&  cache_rows > (unsigned long) max_cache_rows) {
-	    cache_rows = max_cache_rows;
-	    imp_sth->cache_rows = cache_rows;	/* record updated value only if max_cache_rows */
-	}
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-	    &cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
-	    imp_sth->errhp, status);
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
-	    imp_sth->errhp, status);
+    					/* not sure if we ever reach this*/
+		cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
+		if (max_cache_rows &&  cache_rows > (unsigned long) max_cache_rows) {
+		    cache_rows = max_cache_rows;
+		    imp_sth->cache_rows = cache_rows;	/* record updated value only if max_cache_rows */
+		}
+		
+    }
+    
+    
+    OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	   			    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
+	   			    imp_sth->errhp, status);
+	   			    
 	if (status != OCI_SUCCESS) {
-	    oci_error(h, imp_sth->errhp, status,
-		"OCIAttrSet OCI_ATTR_PREFETCH_ROWS/OCI_ATTR_PREFETCH_MEMORY");
+		oci_error(h, imp_sth->errhp, status,
+				"OCIAttrSet OCI_ATTR_PREFETCH_ROWS/OCI_ATTR_PREFETCH_MEMORY");
+		++num_errors;
+	}
+	
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	   			&cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
+   			imp_sth->errhp, status);
+   			
+   	if (status != OCI_SUCCESS) {
+		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
 	    ++num_errors;
 	}
-    }
+	
     if (DBIS->debug >= 3)
-	PerlIO_printf(DBILOGFP,
+		PerlIO_printf(DBILOGFP,
 	    "    row cache OCI_ATTR_PREFETCH_ROWS %lu, OCI_ATTR_PREFETCH_MEMORY %lu\n",
 	    (unsigned long) (cache_rows), (unsigned long) (cache_mem));
+	    
     return num_errors;
 }
 
@@ -2230,9 +2282,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    fbh->disize += 1;	/* allow for null terminator */
 
 	/* dbsize can be zero for 'select NULL ...'			*/
+	
 	imp_sth->t_dbsize += fbh->dbsize;
+	
 	if (!avg_width)
 	    avg_width = fbh->dbsize;
+	    
 	est_width += avg_width;
 
 	if (DBIS->debug >= 2)
@@ -2242,9 +2297,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     imp_sth->est_width = est_width;
 
     sth_set_row_cache(h, imp_sth,
-	(nested_cursors) ? imp_dbh->max_nested_cursors / nested_cursors : 0,
-	(int)num_fields, has_longs
-    );
+		(nested_cursors) ? imp_dbh->max_nested_cursors / nested_cursors : 0,
+		(int)num_fields, has_longs );
 
     /* Initialise cache counters */
     imp_sth->in_cache  = 0;
@@ -2371,8 +2425,24 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
     	if (DBIS->debug >= 3){
 	    	PerlIO_printf(DBILOGFP, "    dbd_st_fetch %d fields...\n", DBIc_NUM_FIELDS(imp_sth));
 	    }
+        if (imp_sth->fetch_orient) {
+			if (imp_sth->exe_mode!=OCI_STMT_SCROLLABLE_READONLY)
+				croak ("attempt to use a scrollable cursor without first setting ora_exe_mode to OCI_STMT_SCROLLABLE_READONLY\n") ;
 
-		OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1, (ub2)OCI_FETCH_NEXT, OCI_DEFAULT, status);
+			if (DBIS->debug >= 4)
+				PerlIO_printf(DBILOGFP,"    Scrolling Fetch, postion before fetch=%d, Orientation = %s , Fetchoffset =%d\n",
+					imp_sth->fetch_position,oci_fetch_options(imp_sth->fetch_orient),imp_sth->fetch_offset);
+
+			OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1, imp_sth->fetch_orient,imp_sth->fetch_offset, status);
+			OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->fetch_position, 0, OCI_ATTR_CURRENT_POSITION, status);
+
+			if (DBIS->debug >= 4)
+				PerlIO_printf(DBILOGFP,"    Scrolling Fetch, postion after fetch=%d\n",imp_sth->fetch_position);
+				
+		} else {
+			OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1, (ub2)OCI_FETCH_NEXT, 0, status);
+
+		}
 
     }
 
@@ -2969,10 +3039,9 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 		return oci_error(sth, errhp, status, "OCIAttrGet OCI_ATTR_ROWID /LOB refetch");
 
 
-
-    OCIStmtExecute_log_stat(imp_sth->svchp, lr->stmthp, errhp,
+   		OCIStmtExecute_log_stat(imp_sth->svchp, lr->stmthp, errhp,
 		1, 0, NULL, NULL, OCI_DEFAULT, status);	/* execute and fetch */
-    if (status != OCI_SUCCESS)
+	if (status != OCI_SUCCESS)
 	return oci_error(sth, errhp, status,
 		ora_sql_error(imp_sth,"OCIStmtExecute/LOB refetch"));
 

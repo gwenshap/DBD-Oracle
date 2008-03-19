@@ -46,6 +46,7 @@ struct imp_dbh_st {
     int parse_error_offset;	/* position in statement of last error */
     int max_nested_cursors;     /* limit on cached nested cursors per stmt */
     int array_chunk_size;  /* the max size for an array bind */
+
 };
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
@@ -55,21 +56,21 @@ struct imp_dbh_st {
 typedef struct lob_refetch_st lob_refetch_t; /* Define sth implementor data structure */
 
 
-
+/*statement structure */
 struct imp_sth_st {
 
     dbih_stc_t com;		/* MUST be first element in structure	*/
 
     void *(*get_oci_handle) _((imp_sth_t *imp_sth, int handle_type, int flags));
-    OCIEnv			 *envhp;	/* copy of dbh pointer	*/
-    OCIError		 *errhp;	/* copy of dbh pointer	*/
-    OCIServer		 *srvhp;	/* copy of dbh pointer	*/
-    OCISvcCtx		 *svchp;	/* copy of dbh pointer	*/
-    OCIStmt		     *stmhp;    /* oci statement  handle */
-    OCIDescribe 	 *dschp;    /* oci describe handle */
-   	ub2 		stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
-    U16			auto_lob;
-    int  		has_lobs;  /* Statement has boud LOBS*/
+    OCIEnv			*envhp;	/* copy of dbh pointer	*/
+    OCIError		*errhp;	/* copy of dbh pointer	*/
+    OCIServer		*srvhp;	/* copy of dbh pointer	*/
+    OCISvcCtx		*svchp;	/* copy of dbh pointer	*/
+    OCIStmt			*stmhp;	/* oci statement  handle */
+    OCIDescribe 	*dschp; /* oci describe handle */
+   	ub2 			stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
+    U16				auto_lob;	/* use auto lobs*/
+    int  			has_lobs;   /* Statement has bound LOBS*/
 
     lob_refetch_t *lob_refetch;
     int  		nested_cursor; /* cursors fetched from SELECTs */
@@ -98,7 +99,14 @@ struct imp_sth_st {
     int      	est_width;    /* est'd avg row width on-the-wire	*/
     /* (In/)Out Parameter Details */
     bool  		has_inout_params;
-
+    /* execute mode*/
+    /* will be using this alot later me thinks  */
+    ub4         exe_mode;
+    /* fetch scrolling values */
+    int 		fetch_orient;
+    int			fetch_offset;
+    int			fetch_position;
+    int 		prefetch_memory;   /* OCI_PREFETCH_MEMORY*/
 };
 #define IMP_STH_EXECUTING	0x0001
 

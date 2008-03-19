@@ -1,4 +1,7 @@
 =head1 Changes in DBD-Oracle 1.21(svn rev xxxx) 
+  Changed the way pre-fetching is done by John Scoles
+  Added support for Scollable cursors from John Scoles
+  Changed the max size of cache_rows to a ub4 rather than a ub2 from John Scoles
   Added support for Lobs in select of OCI Embedded Objects from John Scoles with a big thankyou to  Paul Weiss 
   Fixed for embedded object in object from Paul Weiss
   Added support for direct insert of large XML data into XMLType fields from Hendrik Fuss
