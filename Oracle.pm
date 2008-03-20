@@ -1465,7 +1465,7 @@ See L</Prepare postponed till execute> for more information.
 
 This will set the execute mode of the current statement. Presently only one mode is supported;
 
-   OCI_STMT_SCROLLABLE_READONLY = 'scrollable results sets'
+   OCI_STMT_SCROLLABLE_READONLY - 'scrollable results sets'
 
 =item ora_prefetch_memory
 
@@ -1496,11 +1496,15 @@ Constants for the Oracle datatypes may be imported using
 Potentially useful values when DBD::Oracle was built using OCI 7 and later:
 
   ORA_VARCHAR2, ORA_STRING, ORA_LONG, ORA_RAW, ORA_LONGRAW,
-  ORA_CHAR, ORA_MLSLABEL, ORA_RSET
+  ORA_CHAR, ORA_MLSLABEL, ORA_RSET   
 
 Additional values when DBD::Oracle was built using OCI 8 and later:
 
   ORA_CLOB, ORA_BLOB, ORA_NTY, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE
+  
+Additional values when DBD::Oracle was built using OCI 10.2 and later:
+
+  SQLT_CHR, SQLT_BIN 
 
 See L</Binding Cursors> for the correct way to use ORA_RSET.
 
@@ -2486,7 +2490,7 @@ more server and client resources and have poorer response times than non-scrolli
 
 To enable this functionality you must first import the "Fetch Orientation" and the 'Execution Mode' constants by using
 
-   use DBD::Oracle qw(:ora_fetch_orient,:ora_exe_modes);
+   use DBD::Oracle qw(:ora_fetch_orient :ora_exe_modes);
   
 Which will import the following fetch orientation constants;
 
@@ -2519,7 +2523,7 @@ The following driver-specific methods are used with scrollable cursors.
 
 =item ora_fetch_scroll
 
-  my $value =  $sth->ora_fetch_scroll($fetch_orient,$fetch_offset);
+  @ary =  $sth->ora_fetch_scroll($fetch_orient,$fetch_offset);
 
 Works the same as fetchrow_array method however, one passes in a "Fetch Orientation" constant and a fetch_offset 
 value which will then determine the row that will be fetched. It returns the row as a list containing the field values. 
@@ -2527,7 +2531,7 @@ Null fields are returned as undef values in the list.
 
 =item ora_scroll_position
 
-  my $position =  $sth->ora_scroll_position();
+  $position =  $sth->ora_scroll_position();
       
 This method returns the current position in the result set.
 
@@ -2734,43 +2738,12 @@ To bind for updates and inserts all that is required to use this interface is to
 
 =head2 Support for Remote Lobs;
 
-The data interface for Persistent LOBs also supports remote LOBs (access over a dblink) however,
-
-=over 4
-
-=item Queries involving more than one database are not supported;
-
-=item DDL commands are not supported;
-
-so the following returns an error:
-
-  CREATE VIEW v AS SELECT lob_col FROM tab@dbs;
-  
-=item Only binds and defines for data going into remote persistent LOBs are supported so that parameter passing in PL/SQL where CHAR data is bound or defined for remote LOBs is not allowed. 
-
-These statements all produce errors:
-
-  SELECT foo() FROM table1@dbs2;
-
-  SELECT foo()@dbs INTO char_val FROM DUAL;
-
-  SELECT XMLType().getclobval FROM table1@dbs2;
-
-=item If the remote object is a view such as
-
-  CREATE VIEW v AS SELECT foo() FROM ...
-  /* The local database then tries to get the CLOB data and has an error */
-  SELECT * FROM v@dbs2;
-
-  RETURNING INTO does not support implicit conversions between CHAR and CLOB.
-
-=item PL/SQL parameter passing is not allowed where the actual argument is a LOB type and the remote argument is a VARCHAR2, NVARCHAR2, CHAR, NCHAR, or RAW.
-
+The data interface for Persistent LOBs also supports remote LOBs (access over a dblink).
 Given a database called lob_test that has a link defined like this
 
   create database link link_test connect to test_lobs identified by tester using 'lob_test';
   
-to a remote database called test_lobs the following code will work;
+to a remote database called test_lobs, the following code will work;
 
   $dbh = DBI->connect('dbi:Oracle:','test@lob_test','test');
   $dbh->{LongReadLen} = 2*1024*1024; #2 meg
@@ -2785,25 +2758,72 @@ to a remote database called test_lobs the following code will work;
      print "blob1=".$blob2."\n";
      print "blob2=".$blob2."\n";
   }
-
-=head 2 Caviats
-
-So far this is relitivly new tecknology and this is a first attmept to incorporate it into DBD::ORCALE so 
-please report any problems you may have with it.
-
-As well there seems to be some issues with retreiving LOBs that have been truncated, weather this is an Oracle version/patch issue or 
-a DBI/DBD::Oracle issue has yet to be determined. If you encouter "ORA-24345 A Truncation or null fetch error occurred" erorr try 
-increasing the size of LongReadLen to see if it fixes the problems.
-
-Not all of the inteface has beem implemented yet, the following are not supported yet;
+  
+Below are the limitations of Remote Lobs;
 
 =over 4
 
+=item Queries involving more than one database are not supported;
+
+so the following return an error:
+
+  SELECT t1.lobcol, a2.lobcol FROM t1, t2.lobcol@dbs2 a2 WHERE 
+  LENGTH(t1.lobcol) = LENGTH(a2.lobcol);
+  
+or 
+
+  SELECT t1.lobcol FROM t1@dbs1
+  UNION ALL
+  SELECT t2.lobcol FROM t2@dbs2;
+
+=item DDL commands are not supported;
+
+so the following returns an error:
+
+  CREATE VIEW v AS SELECT lob_col FROM tab@dbs;  
+
+=item Only binds and defines for data going into remote persistent LOBs are supported So that parameter passing in PL/SQL where CHAR data is bound or defined for remote LOBs is not allowed . 
+
+These statements all produce errors:
+
+  SELECT foo() FROM table1@dbs2;
+  
+  SELECT foo()@dbs INTO char_val FROM DUAL;
+  
+  SELECT XMLType().getclobval FROM table1@dbs2;
+
+=item If the remote object is a view such as
+
+so the following would not work:
+
+  CREATE VIEW v AS SELECT foo() FROM ...
+  /* The local database then tries to get the CLOB data and has an error */
+  SELECT * FROM v@dbs2;
+
+=item PL/SQL parameter passing is not allowed where the actual argument is a LOB type and the remote argument is one of VARCHAR2, NVARCHAR2, CHAR, NCHAR, or RAW.
+  
+=item RETURNING INTO does not support implicit conversions between CHAR and CLOB.
+  
+so the following returns an error:
+
+  SELECT t1.lobcol as test, a2.lobcol FROM t1, t2.lobcol@dbs2 a2 RETURNING test
+    
+=head2 Caviats
+
+So far this is relatively new technology and this is a first attempt to incorporate it into DBD::ORCALE so 
+please report any problems you may have with it.
+
+As well there seems to be some issues with retrieving LOBs that have been truncated, weather this is an Oracle version/patch issue or 
+a DBI/DBD::Oracle issue has yet to be determined. If you encounter "ORA-24345 A Truncation or null fetch error occurred" error try 
+increasing the size of LongReadLen to see if it fixes the problems.
+
+Not all of the interface has been implemented yet, the following are not supported yet;
+
 =item Piecewise, and callback binds for INSERT and UPDATE operations.
 
-and 
-
 =item Array binds for INSERT and UPDATE operations.
+
+=item Raw and LONG RAW datatypes.
 
 =head1 Handling LOBs
 
