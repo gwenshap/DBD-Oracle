@@ -1,5 +1,5 @@
 =head1 Changes in DBD-Oracle 1.21(svn rev xxxx) 
-  Added support for the Data Interface for Persistent LOBs by John Scoles
+  Added support for the 10.2 Data Interface for Persistent LOBs by John Scoles
   Changed the way pre-fetching is done by John Scoles
   Added support for Scrollable cursors from John Scoles
   Changed the max size of cache_rows to a ub4 rather than a ub2 from John Scoles
