@@ -2674,7 +2674,136 @@ Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improve
 In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  A good RowCacheSize value for a scrollable cursor
 is about 20% of expected size of the record set. If the ora_prefetch_memory is 0 or not present then memory size is not included 
 in computing the number of rows to prefetch otherwise the number of rows will be limited to memory size. 
- 
+
+=head1 Data Interface for Persistent LOBs
+
+Oracle 10.2 and later extended the OCI API work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
+a as LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
+you would use on other datatypes that store character or binary data. There are fewer round trips to the server as no 'LOB Locators' are
+used, normally one can get an entire LOB is a single round trip. The data interface only supports data of size less than 2 GB.
+
+=head2 Simple Usage
+
+No special methods are needed to use this interface. To do a simple select statement all that is required
+is setting statement handle's prepare method "ora_pers_lob" attribute to '1' and setting the database 
+handle's 'LongReadLen' attribute to a value that will exceed the expected size of the LOB. 
+
+For example give this table;
+
+  CREATE TABLE test_lob (id NUMBER,
+               clob1 CLOB, 
+               clob2 CLOB, 
+               blob1 BLOB, 
+               blob2 BLOB)
+
+this code;
+
+   $dbh->{LongReadLen} = 2*1024*1024; #2 meg
+   $sth=$dbh->prepare($sql,{ora_pers_lob=>1});
+   $sql='select p_id,lob_1,lob_2,blob_2 from test_lobs';
+   $sth=$dbh->prepare($sql,{ora_pers_lob=>1,ora_check_sql=>0});
+   $sth->execute();
+   while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
+     print "p_id=".$p_id."\n";
+     print "clob1=".$clob1."\n";
+     print "clob2=".$clob2."\n";
+     print "blob1=".$blob2."\n";
+     print "blob2=".$blob2."\n";
+  }
+
+Will select out all of the LOBs in the table as long as they are all under 2 Megabytes in length.
+
+=head2 Binding for Updates and Inserts
+
+To bind for updates and inserts all that is required to use this interface is to set the statement handle's prepare method 
+"ora_type" attribute to "SQLT_CHR" in the case of CLOBs and NCLOBs or 'SQLT_BIN' in the case of BLOBs as in this example for an insert;
+
+  my $in_clob = "<document>\n";
+  $in_clob .= "  <value>$_</value>\n" for 1 .. 10_000;
+  $in_clob .= "</document>\n";
+  my $in_blob ="0101" for 1 .. 10_000;
+
+  $sql='insert into test_lob3@tpgtest (id,clob1,clob2, blob1,blob2) values(?,?,?,?,?)';
+  $sth=$dbh->prepare($sql );
+  $sth->bind_param(1,3);
+  $sth->bind_param(2,$in_clob,{ora_type=>SQLT_CHR});
+  $sth->bind_param(3,$in_clob,{ora_type=>SQLT_CHR});
+  $sth->bind_param(4,$in_blob,{ora_type=>SQLT_BIN});
+  $sth->bind_param(5,$in_blob,{ora_type=>SQLT_BIN});
+  $sth->execute();
+
+=head2 Support for Remote Lobs;
+
+The data interface for Persistent LOBs also supports remote LOBs (access over a dblink) however,
+
+=over 4
+
+=item Queries involving more than one database are not supported;
+
+=item DDL commands are not supported;
+
+so the following returns an error:
+
+  CREATE VIEW v AS SELECT lob_col FROM tab@dbs;
+  
+=item Only binds and defines for data going into remote persistent LOBs are supported so that parameter passing in PL/SQL where CHAR data is bound or defined for remote LOBs is not allowed. 
+
+These statements all produce errors:
+
+  SELECT foo() FROM table1@dbs2;
+
+  SELECT foo()@dbs INTO char_val FROM DUAL;
+
+  SELECT XMLType().getclobval FROM table1@dbs2;
+
+=item If the remote object is a view such as
+
+  CREATE VIEW v AS SELECT foo() FROM ...
+  /* The local database then tries to get the CLOB data and has an error */
+  SELECT * FROM v@dbs2;
+
+  RETURNING INTO does not support implicit conversions between CHAR and CLOB.
+
+=item PL/SQL parameter passing is not allowed where the actual argument is a LOB type and the remote argument is a VARCHAR2, NVARCHAR2, CHAR, NCHAR, or RAW.
+
+Given a database called lob_test that has a link defined like this
+
+  create database link link_test connect to test_lobs identified by tester using 'lob_test';
+  
+to a remote database called test_lobs the following code will work;
+
+  $dbh = DBI->connect('dbi:Oracle:','test@lob_test','test');
+  $dbh->{LongReadLen} = 2*1024*1024; #2 meg
+  $sth=$dbh->prepare($sql,{ora_pers_lob=>1});
+  $sql='select p_id,lob_1,lob_2,blob_2 from test_lobs@link_test';
+  $sth=$dbh->prepare($sql,{ora_pers_lob=>1,ora_check_sql=>0});
+  $sth->execute();
+  while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
+     print "p_id=".$p_id."\n";
+     print "clob1=".$clob1."\n";
+     print "clob2=".$clob2."\n";
+     print "blob1=".$blob2."\n";
+     print "blob2=".$blob2."\n";
+  }
+
+=head 2 Caviats
+
+So far this is relitivly new tecknology and this is a first attmept to incorporate it into DBD::ORCALE so 
+please report any problems you may have with it.
+
+As well there seems to be some issues with retreiving LOBs that have been truncated, weather this is an Oracle version/patch issue or 
+a DBI/DBD::Oracle issue has yet to be determined. If you encouter "ORA-24345 A Truncation or null fetch error occurred" erorr try 
+increasing the size of LongReadLen to see if it fixes the problems.
+
+Not all of the inteface has beem implemented yet, the following are not supported yet;
+
+=over 4
+
+=item Piecewise, and callback binds for INSERT and UPDATE operations.
+
+and 
+
+=item Array binds for INSERT and UPDATE operations.
 
 =head1 Handling LOBs
 

@@ -329,7 +329,6 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
    	}
 
 
-
  	/* scan statement for '?', ':1' and/or ':foo' style placeholders	*/
     if (ora_placeholders)
 		dbd_preparse(imp_sth, statement);
@@ -2227,12 +2226,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fbh->ftype  = fbh->dbtype;
                 /* do we need some addition size logic here? (lab) */
         if (imp_sth->pers_lob){ /*this only works on 10.2 */
-        
-        
-			  	 PerlIO_printf(DBILOGFP,"fbh->dbtype=%d\n",fbh->dbtype);
-		     	
-		
-    	    fbh->disize = imp_sth->long_readlen; /*100 meg so it will not max out.*/
+  	
+    	    fbh->disize = imp_sth->long_readlen; /*user set max value*/
     	    if (fbh->dbtype == 113){
     	    	fbh->ftype  = SQLT_BIN;
     	    } else {
