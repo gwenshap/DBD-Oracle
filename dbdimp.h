@@ -70,6 +70,7 @@ struct imp_sth_st {
     OCIDescribe 	*dschp; /* oci describe handle */
    	ub2 			stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
     U16				auto_lob;	/* use auto lobs*/
+    int				pers_lob; /*use dblink for lobs only for 10g Release 2. or later*/
     int  			has_lobs;   /* Statement has bound LOBS*/
 
     lob_refetch_t *lob_refetch;

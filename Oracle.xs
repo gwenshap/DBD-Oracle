@@ -50,7 +50,8 @@ constant(name=Nullch)
 	OCI_FETCH_PRIOR 	= OCI_FETCH_PRIOR
 	OCI_FETCH_ABSOLUTE 	= OCI_FETCH_ABSOLUTE
 	OCI_FETCH_RELATIVE	= OCI_FETCH_RELATIVE
-
+	SQLT_CHR    = SQLT_CHR
+	SQLT_BIN	= SQLT_BIN
     CODE:
     if (!ix) {
 	if (!name) name = GvNAME(CvGV(cv));

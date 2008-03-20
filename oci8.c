@@ -279,6 +279,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
     dTHX;
     D_imp_dbh_from_sth;
     sword status 		 = 0;
+    IV  ora_pers_lob   =0; /*use dblink for lobs only for 10g Release 2. or later*/
     ub4	oparse_lng   	 = 1;  /* auto v6 or v7 as suits db connected to	*/
     int ora_check_sql 	 = 1;	/* to force a describe to check SQL	*/
     IV  ora_placeholders = 1;	/* find and handle placeholders */
@@ -315,11 +316,14 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		IV ora_auto_lob = 1;
 		DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_placeholders", 16, svp, ora_placeholders);
-		DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob",   12, svp, ora_auto_lob);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob", 12, svp, ora_auto_lob);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_pers_lob", 12, svp, ora_pers_lob);
+
 		imp_sth->auto_lob = (ora_auto_lob) ? 1 : 0;
+		imp_sth->pers_lob = (ora_pers_lob) ? 1 : 0;
 		/* ora_check_sql only works for selects owing to Oracle behaviour */
-		DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql",  13, svp, ora_check_sql);
-		DBD_ATTRIB_GET_IV(  attribs, "ora_exe_mode",  12, svp, imp_sth->exe_mode);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql", 13, svp, ora_check_sql);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_exe_mode", 12, svp, imp_sth->exe_mode);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_prefetch_memory",  19, svp, imp_sth->prefetch_memory);
   
    	}
@@ -1700,12 +1704,6 @@ empty_oci_object(fbh_obj_t *obj){
 		av_undef(obj->value);
 	}
 
-
-
-
-
-
-
     return 1;
 
 }
@@ -2228,12 +2226,27 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	case 114:				/* BFILE	*/
 		fbh->ftype  = fbh->dbtype;
                 /* do we need some addition size logic here? (lab) */
-		fbh->disize = fbh->dbsize *10 ;	/* XXX! */
-		fbh->fetch_func = (imp_sth->auto_lob)
-				? fetch_func_autolob : fetch_func_getrefpv;
-		fbh->bless  = "OCILobLocatorPtr";
-		fbh->desc_t = OCI_DTYPE_LOB;
-		OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
+        if (imp_sth->pers_lob){ /*this only works on 10.2 */
+        
+        
+			  	 PerlIO_printf(DBILOGFP,"fbh->dbtype=%d\n",fbh->dbtype);
+		     	
+		
+    	    fbh->disize = imp_sth->long_readlen; /*100 meg so it will not max out.*/
+    	    if (fbh->dbtype == 113){
+    	    	fbh->ftype  = SQLT_BIN;
+    	    } else {
+    			fbh->ftype  = SQLT_CHR;
+    		}
+    		
+		} else {
+			fbh->disize = fbh->dbsize *10 ;	/* XXX! */
+			fbh->fetch_func = (imp_sth->auto_lob) ? fetch_func_autolob : fetch_func_getrefpv;
+			fbh->bless  = "OCILobLocatorPtr";
+			fbh->desc_t = OCI_DTYPE_LOB;
+			OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
+		}
+
 		break;
 
 #ifdef OCI_DTYPE_REF
