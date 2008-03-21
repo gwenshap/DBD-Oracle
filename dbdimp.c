@@ -802,9 +802,15 @@ dbd_st_cancel(SV *sth, imp_sth_t *imp_sth)
     sword status;
     status = OCIBreak(imp_sth->svchp, imp_sth->errhp);
     if (status != OCI_SUCCESS) {
-	oci_error(sth, imp_sth->errhp, status, "OCIBreak");
-	return 0;
+		oci_error(sth, imp_sth->errhp, status, "OCIBreak");
+		return 0;
     }
+
+     /* if we are using a scrolling cursor we should get rid of the
+	    cursor by fetching row 0 */
+	if (imp_sth->exe_mode==OCI_STMT_SCROLLABLE_READONLY){
+			OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0,OCI_FETCH_NEXT,0,  status);
+	}
     return 1;
 }
 
@@ -977,10 +983,10 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 		*svp = retsv;
 		(void)SvREFCNT_inc(retsv);	/* so sv_2mortal won't free it	*/
     }
-    
+
     if (retsv == &sv_yes || retsv == &sv_no)
 		return retsv; /* no need to mortalize yes or no */
-		
+
     return sv_2mortal(retsv);
 }
 
@@ -2867,7 +2873,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
     sword status;
     int is_select = (imp_sth->stmt_type == OCI_STMT_SELECT);
     ub4 exe_mode  = imp_sth->exe_mode;
-   
+
 
     if (debug >= 2)
   	   PerlIO_printf(DBILOGFP, "    dbd_st_execute %s (out%d, lob%d)...\n",
@@ -2936,19 +2942,19 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 	    		}
 	  		}
     	}
- 
-         
+
+
 		if (DBIc_has(imp_dbh,DBIcf_AutoCommit) && !is_select) {
 		    imp_sth->exe_mode=OCI_COMMIT_ON_SUCCESS;
 		    /* we don't AutoCommit on select so LOB locators work */
 		}
-		
-	    
-	
+
+
+
 		OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
 					(ub4)(is_select ? 0 : 1),
 					0, 0, 0,(ub4)imp_sth->exe_mode,status);
-	    			
+
 		if (status != OCI_SUCCESS) { /* may be OCI_ERROR or OCI_SUCCESS_WITH_INFO etc */
 	/* we record the error even for OCI_SUCCESS_WITH_INFO */
 			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIStmtExecute"));
@@ -3428,10 +3434,10 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
     server side resources this is what the next statment does,
     not sure if we need this for non scrolling cursors they should die on
     a OER(1403) no records)*/
-    
+
     OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0,
     	OCI_FETCH_NEXT,0,  status);
-    	
+
     if (status != OCI_SUCCESS && status != OCI_SUCCESS_WITH_INFO) {
 		oci_error(sth, imp_sth->errhp, status, "Finish OCIStmtFetch");
 		return 0;
@@ -3520,9 +3526,18 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
        when they are no longer needed.
     */
     /* get rid of describe handle if used*/
+
+    /* if we are using a scrolling cursor we should get rid of the
+    cursor by fetching row 0 */
+
+    if (imp_sth->exe_mode==OCI_STMT_SCROLLABLE_READONLY){
+		OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0,OCI_FETCH_NEXT,0,  status);
+	}
+
     if (imp_sth->dschp){
 		OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 	}
+
 
     if (DBIc_DBISTATE(imp_sth)->debug >= 6)
 	PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_destroy %s\n",

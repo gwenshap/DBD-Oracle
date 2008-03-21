@@ -1197,10 +1197,10 @@ Thanks to Mark Dedlow for this information.
 
 =item :ora_types
 
-  ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
-  ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
-  ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
-  SQLT_INT SQLT_FLT 
+ ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
+ ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
+ ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
+ SQLT_INT SQLT_FLT ORA_OCI SQLT_CHR SQLT_BIN
  
 =item SQLCS_IMPLICIT
 
@@ -1236,7 +1236,19 @@ The contents and format of ORA_OCI are subject to change (it may,
 for example, become a I<version object> in later releases).
 I recommend that you avoid checking for exact values.
 
+=item ora_fetch_orient
 
+  OCI_FETCH_CURRENT OCI_FETCH_NEXT OCI_FETCH_FIRST 
+  OCI_FETCH_LAST OCI_FETCH_PRIOR OCI_FETCH_ABSOLUTE 
+  OCI_FETCH_RELATIVE 
+  
+These constants are used to set the orientaion of a fetch on a scrollable
+cursor.
+
+=ora_exe_modes;
+
+  OCI_STMT_SCROLLABLE_READONLY 
+  
 =head2 Connect Attributes
 
 =over 4
@@ -1465,13 +1477,15 @@ See L</Prepare postponed till execute> for more information.
 
 This will set the execute mode of the current statement. Presently only one mode is supported;
 
-   OCI_STMT_SCROLLABLE_READONLY - 'scrollable results sets'
+   OCI_STMT_SCROLLABLE_READONLY - make result set scrollable
 
 =item ora_prefetch_memory
 
 Sets the memory level for top level rows to be prefetched. Rows up to the specified top level row 
 count C<RowCacheSize> are fetched if it occupies no more than the specified memory usage limit. The default value is 0, 
-which means that memory size is not included in computing the number of rows to prefetch.
+which means that memory size is not included in computing the number of rows to prefetch. If
+the C<RowCacheSize> value is set to 0 or a negitive number when using this value then only 
+the memory value entered is used to compute the number of rows to prefetch.
 
 =back
 
@@ -1511,6 +1525,8 @@ See L</Binding Cursors> for the correct way to use ORA_RSET.
 See L</Handling LOBs> for how to use ORA_CLOB and ORA_BLOB.
 
 See L</SYS.DBMS_SQL datatypes> for ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE.
+
+See L</Data Interface for Persistent LOBs> for the correct way to use SQLT_CHR and SQLT_BIN.
 
 See L</Other Data Types> for more information.
 
@@ -2470,9 +2486,9 @@ Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
 
 =head1 Scrollable Cursors
 
-Oracle supports the concept of a 'Scrollable Cursor' which is defined as a 'result set' where
+Oracle supports the concept of a 'Scrollable Cursor' which is defined as a 'Result Set' where
 the rows can be fetched either sequentially or non-sequentially. One can fetch rows forward, 
-backwards, from any given position or the n-th row from the current position in the 'result set'.
+backwards, from any given position or the n-th row from the current position in the result set.
 
 Rows are numbered sequentially starting at one and client-side caching of the partial or entire result set
 can improve performance by limiting round trips to the server.
@@ -2481,7 +2497,7 @@ Oracle does not support DML type operations with scrollable cursors so you are l
 to simple 'Select' operations only. As well you can not use this functionality with remote 
 mapped queries or if the LONG datatype is part of the select list. 
 
-However, Lobs, Clobs, and Blobs do work.  
+However, LOBSs, CLOBSs, and BLOBs do work as do all bind column, bind, and fetch methods.  
 
 Only use scrollable cursors if you really have a good reason to. They do use up considerable 
 more server and client resources and have poorer response times than non-scrolling cursors.
@@ -2492,26 +2508,12 @@ To enable this functionality you must first import the "Fetch Orientation" and t
 
    use DBD::Oracle qw(:ora_fetch_orient :ora_exe_modes);
   
-Which will import the following fetch orientation constants;
-
-  OCI_FETCH_CURRENT  - gets the current row.
-  OCI_FETCH_NEXT     - gets the next row from the current position.
-  OCI_FETCH_FIRST    - gets the first row in the 'result set'
-  OCI_FETCH_LAST     - gets the last row in  the 'result set'
-  OCI_FETCH_PRIOR    - positions the result set on the previous row from the current row in the 'result set'
-  OCI_FETCH_ABSOLUTE - will fetch a row number in the result set using absolute positioning
-  OCI_FETCH_RELATIVE - will fetch a row number in the result set using relative positioning
-  
-and the following Execution Mode constant;
-
-  OCI_STMT_SCROLLABLE_READONLY - Required to make the result set scrollable.
-
 Next you will have to tell DBD::Oracle that you will be using scrolling by setting the ora_exe_mode attribute on the
 statement handle to 'OCI_STMT_SCROLLABLE_READONLY' with the prepare method;
 
   $sth=$dbh->prepare($sql,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY});
 
-When the statement is executed you will then be able to use ora_fetch_scroll method to get your results 
+When the statement is executed you will then be able to use ora_fetch_scroll method to get a row
 or you can still use any of the other fetch methods but with a poorer response time than if you used a 
 non-scrolling cursor.
 
@@ -2521,6 +2523,15 @@ The following driver-specific methods are used with scrollable cursors.
 
 =over 4
 
+=item ora_scroll_position
+
+  $position =  $sth->ora_scroll_position();
+      
+This method returns the current position (row number) attribute of the result set. Prior to the first fetch this value is 0. This is the only time
+this value will be 0 after the first fetch the value will be set so you can use this value to test if any rows have been fetched.
+The miminum value will always be 1 after the first fetch. The maximum value will allways be the total number
+of rows in the record set. 
+
 =item ora_fetch_scroll
 
   @ary =  $sth->ora_fetch_scroll($fetch_orient,$fetch_offset);
@@ -2529,18 +2540,59 @@ Works the same as fetchrow_array method however, one passes in a "Fetch Orientat
 value which will then determine the row that will be fetched. It returns the row as a list containing the field values. 
 Null fields are returned as undef values in the list.
 
-=item ora_scroll_position
+The valid orientation constant and fetch offest values combination are detailed below 
 
-  $position =  $sth->ora_scroll_position();
-      
-This method returns the current position in the result set.
+  OCI_FETCH_CURRENT, fetches the current row, the fetch offset value is ignored.
+  OCI_FETCH_NEXT, fetches the next row from the current position, the fetch offset value is ignored.
+  OCI_FETCH_FIRST, fetches the first row, the fetch offset value is ignored.
+  OCI_FETCH_LAST, fetches the last row, the fetch offset value is ignored.
+  OCI_FETCH_PRIOR, fetches the previous row from the current position, the fetch offset value is ignored.
+  OCI_FETCH_ABSOLUTE, fetches the row that is specified by the fetch offset value.
+  OCI_FETCH_RELATIVE, fetches the row relative from the current postion as specified by the fetch offset value.
+
+  OCI_FETCH_ABSOLUTE, and a fetch offset value of 1 is equlivaint to a OCI_FETCH_FIRST.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value of 0 is equlivaint to a OCI_FETCH_CURRENT.
+ 
+  OCI_FETCH_RELATIVE, and a fetch offset value of 0 is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value of 1 is equlivaint to a OCI_FETCH_NEXT.
+  OCI_FETCH_RELATIVE, and a fetch offset value of -1 is equlivaint to a OCI_FETCH_PRIOR.
+
+The effect that a ora_fetch_scroll method call has on the current_positon attribute is detailed below.
+
+  OCI_FETCH_CURRENT, has no effect on the current_positon attribute.
+  OCI_FETCH_NEXT, increments current_positon attribute by 1
+  OCI_FETCH_NEXT, when at the last row in the record set does not change current_positon attribute, it is equlivaint to a OCI_FETCH_CURRENT..
+. OCI_FETCH_FIRST, sets the current_positon attribute to 1.
+  OCI_FETCH_LAST, sets the current_positon attribute to the total number of rows in the record set.
+  OCI_FETCH_PRIOR, deccrements current_positon attribute by 1.
+  OCI_FETCH_PRIOR, when at the first row in the record set does not change current_positon attribute, it is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, sets the current_positon attribute to the fetch offest value.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 does not change current_positon attribute, it is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set, does not change current_positon attribute, it is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, sets the current_positon attribute to (current_positon attribute + fetch offset value).
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes the current position less than 1, does not change fetch offest value so it is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, does not change fetch offest value so it is equlivaint to a OCI_FETCH_CURRENT.
+
+The effects of the differing orientation constants on the first fetch (current_postion attribute at 0) are as follows.
+
+  OCI_FETCH_CURRENT, dose not fetch a row or change the current_positon attribute.
+  OCI_FETCH_FIRST, fetches row 1 and sets the current_positon attribute to 1.
+  OCI_FETCH_LAST, fetches the last row in the record set and sets the current_positon attribute to the total number of rows in the record set.
+  OCI_FETCH_NEXT, equlivaint to a OCI_FETCH_FIRST.
+  OCI_FETCH_PRIOR, equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that is less than 1 is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, is equlivaint to a OCI_FETCH_CURRENT.
+  
+=back
 
 =head2 Scrollable Cursor Usage
 
 Given a simple code like this:
 
    use DBI;
-   use DBD::Oracle qw(:ora_types);
+   use DBD::Oracle qw(:ora_types :ora_fetch_orient :ora_exe_modes);
    my $dbh = DBI->connect($dsn, $dbuser, '');
    my $sql = "select id,
                      first_name,
@@ -2555,117 +2607,103 @@ method.
 
 =over 4
 
+=item Fetching the Last Row
+
+   $value =  $sth->ora_fetch_scroll(OCI_FETCH_LAST,0);
+   print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+   print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute to will be 20 after this snippet.  This is also a way to get the number of rows in the record set, however
+if the record set is large this could take some time. 
+
 =item Fetching the Current Row
 
    $value =  $sth->ora_fetch_scroll(OCI_FETCH_CURRENT,0);
    print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
    print "current scroll position=".$sth->ora_scroll_position()."\n";
-   
-This will get the current row of the result set, which in this case would be 1, print the values for the fields in the row 
-and then print the current scroll position which would still be 1. With this fetch constant the value for fetch offset is ignored.
 
-=item Fetching the Next Row
-
-   for(my i=0;i<=3;i++){
-      $value =  $sth->ora_fetch_scroll(OCI_FETCH_NEXT,0);
-      print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   }
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
-   
-This snippet will get the next four rows from the result (2,3,4,5) set and print them and then print the position which will be 5, 
-Again the value for fetch offset is ignored for this fetch constant.
+The current_positon attribute will still be 20 after this snippet.
 
 =item Fetching the First Row
 
    $value =  $sth->ora_fetch_scroll(OCI_FETCH_FIRST,0);
    print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
    print "current scroll position=".$sth->ora_scroll_position()."\n";
-   
-This snippet will move the pointer back to the first row (1) and print out its values again. The position value will be 1
-in this case. Again the value for fetch offset is ignored for this fetch constant.
 
-=item Fetching the Last Row
+The current_positon attribute will be 1 after this snippet.
 
-   $value =  $sth->ora_fetch_scroll(OCI_FETCH_LAST,0);
-   print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+=item Fetching the Next Row
+
+   for(my $i=0;$i<=3;$i++){
+      $value =  $sth->ora_fetch_scroll(OCI_FETCH_NEXT,0);
+      print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+   }
    print "current scroll position=".$sth->ora_scroll_position()."\n";
-   
-This snippet will move the pointer to the last row in the result set (20) and print out its values. The position value will be 20
-in this case. The value for fetch offset is ignored for this fetch constant. This is also way to determine the number of rows in 
-the record set, however if you result set is large response time can be high.
+
+The current_positon attribute will be 5 after this snippet.   
 
 =item Fetching the Prior Row
 
-   for(my $i=0;$i<=3;i++){
+   for(my $i=0;$i<=3;$i++){
       $value =  $sth->ora_fetch_scroll(OCI_FETCH_PRIOR,0);
       print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
    }
    print "current scroll position=".$sth->ora_scroll_position()."\n";
-   
-This snippet will get the four prior rows from the result set (19,18,17,16) and print them and then print 
-the position which will be 16. Again the value for fetch offset is ignored for this fetch constant.
+
+The current_positon attribute will be 1 after this snippet.   
 
 =item Fetching the 10th Row
 
    $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,10);
    print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
    print "current scroll position=".$sth->ora_scroll_position()."\n";
-   
-This snippet will move the pointer to row 10 and print out its values. The position value will be 10
-in this case. With this fetch constant the fetch offset value is the row number to fetch. 
 
+The current_positon attribute will be 10 after this snippet.   
+   
 =item Fetching the 10th to 14th Row
 
-   for(my $i=10;$i<15;i++){
+   for(my $i=10;$i<15;$i++){
       $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,$i);
       print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
    }
    print "current scroll position=".$sth->ora_scroll_position()."\n";
-  
-In this snippet the OCI_FETCH_ABSOLUTE constant is used with the offset variable $i to get rows 10,11,12,13, and 14
-from the record set and print them out. The position value will be 14 at the end of this code.
 
+The current_positon attribute will be 14 after this snippet.   
+   
 =item Fetching the 14th to 10th Row
 
-   for(my $i=14;$i>9;i--){
+   for(my $i=14;$i>9;$i--){
       $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,$i);
       print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
    }
    print "current scroll position=".$sth->ora_scroll_position()."\n";
-  
-In this snippet the OCI_FETCH_ABSOLUTE constant is used with the offset variable $i to get rows 14,13,12,11, and 10 
-from the record set and print them out. The position value will be 10 at the end of this code.
+
+The current_positon attribute will be 10 after this snippet.   
 
 =item Fetching the 5th Row From the Present position
 
    $value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,5);
    print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
    print "current scroll position=".$sth->ora_scroll_position()."\n";
-   
-This snippet will jump forward in the record set by the offset value of '5', from row 10 to row 15, and print out its values. 
-The position value will be 15 at this point. With this fetch constant the fetch offset value is the relative row from the current row to fetch. 
 
+The current_positon attribute will be 15 after this snippet.   
+   
 =item Fetching the 9th Row Prior From the Present position
 
    $value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,-9);
    print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
    print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute will be 6 after this snippet.   
    
-This snippet will jump backward in the record set by the offset value of '-9', from row 15 to row 6 and print out its values. 
-The position value will be 6 at this point. 
-
-=item Relative Fetching Equivalents
-
-When using OCI_FETCH_RELATIVE with a fetch offset equal to 0 will get the current row which is the same as a OCI_FETCH_CURRENT fetch.
-When using OCI_FETCH_RELATIVE with a fetch offset equal to 1 will get the next row which is the same as a OCI_FETCH_NEXT fetch.
-When using OCI_FETCH_RELATIVE with a fetch offset equal to -1 will get the prior row which is the same as a OCI_FETCH_PRIOR fetch.
-
 =item Use Finish
 
    $sth->finish();
    
 When using scrollable cursors it is required that you use the $sth->finish() method when you are done with the cursor as this type of
 cursor has to be explicitly canceled on the server. If you do not do this you may cause resource problems on your database.  
+
+=back
 
 =head2 Prefetching Rows
 
@@ -2675,9 +2713,13 @@ Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improve
    $dbh->{RowCacheSize} = 10;
    $sth=$dbh->prepare($sql,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>10000});
 
-In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  A good RowCacheSize value for a scrollable cursor
-is about 20% of expected size of the record set. If the ora_prefetch_memory is 0 or not present then memory size is not included 
-in computing the number of rows to prefetch otherwise the number of rows will be limited to memory size. 
+In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle® Call Interface Programmer's Guide,
+suggests a good row cache value for a scrollable cursor is about 20% of expected size of the record set. 
+If the ora_prefetch_memory less than 1 or not present then memory size is not included in computing the 
+number of rows to prefetch otherwise the number of rows will be limited to memory size. Likesise if the RowCacheSize is less than 1 it
+is not included in the computing of the prefetch rows.  
+
+With large record sets it is best 
 
 =head1 Data Interface for Persistent LOBs
 
@@ -2688,9 +2730,13 @@ used, normally one can get an entire LOB is a single round trip. The data interf
 
 =head2 Simple Usage
 
-No special methods are needed to use this interface. To do a simple select statement all that is required
-is setting statement handle's prepare method "ora_pers_lob" attribute to '1' and setting the database 
-handle's 'LongReadLen' attribute to a value that will exceed the expected size of the LOB. 
+No special methods are needed to use this interface. To do a simple select statement all that is required import the 
+"ora_types' constants with
+  
+  use DBD::Oracle qw(:ora_types);
+  
+and ensure the set statement handle's prepare method "ora_pers_lob" attribute is set to '1' and the database 
+handle's 'LongReadLen' attribute is set to a value that will exceed the expected size of the LOB. 
 
 For example give this table;
 

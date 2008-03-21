@@ -33,7 +33,7 @@ dbd_init_oci_drh(imp_drh_t * imp_drh)
     imp_drh->ora_trunc   = perl_get_sv("Oraperl::ora_trunc",     GV_ADDMULTI);
     imp_drh->ora_cache   = perl_get_sv("Oraperl::ora_cache",     GV_ADDMULTI);
     imp_drh->ora_cache_o = perl_get_sv("Oraperl::ora_cache_o",   GV_ADDMULTI);
-    
+
 }
 
 
@@ -310,7 +310,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 
     imp_sth->auto_lob = 1;
 	imp_sth->exe_mode  = OCI_DEFAULT;
-	
+
    	if (attribs) {
 		SV **svp;
 		IV ora_auto_lob = 1;
@@ -325,7 +325,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql", 13, svp, ora_check_sql);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_exe_mode", 12, svp, imp_sth->exe_mode);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_prefetch_memory",  19, svp, imp_sth->prefetch_memory);
-  
+
    	}
 
 
@@ -1320,7 +1320,7 @@ calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs)
 			if (cache_rows < 6)	/* is cache a 'useful' size?	*/
 			    cache_rows = (cache_rows > 0) ? 6 : 4;
 		}
-		    
+
 	if (cache_rows > 10000000)	/* keep within Oracle's limits  */
 		cache_rows = 10000000;	/* seems it was ub2 at one time now ub4 this number is arbitary on my part*/
 
@@ -1745,29 +1745,29 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
       no sure what happens in the last case but I lwft it in for now
       Also I think in later version of OCI this call does not really do anything
     */
-    
+
     /* number of rows to cache	 if using oraperl */
     if      (SvOK(imp_drh->ora_cache_o)) imp_sth->cache_rows = SvIV(imp_drh->ora_cache_o);
     else if (SvOK(imp_drh->ora_cache))   imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
-  
-   
+
+
    	if (imp_dbh->RowCacheSize || imp_sth->prefetch_memory){
-	/*user set values */   	
+	/*user set values */
    		 cache_rows  =imp_dbh->RowCacheSize;
 	     cache_mem   =imp_sth->prefetch_memory;
-	     
+
    	} else if (imp_sth->cache_rows >= 0) {	/* set cache size by row count	*/
 
 		/* imp_sth->est_width needs to be set */
 		cache_mem  = 0;             /* so memory isn't the limit */
-	
+
 		cache_rows = calc_cache_rows(imp_sth->cache_rows,(int)num_fields, imp_sth->est_width, has_longs);
-		
+
 		if (max_cache_rows && cache_rows > (unsigned long) max_cache_rows)
 		    cache_rows = max_cache_rows;
-	
+
 		imp_sth->cache_rows = cache_rows;	/* record updated value */
-		
+
     }
     else {				/* set cache size by memory	*/
     					/* not sure if we ever reach this*/
@@ -1776,34 +1776,34 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 		    cache_rows = max_cache_rows;
 		    imp_sth->cache_rows = cache_rows;	/* record updated value only if max_cache_rows */
 		}
-		
+
     }
-    
-    
+
+
     OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
 	   			    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
 	   			    imp_sth->errhp, status);
-	   			    
+
 	if (status != OCI_SUCCESS) {
 		oci_error(h, imp_sth->errhp, status,
 				"OCIAttrSet OCI_ATTR_PREFETCH_ROWS/OCI_ATTR_PREFETCH_MEMORY");
 		++num_errors;
 	}
-	
+
 	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
 	   			&cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
    			imp_sth->errhp, status);
-   			
+
    	if (status != OCI_SUCCESS) {
 		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
 	    ++num_errors;
 	}
-	
+
     if (DBIS->debug >= 3)
 		PerlIO_printf(DBILOGFP,
 	    "    row cache OCI_ATTR_PREFETCH_ROWS %lu, OCI_ATTR_PREFETCH_MEMORY %lu\n",
 	    (unsigned long) (cache_rows), (unsigned long) (cache_mem));
-	    
+
     return num_errors;
 }
 
@@ -2226,14 +2226,14 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fbh->ftype  = fbh->dbtype;
                 /* do we need some addition size logic here? (lab) */
         if (imp_sth->pers_lob){ /*this only works on 10.2 */
-  	
+
     	    fbh->disize = imp_sth->long_readlen; /*user set max value*/
-    	    if (fbh->dbtype == 113){
-    	    	fbh->ftype  = SQLT_BIN;
+    	    if (fbh->dbtype == 112){
+    	    	fbh->ftype  = SQLT_CHR;
     	    } else {
-    			fbh->ftype  = SQLT_CHR;
+    			fbh->ftype  = SQLT_BIN; /*other Binary*/
     		}
-    		
+
 		} else {
 			fbh->disize = fbh->dbsize *10 ;	/* XXX! */
 			fbh->fetch_func = (imp_sth->auto_lob) ? fetch_func_autolob : fetch_func_getrefpv;
@@ -2290,12 +2290,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    fbh->disize += 1;	/* allow for null terminator */
 
 	/* dbsize can be zero for 'select NULL ...'			*/
-	
+
 	imp_sth->t_dbsize += fbh->dbsize;
-	
+
 	if (!avg_width)
 	    avg_width = fbh->dbsize;
-	    
+
 	est_width += avg_width;
 
 	if (DBIS->debug >= 2)
@@ -2446,7 +2446,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 			if (DBIS->debug >= 4)
 				PerlIO_printf(DBILOGFP,"    Scrolling Fetch, postion after fetch=%d\n",imp_sth->fetch_position);
-				
+
 		} else {
 			OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1, (ub2)OCI_FETCH_NEXT, 0, status);
 
