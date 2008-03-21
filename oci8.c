@@ -2433,7 +2433,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
     	if (DBIS->debug >= 3){
 	    	PerlIO_printf(DBILOGFP, "    dbd_st_fetch %d fields...\n", DBIc_NUM_FIELDS(imp_sth));
 	    }
-        if (imp_sth->fetch_orient != OCI_FETCH_NEXT) {
+
+        if (imp_sth->fetch_orient != OCI_DEFAULT) {
 
 			if (imp_sth->exe_mode!=OCI_STMT_SCROLLABLE_READONLY)
 				croak ("attempt to use a scrollable cursor without first setting ora_exe_mode to OCI_STMT_SCROLLABLE_READONLY\n") ;
