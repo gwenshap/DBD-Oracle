@@ -2529,7 +2529,7 @@ The following driver-specific methods are used with scrollable cursors.
       
 This method returns the current position (row number) attribute of the result set. Prior to the first fetch this value is 0. This is the only time
 this value will be 0 after the first fetch the value will be set so you can use this value to test if any rows have been fetched.
-The miminum value will always be 1 after the first fetch. The maximum value will allways be the total number
+The minimum value will always be 1 after the first fetch. The maximum value will always be the total number
 of rows in the record set. 
 
 =item ora_fetch_scroll
@@ -2548,42 +2548,42 @@ The valid orientation constant and fetch offest values combination are detailed 
   OCI_FETCH_LAST, fetches the last row, the fetch offset value is ignored.
   OCI_FETCH_PRIOR, fetches the previous row from the current position, the fetch offset value is ignored.
   OCI_FETCH_ABSOLUTE, fetches the row that is specified by the fetch offset value.
-  OCI_FETCH_RELATIVE, fetches the row relative from the current postion as specified by the fetch offset value.
+  OCI_FETCH_RELATIVE, fetches the row relative from the current position as specified by the fetch offset value.
 
-  OCI_FETCH_ABSOLUTE, and a fetch offset value of 1 is equlivaint to a OCI_FETCH_FIRST.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value of 0 is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value of 1 is equivalent to a OCI_FETCH_FIRST.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value of 0 is equivalent to a OCI_FETCH_CURRENT.
  
-  OCI_FETCH_RELATIVE, and a fetch offset value of 0 is equlivaint to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value of 1 is equlivaint to a OCI_FETCH_NEXT.
-  OCI_FETCH_RELATIVE, and a fetch offset value of -1 is equlivaint to a OCI_FETCH_PRIOR.
+  OCI_FETCH_RELATIVE, and a fetch offset value of 0 is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value of 1 is equivalent to a OCI_FETCH_NEXT.
+  OCI_FETCH_RELATIVE, and a fetch offset value of -1 is equivalent to a OCI_FETCH_PRIOR.
 
 The effect that a ora_fetch_scroll method call has on the current_positon attribute is detailed below.
 
   OCI_FETCH_CURRENT, has no effect on the current_positon attribute.
   OCI_FETCH_NEXT, increments current_positon attribute by 1
-  OCI_FETCH_NEXT, when at the last row in the record set does not change current_positon attribute, it is equlivaint to a OCI_FETCH_CURRENT..
+  OCI_FETCH_NEXT, when at the last row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT..
 . OCI_FETCH_FIRST, sets the current_positon attribute to 1.
   OCI_FETCH_LAST, sets the current_positon attribute to the total number of rows in the record set.
-  OCI_FETCH_PRIOR, deccrements current_positon attribute by 1.
-  OCI_FETCH_PRIOR, when at the first row in the record set does not change current_positon attribute, it is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_PRIOR, decrements current_positon attribute by 1.
+  OCI_FETCH_PRIOR, when at the first row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
   OCI_FETCH_ABSOLUTE, sets the current_positon attribute to the fetch offest value.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 does not change current_positon attribute, it is equlivaint to a OCI_FETCH_CURRENT.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set, does not change current_positon attribute, it is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set, does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
   OCI_FETCH_RELATIVE, sets the current_positon attribute to (current_positon attribute + fetch offset value).
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes the current position less than 1, does not change fetch offest value so it is equlivaint to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, does not change fetch offest value so it is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes the current position less than 1, does not change fetch offest value so it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, does not change fetch offest value so it is equivalent to a OCI_FETCH_CURRENT.
 
 The effects of the differing orientation constants on the first fetch (current_postion attribute at 0) are as follows.
 
   OCI_FETCH_CURRENT, dose not fetch a row or change the current_positon attribute.
   OCI_FETCH_FIRST, fetches row 1 and sets the current_positon attribute to 1.
   OCI_FETCH_LAST, fetches the last row in the record set and sets the current_positon attribute to the total number of rows in the record set.
-  OCI_FETCH_NEXT, equlivaint to a OCI_FETCH_FIRST.
-  OCI_FETCH_PRIOR, equlivaint to a OCI_FETCH_CURRENT.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 is equlivaint to a OCI_FETCH_CURRENT.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set is equlivaint to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value that is less than 1 is equlivaint to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, is equlivaint to a OCI_FETCH_CURRENT.
+  OCI_FETCH_NEXT, equivalent to a OCI_FETCH_FIRST.
+  OCI_FETCH_PRIOR, equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that is less than 1 is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, is equivalent to a OCI_FETCH_CURRENT.
   
 =back
 
@@ -2701,7 +2701,7 @@ The current_positon attribute will be 6 after this snippet.
    $sth->finish();
    
 When using scrollable cursors it is required that you use the $sth->finish() method when you are done with the cursor as this type of
-cursor has to be explicitly canceled on the server. If you do not do this you may cause resource problems on your database.  
+cursor has to be explicitly cancelled on the server. If you do not do this you may cause resource problems on your database.  
 
 =back
 
@@ -2716,17 +2716,19 @@ Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improve
 In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle® Call Interface Programmer's Guide,
 suggests a good row cache value for a scrollable cursor is about 20% of expected size of the record set. 
 If the ora_prefetch_memory less than 1 or not present then memory size is not included in computing the 
-number of rows to prefetch otherwise the number of rows will be limited to memory size. Likesise if the RowCacheSize is less than 1 it
+number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
 is not included in the computing of the prefetch rows.  
 
-With large record sets it is best 
+With large record sets it is best not to attempt to go to the last record as this may take some time. If one requires only the
+first few rows there is no need to set a large prefetch value. If you must get the number of rows in a large record set you might
+try using an few large OCI_FETCH_ABSOLUTEs and then an OCI_FETCH_LAST, this might save some time.
 
 =head1 Data Interface for Persistent LOBs
 
 Oracle 10.2 and later extended the OCI API work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
-a as LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
+a LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
 you would use on other datatypes that store character or binary data. There are fewer round trips to the server as no 'LOB Locators' are
-used, normally one can get an entire LOB is a single round trip. The data interface only supports data of size less than 2 GB.
+used, normally one can get an entire LOB is a single round trip. The data interface only supports LOBs of size less than 2 GB.
 
 =head2 Simple Usage
 
@@ -2784,8 +2786,8 @@ To bind for updates and inserts all that is required to use this interface is to
 
 =head2 Support for Remote Lobs;
 
-The data interface for Persistent LOBs also supports remote LOBs (access over a dblink).
-Given a database called lob_test that has a link defined like this
+The data interface for Persistent LOBs also supports remote LOBs (access over a dblink). Given a database called 
+lob_test that has a link defined like this
 
   create database link link_test connect to test_lobs identified by tester using 'lob_test';
   
@@ -2813,14 +2815,19 @@ Below are the limitations of Remote Lobs;
 
 so the following return an error:
 
-  SELECT t1.lobcol, a2.lobcol FROM t1, t2.lobcol@dbs2 a2 WHERE 
-  LENGTH(t1.lobcol) = LENGTH(a2.lobcol);
+  SELECT t1.lobcol, 
+  	 a2.lobcol 
+    FROM t1, 
+         t2.lobcol@dbs2 a2 W
+   WHERE LENGTH(t1.lobcol) = LENGTH(a2.lobcol);
   
 or 
 
-  SELECT t1.lobcol FROM t1@dbs1
+     SELECT t1.lobcol 
+       FROM t1@dbs1
   UNION ALL
-  SELECT t2.lobcol FROM t2@dbs2;
+     SELECT t2.lobcol 
+       FROM t2@dbs2;
 
 =item DDL commands are not supported;
 
@@ -2828,7 +2835,9 @@ so the following returns an error:
 
   CREATE VIEW v AS SELECT lob_col FROM tab@dbs;  
 
-=item Only binds and defines for data going into remote persistent LOBs are supported So that parameter passing in PL/SQL where CHAR data is bound or defined for remote LOBs is not allowed . 
+=item Only binds and defines for data going into remote persistent LOBs are supported. 
+
+so that parameter passing in PL/SQL where CHAR data is bound or defined for remote LOBs is not allowed . 
 
 These statements all produce errors:
 
@@ -2853,23 +2862,26 @@ so the following would not work:
 so the following returns an error:
 
   SELECT t1.lobcol as test, a2.lobcol FROM t1, t2.lobcol@dbs2 a2 RETURNING test
-    
-=head2 Caviats
+  
+=back
+
+=head2 Caveats
 
 So far this is relatively new technology and this is a first attempt to incorporate it into DBD::ORCALE so 
 please report any problems you may have with it.
 
-As well there seems to be some issues with retrieving LOBs that have been truncated, weather this is an Oracle version/patch issue or 
-a DBI/DBD::Oracle issue has yet to be determined. If you encounter "ORA-24345 A Truncation or null fetch error occurred" error try 
-increasing the size of LongReadLen to see if it fixes the problems.
+As well there seems to be some issues with retrieving LOBs that have been truncated, It has yet to be determined if this is  Oracle version/patch 
+issue or a DBI/DBD::Oracle issue. 
+
+If you encounter "ORA-24345 A Truncation or null fetch error occurred" error try increasing the size of LongReadLen to see if it fixes the problem.
 
 Not all of the interface has been implemented yet, the following are not supported yet;
+
+=over 4
 
 =item Piecewise, and callback binds for INSERT and UPDATE operations.
 
 =item Array binds for INSERT and UPDATE operations.
-
-=item Raw and LONG RAW datatypes.
 
 =head1 Handling LOBs
 

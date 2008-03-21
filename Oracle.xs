@@ -117,14 +117,11 @@ ora_fetch_scroll(sth,fetch_orient,fetch_offset)
     CODE:
     {
     AV *av;
-  /*  SV **svp;
-    if (fetch_orient){
-    	fetch_orient = OCI_FETCH_NEXT;
-    }
-    sb4 fetch_offset = 0;
-    DBD_ATTRIB_GET_IV(  attribs, "fetch_orient",12, svp, fetch_orient);
-    DBD_ATTRIB_GET_IV(  attribs, "fetch_offset",12, svp, fetch_offset);*/
-    imp_sth->fetch_orient=fetch_orient;
+    if (!SvROK(fetch_orient) || SvTYPE(SvRV(fetch_orient)) != SVt_IV)
+		croak("fetch_orient must be an integer");
+    if (!SvROK(fetch_offset) || SvTYPE(SvRV(fetch_offset)) != SVt_IV)
+		croak("fetch_offset must be an integer");
+   	imp_sth->fetch_orient=fetch_orient;
     imp_sth->fetch_offset=fetch_offset;
     av = dbd_st_fetch(sth,imp_sth);
     ST(0) = (av) ? sv_2mortal(newRV((SV *)av)) : &PL_sv_undef;
