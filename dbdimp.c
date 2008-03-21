@@ -799,6 +799,7 @@ dbd_db_commit(SV *dbh, imp_dbh_t *imp_dbh)
 int
 dbd_st_cancel(SV *sth, imp_sth_t *imp_sth)
 {
+	dTHX;
     sword status;
     status = OCIBreak(imp_sth->svchp, imp_sth->errhp);
     if (status != OCI_SUCCESS) {
@@ -809,7 +810,7 @@ dbd_st_cancel(SV *sth, imp_sth_t *imp_sth)
      /* if we are using a scrolling cursor we should get rid of the
 	    cursor by fetching row 0 */
 	if (imp_sth->exe_mode==OCI_STMT_SCROLLABLE_READONLY){
-			OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0,OCI_FETCH_NEXT,0,  status);
+		OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0,OCI_FETCH_NEXT,0,  status);
 	}
     return 1;
 }
