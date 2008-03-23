@@ -2443,8 +2443,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				PerlIO_printf(DBILOGFP,"    Scrolling Fetch, postion before fetch=%d, Orientation = %s , Fetchoffset =%d\n",
 					imp_sth->fetch_position,oci_fetch_options(imp_sth->fetch_orient),imp_sth->fetch_offset);
 
-			OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1, imp_sth->fetch_orient,imp_sth->fetch_offset, status);
-			OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->fetch_position, 0, OCI_ATTR_CURRENT_POSITION, status);
+				OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1, imp_sth->fetch_orient,imp_sth->fetch_offset, status);
 
 			if (DBIS->debug >= 4)
 				PerlIO_printf(DBILOGFP,"    Scrolling Fetch, postion after fetch=%d\n",imp_sth->fetch_position);
@@ -2453,6 +2452,10 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1, (ub2)OCI_FETCH_NEXT, 0, status);
 
 		}
+
+		/*this will work without a round trip so might as well open it up for all statments handles*/
+		/* defualt and OCI_FETCH_NEXT are the same so this avoids miscaluation on the next value*/
+		OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->fetch_position, 0, OCI_ATTR_CURRENT_POSITION, status);
 
     }
 

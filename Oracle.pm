@@ -2751,9 +2751,8 @@ For example give this table;
 this code;
 
    $dbh->{LongReadLen} = 2*1024*1024; #2 meg
-   $sth=$dbh->prepare($sql,{ora_pers_lob=>1});
    $sql='select p_id,lob_1,lob_2,blob_2 from test_lobs';
-   $sth=$dbh->prepare($sql,{ora_pers_lob=>1,ora_check_sql=>0});
+   $sth=$dbh->prepare($sql,{ora_pers_lob=>1});
    $sth->execute();
    while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
      print "p_id=".$p_id."\n";
