@@ -2723,6 +2723,23 @@ With large record sets it is best not to attempt to go to the last record as thi
 first few rows there is no need to set a large prefetch value. If you must get the number of rows in a large record set you might
 try using an few large OCI_FETCH_ABSOLUTEs and then an OCI_FETCH_LAST, this might save some time.
 
+
+Setting Prefetch Count
+
+In order to minimize server round trips and optimize the performance, the OCI can prefetch result set rows when executing a query. You can customize this prefetching by setting either the OCI_ATTR_PREFETCH_ROWS or OCI_ATTR_PREFETCH_MEMORY attribute of the statement handle using the OCIAttrSet() function. These attributes are used as follows:
+
+    *
+
+      OCI_ATTR_PREFETCH_ROWS sets the number of rows to be prefetched. If it is not set, then the default value is 1. If the iters parameter of OCIStmtExecute() is 0 and prefetching is enabled, the rows are buffered during calls to OCIStmtFetch2(). The prefetch value can be altered after execution and between fetches.
+    *
+
+      OCI_ATTR_PREFETCH_MEMORY sets the memory allocated for rows to be prefetched. The application then fetches as many rows as will fit into that much memory.
+
+When both of these attributes are set, the OCI prefetches rows up to the OCI_ATTR_PREFETCH_ROWS limit unless the OCI_ATTR_PREFETCH_MEMORY limit is reached, in which case the OCI returns as many rows as will fit in a buffer of size OCI_ATTR_PREFETCH_MEMORY.
+
+By default, prefetching is turned on, and the OCI fetches an extra row all the time. To turn prefetching off, set both the OCI_ATTR_PREFETCH_ROWS and OCI_ATTR_PREFETCH_MEMORY attributes to zero.
+
+
 =head1 Data Interface for Persistent LOBs
 
 Oracle 10.2 and later extended the OCI API work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
