@@ -2515,7 +2515,7 @@ statement handle to 'OCI_STMT_SCROLLABLE_READONLY' with the prepare method;
 
 When the statement is executed you will then be able to use ora_fetch_scroll method to get a row
 or you can still use any of the other fetch methods but with a poorer response time than if you used a 
-non-scrolling cursor.
+non-scrolling cursor. As well scrollable cursors are compatible with any applicable bind methods.
 
 =head2 Scrollable Cursor Methods
 
@@ -2746,6 +2746,14 @@ Oracle 10.2 and later extended the OCI API work directly with LOB datatypes. In 
 a LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
 you would use on other datatypes that store character or binary data. There are fewer round trips to the server as no 'LOB Locators' are
 used, normally one can get an entire LOB is a single round trip. The data interface only supports LOBs of size less than 2 GB.
+
+
+I believe it works more like your first option.
+
+Prefetch tells the OCI layer to grab x rows at a time whenever it has to grab more rows, and to buffer those rows on the client side. When your application requests rows, it can select 1 row at a time (for simplicity of program logic) and get that row from the cache OCI has on the client, rather than incurring the overhead of going to the database for each row. If your application requests rows that have already been fetched by OCI, it will get those rows. If your application requests rows that OCI has not already fetched, OCI will grab x rows from the server and then fulfill your request.
+
+I'm assuming in the above discussion that your application is fetching fewer than x (prefetch size) records, since that's the case 99% of the time. I would assume that if your application fethes 2x records, that would be done in a single database round-trip rather than 2 round-trips, but I'm not sure of that.
+
 
 =head2 Simple Usage
 
