@@ -1379,8 +1379,8 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 		if (typecode == OCI_TYPECODE_TIMESTAMP_TZ || typecode == OCI_TYPECODE_TIMESTAMP_LTZ){
 			char s_tz_hour[3]="000";
 			char s_tz_min[3]="000";
-            sb1 tz_hour;
-  		    sb1 tz_minute;
+            ub1 tz_hour;
+  		    ub1 tz_minute;
 			status = OCIDateTimeGetTimeZoneOffset (fbh->imp_sth->envhp,
 			                                     fbh->imp_sth->errhp,
 			                                     *(OCIDateTime**)attr_value,
