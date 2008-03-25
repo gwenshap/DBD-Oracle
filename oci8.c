@@ -1388,12 +1388,12 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
                                     &tz_minute );
 
             if (  (tz_hour<0) && (tz_hour>-10) ){
-               sprintf(s_tz_hour," %03ld",tz_hour);
+               sprintf(s_tz_hour," %03d",tz_hour);
             } else {
-               sprintf(s_tz_hour," %02ld",tz_hour);
+               sprintf(s_tz_hour," %02d",tz_hour);
             }
 
-            sprintf(s_tz_min,":%02ld",tz_minute);
+            sprintf(s_tz_min,":%02d",tz_minute);
             strcat(str_buf,s_tz_hour);
             strcat(str_buf, s_tz_min);
             str_buf[str_len+7] = '\0';

@@ -765,14 +765,14 @@ dbd_db_login6_out:
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
     if (shared_dbh_ssv && !shared_dbh) {
 	/* much of this could be replaced with a single sv_setpvn() */
-	SvUPGRADE(shared_dbh_priv_sv, SVt_PV) ;
-	SvGROW(shared_dbh_priv_sv, sizeof(imp_dbh_t) + 1) ;
-	SvCUR (shared_dbh_priv_sv) = sizeof(imp_dbh_t) ;
-	imp_dbh->refcnt = 1 ;
-	imp_dbh->shared_dbh_priv_sv = shared_dbh_priv_sv ;
-	memcpy(SvPVX(shared_dbh_priv_sv) + DBH_DUP_OFF, ((char *)imp_dbh) + DBH_DUP_OFF, DBH_DUP_LEN) ;
-	SvSETMAGIC(shared_dbh_priv_sv);
-	imp_dbh->shared_dbh = (imp_dbh_t *)SvPVX(shared_dbh_ssv->sv);
+		SvUPGRADE(shared_dbh_priv_sv, SVt_PV) ;
+		SvGROW(shared_dbh_priv_sv, sizeof(imp_dbh_t) + 1) ;
+		SvCUR (shared_dbh_priv_sv) = sizeof(imp_dbh_t) ;
+		imp_dbh->refcnt = 1 ;
+		imp_dbh->shared_dbh_priv_sv = shared_dbh_priv_sv ;
+		memcpy(SvPVX(shared_dbh_priv_sv) + DBH_DUP_OFF, ((char *)imp_dbh) + DBH_DUP_OFF, DBH_DUP_LEN) ;
+		SvSETMAGIC(shared_dbh_priv_sv);
+		imp_dbh->shared_dbh = (imp_dbh_t *)SvPVX(shared_dbh_ssv->sv);
     }
 #endif
 
