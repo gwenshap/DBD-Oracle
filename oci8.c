@@ -1394,8 +1394,8 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
             }
 
             sprintf(s_tz_min,":%02d",(unsigned) tz_minute);
-            strcat(str_buf,(char *) s_tz_hour);
-            strcat(str_buf, (char *) s_tz_min);
+            strcat(str_buf, s_tz_hour);
+            strcat(str_buf, s_tz_min);
             str_buf[str_len+7] = '\0';
 
 		} else {
@@ -1578,7 +1578,7 @@ id only shows you examples with the C struct built in and only a single record. 
 				case OCI_TYPECODE_VARRAY :                    /* variable array */
                		fld = &obj->fields[0]; /*get the field */
               		OCIIterCreate_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
-                       (CONST OCIColl*) value, &itr,status);
+                         (CONST OCIColl*) value, &itr,status);
 
 					if (status != OCI_SUCCESS) {
 						/*not really an error just no data
@@ -2339,7 +2339,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		    imp_sth->errhp,
 		    (ub4) i,
 		    (fbh->desc_h) ? (dvoid*)&fbh->desc_h : (dvoid*)fb_ary->abuf,
-		    (fbh->desc_h) ?                   -1 :         define_len,
+		    (fbh->desc_h) ?                   0 :         define_len,
 		    (ub2)fbh->ftype,
 		    fb_ary->aindp,
 		    (ftype==94||ftype==95) ? NULL : fb_ary->arlen,
