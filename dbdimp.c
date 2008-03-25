@@ -2747,18 +2747,6 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 		    }
 		}
 	}
-/*    if( SvROK(newvalue) ){
-		if( SvTYPE(SvRV(newvalue))!=SVt_PVAV ){
-
-/*		    if(  (phs->ftype == ORA_VARCHAR2_TABLE) ||
-		         (phs->ftype == ORA_NUMBER_TABLE)) {
-			/* Supported *
-		    }else{*/
-				/* All the other types are not supported
-				croak("Array bind is supported only for ORA_%_TABLE types. Unable to bind '%s'.",phs->name);
-		    /*}
-		}*./
-
 
 	/* Add checks for other reference types here ? */
 

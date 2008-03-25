@@ -130,8 +130,6 @@ ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
     SV *	av_ref
     IV 		maxlen
     SV *	attribs
-    PREINIT:
-    D_imp_sth(sth);
     CODE:
     {
     IV sql_type = 0;
