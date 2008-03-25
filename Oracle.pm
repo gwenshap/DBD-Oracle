@@ -2712,48 +2712,33 @@ Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improve
 
    $dbh->{RowCacheSize} = 10;
    $sth=$dbh->prepare($sql,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>10000});
-
+   
 In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle® Call Interface Programmer's Guide,
 suggests a good row cache value for a scrollable cursor is about 20% of expected size of the record set. 
+
+The prefetch settings tell the DBD::Oracle to grab x rows (or x-bytes) when it needs to get new rows. This happens on the first 
+fetch that sets the current_positon to any value other than 0. In the above example if we do a OCI_FETCH_FIRST the first 10 rows are
+loaded into the buffer and DBD::Oracle will not have to go back to the server for more rows. When record 11 is fetched DBD::Oracle
+fetches and returns this row and the next 9 rows are loaded into the buffer. In this case if you fetch backwards from 10 to 1 
+no server round trips are made.
+
+With large record sets it is best not to attempt to go to the last record as this may take some time, A large buffer size might even slow down
+the fetch. If you must get the number of rows in a large record set you might
+try using an few large OCI_FETCH_ABSOLUTEs and then an OCI_FETCH_LAST, this might save some time. If one requires only the first few rows 
+there is no need to set a large prefetch value.  So if you had a record set of 10000 rows and you set the buffer to 5000 and did a OCI_FETCH_LAST 
+one would fetch the first 5000 rows into the buffer then the next 5000 rows.  
+
 If the ora_prefetch_memory less than 1 or not present then memory size is not included in computing the 
 number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
 is not included in the computing of the prefetch rows.  
-
-With large record sets it is best not to attempt to go to the last record as this may take some time. If one requires only the
-first few rows there is no need to set a large prefetch value. If you must get the number of rows in a large record set you might
-try using an few large OCI_FETCH_ABSOLUTEs and then an OCI_FETCH_LAST, this might save some time.
-
-
-Setting Prefetch Count
-
-In order to minimize server round trips and optimize the performance, the OCI can prefetch result set rows when executing a query. You can customize this prefetching by setting either the OCI_ATTR_PREFETCH_ROWS or OCI_ATTR_PREFETCH_MEMORY attribute of the statement handle using the OCIAttrSet() function. These attributes are used as follows:
-
-    *
-
-      OCI_ATTR_PREFETCH_ROWS sets the number of rows to be prefetched. If it is not set, then the default value is 1. If the iters parameter of OCIStmtExecute() is 0 and prefetching is enabled, the rows are buffered during calls to OCIStmtFetch2(). The prefetch value can be altered after execution and between fetches.
-    *
-
-      OCI_ATTR_PREFETCH_MEMORY sets the memory allocated for rows to be prefetched. The application then fetches as many rows as will fit into that much memory.
-
-When both of these attributes are set, the OCI prefetches rows up to the OCI_ATTR_PREFETCH_ROWS limit unless the OCI_ATTR_PREFETCH_MEMORY limit is reached, in which case the OCI returns as many rows as will fit in a buffer of size OCI_ATTR_PREFETCH_MEMORY.
-
-By default, prefetching is turned on, and the OCI fetches an extra row all the time. To turn prefetching off, set both the OCI_ATTR_PREFETCH_ROWS and OCI_ATTR_PREFETCH_MEMORY attributes to zero.
-
 
 =head1 Data Interface for Persistent LOBs
 
 Oracle 10.2 and later extended the OCI API work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
 a LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
 you would use on other datatypes that store character or binary data. There are fewer round trips to the server as no 'LOB Locators' are
-used, normally one can get an entire LOB is a single round trip. The data interface only supports LOBs of size less than 2 GB.
-
-
-I believe it works more like your first option.
-
-Prefetch tells the OCI layer to grab x rows at a time whenever it has to grab more rows, and to buffer those rows on the client side. When your application requests rows, it can select 1 row at a time (for simplicity of program logic) and get that row from the cache OCI has on the client, rather than incurring the overhead of going to the database for each row. If your application requests rows that have already been fetched by OCI, it will get those rows. If your application requests rows that OCI has not already fetched, OCI will grab x rows from the server and then fulfill your request.
-
-I'm assuming in the above discussion that your application is fetching fewer than x (prefetch size) records, since that's the case 99% of the time. I would assume that if your application fethes 2x records, that would be done in a single database round-trip rather than 2 round-trips, but I'm not sure of that.
-
+used, normally one can get an entire LOB is a single round trip. The data interface is suppose to supports LOBs of any size less than 2 GB,
+however it seems there is an pratical limit of about 15mb which may be an operating system limitation.
 
 =head2 Simple Usage
 
@@ -2763,7 +2748,8 @@ No special methods are needed to use this interface. To do a simple select state
   use DBD::Oracle qw(:ora_types);
   
 and ensure the set statement handle's prepare method "ora_pers_lob" attribute is set to '1' and the database 
-handle's 'LongReadLen' attribute is set to a value that will exceed the expected size of the LOB. 
+handle's 'LongReadLen' attribute is set to a value that will exceed the expected size of the LOB. If the size of the lob excedes this then DBD::Oracle
+will return a 'ORA-24345: A Truncation' error.  To stop this set the handle's LongTruncOk attribute to '1'.
 
 For example give this table;
 
@@ -2775,19 +2761,23 @@ For example give this table;
 
 this code;
 
-   $dbh->{LongReadLen} = 2*1024*1024; #2 meg
-   $sql='select p_id,lob_1,lob_2,blob_2 from test_lobs';
-   $sth=$dbh->prepare($sql,{ora_pers_lob=>1});
-   $sth->execute();
-   while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
-     print "p_id=".$p_id."\n";
-     print "clob1=".$clob1."\n";
-     print "clob2=".$clob2."\n";
-     print "blob1=".$blob2."\n";
-     print "blob2=".$blob2."\n";
+  $dbh->{LongReadLen} = 2*1024*1024; #2 meg
+  $sql='select p_id,lob_1,lob_2,blob_2 from test_lobs';
+  $sth=$dbh->prepare($sql,{ora_pers_lob=>1});
+  $sth->execute();
+  while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
+    print "p_id=".$p_id."\n";
+    print "clob1=".$clob1."\n";
+    print "clob2=".$clob2."\n";
+    print "blob1=".$blob2."\n";
+    print "blob2=".$blob2."\n";
   }
 
-Will select out all of the LOBs in the table as long as they are all under 2 Megabytes in length.
+Will select out all of the LOBs in the table as long as they are all under 2MB in length longer lobs will throw a error. Addeing this line
+
+  $dbh->{LongTruncOk}=0;
+  
+before the execute will return all the lobs but they will only be a maximum of 2MB in size.
 
 =head2 Binding for Updates and Inserts
 
@@ -2807,6 +2797,8 @@ To bind for updates and inserts all that is required to use this interface is to
   $sth->bind_param(4,$in_blob,{ora_type=>SQLT_BIN});
   $sth->bind_param(5,$in_blob,{ora_type=>SQLT_BIN});
   $sth->execute();
+  
+So far the the only limit reached with this form of insert is the BLOBS mus be under 2GB in size.
 
 =head2 Support for Remote Lobs;
 
@@ -2894,10 +2886,7 @@ so the following returns an error:
 So far this is relatively new technology and this is a first attempt to incorporate it into DBD::ORCALE so 
 please report any problems you may have with it.
 
-As well there seems to be some issues with retrieving LOBs that have been truncated, It has yet to be determined if this is  Oracle version/patch 
-issue or a DBI/DBD::Oracle issue. 
-
-If you encounter "ORA-24345 A Truncation or null fetch error occurred" error try increasing the size of LongReadLen to see if it fixes the problem.
+If you are doing some critial progamming I would use the regular LOB functions as they are well tried.
 
 Not all of the interface has been implemented yet, the following are not supported yet;
 
@@ -2906,6 +2895,10 @@ Not all of the interface has been implemented yet, the following are not support
 =item Piecewise, and callback binds for INSERT and UPDATE operations.
 
 =item Array binds for INSERT and UPDATE operations.
+
+=item Piecewise and callback binds for SELECT operation.
+
+=back
 
 =head1 Handling LOBs
 

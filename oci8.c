@@ -1520,10 +1520,10 @@ the concept is simple really
  1. pin the object
  2. bind with dty = SQLT_NTY
  3. OCIDefineObject using the TDO
- 4. on fetech get the null indicator of the objcet with OCIObjectGetInd
-    The the obj_ind is for the entier object not the propertiesy so you call it once it
-    gets all of the indicators for the objects so you pass it into ociobjectgetattr and that
-    function will set attr_null_status in the get below.
+ 4. one gets the null indicator of the objcet with OCIObjectGetInd
+    The the obj_ind is for the entier object not the properties so you call it once it
+    gets all of the indicators for the objects so you pass it into OCIObjectGetAttr and that
+    function will set attr_null_status as in the get below.
  5. interate over the atributes of the object
 
 The thing to remember is that OCI and C have no way of representing a DB NULLs so we use the OCIInd find out
@@ -2326,6 +2326,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	  	fb_ary_t  *fb_ary;
 	   	fbh->fb_ary = fb_ary_alloc(define_len, 1);
 		fb_ary = fbh->fb_ary;
+
 
 		if (fbh->ftype == 116) { /* RSET */
 		    OCIHandleAlloc_ok(imp_sth->envhp,
