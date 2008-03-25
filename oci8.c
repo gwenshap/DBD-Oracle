@@ -1394,8 +1394,8 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
             }
 
             sprintf(s_tz_min,":%02d",(unsigned) tz_minute);
-            strcat(str_buf,s_tz_hour);
-            strcat(str_buf, s_tz_min);
+            strcat(str_buf,(unsigned) s_tz_hour);
+            strcat(str_buf, (unsigned) s_tz_min);
             str_buf[str_len+7] = '\0';
 
 		} else {
