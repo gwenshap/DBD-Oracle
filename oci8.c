@@ -1739,7 +1739,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
     D_imp_drh_from_dbh;
     int num_errors = 0;
     ub4 cache_mem=0;
-    ub4 cache_rows=10000;/* set high so memory is the limit */
+    sb4 cache_rows=10000;/* set high so memory is the limit */
     sword status;
 
     /* reworked this is little so the user can set up his own cache

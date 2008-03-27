@@ -93,7 +93,7 @@ struct imp_sth_st {
     UV        	long_readlen; 	/* local copy to handle oraperl	*/
     HV        	*fbh_tdo_hv;  	 /* hash of row #(0 based) and tdo object name from ora_oci_type_names hash */
      /* Select Row Cache Details */
-    int       	cache_rows;
+    sb4       	cache_rows;
     int       	in_cache;
     int       	next_entry;
     int       	eod_errno;
