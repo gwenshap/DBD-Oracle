@@ -1114,21 +1114,21 @@ connections over tnslistener on the same humble Netra 1 take an average
 of 10-20 milli seconds according to tnsping. If anyone knows how to
 make it better, please let me know!
 
- LISTENER =
-  (ADDRESS_LIST =
+  LISTENER =
+   (ADDRESS_LIST =
     (ADDRESS =
       (PROTOCOL = TCP)
       (Host = aa.bbb.cc.d)
       (Port = 1521)
       (QUEUESIZE=10)
     )
-  )
+   )
 
- STARTUP_WAIT_TIME_LISTENER = 0
- CONNECT_TIMEOUT_LISTENER = 10
- TRACE_LEVEL_LISTENER = OFF
- SID_LIST_LISTENER =
-  (SID_LIST =
+  STARTUP_WAIT_TIME_LISTENER = 0
+  CONNECT_TIMEOUT_LISTENER = 10
+  TRACE_LEVEL_LISTENER = OFF
+  SID_LIST_LISTENER =
+   (SID_LIST =
     (SID_DESC =
       (SID_NAME = xxxx)
       (ORACLE_HOME = /xxx/local/oracle7-3)
@@ -1136,8 +1136,8 @@ make it better, please let me know!
         (PRESPAWN_LIST=
         (PRESPAWN_DESC=(PROTOCOL=tcp) (POOL_SIZE=40) (TIMEOUT=120))
       )
-    )
-  )
+     )
+   )
 
 1) When the application is co-located on the host AND there is no need for
 outside SQLNet connectivity, stop the listener. You do not need it. Get
@@ -1188,20 +1188,23 @@ If it generates any errors which look relevant then please talk to your
 Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
 
-
 =head2 Constants
+
+=over 4
 
 =item :ora_session_modes
 
-  ORA_SYSDBA ORA_SYSOPER
+ORA_SYSDBA ORA_SYSOPER
 
 =item :ora_types
 
- ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
- ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
- ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
- SQLT_INT SQLT_FLT ORA_OCI SQLT_CHR SQLT_BIN
- 
+  ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE ORA_RAW
+  ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY ORA_CLOB ORA_BLOB 
+  ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE SQLT_INT SQLT_FLT ORA_OCI 
+  SQLT_CHR SQLT_BIN  
+
+=over 4
+
 =item SQLCS_IMPLICIT
 
 =item SQLCS_NCHAR
@@ -1236,22 +1239,22 @@ The contents and format of ORA_OCI are subject to change (it may,
 for example, become a I<version object> in later releases).
 I recommend that you avoid checking for exact values.
 
-=item ora_fetch_orient
+=back
 
-  OCI_FETCH_CURRENT OCI_FETCH_NEXT OCI_FETCH_FIRST 
-  OCI_FETCH_LAST OCI_FETCH_PRIOR OCI_FETCH_ABSOLUTE 
-  OCI_FETCH_RELATIVE 
-  
-These constants are used to set the orientaion of a fetch on a scrollable
-cursor.
+=item :ora_fetch_orient
 
-=ora_exe_modes;
+  OCI_FETCH_CURRENT OCI_FETCH_NEXT OCI_FETCH_FIRST OCI_FETCH_LAST
+  OCI_FETCH_PRIOR OCI_FETCH_ABSOLUTE OCI_FETCH_RELATIVE 
+
+These constants are used to set the orientaion of a fetch on a scrollable cursor.
+
+=item :ora_exe_modes
 
   OCI_STMT_SCROLLABLE_READONLY 
-  
+
 =head2 Connect Attributes
 
-=over 4
+=over4
 
 =item ora_session_mode
 
@@ -1318,12 +1321,12 @@ argument to DBI::connect.
 
 For example, if in ProC a connection is made like
 
-    EXEC SQL CONNECT 'user/pass@db' AT 'CONID';
+  EXEC SQL CONNECT 'user/pass@db' AT 'CONID';
 
 the connection may be used from DBI after running something like
 
-    my $dbh = DBI->connect("dbi:Oracle:CONID", "", "",
-                           { ora_use_proc_connection => 1 });
+  my $dbh = DBI->connect("dbi:Oracle:CONID", "", "",
+                        { ora_use_proc_connection => 1 });
 
 To disconnect, first call $dbh->disconnect(), then disconnect in ProC.
 
@@ -1358,13 +1361,9 @@ These attributes override the settings from environment variables.
   $dbh = DBI->connect ($dsn, $user, $passwd,
                        {ora_charset => 'AL32UTF8'});
 
-=back
-
 =head2 Database Handle Attributes
 
-=over 4
-
-=item C<ora_ph_type>
+=item ora_ph_type
 
 The default placeholder data type for the database session.
 The C<TYPE> or L</ora_type> attributes to L<DBI/bind_param> and
@@ -1401,11 +1400,9 @@ For example:
   
   $SQL="select username from all_users where username = ?";
   #username is a char(8)
-   
   $sth=$dbh->prepare($SQL)";
-   
   $sth->bind_param(1,'bloggs',{ ora_type => ORA_CHAR});
-   
+
 Will pad bloggs out to 8 characters and return the username.  
 
 =back
@@ -1466,6 +1463,11 @@ See L</Handling LOBs> for more details.
 See also the LOB tests in 05dbi.t of Oracle::OCI for examples
 of how to use LOB Locators.
 
+=item ora_pers_lob
+
+If 1 and your DBD::Oracle was built using OCI 10.2 or later the L<Data Interface for Persistent LOBs> will be
+used for LOBs.
+
 =item ora_check_sql
 
 If 1 (default), force SELECT statements to be described in prepare().
@@ -1477,7 +1479,7 @@ See L</Prepare postponed till execute> for more information.
 
 This will set the execute mode of the current statement. Presently only one mode is supported;
 
-   OCI_STMT_SCROLLABLE_READONLY - make result set scrollable
+  OCI_STMT_SCROLLABLE_READONLY - make result set scrollable
 
 See L</Scrollable Cursors> for more details.
 
@@ -1519,7 +1521,7 @@ Potentially useful values when DBD::Oracle was built using OCI 7 and later:
 Additional values when DBD::Oracle was built using OCI 8 and later:
 
   ORA_CLOB, ORA_BLOB, ORA_NTY, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE
-  
+
 Additional values when DBD::Oracle was built using OCI 10.2 and later:
 
   SQLT_CHR, SQLT_BIN 
@@ -2473,7 +2475,6 @@ $refresh parameter to it.
 
 =back
 
-
 =head1 Prepare postponed till execute
 
 The DBD::Oracle module can avoid an explicit 'describe' operation
@@ -2489,6 +2490,7 @@ use of $sth->{NAME} or a similar attribute and the describe fails then
 I<an exception is thrown> even if C<RaiseError> is false!
 
 Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
+
 
 =head1 Scrollable Cursors
 
@@ -2508,6 +2510,7 @@ However, LOBSs, CLOBSs, and BLOBs do work as do all the regular bind, and fetch 
 Only use scrollable cursors if you really have a good reason to. They do use up considerable 
 more server and client resources and have poorer response times than non-scrolling cursors.
 
+
 =head2 Enabling Scrollable Cursors
 
 To enable this functionality you must first import the 'Fetch Orientation' and the 'Execution Mode' constants by using;
@@ -2523,11 +2526,10 @@ When the statement is executed you will then be able to use 'ora_fetch_scroll' m
 or you can still use any of the other fetch methods but with a poorer response time than if you used a 
 non-scrolling cursor. As well scrollable cursors are compatible with any applicable bind methods.
 
+
 =head2 Scrollable Cursor Methods
 
 The following driver-specific methods are used with scrollable cursors.
-
-=over 4
 
 =item ora_scroll_position
 
@@ -2541,7 +2543,7 @@ The minimum value will always be 1 after the first fetch. The maximum value will
 
   @ary =  $sth->ora_fetch_scroll($fetch_orient,$fetch_offset);
 
-Works the same as fetchrow_array method however, one passes in a "Fetch Orientation" constant and a fetch_offset 
+Works the same as fetchrow_array method however, one passes in a 'Fetch Orientation' constant and a fetch_offset 
 value which will then determine the row that will be fetched. It returns the row as a list containing the field values. 
 Null fields are returned as undef values in the list.
 
@@ -2557,7 +2559,7 @@ The valid orientation constant and fetch offest values combination are detailed 
 
   OCI_FETCH_ABSOLUTE, and a fetch offset value of 1 is equivalent to a OCI_FETCH_FIRST.
   OCI_FETCH_ABSOLUTE, and a fetch offset value of 0 is equivalent to a OCI_FETCH_CURRENT.
- 
+
   OCI_FETCH_RELATIVE, and a fetch offset value of 0 is equivalent to a OCI_FETCH_CURRENT.
   OCI_FETCH_RELATIVE, and a fetch offset value of 1 is equivalent to a OCI_FETCH_NEXT.
   OCI_FETCH_RELATIVE, and a fetch offset value of -1 is equivalent to a OCI_FETCH_PRIOR.
@@ -2566,8 +2568,8 @@ The effect that a ora_fetch_scroll method call has on the current_positon attrib
 
   OCI_FETCH_CURRENT, has no effect on the current_positon attribute.
   OCI_FETCH_NEXT, increments current_positon attribute by 1
-  OCI_FETCH_NEXT, when at the last row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT..
-. OCI_FETCH_FIRST, sets the current_positon attribute to 1.
+  OCI_FETCH_NEXT, when at the last row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT 
+  OCI_FETCH_FIRST, sets the current_positon attribute to 1.
   OCI_FETCH_LAST, sets the current_positon attribute to the total number of rows in the record set.
   OCI_FETCH_PRIOR, decrements current_positon attribute by 1.
   OCI_FETCH_PRIOR, when at the first row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
@@ -2589,126 +2591,120 @@ The effects of the differing orientation constants on the first fetch (current_p
   OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set is equivalent to a OCI_FETCH_CURRENT.
   OCI_FETCH_RELATIVE, and a fetch offset value that is less than 1 is equivalent to a OCI_FETCH_CURRENT.
   OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, is equivalent to a OCI_FETCH_CURRENT.
-  
-=back
 
 =head2 Scrollable Cursor Usage
 
 Given a simple code like this:
 
-   use DBI;
-   use DBD::Oracle qw(:ora_types :ora_fetch_orient :ora_exe_modes);
-   my $dbh = DBI->connect($dsn, $dbuser, '');
-   my $SQL = "select id,
+  use DBI;
+  use DBD::Oracle qw(:ora_types :ora_fetch_orient :ora_exe_modes);
+  my $dbh = DBI->connect($dsn, $dbuser, '');
+  my $SQL = "select id,
                      first_name,
                      last_name
                 from employee";
-   my $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY});
-   $sth->execute();
-   my $value;
+  my $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY});
+  $sth->execute();
+  my $value;
 
 and one assumes that the number of rows returned from the query is 20, the code snippets below will illustrate the use of ora_fetch_scroll
 method;
 
-=over 4
-
 =item Fetching the Last Row
 
-   $value =  $sth->ora_fetch_scroll(OCI_FETCH_LAST,0);
-   print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_LAST,0);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
 
 The current_positon attribute to will be 20 after this snippet.  This is also a way to get the number of rows in the record set, however,
 if the record set is large this could take some time. 
 
 =item Fetching the Current Row
 
-   $value =  $sth->ora_fetch_scroll(OCI_FETCH_CURRENT,0);
-   print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_CURRENT,0);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
 
 The current_positon attribute will still be 20 after this snippet.
 
 =item Fetching the First Row
 
-   $value =  $sth->ora_fetch_scroll(OCI_FETCH_FIRST,0);
-   print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_FIRST,0);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
 
 The current_positon attribute will be 1 after this snippet.
 
 =item Fetching the Next Row
 
-   for(my $i=0;$i<=3;$i++){
-      $value =  $sth->ora_fetch_scroll(OCI_FETCH_NEXT,0);
-      print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   }
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
+  for(my $i=0;$i<=3;$i++){
+     $value =  $sth->ora_fetch_scroll(OCI_FETCH_NEXT,0);
+     print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  }
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
 
-The current_positon attribute will be 5 after this snippet.   
+The current_positon attribute will be 5 after this snippet.
 
 =item Fetching the Prior Row
 
-   for(my $i=0;$i<=3;$i++){
-      $value =  $sth->ora_fetch_scroll(OCI_FETCH_PRIOR,0);
-      print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   }
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
+  for(my $i=0;$i<=3;$i++){
+     $value =  $sth->ora_fetch_scroll(OCI_FETCH_PRIOR,0);
+     print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  }
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
 
-The current_positon attribute will be 1 after this snippet.   
+The current_positon attribute will be 1 after this snippet.
 
 =item Fetching the 10th Row
 
-   $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,10);
-   print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,10);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
 
-The current_positon attribute will be 10 after this snippet.   
-   
+The current_positon attribute will be 10 after this snippet.
+
 =item Fetching the 10th to 14th Row
 
-   for(my $i=10;$i<15;$i++){
+  for(my $i=10;$i<15;$i++){
       $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,$i);
       print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   }
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
+  }
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
 
-The current_positon attribute will be 14 after this snippet.   
-   
+The current_positon attribute will be 14 after this snippet.
+
 =item Fetching the 14th to 10th Row
 
-   for(my $i=14;$i>9;$i--){
-      $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,$i);
-      print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   }
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
+  for(my $i=14;$i>9;$i--){
+    $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,$i);
+    print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  }
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
 
-The current_positon attribute will be 10 after this snippet.   
+The current_positon attribute will be 10 after this snippet.
 
-=item Fetching the 5th Row From the Present position
+=item Fetching the 5th Row From the Present Position.
 
-   $value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,5);
-   print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,5);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
 
-The current_positon attribute will be 15 after this snippet.   
-   
-=item Fetching the 9th Row Prior From the Present position
+The current_positon attribute will be 15 after this snippet.
 
-   $value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,-9);
-   print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
-   print "current scroll position=".$sth->ora_scroll_position()."\n";
+=item Fetching the 9th Row Prior From the Present Position
+
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,-9);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
 
 The current_positon attribute will be 6 after this snippet.   
-   
+
 =item Use Finish
 
-   $sth->finish();
-   
+  $sth->finish();
+
 When using scrollable cursors it is required that you use the $sth->finish() method when you are done with the cursor as this type of
 cursor has to be explicitly cancelled on the server. If you do not do this you may cause resource problems on your database.  
-
-=back
 
 =head2 Prefetching Rows
 
@@ -2801,9 +2797,9 @@ To bind for updates and inserts all that is required to use this interface is to
   $sth->bind_param(5,$in_blob,{ora_type=>SQLT_BIN});
   $sth->execute();
   
-So far the only limit reached with this form of insert is the BLOBS must be under 2GB in size.
+So far the only limit reached with this form of insert is the BLOBs must be under 2GB in size.
 
-=head2 Support for Remote Lobs;
+=head2 Support for Remote LOBs;
 
 The data interface for Persistent LOBs also supports remote LOBs (access over a dblink). Given a database called 'lob_test' that has a 'LINK' defined like this;
 
@@ -2825,9 +2821,7 @@ to a remote database called 'test_lobs', the following code will work;
      print "blob2=".$blob2."\n";
   }
   
-Below are the limitations of Remote Lobs;
-
-=over 4
+Below are the limitations of Remote LOBs;
 
 =item Queries involving more than one database are not supported;
 
@@ -2869,18 +2863,21 @@ These statements all produce errors:
 
   CREATE VIEW v AS SELECT foo() FROM ...
 
-so the following would not work:
+the following would not work:
 
   SELECT * FROM v@dbs2;
 
-=item PL/SQL parameter passing is not allowed where the actual argument is a LOB type and the remote argument is one of VARCHAR2, NVARCHAR2, CHAR, NCHAR, or RAW.
-  
+=item Limited PL/SQL parameter passing
+
+PL/SQL parameter passing is not allowed where the actual argument is a LOB type
+and the remote argument is one of VARCHAR2, NVARCHAR2, CHAR, NCHAR, or RAW.
+
 =item RETURNING INTO does not support implicit conversions between CHAR and CLOB.
-  
+
 so the following returns an error:
 
   SELECT t1.lobcol as test, a2.lobcol FROM t1, t2.lobcol@dbs2 a2 RETURNING test
-  
+
 =back
 
 =head2 Caveats
@@ -2890,17 +2887,12 @@ please report any problems you may have with it.
 
 If you are doing some critical programming I would use the regular LOB functions as they are well tried.
 
-Note all of the interface has been implemented yet, the following are not supported;
+Not all of the interface has been implemented yet, the following are not supported;
 
-=over 4
+  1) Piecewise, and callback binds for INSERT and UPDATE operations.
+  2) Array binds for INSERT and UPDATE operations.
+  3) Piecewise and callback binds for SELECT operation.
 
-=item Piecewise, and callback binds for INSERT and UPDATE operations.
-
-=item Array binds for INSERT and UPDATE operations.
-
-=item Piecewise and callback binds for SELECT operation.
-
-=back
 
 =head1 Handling LOBs
 
