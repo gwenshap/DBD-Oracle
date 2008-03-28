@@ -1766,7 +1766,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 
 		cache_rows = calc_cache_rows(imp_sth->cache_rows,(int)num_fields, imp_sth->est_width, has_longs);
 
-		if (max_cache_rows && cache_rows > (unsigned long) max_cache_rows)
+		if (max_cache_rows && cache_rows > (signed long) max_cache_rows)
 		    cache_rows = max_cache_rows;
 
 		imp_sth->cache_rows = cache_rows;	/* record updated value */
@@ -1775,7 +1775,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
     else {				/* set cache size by memory	*/
     					/* not sure if we ever reach this*/
 		cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
-		if (max_cache_rows &&  cache_rows > (unsigned long) max_cache_rows) {
+		if (max_cache_rows &&  cache_rows > (signed long) max_cache_rows) {
 		    cache_rows = max_cache_rows;
 		    imp_sth->cache_rows = cache_rows;	/* record updated value only if max_cache_rows */
 		}
