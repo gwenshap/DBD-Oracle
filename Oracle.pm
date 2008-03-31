@@ -1254,7 +1254,7 @@ These constants are used to set the orientaion of a fetch on a scrollable cursor
 
 =head2 Connect Attributes
 
-=over4
+=over 4
 
 =item ora_session_mode
 

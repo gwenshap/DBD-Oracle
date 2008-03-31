@@ -230,6 +230,7 @@ OCIStmtBindByName
 OCIStmtBindByPos
 OCIStmtExecute
 OCIStmtFetch
+OCIStmtFetch2
 OCIStmtGetBindInfo
 OCIStmtGetPieceInfo
 OCIStmtPrepare

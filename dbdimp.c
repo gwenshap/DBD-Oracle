@@ -1063,7 +1063,7 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 
 
 
-  status=    OCIXMLTypeCreateFromSrc(imp_dbh->svchp,
+  status =    OCIXMLTypeCreateFromSrc(imp_dbh->svchp,
   				    imp_dbh->errhp,
   				    (OCIDuration)OCI_DURATION_CALLOUT,
   				    (ub1)src_type,
@@ -2861,8 +2861,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
     D_imp_dbh_from_sth;
     sword status;
     int is_select = (imp_sth->stmt_type == OCI_STMT_SELECT);
-    ub4 exe_mode  = imp_sth->exe_mode;
-
+  
 
     if (debug >= 2)
   	   PerlIO_printf(DBILOGFP, "    dbd_st_execute %s (out%d, lob%d)...\n",
@@ -3260,7 +3259,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 			if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
 		   		AV *av = (AV*)SvRV(sv);
 		   		I32 avlen = AvFILL(av);
-				for (j=0;j<=av_len(av);j++){
+				for (j=0;j<=avlen;j++){
 					SV *sv2 = *av_fetch(av, j, 1);
 					dbd_phs_avsv_complete(phs, j, debug);
 				}
