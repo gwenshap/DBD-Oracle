@@ -100,4 +100,20 @@ ub4	 ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *
 #define ORA_NUMBER_TABLE	202
 #define ORA_NTY			    108
 
+/* other Oracle not in noraml API defines
+
+most of these are largly undocumented XML functions that are in the API but not defined
+not noramlly found in the  defines the prototypes of OCI functions in most clients
+Normally can be found in ociap.h (Oracle Call Interface - Ansi Prototypes
+) and ocikp.h (functions in K&R style)
+
+They will be added when needed
+
+*/
+
+sword  OCIXMLTypeCreateFromSrc(/*_ OCISvcCtx *svchp, OCIError *errhp,
+                     OCIDuration dur, ub1 src_type, dvoid *src_ptr,
+                     sb4 ind, OCIXMLType **retInstance _*/);
+
+
 /* end of Oracle.h */

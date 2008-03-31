@@ -2295,8 +2295,8 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 
 	if (!phs->desc_h || 1) { /* XXX phs->desc_t != OCI_HTYPE_STMT) */
 	    if (phs->desc_h) {
-		OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);
-		phs->desc_h = NULL;
+			OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);
+			phs->desc_h = NULL;
 	    }
 	    phs->desc_t = OCI_HTYPE_STMT;
 	    OCIHandleAlloc_ok(imp_sth->envhp, &phs->desc_h, phs->desc_t, status);
@@ -2354,8 +2354,8 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 
 	/* force stmt_type since OCIAttrGet(OCI_ATTR_STMT_TYPE) doesn't work! */
 	imp_sth_csr->stmt_type = OCI_STMT_SELECT;
-
-	DBIc_IMPSET_on(imp_sth_csr);
+	imp_sth_csr->rs_array_on=1;	/* turn on array fetch for ref cursors */
+ 	DBIc_IMPSET_on(imp_sth_csr);
 
 	/* set ACTIVE so dbd_describe doesn't do explicit OCI describe */
 	DBIc_ACTIVE_on(imp_sth_csr);

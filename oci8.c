@@ -712,7 +712,7 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
     PUTBACK; FREETMPS; LEAVE;
 
     if (DBIS->debug >= 3)
-	PerlIO_printf(DBILOGFP,
+		PerlIO_printf(DBILOGFP,
 		"    fetch_func_rset - ... allocated %s for nested cursor\n",
                 		neatsvpv(dest_sv, 0));
 
@@ -727,14 +727,14 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
 	imp_sth_nested->stmhp = stmhp_nested;
 	imp_sth_nested->nested_cursor = 1;
-
-        imp_sth_nested->stmt_type = OCI_STMT_SELECT;
+	imp_sth_nested->rs_array_on = 1;
+	imp_sth_nested->stmt_type = OCI_STMT_SELECT;
 
 	DBIc_IMPSET_on(imp_sth_nested);
 	DBIc_ACTIVE_on(imp_sth_nested);  /* So describe won't do an execute */
 
-        if (!dbd_describe(dest_sv, imp_sth_nested))
-	    return 0;
+	if (!dbd_describe(dest_sv, imp_sth_nested))
+		return 0;
     }
 
     return 1;
@@ -1727,8 +1727,19 @@ fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 	return;
 }
 
-
-
+void rs_array_init(imp_sth_t *imp_sth)
+{
+	dTHX;
+	if (imp_sth->rs_array_on!=1 || imp_sth->rs_array_size<1 || imp_sth->rs_array_size>128){
+		imp_sth->rs_array_on=0;
+		imp_sth->rs_array_size=1;
+	}
+	imp_sth->rs_array_num_rows=0;
+	imp_sth->rs_array_idx=0;
+	imp_sth->rs_array_status=OCI_SUCCESS;
+	if (DBIS->debug >= 3)
+		PerlIO_printf(DBILOGFP, "    rs_array_init: rs_array_on=%d, rs_array_size=%d\n",imp_sth->rs_array_on,imp_sth->rs_array_size);
+}
 
 
 static int			/* --- Setup the row cache for this sth --- */
@@ -1799,9 +1810,12 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 
    	if (status != OCI_SUCCESS) {
 		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
-	    ++num_errors;
+		++num_errors;
 	}
-
+	
+	if (imp_sth->rs_array_on && cache_rows>0)
+		imp_sth->rs_array_size=cache_rows>128?128:cache_rows;	/* restrict to 128 for now */
+ 
     if (DBIS->debug >= 3)
 		PerlIO_printf(DBILOGFP,
 	    "    row cache OCI_ATTR_PREFETCH_ROWS %lu, OCI_ATTR_PREFETCH_MEMORY %lu\n",
@@ -2312,19 +2326,20 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     sth_set_row_cache(h, imp_sth,
 			(nested_cursors) ? imp_dbh->max_nested_cursors / nested_cursors : 0,
 			(int)num_fields, has_longs );
-
     /* Initialise cache counters */
-    imp_sth->in_cache  = 0;
-    imp_sth->eod_errno = 0;
-
-    /* now set up the oci call with define by pos*/
+	imp_sth->in_cache  = 0;
+	imp_sth->eod_errno = 0;
+	rs_array_init(imp_sth);
+	
+	/* now set up the oci call with define by pos*/
 	for(i=1; i <= num_fields; ++i) {
 		imp_fbh_t *fbh = &imp_sth->fbh[i-1];
-	  	int ftype = fbh->ftype;
-	  	/* add space for STRING null term, or VAR len prefix */
-	  	ub4 define_len = (ftype==94||ftype==95) ? fbh->disize+4 : fbh->disize;
-	  	fb_ary_t  *fb_ary;
-	   	fbh->fb_ary = fb_ary_alloc(define_len, 1);
+		int ftype = fbh->ftype;
+		/* add space for STRING null term, or VAR len prefix */
+		ub4 define_len = (ftype==94||ftype==95) ? fbh->disize+4 : fbh->disize;
+		fb_ary_t  *fb_ary;
+		fbh->fb_ary = fb_ary_alloc(define_len, 1);
+		fbh->fb_ary = fb_ary_alloc(define_len, imp_sth->rs_array_size);
 		fb_ary = fbh->fb_ary;
 
 
@@ -2459,12 +2474,24 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				PerlIO_printf(DBILOGFP,"    Scrolling Fetch, postion after fetch=%d\n",imp_sth->fetch_position);
 
 		} else {
-			OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1, (ub2)OCI_FETCH_NEXT, 0, status);
-
+			if (imp_sth->rs_array_on) {	/* if array fetch on, fetch only if not in cache */
+				imp_sth->rs_array_idx++;
+				if (imp_sth->rs_array_num_rows<=imp_sth->rs_array_idx && imp_sth->rs_array_status==OCI_SUCCESS) {
+					OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
+					imp_sth->rs_array_status=status;
+					OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->rs_array_num_rows,0,OCI_ATTR_ROWS_FETCHED, status);
+					imp_sth->rs_array_idx=0;
+				}
+				if (imp_sth->rs_array_num_rows>imp_sth->rs_array_idx)	/* set status to success if rows in cache */
+					status=OCI_SUCCESS;
+				else
+					status=imp_sth->rs_array_status;
+			} else {
+				OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1,(ub2)OCI_FETCH_NEXT, OCI_DEFAULT, status);
+				imp_sth->rs_array_idx=0;
+			}
 		}
-
-
-    }
+	}
 
     if (status != OCI_SUCCESS) {
 		ora_fetchtest = 0;
@@ -2499,7 +2526,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 	for(i=0; i < num_fields; ++i) {
 		imp_fbh_t *fbh = &imp_sth->fbh[i];
 		fb_ary_t *fb_ary = fbh->fb_ary;
-		int rc = fb_ary->arcode[0];
+		int rc = fb_ary->arcode[imp_sth->rs_array_idx];
+		ub1* row_data=&fb_ary->abuf[0]+(fb_ary->bufl*imp_sth->rs_array_idx);
 		SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/;
 		if (rc == 1406				/* field was truncated	*/
 		    && ora_dbtype_is_long(fbh->dbtype)/* field is a LONG	*/
@@ -2531,8 +2559,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 	      	} else {
 
-				int datalen = fb_ary->arlen[0];
-				char *p = (char*)&fb_ary->abuf[0];
+				int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
+				char *p = (char*)row_data;
 				/* if ChopBlanks check for Oracle CHAR type (blank padded)	*/
 				if (ChopBlanks && fbh->dbtype == 96) {
 				    while(datalen && p[datalen - 1]==' ')
@@ -2555,8 +2583,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				if (!fbh->fetch_func) {
 				    /* Copy the truncated value anyway, it may be of use,	*/
 				    /* but it'll only be accessible via prior bind_column()	*/
-				    sv_setpvn(sv, (char*)&fb_ary->abuf[0],fb_ary->arlen[0]);
-
+				    sv_setpvn(sv, row_data,fb_ary->arlen[imp_sth->rs_array_idx]);
 				    if (CSFORM_IMPLIES_UTF8(fbh->csform)){
 						SvUTF8_on(sv);
 					}
@@ -3038,7 +3065,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 		  	while( (phs_svp = hv_iternextsv(imp_sth->all_params_hv, &p, &i)) != NULL ) {
 		  		phs_t *phs = (phs_t*)(void*)SvPVX(phs_svp);
 		  		if (phs->desc_h && !phs->is_inout){
-				   (sth, imp_sth, phs->desc_h);
+				   OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);
 		  	  	}
    			}
 		}

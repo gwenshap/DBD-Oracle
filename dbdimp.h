@@ -108,6 +108,12 @@ struct imp_sth_st {
     int			fetch_offset;
     int			fetch_position;
     int 		prefetch_memory;   /* OCI_PREFETCH_MEMORY*/
+    /* array fetch: state variables */
+    bool      rs_array_on;           /* if array to be used */
+    int       rs_array_size;         /* array size */
+    int       rs_array_num_rows;     /* num rows in last fetch */
+    int       rs_array_idx;          /* index of current row */
+    sword     rs_array_status;       /* status of last fetch */
 };
 #define IMP_STH_EXECUTING	0x0001
 
