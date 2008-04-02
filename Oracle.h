@@ -33,7 +33,7 @@
 
 /* ori.h uses 'dirty' as an arg name in prototypes so we use this */
 /* hack to prevent ori.h being read (since we don't need it)	  */
-//#define ORI_ORACLE
+/*#define ORI_ORACLE*/
 #include <oci.h>
 #include <oratypes.h>
 #include <ocidfn.h>
