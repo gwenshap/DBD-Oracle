@@ -16,7 +16,7 @@ BEGIN {
     if ( !$Config{useithreads} || $] < 5.008 ) {
         plan skip_all => "this $^O perl $] not configured to support iThreads";
     } elsif ($DBI::VERSION <= 1.601){
-      plan skip_all => "DBI version ".$DBI::VERSION." does not supprt iThreads use version 1.602 or later";
+      plan skip_all => "DBI version ".$DBI::VERSION." does not support iThreads. Use version 1.602 or later.";
      }
     die $use_threads_err if $use_threads_err;    # need threads
 }
