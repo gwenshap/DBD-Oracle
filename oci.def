@@ -376,3 +376,7 @@ OCILobFreeTemporary
 OCILobLocatorAssign
 OCILobCreateTemporary
 OCIXMLTypeCreateFromSrc
+OCIDateTimeToText
+OCIIntervalToText
+OCIDateTimeGetTimeZoneOffset
+

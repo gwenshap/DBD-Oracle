@@ -2933,11 +2933,12 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 
 
 		if (DBIc_has(imp_dbh,DBIcf_AutoCommit) && !is_select) {
-		    imp_sth->exe_mode=OCI_COMMIT_ON_SUCCESS;
-		    /* we don't AutoCommit on select so LOB locators work */
-		}
-
-
+            imp_sth->exe_mode=OCI_COMMIT_ON_SUCCESS;
+            /* we don't AutoCommit on select so LOB locators work */
+        } else if(imp_sth->exe_mode!=OCI_STMT_SCROLLABLE_READONLY){
+        
+            imp_sth->exe_mode=OCI_DEFAULT;
+        } 
 
 		OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
 					(ub4)(is_select ? 0 : 1),
