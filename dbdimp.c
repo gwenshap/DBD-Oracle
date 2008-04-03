@@ -262,7 +262,7 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
     case 116:	/* SQLT_RSET	OCI 8 cursor variable	*/
  	case ORA_VARCHAR2_TABLE: /* 201 */
     case ORA_NUMBER_TABLE: /* 202 */
-    case ORA_NTY:   /* SQLT_NTY   Well realy only XML clobs not embedded objects  */
+    case ORA_XMLTYPE:   /* SQLT_NTY   must be carefull here as its value (108) is the same for an embedded object Well realy only XML clobs not embedded objects  */
 	return 1;
     }
     return 0;
@@ -2468,7 +2468,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     case SQLT_RSET:
 	    done = dbd_rebind_ph_rset(sth, imp_sth, phs);
 	    break;
-	 case ORA_NTY:
+	 case ORA_XMLTYPE:
 	    done = dbd_rebind_ph_xml(sth, imp_sth, phs);
  	    break;
     default:

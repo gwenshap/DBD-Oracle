@@ -98,7 +98,7 @@ ub4	 ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *
 
 #define ORA_VARCHAR2_TABLE	201
 #define ORA_NUMBER_TABLE	202
-#define ORA_NTY			    108
+#define ORA_XMLTYPE			108
 
 /* other Oracle not in noraml API defines
 

@@ -20,7 +20,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     %EXPORT_TAGS = (
 	ora_types => [ qw(
 	    ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
-	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
+	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_XMLTYPE
 	    ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
 	    SQLT_INT SQLT_FLT ORA_OCI SQLT_CHR SQLT_BIN     
 	) ],
@@ -1199,7 +1199,7 @@ ORA_SYSDBA ORA_SYSOPER
 =item :ora_types
 
   ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE ORA_RAW
-  ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY ORA_CLOB ORA_BLOB 
+  ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_XMLTYPE ORA_CLOB ORA_BLOB 
   ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE SQLT_INT SQLT_FLT ORA_OCI 
   SQLT_CHR SQLT_BIN  
 
@@ -1520,7 +1520,7 @@ Potentially useful values when DBD::Oracle was built using OCI 7 and later:
 
 Additional values when DBD::Oracle was built using OCI 8 and later:
 
-  ORA_CLOB, ORA_BLOB, ORA_NTY, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE
+  ORA_CLOB, ORA_BLOB, ORA_XMLTYPE, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE
 
 Additional values when DBD::Oracle was built using OCI 10.2 and later:
 
@@ -3669,10 +3669,10 @@ nested to 10 levels.
 
 Any NULL values found in the embedded object will be returned as 'undef'.
 
-=head1 Support for Insert of XMLType (ORA_NTY)
+=head1 Support for Insert of XMLType (ORA_XMLTYPE)
 
 Inserting large XML data sets into tables with XMLType fields is now supported by DBD::Oracle. The only special 
-requirement is the use of bind_param() with an attribute hash parameter that specifies ora_type as ORA_NTY. For
+requirement is the use of bind_param() with an attribute hash parameter that specifies ora_type as ORA_XMLTYPE. For
 example with a table like this;
 
    create table books (book_id number, book_xml XMLType);
@@ -3693,7 +3693,7 @@ one can insert data using this code
 	        </Books>....
 	        <Book id=10000> ...';
    my $sth =$dbh-> prepare($SQL);
-   $sth-> bind_param("p_xml", $xml, { ora_type => ORA_NTY }); 
+   $sth-> bind_param("p_xml", $xml, { ora_type => ORA_XMLTYPE }); 
    $sth-> execute();
        
 In the above case we will assume that $xml has 10000 Book nodes and is over 32k in size and is well formed XML. 

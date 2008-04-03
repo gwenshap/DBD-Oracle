@@ -60,11 +60,11 @@ $stmt = "INSERT INTO ".$table." VALUES (1,?)";
 
 $sth =$dbh-> prepare($stmt);
   
-$sth-> bind_param(1, $small_xml, { ora_type => ORA_NTY });
+$sth-> bind_param(1, $small_xml, { ora_type => ORA_XMLTYPE });
 
 ok ($sth->execute(), '... execute for small XML return true');
 
-$sth-> bind_param(1, $large_xml, { ora_type => ORA_NTY });
+$sth-> bind_param(1, $large_xml, { ora_type => ORA_XMLTYPE });
 
 ok ($sth->execute(), '... execute for large XML return true');
 
