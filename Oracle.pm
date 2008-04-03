@@ -3681,17 +3681,17 @@ one can insert data using this code
 
    $SQL='insert into books values (1,:p_xml)';
    $xml= '<Books>
-	           <Book id=1>
-	                <Title>Programming the Perl DBI</Title>
+	  	<Book id=1>
+	  		<Title>Programming the Perl DBI</Title>
 	                <Subtitle>The Cheetah Book</Subtitle>
 	                <Authors>
 	                	<Author>T. Bunce</Author>
 	                	<Author>Alligator Descartes</Author>
 	                </Authors>
 	                
-	           </Book>
-	        </Books>....
-	        <Book id=10000> ...';
+	        </Book>
+	        <Book id=10000>...
+	    </Books>';
    my $sth =$dbh-> prepare($SQL);
    $sth-> bind_param("p_xml", $xml, { ora_type => ORA_XMLTYPE }); 
    $sth-> execute();
