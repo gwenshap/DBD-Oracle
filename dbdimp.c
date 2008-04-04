@@ -2940,6 +2940,11 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
             imp_sth->exe_mode=OCI_DEFAULT;
         } 
 
+
+        if (debug >= 2) 
+		   	PerlIO_printf(DBILOGFP,"Statement Execute Mode is %d\n",imp_sth->exe_mode);
+		   	
+		   	
 		OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
 					(ub4)(is_select ? 0 : 1),
 					0, 0, 0,(ub4)imp_sth->exe_mode,status);

@@ -1594,9 +1594,10 @@ id only shows you examples with the C struct built in and only a single record. 
               		{
 
 						if (*element_null==OCI_IND_NULL){
+							
 						     av_push(list,  &sv_undef);
 						} else {
-							if (obj->element_typecode == OCI_TYPECODE_OBJECT){
+							if (obj->element_typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
 								fld->value = newAV();
                  				get_object (sth,fld->value, fbh, fld,element);
 								av_push(list, newRV_noinc((SV *) fld->value));
