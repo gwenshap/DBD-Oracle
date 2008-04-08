@@ -1,5 +1,9 @@
 =head1 Changes in DBD-Oracle 1.21(svn rev xxxx) 
-  Updated the Todo file for next version by John Scoles
+  Added the oci_typecode_name method to get the name rather than just the number of an OCI_TYPECODE from John Scoles
+  Fixed a unreported bug with Embedded Objects from John Scoles
+  Fixes for #34621 & 33791 from RT cpan 
+  Added patch to allow faster fetch from REF CURSORs from Biswadeep Chowdhury
+  Updated the Todo file for next version from John Scoles
   Added support for the 10.2 Data Interface for Persistent LOBs by John Scoles
   Changed the way pre-fetching is done by John Scoles
   Added support for Scrollable cursors from John Scoles
@@ -8,11 +12,12 @@
   Fixed for embedded object in object from Paul Weiss
   Added support for direct insert of large XML data into XMLType fields from Hendrik Fuss & John Scoles
   Fixed memory leak (not releasing Temp Lob with OCILobFreeTemporary) when created for a bind from John Scoles
-  Added suppot for bind_param_inout_array with use with execute_array from John Scoles
+  Added support for bind_param_inout_array for use with execute_array from John Scoles
   Added enhancement for Embedded Objects handling from Paul G. Weiss
   Fixed to Makefile.PL let it read makefiles from other makes from Alexander V Alekseev
   Updated POD to tell users to Avoid Using "SQL Call" from Charles Jardine   
-  Updated POD to account for rt.cpan.org #30910: "DBD-Oracle crashes when trying to read empty LOB" By John Scoles
+  Updated POD to account for rt.cpan.org #30910: "DBD-Oracle crashes when trying to read empty LOB" from John Scoles
+  Added DBD::Oracle impdata/threads patch from Jeffrey Klein
   
 =head1 Changes in DBD-Oracle 1.20(svn rev 10517) 11th January 2008
 
