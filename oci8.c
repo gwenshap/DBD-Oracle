@@ -18,6 +18,8 @@
 
 DBISTATE_DECLARE;
 
+
+
 void
 dbd_init_oci(dbistate_t *dbistate)
 {
@@ -36,6 +38,44 @@ dbd_init_oci_drh(imp_drh_t * imp_drh)
 
 }
 
+char *
+oci_typecode_name(int typecode){
+
+	dTHX;
+    switch (typecode) {
+    	case OCI_TYPECODE_INTERVAL_YM:		return "INTERVAL_YM";
+    	case OCI_TYPECODE_INTERVAL_DS:		return "NTERVAL_DS";
+   		case OCI_TYPECODE_TIMESTAMP_TZ:		return "TIMESTAMP_TZ";
+    	case OCI_TYPECODE_TIMESTAMP_LTZ:	return "TIMESTAMP_LTZ";
+    	case OCI_TYPECODE_TIMESTAMP:		return "TIMESTAMP";
+    	case OCI_TYPECODE_DATE:				return "DATE";
+    	case OCI_TYPECODE_CLOB:				return "CLOB";
+    	case OCI_TYPECODE_BLOB:				return "BLOB";
+    	case OCI_TYPECODE_BFILE:			return "BFILE";
+    	case OCI_TYPECODE_RAW:				return "RAW";
+	    case OCI_TYPECODE_CHAR:				return "CHAR";
+	    case OCI_TYPECODE_VARCHAR:			return "VARCHAR";
+	    case OCI_TYPECODE_VARCHAR2:			return "VARCHAR2";
+	    case OCI_TYPECODE_SIGNED8:			return "SIGNED8";
+	    case OCI_TYPECODE_UNSIGNED8:		return "DECLARE";
+    	case OCI_TYPECODE_UNSIGNED16 :    	return "UNSIGNED8";
+	    case OCI_TYPECODE_UNSIGNED32 :     	return "UNSIGNED32";
+	    case OCI_TYPECODE_REAL :           	return "REAL";
+	    case OCI_TYPECODE_DOUBLE :         	return "DOUBLE";
+	    case OCI_TYPECODE_INTEGER :         return "INT";
+	    case OCI_TYPECODE_SIGNED16 :	    return "SHORT";
+	    case OCI_TYPECODE_SIGNED32 :        return "LONG";
+	    case OCI_TYPECODE_DECIMAL :         return "DECIMAL";
+	    case OCI_TYPECODE_FLOAT :  			return "FLOAT";
+	    case OCI_TYPECODE_NUMBER : 			return "NUMBER";
+	    case OCI_TYPECODE_SMALLINT:			return "SMALLINT";
+        case OCI_TYPECODE_OBJECT:			return "OBJECT";
+    	case OCI_TYPECODE_VARRAY:			return "VARRAY";
+        case OCI_TYPECODE_TABLE:			return "TABLE";
+        case OCI_TYPECODE_NAMEDCOLLECTION: 	return "NAMEDCOLLECTION";
+    }
+    return "undef";
+}
 
 char *
 oci_status_name(sword status)
@@ -1345,7 +1385,7 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 
   /* get the data based on the type code*/
   if (DBIS->debug >= 5) {
-	PerlIO_printf(DBILOGFP, " getting value of object attribute named  %s with typecode=%d\n",name,typecode);
+	PerlIO_printf(DBILOGFP, " getting value of object attribute named  %s with typecode=%s\n",name,oci_typecode_name(typecode));
   }
 
   switch (typecode)
@@ -1490,7 +1530,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
   	OCIInd       *obj_ind;
 
 	if (DBIS->debug >= 5) {
-		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%d\n",obj->type_name,obj->typecode);
+		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%s\n",obj->type_name,oci_typecode_name(obj->typecode));
 	}
 
 	switch (obj->typecode) {
@@ -1597,7 +1637,7 @@ id only shows you examples with the C struct built in and only a single record. 
 							
 						     av_push(list,  &sv_undef);
 						} else {
-							if (obj->element_typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
+							if (obj->element_typecode == OCI_TYPECODE_OBJECT || obj->element_typecode == OCI_TYPECODE_VARRAY || obj->element_typecode== OCI_TYPECODE_TABLE || obj->element_typecode== OCI_TYPECODE_NAMEDCOLLECTION){
 								fld->value = newAV();
                  				get_object (sth,fld->value, fbh, fld,element);
 								av_push(list, newRV_noinc((SV *) fld->value));
@@ -1640,7 +1680,7 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 {
     dTHX;
 	if (DBIS->debug >= 4) {
-		PerlIO_printf(DBILOGFP, " getting an embedded object named  %s with typecode=%d\n",fbh->obj->type_name,fbh->obj->typecode);
+		PerlIO_printf(DBILOGFP, " getting an embedded object named  %s with typecode=%s\n",fbh->obj->type_name,oci_typecode_name(fbh->obj->typecode));
 	}
 
     if (fbh->obj->obj_ind && fbh->obj->obj_ind[0] == OCI_IND_NULL) {
@@ -2016,9 +2056,9 @@ dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level){
 	PerlIO_printf(DBILOGFP, "    parmdp = %p\n",obj->parmdp);
 	PerlIO_printf(DBILOGFP, "    parmap = %p\n",obj->parmap);
 	PerlIO_printf(DBILOGFP, "    tdo = %p\n",obj->tdo);
- 	PerlIO_printf(DBILOGFP, "    typecode = %d\n",obj->typecode);
+ 	PerlIO_printf(DBILOGFP, "    typecode = %s\n",oci_typecode_name(obj->typecode));
  	PerlIO_printf(DBILOGFP, "    col_typecode = %d\n",obj->col_typecode);
- 	PerlIO_printf(DBILOGFP, "    element_typecode = %d\n",obj->element_typecode);
+ 	PerlIO_printf(DBILOGFP, "    element_typecode = %s\n",oci_typecode_name(obj->element_typecode));
 	PerlIO_printf(DBILOGFP, "    obj_ref = %p\n",obj->obj_ref);
 	PerlIO_printf(DBILOGFP, "    obj_value = %p\n",obj->obj_value);
 	PerlIO_printf(DBILOGFP, "    obj_type = %p\n",obj->obj_type);

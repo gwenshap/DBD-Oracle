@@ -25,10 +25,6 @@ $| = 1;
 
 plan tests => 11;
 
-BEGIN {
-	use_ok('DBI');
-}
-
 # create a database handle
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
