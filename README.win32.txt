@@ -1,7 +1,17 @@
 In general, on Windows, it's best to just use ActiveState Perl and the
-PPM package manager to install a pre-built version of DBD::Oracle.
+PPM package manager to install a pre-built version of DBD::Oracle however only version 1.17 is available there.
 
 If you built Perl with gcc, read README.wingcc.txt as well as this file.
+
+
+Oracle Instant Client 11.1.0.6.0 Notes
+
+So far I have managed to get it to Makefile and compile test and install and work.  However it seems one needs to set "NLS_LANG" to a valid value  
+in the environment variables. 
+
+As well IC 11 seems to have trouble finding the .ORA files. A quick fix for this is to add "TNS_ADMIN" 
+to the environment variables and point it to where your .ORA files are.
+
 
 --- other information, some of which is out of date ---
 

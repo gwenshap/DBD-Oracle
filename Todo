@@ -6,7 +6,7 @@ For release 1.22 or later
 
 Add in the DBD only debugging flag
 
-Add new method oci_exe__mode to get the Name of the Execution Modes
+Add new method oci_exe_mode to get the Name of the Execution Modes
 
 Add support for OCIClientVersion(),OCIPing(),OCIServerVersion()
 
