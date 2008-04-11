@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.21(svn rev xxxx) 
+=head1 Changes in DBD-Oracle 1.21(svn rev 11067) 11th April 2008 
   Added Notes to README.win32.txt on installing Instant Client 11.1.0.6.0 from John Scoles
   Added the oci_typecode_name method to get the name rather than just the number of an OCI_TYPECODE from John Scoles
   Fixed a unreported bug with Embedded Objects from John Scoles
