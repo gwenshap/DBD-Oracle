@@ -1,7 +1,17 @@
 In general, on Windows, it's best to just use ActiveState Perl and the
-PPM package manager to install a pre-built version of DBD::Oracle.
+PPM package manager to install a pre-built version of DBD::Oracle however only version 1.17 is available there.
 
 If you built Perl with gcc, read README.wingcc.txt as well as this file.
+
+
+Oracle Instant Client 11.1.0.6.0 Notes
+
+So far I have managed to get it to Makefile and compile test and install and work.  However it seems one needs to set "NLS_LANG" to a valid value  
+in the environment variables. 
+
+As well IC 11 seems to have trouble finding the .ORA files. A quick fix for this is to add "TNS_ADMIN" 
+to the environment variables and point it to where your .ORA files are.
+
 
 --- other information, some of which is out of date ---
 
@@ -12,7 +22,7 @@ The Pythian Group
 The preferred method of getting DBD::Oracle is to use a pre-built version from the ActiveState 
 repository, which can be installed with PPM. 
 
-Compiling and installing DBD::Oracle 1.18 on a windows 2000 professional or XP OS for use 
+Compiling and installing DBD::Oracle 1.18 or later on a windows 2000 professional or XP OS for use 
 with Oracle instantClient ver 10.2.0.1 & 10.1.0.5 or Oracle XE requires only a few downloads and 
 a minimal number of environment setting.  The procedures below were tested on a clean 
 Windows platform having no Oracle or other development environment installed.
@@ -43,18 +53,20 @@ Windows platform having no Oracle or other development environment installed.
 6) You will also need the Windows SDK. Which can be found at 
    http://www.microsoft.com/downloads/details.aspx?FamilyId=A55B6B43-E24F-4EA3-A93E-40C0EC4F68E5&displaylang=en
    You have the choice to of either to download the entire SDK and install or run an online install from the page.  
-   Both have been tested and proven to work.
+   Both have been tested and proven to work. 
 
 7) Next download and install the Microsoft .net framework 1.1 skd from 
    http://www.microsoft.com/downloads/details.aspx?FamilyID=9b3a2ca6-3647-4070-9f41-a333c6b9181d&displaylang=en 
 
-8) Enough Downloading and installing go have a coffee.
+8) You will also need a copy of nmake.exe which you can download here http://download.microsoft.com/download/vc15/patch/1.52/w95/en-us/nmake15.exe
 
-9) You should at this time attempt to connect to an Oracle database with the version SQL*Plus that 
+9) Enough Downloading and installing go have a coffee.
+
+10) You should at this time attempt to connect to an Oracle database with the version SQL*Plus that 
    you installed in step 4.  If you are unable to connect at this stage then any problems you encounter 
    later may have nothing to do with DBD::Oracle
 
-10) On the path where you installed Visual C++ find and edit the vcvars32.bat file as follows.  You may have to modify 
+11) On the path where you installed Visual C++ find and edit the vcvars32.bat file as follows.  You may have to modify 
     these path values depending where you installed the products on you computer, 
 
 	i.   Add  the local path to the windows platform SDK include directory to the Set INCLUDE 
@@ -72,37 +84,37 @@ Windows platform having no Oracle or other development environment installed.
              
 	     e.g. C:\Program Files\Microsoft Platform SDK\Lib;
 
-11) Open a Windows Visual C++ command window from the start menu.
+12) Open a Windows Visual C++ command window from the start menu.
 
-12) Add the path to the instant client to the Path command. If you are compiling aginst a 10XE db/client then you can skip steps 
+13) Add the path to the instant client to the Path command. If you are compiling aginst a 10XE db/client then you can skip steps 
     12 to 14. 
     e.g.  PATH = C:/Oracle/instantclient;%PATH%
    
-13) Using the "Set" command add "ORACLE_HOME=path to Instant client" to the environment variables.
+14) Using the "Set" command add "ORACLE_HOME=path to Instant client" to the environment variables.
     e.g. Set ORACLE_HOME=C:\Oracle\instantclient
    
-14) Using the "Set" command add "NLS_LANG=.WE8ISO8859P15" to the environment variables. The globalization variable is required, 
+15) Using the "Set" command add "NLS_LANG=.WE8ISO8859P15" to the environment variables. The globalization variable is required, 
     with this or another compatible value, by Oracle instantclient in order for it to compile correctly.
     e.g. Set NLS_LANG=.WE8ISO8859P15
 
-15) Using the "Set" command add "ORACLE_USERID=test/test@test" substituting test with the username/password@database 
+16) Using the "Set" command add "ORACLE_USERID=test/test@test" substituting test with the username/password@database 
     you wish to run the make test files against. 
         Note: it is not necessary to do this step for the compile and install to work. 
      However: The self-test programs included with Oracle-DBD will mostly fail.
 
-16) Move to the DBD-Oracle directory in the Visual C++ window DOS prompt and enter the following.
+17) Move to the DBD-Oracle directory in the Visual C++ window DOS prompt and enter the following.
 
     		c:\oracle-dbd\>perl Makefile.PL  
 
      The Makefile should then run and compile Oracle-dbd without reporting any errors.
 
-17) From this DOS prompt enter the following command
+18) From this DOS prompt enter the following command
 
 		c:\oracle-dbd\>nmake
 
     The Visual C++ make executable will then build you DBD-execuable. There should be no errors at this point.
 
-18) You can test the compile by either entering
+19) You can test the compile by either entering
 
 		c:\oracle-dbd\>nmake test
 
@@ -116,11 +128,11 @@ Windows platform having no Oracle or other development environment installed.
                      the Set ORACLE_USERID = and rerun the tests.
                 iv   If you are compiling against 10XE and have skiped steps 12 to 14 try again bu this time carry out these steps
 
-19) You can now install DBD-Oracle into you system by entering the following command from the Visual C++ window dos prompt;
+20) You can now install DBD-Oracle into you system by entering the following command from the Visual C++ window dos prompt;
 
     		c:\oracle-dbd\>nmake install
 
-20) You should now be able to run DBD-Oracle on you system
+21) You should now be able to run DBD-Oracle on you system
 
 09/30 2006 from asu <asng@onlinehome.de> 
 

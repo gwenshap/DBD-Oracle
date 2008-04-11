@@ -65,6 +65,8 @@ ora_explain.PL
 oraperl.ph			Old oraperl file included for completeness of emulation
 t/01base.t
 t/10general.t
+t/12impdata.t
+t/14threads.t
 t/15nls.t
 t/20select.t
 t/21nchar.t
@@ -76,13 +78,19 @@ t/23wide_db_al32utf8.t
 t/24implicit_utf8.t
 t/25plsql.t
 t/26exe_array.t
+t/28array_bind.t
 t/30long.t
 t/31lob.t
+t/32xmltype.t
+t/34pres_lobs.t
 t/40ph_type.t
 t/50cursor.t
+t/51scroll.t
 t/55nested.t
+t/56embbeded.t
 t/60reauth.t
 t/70meta.t
+t/80ora_charset.t
 t/nchar_test_lib.pl
 test.pl
 typemap
