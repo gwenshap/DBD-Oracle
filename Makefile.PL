@@ -388,10 +388,16 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 		if !defined $ENV{ORA_CLIENT_LIB}
 		&& ($opts{LINKTYPE}||'') ne 'static' && @shared && !$::opt_c;
 
-    my $linkvia = fetch_oci_macros($mkfile) if -f $mkfile;
 
-    my $libhome = expand_mkvars($MK{LIBHOME}, 0, 1) || "$OH/lib";
+    my $linkvia = fetch_oci_macros($mkfile) if -f $mkfile;
+    my $libhome="$OH/lib";
+
+    if ($MK{LIBHOME}){
+      my $libhome = expand_mkvars($MK{LIBHOME}, 0, 1) || "$OH/lib";
+    }
+
     $linkwith = expand_mkvars($linkvia, 0, 1);
+
 
     #now use logic based of oracle version 
     $linkwith =~ s!/lib\b!/$libdir!g; 
@@ -1047,31 +1053,40 @@ sub del_crtobj {
 
 
 sub find_mkfile {
-    my @mk_proc = (
+
+    my $mkfile;
+    my @mkplaces;
+    if ($client_version>=11.1){
+    
+      my $proc_dir=~ s/lib/share/g;
+      $mkfile=$proc_dir."/demo.mk";
+    } else {  
+      my @mk_proc = (
 	'precomp/demo/proc/proc.mk',
 	'precomp/demo/proc/demo_proc.mk',
 	'proc/lib/proc.mk',
 	'proc16/lib/proc16.mk',
-    );
-    my @mk_oci = (
+      );
+      my @mk_oci = (
 	'rdbms/demo/demo_xe.mk',
 	'rdbms/lib/oracle.mk',
 	'rdbms/demo/oracle.mk',
 	'rdbms/demo/demo_rdbms.mk',
-    );
-    my @mkplaces = ($::opt_p) ? (@mk_proc,@mk_oci) : (@mk_oci,@mk_proc);
-    if ($::opt_m) {
-	$::opt_m = cwd()."/$::opt_m" unless $::opt_m =~ m:^/:;
-	die "-m $::opt_m: not found" unless -f $::opt_m;
-	unshift @mkplaces, $::opt_m;
-    }
-    my $mkfile;
-    foreach my $place (@mkplaces) {
-	$place = "$OH/$place"
-	    unless $place =~ m:^[/\.]:; # abs or relative path
-	next unless -f $place;
-	$mkfile ||= $place;	# use first one found
-	print "Found $place\n";
+      );
+      my @mkplaces = ($::opt_p) ? (@mk_proc,@mk_oci) : (@mk_oci,@mk_proc);
+      if ($::opt_m) {
+	  $::opt_m = cwd()."/$::opt_m" unless $::opt_m =~ m:^/:;
+	  die "-m $::opt_m: not found" unless -f $::opt_m;
+	  unshift @mkplaces, $::opt_m;
+      }
+      
+      foreach my $place (@mkplaces) {
+	  $place = "$OH/$place"
+	      unless $place =~ m:^[/\.]:; # abs or relative path
+	  next unless -f $place;
+	  $mkfile ||= $place;	# use first one found
+	  print "Found $place\n";
+      }
     }
     die qq{
 	Unable to locate an oracle.mk, proc.mk or other suitable *.mk
@@ -1087,11 +1102,11 @@ sub find_mkfile {
 
 	In the unlikely event that a suitable *.mk file is installed
 	somewhere non-standard you can specify where it is using the -m option:
-		perl Makefile.PL -m /path/to/your.mk
+	  Perl Makefile.PL -m /path/to/your.mk
 
 	See the appropriate README file for your OS for more information and some alternatives.
 
-    } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile) || $::opt_F;
+      } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile) || $::opt_F  || ($client_version>=11.1);
 
     print "Using $mkfile\n";
     return $mkfile;
@@ -1424,6 +1439,8 @@ sub find_headers {
        "/usr/include/oracle/$client_version_trim/client", # Instant Client for RedHat FC4
        "/include/oracle/$client_version_full/client", # Instant Client for RedHat FC3
        "/include/oracle/$client_version_trim/client", # Instant Client for RedHat FC3
+       "/usr/include/oracle/11.1.0.1/client/" #Instant Client for RedHat FC3 11.1.0.6 bad hack I know
+    
    );
    unshift @try, $::opt_h if $::opt_h;
    @try = grep { -d $_ } @try;
