@@ -868,7 +868,6 @@ if (sv_isobject(phs->sv) && sv_derived_from(phs->sv, "OCILobLocatorPtr")) {
        }
     }
 
-#if !defined(ORA_OCI_8)
     /* create temporary LOB for PL/SQL placeholder */
 
     else if (imp_sth->stmt_type == OCI_STMT_BEGIN ||
@@ -924,7 +923,6 @@ if (sv_isobject(phs->sv) && sv_derived_from(phs->sv, "OCILobLocatorPtr")) {
            }
         }
     }
-#endif
 
     return 1;
 }

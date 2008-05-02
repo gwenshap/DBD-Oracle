@@ -308,7 +308,7 @@ ora_lob_append(dbh, locator, data)
     STRLEN data_len; /* bytes not chars */
     dvoid *bufp;
     sword status;
-#if defined(ORA_OCI_8) || !defined(OCI_HTYPE_DIRPATH_FN_CTX) /* Oracle is < 9.0 */
+#if !defined(OCI_HTYPE_DIRPATH_FN_CTX) /* Oracle is < 9.0 */
     ub4 startp;
 #endif
     ub1 csform;
@@ -339,7 +339,6 @@ ora_lob_append(dbh, locator, data)
 #endif /* OCI_ATTR_CHARSET_ID */
     /* if data is utf8 but charset isn't then switch to utf8 csid */
     csid = (SvUTF8(data) && !CS_IS_UTF8(csid)) ? utf8_csid : CSFORM_IMPLIED_CSID(csform);
-#if !defined(ORA_OCI_8) && defined(OCI_HTYPE_DIRPATH_FN_CTX) /* Oracle is >= 9.0 */
     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 			       &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
 			       NULL, NULL,
@@ -351,31 +350,6 @@ ora_lob_append(dbh, locator, data)
     else {
        ST(0) = &sv_yes;
     }
-#else
-    OCILobGetLength_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &startp, status);
-    if (status != OCI_SUCCESS) {
-       oci_error(dbh, imp_dbh->errhp, status, "OCILobGetLength");
-       ST(0) = &sv_undef;
-    } else {
-       /* start one after the end -- the first position in the LOB is 1 */
-       startp++;
-       if (DBIS->debug >= 2 )
-            PerlIO_printf(DBILOGFP, "    Calling OCILobWrite with csid=%d csform=%d\n",csid, csform );
-       OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
-			    &amtp, startp,
-			    bufp, (ub4)data_len, OCI_ONE_PIECE,
-			    NULL, NULL,
-			    csid, csform , status);
-       if (status != OCI_SUCCESS) {
-	  oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
-	  ST(0) = &sv_undef;
-       }
-       else {
-	  ST(0) = &sv_yes;
-       }
-    }
-#endif
-
 
 void
 ora_lob_read(dbh, locator, offset, length)

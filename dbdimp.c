@@ -629,7 +629,6 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 
 #ifndef NEW_OCI_INIT /* have to get charsetid & ncharsetid the old way */
-#if defined(OCI_ATTR_ENV_CHARSET_ID) && !defined(ORA_OCI_8)	/* Oracle 9.0+ */
     OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &charsetid, (ub4)0 ,
 			OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
     if (status != OCI_SUCCESS) {
@@ -642,21 +641,6 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet OCI_ATTR_ENV_NCHARSET_ID");
 	return 0;
     }
-#else				/* Oracle 8.x */
-    {
-	/* We don't have a way to get the actual charsetid & ncharsetid in use
-	*  but we only care about UTF8 so we'll just check for that and use the
-	*  the hardcoded utf8_csid if found
-	*/
-	char buf[81];
-	char *nls = ora_env_var("NLS_LANG", buf, sizeof(buf)-1);
-	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8"))
-	    charsetid = utf8_csid;
-	nls = ora_env_var("NLS_NCHAR", buf, sizeof(buf)-1);
-	if (nls && strlen(nls) >= 4 && !strcasecmp(nls + strlen(nls) - 4, "utf8"))
-	     ncharsetid = utf8_csid;
-    }
-#endif
 #endif
 
     /* At this point we have charsetid & ncharsetid

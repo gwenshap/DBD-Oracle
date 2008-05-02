@@ -335,7 +335,6 @@
 	  oci_status_name(stat)),stat : stat
 /*Added by JPS for Jeffrey.Klein*/
 
-#if !defined(ORA_OCI_8)
 #define OCILobCreateTemporary_log_stat(sv,eh,lh,csi,csf,lt,ca,dur,stat) \
 	stat=OCILobCreateTemporary(sv,eh,lh,csi,csf,lt,ca,dur);					\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
@@ -343,36 +342,22 @@
 	  OciTp, (void*)sv,(void*)eh,(void*)lh,				\
           ul_t(csi),ul_t(csf),ul_t(lt),ul_t(ca),ul_t(dur), \
 	  oci_status_name(stat)),stat : stat
-#else
-#define OCILobCreateTemporary_log_stat(sv,eh,lh,stat) \
-    stat=0 /* Actually, this should be a compile error */
-#endif
-
 /*end add*/
 
-#if !defined(ORA_OCI_8)
 #define OCILobFreeTemporary_log_stat(sv,eh,lh,stat) \
 	stat=OCILobFreeTemporary(sv,eh,lh);					\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
 	  "%sLobFreeTemporary(%p,%p,%p)=%s\n",				\
 	  OciTp, (void*)sv,(void*)eh,(void*)lh,				\
 	  oci_status_name(stat)),stat : stat
-#else
-#define OCILobFreeTemporary_log_stat(sv,eh,lh,stat) \
-    stat=0
-#endif
 
-#if !defined(ORA_OCI_8)
 #define OCILobIsTemporary_log_stat(ev,eh,lh,istemp,stat)                           \
 	stat=OCILobIsTemporary(ev,eh,lh,istemp);					\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
 	  "%sLobIsTemporary(%p,%p,%p,%p)=%s\n",				\
 	  OciTp, (void*)ev,(void*)eh,(void*)lh,(void*)istemp,		\
 	  oci_status_name(stat)),stat : stat
-#else
-#define OCILobIsTemporary_log_stat(ev,eh,lh,istemp,stat) \
-    stat=0
-#endif
+
 /*Added by JPS for Jeffrey.Klein */
 
 #define OCILobLocatorAssign_log_stat(sv,eh,src,dest,stat) \
@@ -439,21 +424,12 @@
 	  OciTp, (void*)sv,(void*)st,(void*)eh,ul_t((i)),		\
 	  ul_t((ro)),(void*)(si),(void*)(so),ul_t((md)),		\
 	  oci_status_name(stat)),stat : stat
-#if !defined(USE_ORA_OCI_STMNT_FETCH)
  #define OCIStmtFetch_log_stat(sh,eh,nr,or,os,stat)                     \
          stat=OCIStmtFetch2(sh,eh,nr,or,os,OCI_DEFAULT);                                \
          (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,                        \
            "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",                                \
            OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,(ub2)os,                \
            oci_status_name(stat)),stat : stat
-#else
-#define OCIStmtFetch_log_stat(sh,eh,nr,or,os,stat)                     \
-        stat=OCIStmtFetch(sh,eh,nr,or,OCI_DEFAULT);                                \
-        (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,                        \
-          "%sStmtFetch(%p,%p,%lu,%lu)=%s\n",                                \
-          OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,                \
-          oci_status_name(stat)),stat : stat
-#endif
 
 #define OCIStmtPrepare_log_stat(sh,eh,s1,sl,l,m,stat)                   \
 	stat=OCIStmtPrepare(sh,eh,s1,sl,l,m);				\
