@@ -966,7 +966,11 @@ DBD::Oracle - Oracle database driver for the DBI module
 =head1 DESCRIPTION
 
 DBD::Oracle is a Perl module which works with the DBI module to provide
-access to Oracle databases.
+access to Oracle databases. 
+
+Since version 1.22 it only supports Oracle clients 9 or greater.  You still can connect to an 
+Oracle 8 DB you just have to use a newer client.
+
 
 =head1 CONNECTING TO ORACLE
 
@@ -1054,7 +1058,7 @@ SQL*Net 1.x and SQL*Net 2.x.  "Machine" is the computer the database is
 running on, "SID" is the SID of the database, "DB" is the SQL*Net 2.x
 connection descriptor for the database.
 
-B<Note:> Some of these formats may not work with Oracle 8+.
+B<Note:> Some of these formats may not work with Oracle 9+.
 
   BEGIN {
      $ENV{ORACLE_HOME} = '/home/oracle/product/7.x.x';
@@ -1794,12 +1798,6 @@ For example:
    NLS_LANG=AMERICAN_AMERICA.AL32UTF8
    NLS_NCHAR=UTF8
    NLS_NCHAR=AL32UTF8
-
-Oracle 8 client libraries have a number of bugs related to character
-set handling, especially when connected to an Oracle 9+ server.
-For this reason a number of DBD::Oracle tests are disabled when
-using an Oracle 8 client. If you wish to use Unicode, I recommend
-upgrading client and server to Oracle 9 or later.
 
 =head2 Oracle UTF8 is not UTF-8
 
@@ -3284,9 +3282,7 @@ arguments in call to ...".
 
 Here's an alternative form using a function that returns a cursor.
 This example uses the pre-defined weak (or generic) REF CURSOR type
-SYS_REFCURSOR. This is an Oracle 9 feature. For Oracle 8, you must
-create your own REF CURSOR type in a package (see the C<curref.pl>
-script mentioned at the end of this section).
+SYS_REFCURSOR. This is an Oracle 9 feature. 
 
   # Create the function that returns a cursor
   $dbh->do(q{
