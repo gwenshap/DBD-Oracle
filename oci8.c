@@ -1634,7 +1634,7 @@ id only shows you examples with the C struct built in and only a single record. 
               		{
 
 						if (*element_null==OCI_IND_NULL){
-							
+
 						     av_push(list,  &sv_undef);
 						} else {
 							if (obj->element_typecode == OCI_TYPECODE_OBJECT || obj->element_typecode == OCI_TYPECODE_VARRAY || obj->element_typecode== OCI_TYPECODE_TABLE || obj->element_typecode== OCI_TYPECODE_NAMEDCOLLECTION){
@@ -1853,10 +1853,10 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 		oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
 		++num_errors;
 	}
-	
+
 	if (imp_sth->rs_array_on && cache_rows>0)
 		imp_sth->rs_array_size=cache_rows>128?128:cache_rows;	/* restrict to 128 for now */
- 
+
     if (DBIS->debug >= 3)
 		PerlIO_printf(DBILOGFP,
 	    "    row cache OCI_ATTR_PREFETCH_ROWS %lu, OCI_ATTR_PREFETCH_MEMORY %lu\n",
@@ -2371,7 +2371,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	imp_sth->in_cache  = 0;
 	imp_sth->eod_errno = 0;
 	rs_array_init(imp_sth);
-	
+
 	/* now set up the oci call with define by pos*/
 	for(i=1; i <= num_fields; ++i) {
 		imp_fbh_t *fbh = &imp_sth->fbh[i-1];
@@ -2608,7 +2608,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 					--datalen;
 				}
 				sv_setpvn(sv, p, (STRLEN)datalen);
-				if (CSFORM_IMPLIES_UTF8(fbh->csform)){
+				if ((CSFORM_IMPLIES_UTF8(fbh->csform)) && (fbh->ftype != SQLT_BIN)){
 				    SvUTF8_on(sv);
 				}
 		    }
@@ -2625,7 +2625,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				    /* Copy the truncated value anyway, it may be of use,	*/
 				    /* but it'll only be accessible via prior bind_column()	*/
 				    sv_setpvn(sv, row_data,fb_ary->arlen[imp_sth->rs_array_idx]);
-				    if (CSFORM_IMPLIES_UTF8(fbh->csform)){
+				    if ((CSFORM_IMPLIES_UTF8(fbh->csform)) && (fbh->ftype != SQLT_BIN)){
 						SvUTF8_on(sv);
 					}
 				}
