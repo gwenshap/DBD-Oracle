@@ -1046,8 +1046,7 @@ sub del_crtobj {
 
 
 sub find_mkfile {
-    my @mk_proc = (
-	'precomp/demo/proc/proc.mk',
+    my @mk_proc = (	'precomp/demo/proc/proc.mk',
 	'precomp/demo/proc/demo_proc.mk',
 	'proc/lib/proc.mk',
 	'proc16/lib/proc16.mk',
@@ -1058,11 +1057,15 @@ sub find_mkfile {
 	'rdbms/demo/oracle.mk',
 	'rdbms/demo/demo_rdbms.mk',
     );
+    $client_version and push @mk_proc,        # Oracle Instant Client
+        "/usr/share/oracle/$client_version/client/demo.mk",
+        "/usr/share/oracle/$client_version/client64/demo.mk";
 
-	 # Add bnild.mk from /usr/share/oracle based on the oracle home location if oracle home is under
-	 # /usr/lib/oracle ( Linux RPM install ).  The 11g instant client only contains
-	 # build.mk located in /usr/share/oracle/
-	 push @mk_oci, "/usr/share/oracle/$1/demo.mk" if($OH =~ m|^/usr/lib/oracle/(.*)|);
+    # Add build.mk from /usr/share/oracle based on the oracle home location if
+    # oracle home is under /usr/lib/oracle (Linux RPM install).
+    # The 11g instant client only contains build.mk located in
+    # /usr/share/oracle/
+    push @mk_oci, "/usr/share/oracle/$1/demo.mk" if ($OH =~ m|^/usr/lib/oracle/(.*)|);
 
     my @mkplaces = ($::opt_p) ? (@mk_proc,@mk_oci) : (@mk_oci,@mk_proc);
     if ($::opt_m) {
@@ -1432,13 +1435,15 @@ sub find_headers {
        "/usr/include/oracle/$client_version_trim/client", # Instant Client for RedHat FC4
        "/include/oracle/$client_version_full/client", # Instant Client for RedHat FC3
        "/include/oracle/$client_version_trim/client", # Instant Client for RedHat FC3
-   );
+       "/usr/include/oracle/$client_version/client", # Instant Client 11.1 and up
+       "/usr/include/oracle/$client_version/client64", # Instant Client 11.1 and up
+    );
 
-	 # Add /usr/include/oracle based on the oracle home location if oracle home is under
-	 # /usr/lib/oracle ( Linux RPM install ).  The 11g instant client reports
-	 # client_version as 11.1.0.6 from sqlplus, but installs under 11.1.0.1.
-	 push @try, "/usr/include/oracle/$1" if($OH =~ m|^/usr/lib/oracle/(.*)|);
-
+   # Add /usr/include/oracle based on the oracle home location if oracle home is under
+   # /usr/lib/oracle ( Linux RPM install ).  The 11g instant client reports
+   # client_version as 11.1.0.6 from sqlplus, but installs under 11.1.0.1.
+   push @try, "/usr/include/oracle/$1" if ($OH =~ m|^/usr/lib/oracle/(.*)|);
+ 
    unshift @try, $::opt_h if $::opt_h;
    @try = grep { -d $_ } @try;
   
