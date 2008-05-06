@@ -159,8 +159,8 @@ print "Using Oracle in $OH\n";
 # $client_version => Major.Minor, $client_version_full => Major.Minor.X.Y.Z
 my ($client_version, $client_version_full) = get_client_version($::opt_V);
 
-die "DBD::Oracle no longer supports Oracle versions before 9.\n"
-    if $client_version < 9;
+die "DBD::Oracle no longer supports Oracle versions before 8.\n"
+    if $client_version < 8;
 
 
 # Check for symbol table problem in libclntsh.dylib.9.0 on MacOS X
@@ -662,11 +662,17 @@ $opts{DEFINE} .= ' -DNEW_OCI_INIT' if $client_version >= 9.2;
 $opts{DEFINE} .= ($os ne 'VMS')
 	? " -DORA_OCI_VERSION=\\\"$client_version_full\\\""
 	: " -DORA_OCI_VERSION=\"$client_version_full\"";
-# Will keep this for later user
-# older 9 clients might cause problems in later versions
-#.So far it is not used
-$opts{DEFINE} .= " -DORA_OCI_9" if ($::opt_V && $client_version == 9.0)
-				or ($^O eq 'VMS' && $client_version < 10.0); 
+# force additional special behavior for oci 8.  For now, this means
+# emulating OciLobWriteAppend
+# use this if, for some reason the default handling for this function
+# doesn't work or you are building a binary release for distribution
+# to machines with older client libraries.
+$opts{DEFINE} .= " -DORA_OCI_8" if ($::opt_V && $client_version == 8.0)
+				or ($^O eq 'VMS' && $client_version < 9.0); # OCILobIsTemporary
+
+# OCIStmntFetch2() is a feature of OCI 9.0.0
+$opts{DEFINE} .= " -DUSE_ORA_OCI_STMNT_FETCH " if ( $client_version < 9.0 );
+ 
 
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($is_developer){  # a reasonable guess
@@ -1546,7 +1552,7 @@ sub get_client_version {
     if (!$client_version_full) {
 	print "I'm having trouble finding your Oracle version number... trying harder\n"
 	    unless $force_version;
-	if ( $OH =~ m![^\d\.]((?:8|9|1\d)\.\d+\.\d+)! ) { #decode it from $OH if possible
+	if ( $OH =~ m![^\d\.]((?:8|9|1\d)\.\d+\.\d+(\.\d+)?)! ) { #decode it from $OH if possible
 	    $client_version_full = $1;
 	}
 	elsif ( "$OH/" =~ m!\D(8|9|10)(\d)(\d?)\D!) { # scary but handy
@@ -1569,7 +1575,7 @@ sub get_client_version {
     }
 
     if (!$client_version_full) {
-	$client_version_full = "9.0.0.0";
+	$client_version_full = "8.0.0.0";
         print qq{
 WARNING: I could not determine Oracle client version so I'll just
 default to version $client_version_full. Some features of DBD::Oracle may not work.
