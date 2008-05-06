@@ -4,7 +4,12 @@ Seems this file has been neglected for quite a while so I will try to keep it up
 
 For release 1.22 or later
 
+Drop support for Oralce 8 and earlier
+
+add support for $dbh->trace('SQL');
+
 Replace OCIInitialize + OCIEnvInit, with OCIEnvCreate
+
 Add in the DBD only debugging flag
 
 Add new method oci_exe_mode to get the Name of the Execution Modes
