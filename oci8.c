@@ -2375,7 +2375,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		imp_fbh_t *fbh = &imp_sth->fbh[i-1];
 		int ftype = fbh->ftype;
 		/* add space for STRING null term, or VAR len prefix */
-		ub4 define_len = (ftype==94||ftype==95) ? fbh->disize+4 : fbh->disize;
+		sb4 define_len = (ftype==94||ftype==95) ? fbh->disize+4 : fbh->disize;
 		fb_ary_t  *fb_ary;
 		fbh->fb_ary = fb_ary_alloc(define_len, 1);
 		fbh->fb_ary = fb_ary_alloc(define_len, imp_sth->rs_array_size);
@@ -2597,17 +2597,25 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				}
 
 	      	} else {
-
-				int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
-				char *p = (char*)row_data;
-				/* if ChopBlanks check for Oracle CHAR type (blank padded)	*/
-				if (ChopBlanks && fbh->dbtype == 96) {
-				    while(datalen && p[datalen - 1]==' ')
-					--datalen;
-				}
-				sv_setpvn(sv, p, (STRLEN)datalen);
-				if ((CSFORM_IMPLIES_UTF8(fbh->csform)) && (fbh->ftype != SQLT_BIN)){
-				    SvUTF8_on(sv);
+                if (fbh->ftype == SQLT_BIN){
+					char *p = (char*)row_data;
+					sb4 datalen = strlen(p);
+					if (datalen >= fbh->disize){
+						datalen = fbh->disize;
+					}
+					sv_setpvn(sv, p, datalen);
+				} else {
+					int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
+				    char *p = (char*)row_data;
+					/* if ChopBlanks check for Oracle CHAR type (blank padded)	*/
+					if (ChopBlanks && fbh->dbtype == 96) {
+					    while(datalen && p[datalen - 1]==' ')
+						--datalen;
+					}
+					sv_setpvn(sv, p, (STRLEN)datalen);
+					if (CSFORM_IMPLIES_UTF8(fbh->csform) ){
+				    	SvUTF8_on(sv);
+					}
 				}
 		    }
 
