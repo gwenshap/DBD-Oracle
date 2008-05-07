@@ -2735,8 +2735,7 @@ is not included in the computing of the prefetch rows.
 Oracle 10.2 and later extended the OCI API to work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
 a LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
 you would use on other datatypes that store character or binary data. There are fewer round trips to the server as no 'LOB Locators' are
-used, normally one can get an entire LOB is a single round trip. The data interface is suppose to supports LOBs of any size less than 2GB,
-however it seems there is an practical limit of about 15mb.
+used, normally one can get an entire LOB is a single round trip. The data interface is suppose to supports LOBs of any size less than 2GB.
 
 =head2 Simple Usage
 
@@ -2772,7 +2771,7 @@ this code;
 
 Will select out all of the LOBs in the table as long as they are all under 2MB in length.  Longer lobs will throw a error. Adding this line;
 
-  $dbh->{LongTruncOk}=0;
+  $dbh->{LongTruncOk}=1;
   
 before the execute will return all the lobs but they will only be a maximum of 2MB in size.
 
