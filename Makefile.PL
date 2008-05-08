@@ -1056,6 +1056,8 @@ sub find_mkfile {
 	'rdbms/lib/oracle.mk',
 	'rdbms/demo/oracle.mk',
 	'rdbms/demo/demo_rdbms.mk',
+	'rdbms/lib/ins_rdbms.mk' #Oracle 11 full client for 64 bit and maybe 32 bit??
+ 
     );
     $client_version and push @mk_proc,        # Oracle Instant Client
         "/usr/share/oracle/$client_version/client/demo.mk",
