@@ -1,6 +1,7 @@
 #   Oracle.pm
 #
 #   Copyright (c) 1994-2005 Tim Bunce, Ireland
+#   Copyright (c) 2006-2008 John Scoles (The Pythian Group), Canada
 #
 #   See COPYRIGHT section in the documentation below
 
@@ -3757,6 +3758,7 @@ gratitude. That frees more of my time to work on DBI for Perl 5 and Perl 6.
 =head1 COPYRIGHT
 
 The DBD::Oracle module is Copyright (c) 1994-2006 Tim Bunce. Ireland.
+The DBD::Oracle module is Copyright (c) 2006-2008 John Scoles (The Pythian Group). Canada.
 
 The DBD::Oracle module is free open source software; you can
 redistribute it and/or modify it under the same terms as Perl 5.

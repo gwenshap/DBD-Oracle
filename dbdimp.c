@@ -272,8 +272,10 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
 /* --- allocate and free oracle oci 'array' buffers --- */
 
 fb_ary_t *
-fb_ary_alloc(int bufl, int size)
+fb_ary_alloc(ub4 bufl, int size)
 {
+ dTHR;
+    dTHX;
     fb_ary_t *fb_ary;
     /* these should be reworked to only to one Newz()	*/
     /* and setup the pointers in the head fb_ary struct	*/
@@ -2932,6 +2934,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 		OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
 					(ub4)(is_select ? 0 : 1),
 					0, 0, 0,(ub4)imp_sth->exe_mode,status);
+
 
 		if (status != OCI_SUCCESS) { /* may be OCI_ERROR or OCI_SUCCESS_WITH_INFO etc */
 	/* we record the error even for OCI_SUCCESS_WITH_INFO */

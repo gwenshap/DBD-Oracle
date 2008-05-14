@@ -120,7 +120,7 @@ struct imp_sth_st {
 
 typedef struct fb_ary_st fb_ary_t;    /* field buffer array	*/
 struct fb_ary_st { 	/* field buffer array EXPERIMENTAL	*/
-    ub2  bufl;		/* length of data buffer		*/
+    ub4  bufl;		/* length of data buffer		*/
     sb2  *aindp;	/* null/trunc indicator variable	*/
     ub1  *abuf;		/* data buffer (points to sv data)	*/
     ub2  *arlen;	/* length of returned data		*/
@@ -157,6 +157,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     OCIDefine 	*defnp;
     void 		*desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4  		desc_t;	/* OCI type of descriptor		*/
+    ub4 		define_mode; /*the normal case for a define*/
     int  		(*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
     void 		(*fetch_cleanup) _((SV *sth, imp_fbh_t *fbh));
     ub2  		dbtype;	/* actual type of field (see ftype)	*/
@@ -172,7 +173,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     ub2  		csid;		/* OCI_ATTR_CHARSET_ID			*/
     ub1  		csform;	/* OCI_ATTR_CHARSET_FORM		*/
 
-    sb4  		disize;	/* max display/buffer size		*/
+    ub4  		disize;	/* max display/buffer size		*/
     char 		*bless;	/* for Oracle::OCI style handle data	*/
     void 		*special;	/* hook for special purposes (LOBs etc)	*/
 
@@ -261,7 +262,7 @@ void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
 void ora_free_fbh_contents _((imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
-fb_ary_t *fb_ary_alloc _((int bufl, int size));
+fb_ary_t *fb_ary_alloc _((ub4 bufl, int size));
 int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
 
 void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
