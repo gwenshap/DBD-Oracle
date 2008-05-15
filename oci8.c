@@ -319,7 +319,8 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
     dTHX;
     D_imp_dbh_from_sth;
     sword status 		 = 0;
-    IV  ora_pers_lob   =0; /*use dblink for lobs only for 10g Release 2. or later*/
+    IV  ora_piece_size   = 0; /*used only for persistent lobs with 10g Release 2. or later*/
+    IV  ora_pers_lob     = 0; /*used only for persistent lobs with 10g Release 2. or later*/
     ub4	oparse_lng   	 = 1;  /* auto v6 or v7 as suits db connected to	*/
     int ora_check_sql 	 = 1;	/* to force a describe to check SQL	*/
     IV  ora_placeholders = 1;	/* find and handle placeholders */
@@ -358,9 +359,11 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		DBD_ATTRIB_GET_IV(  attribs, "ora_placeholders", 16, svp, ora_placeholders);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob", 12, svp, ora_auto_lob);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_pers_lob", 12, svp, ora_pers_lob);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_piece_size", 14, svp, ora_piece_size);
 
 		imp_sth->auto_lob = (ora_auto_lob) ? 1 : 0;
 		imp_sth->pers_lob = (ora_pers_lob) ? 1 : 0;
+		imp_sth->piece_size = (ora_piece_size) ? ora_piece_size : 0;
 		/* ora_check_sql only works for selects owing to Oracle behaviour */
 		DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql", 13, svp, ora_check_sql);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_exe_mode", 12, svp, imp_sth->exe_mode);
@@ -587,41 +590,41 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 /* -------------------------------------------------------------- */
 /* Fetch callback to specify buffers. */
 /* -------------------------------------------------------------- */
-static sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp, 
+static sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
                       ub4 **alenpp, ub1 *piecep, dvoid **indpp, ub2 **rcpp)
 {
   dTHX;
   imp_fbh_t *fbh =(imp_fbh_t*)octxp;
-  fb_ary_t  *fb_ary;		
+  fb_ary_t  *fb_ary;
   fb_ary =  fbh->fb_ary;
   *indpp = (dvoid *) 0;
   *rcpp = (ub2 *) 0;
   *bufpp = (dvoid *) fb_ary->abuf;
   *alenpp = &fb_ary->bufl;
   /*ind = 0;
-    
+
     if (glGetInd)
       *indpp  = (dvoid *) &ind;
     else
       *indpp = (dvoid *)0;
-  
+
     rc = 0;
     if (glGetRc)
       *rcpp  = (ub2 *) &rc;
     else
       *rcpp = (ub2 *)0;
-      
+
  /*  switch (piecep[0]) {
-   
+
       case OCI_ONE_PIECE:
         PerlIO_printf(DBILOGFP," OCI_ONE_PIECE\n");
         break;
       case OCI_FIRST_PIECE:
-      
-        
+
+
      /*  (void)SvUPGRADE(sv, SVt_PV);*/
     /*    SvGROW(sv,fb_ary->bufl);
-  
+
       PerlIO_printf(DBILOGFP," first piece \n");
     /*  sv=newSVpvn((char*)bufpp, fb_ary->bufl);
       PerlIO_printf(DBILOGFP,"SvLEN(sv)=%d\n",SvLEN(sv));
@@ -631,35 +634,35 @@ static sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid
     /*     sv_setpvn(sv,(char*)(*bufpp), fb_ary->bufl);*/
      /*   PerlIO_printf(DBILOGFP,"SvLEN(sv)=%d\n",SvLEN(sv));
       	break;
-      
+
       case OCI_NEXT_PIECE:
 
         PerlIO_printf(DBILOGFP," OCI_NEXT_PIECE\n");
-       
-      /*  sv_catpv(sv,(char *) bufpp);  
+
+      /*  sv_catpv(sv,(char *) bufpp);
         PerlIO_printf(DBILOGFP,"SvLEN(sv)=%d\n",SvLEN(sv));
      /* 	 row_data=&fb_ary->abuf[0]+(fb_ary->bufl);
 	  	  p = (char*)row_data;
 	      PerlIO_printf(DBILOGFP," OCI_FIRST_PIECE\n");  */
-	        
+
 	         /* bufpp[fb_ary->bufl] = '\0';*/
 	      /*   PerlIO_printf(DBILOGFP,"strlen(p)=%s\n",strlen(p));
-    
-       
+
+
       	break;
-      
+
       case OCI_LAST_PIECE:
       	PerlIO_printf(DBILOGFP," OCI_LAST_PIECE\n");
       	break;
       default:
      	PerlIO_printf(DBILOGFP,"ERROR: piece-wise fetching, \n");
-		break;	
+		break;
    }
-  
+
   PerlIO_printf(DBILOGFP," done internal loop\n");*/
 
   return OCI_CONTINUE;
-  
+
 }
 
 #ifdef UTF8_SUPPORT
@@ -1793,27 +1796,27 @@ fetch_presis_binary(SV *sth, imp_fbh_t *fbh,SV *dest_sv){
 	sword status = OCI_NEED_DATA;
     fb_ary_t *fb_ary = fbh->fb_ary;
     ub1* row_data=&fb_ary->abuf[0]+(fb_ary->bufl*fbh->imp_sth->rs_array_idx);
-		
+
 	if (DBIS->debug <= 4) {
 	  		PerlIO_printf(DBILOGFP, " getting an Presistant Binaray lob with picewise fetch row_data =%d\n",row_data);
 	}
-	
+
 	PerlIO_printf(DBILOGFP, "status=%d\n",status);
-	
+
 	while (status == OCI_NEED_DATA){
-	   OCIStmtGetPieceInfo(fbh->imp_sth->stmhp, 
+	   OCIStmtGetPieceInfo(fbh->imp_sth->stmhp,
 						   fbh->imp_sth->errhp, &hdlptr, &hdltype,
 						                            &in_out, &iter, &idx, &piece);
 		OCIStmtSetPieceInfo((dvoid *)hdlptr, (ub4)hdltype,
 						                                  fbh->imp_sth->errhp, (dvoid *) &row_data, &alen, piece,
 						                                  (dvoid *)&indptr, &rcode);
-	    sv_catpv(dest_sv,  row_data);                              
-	    status = OCIStmtFetch(fbh->imp_sth->stmhp,fbh->imp_sth->errhp, (ub4) 1, 
+	    sv_catpv(dest_sv,  row_data);
+	    status = OCIStmtFetch(fbh->imp_sth->stmhp,fbh->imp_sth->errhp, (ub4) 1,
 						                          (ub2) OCI_FETCH_NEXT, (ub4) OCI_DEFAULT);
-		
+
 			PerlIO_printf(DBILOGFP, "status=%d\n",status);
 
-	}	
+	}
 return 1;
 }
 
@@ -2212,7 +2215,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     int nested_cursors = 0;
     ub4 i = 0;
     sword status;
-    
+
 
     if (imp_sth->done_desc)
 	return 1;	/* success, already done it */
@@ -2281,8 +2284,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fbh->imp_sth     = imp_sth;
 		fbh->field_num   = i;
 		fbh->define_mode = OCI_DEFAULT;
-	
-	
+
+
 		OCIParamGet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, imp_sth->errhp,
 				(dvoid**)&fbh->parmdp, (ub4)i, status);
 
@@ -2403,13 +2406,16 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				fbh->ftype  = fbh->dbtype;
                 /* do we need some addition size logic here? (lab) */
 				if (imp_sth->pers_lob){ /*this only works on 10.2 */
-
+    				fbh->define_mode = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
 	    		    fbh->disize = imp_sth->long_readlen; /*user set max value*/
+	    		    if (!imp_sth->piece_size){ /*if not set use max value*/
+						imp_sth->piece_size=imp_sth->long_readlen;
+					}
 	    		    if (fbh->dbtype == 112){
 	    		    	fbh->ftype  = SQLT_CHR;
 	    		    } else {
 	    				fbh->ftype       = SQLT_BIN; /*other Binary*/
-	    				fbh->define_mode = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
+
 	    		/*		fbh->fetch_func = fetch_presis_binary; /* need a new fetch function for it */
 	    			}
 
@@ -2501,8 +2507,14 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		sb4 define_len = (ftype==94||ftype==95) ? fbh->disize+4 : fbh->disize;
 		fb_ary_t  *fb_ary;
 		fbh->fb_ary = fb_ary_alloc(define_len, 1);
-		fbh->fb_ary = fb_ary_alloc(define_len, imp_sth->rs_array_size);
-		fb_ary = fbh->fb_ary;
+		if (imp_sth->pers_lob){
+			fbh->fb_ary = fb_ary_alloc(imp_sth->piece_size, imp_sth->rs_array_size);
+		} else {
+			fbh->fb_ary = fb_ary_alloc(define_len, imp_sth->rs_array_size);
+
+   		}
+   		fb_ary = fbh->fb_ary;
+
 		if (fbh->ftype == SQLT_BIN)  {
 			define_len++;
 			/*add one extra byte incase the size of the lob is equal to the define_len*/
@@ -2513,7 +2525,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 			(dvoid*)&((OCIStmt **)fb_ary->abuf)[0],
 			 OCI_HTYPE_STMT, status);
 		}
-
 	    OCIDefineByPos_log_stat(imp_sth->stmhp,
 	        &fbh->defnp,
 		    imp_sth->errhp,
@@ -2526,14 +2537,15 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		    fb_ary->arcode,
 		    fbh->define_mode,
 			    status);
-			   
-			 if (fbh->ftype == SQLT_BIN)  {
-				/* uses a dynamic callback for persistent binary lobs*/			 
+
+			 if (imp_sth->pers_lob)  {
+
+				 /* uses a dynamic callback for persistent binary and char lobs*/
 			 	OCIDefineDynamic(fbh->defnp, imp_sth->errhp, (dvoid *) fbh,
 			                   (OCICallbackDefine) presist_lob_fetch_cbk);
 			 }
 
-                          
+
 
 
 			if (fbh->ftype == 108)  { /* Embedded object bind it differently*/
@@ -2697,14 +2709,14 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
     err = 0;
 
- 
+
 	for(i=0; i < num_fields; ++i) {
 		imp_fbh_t *fbh = &imp_sth->fbh[i];
 		fb_ary_t *fb_ary = fbh->fb_ary;
 		int rc = fb_ary->arcode[imp_sth->rs_array_idx];
 		ub1* row_data=&fb_ary->abuf[0]+(fb_ary->bufl*imp_sth->rs_array_idx);
 		SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/;
-			
+
 		if (rc == 1406				/* field was truncated	*/
 		    && ora_dbtype_is_long(fbh->dbtype)/* field is a LONG	*/
 		){
@@ -2723,7 +2735,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		}
 
 
-      
+
 		if (rc == 0 || 	/* the normal case*/
 			(imp_sth->pers_lob && rc == 1406 && DBIc_has(imp_sth,DBIcf_LongTruncOk))/*or a trunckated record when using 10.2 Persistent Lob interface*/
  		) {
@@ -2737,8 +2749,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
                 if (fbh->ftype == SQLT_BIN){ /*This uses a picewise fecth call to presist_lob_fetch_cbk*/
                    *(fb_ary->abuf+(fb_ary->bufl))='\0'; /* add a null teminator*/
                    sv_setpvn(sv, (char*)fb_ary->abuf, strlen((char*)fb_ary->abuf));
-           		   fb_ary->bufl=fbh->disize; /*reset this back to the disize -1*/
-					
+           		   fb_ary->bufl=imp_sth->piece_size; /*reset this back to   piece_size */
+
 				} else {
 					int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
 				    char *p = (char*)row_data;
