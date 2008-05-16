@@ -73,6 +73,7 @@ struct imp_sth_st {
     int				pers_lob;   /*use dblink for lobs only for 10g Release 2. or later*/
 	ub4				piece_size; /*used in callback to set the size of the piece to get*/
     int  			has_lobs;   /* Statement has bound LOBS*/
+
     lob_refetch_t *lob_refetch;
     int  		nested_cursor; /* cursors fetched from SELECTs */
     AV          *bind_tuples;  /* Bind tuples in array execute, or NULL */
@@ -121,8 +122,11 @@ struct imp_sth_st {
 typedef struct fb_ary_st fb_ary_t;    /* field buffer array	*/
 struct fb_ary_st { 	/* field buffer array EXPERIMENTAL	*/
     ub4  bufl;		/* length of data buffer		*/
+    ub4  cb_bufl;	/* length of piece of data fetched in callback	*/
+    ub4  piece_count;
     sb2  *aindp;	/* null/trunc indicator variable	*/
     ub1  *abuf;		/* data buffer (points to sv data)	*/
+    ub1  *cb_abuf;	/*yet another buffer for picewise callbacks*/
     ub2  *arlen;	/* length of returned data		*/
     ub2  *arcode;	/* field level error status		*/
 };
@@ -174,8 +178,11 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     ub1  		csform;	/* OCI_ATTR_CHARSET_FORM		*/
 
     ub4  		disize;	/* max display/buffer size		*/
+    ub4			piece_size; /*used in callback to set the size of the piece to get*/
+
     char 		*bless;	/* for Oracle::OCI style handle data	*/
     void 		*special;	/* hook for special purposes (LOBs etc)	*/
+    int			pers_lob;   /*for persistant lobs 10g Release 2. or later*/
 
     /* Our storage space for the field data as it's fetched	*/
     sword  		ftype;	/* external datatype we wish to get	*/
@@ -263,6 +270,8 @@ void ora_free_fbh_contents _((imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
 fb_ary_t *fb_ary_alloc _((ub4 bufl, int size));
+fb_ary_t *fb_ary_cb_alloc _((ub4 bufl,ub4 cb_bufl, int size));
+
 int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
 
 void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));

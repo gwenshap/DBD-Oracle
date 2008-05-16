@@ -271,12 +271,32 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
 
 /* --- allocate and free oracle oci 'array' buffers --- */
 
+/* --- allocate and free oracle oci 'array' buffers for callback--- */
+
+fb_ary_t *
+fb_ary_cb_alloc(ub4 piece_size, ub4 max_len, int size)
+{
+   fb_ary_t *fb_ary;
+    /* these should be reworked to only to one Newz()	*/
+    /* and setup the pointers in the head fb_ary struct	*/
+    Newz(42, fb_ary, sizeof(fb_ary_t), fb_ary_t);
+    Newz(42, fb_ary->abuf,      size * piece_size, ub1);
+    Newz(42, fb_ary->cb_abuf,   size * max_len, ub1);
+    Newz(42, fb_ary->aindp,  (unsigned)size,        sb2);
+    Newz(42, fb_ary->arlen,  (unsigned)size,        ub2);
+    Newz(42, fb_ary->arcode, (unsigned)size,        ub2);
+    fb_ary->bufl = piece_size;
+    fb_ary->cb_bufl = max_len;
+    return fb_ary;
+}
+
+
+/* --- allocate and free oracle oci 'array' buffers --- */
+
 fb_ary_t *
 fb_ary_alloc(ub4 bufl, int size)
 {
- dTHR;
-    dTHX;
-    fb_ary_t *fb_ary;
+   fb_ary_t *fb_ary;
     /* these should be reworked to only to one Newz()	*/
     /* and setup the pointers in the head fb_ary struct	*/
     Newz(42, fb_ary, sizeof(fb_ary_t), fb_ary_t);
@@ -285,7 +305,7 @@ fb_ary_alloc(ub4 bufl, int size)
     Newz(42, fb_ary->arlen,  (unsigned)size,        ub2);
     Newz(42, fb_ary->arcode, (unsigned)size,        ub2);
     fb_ary->bufl = bufl;
-
+    fb_ary->cb_bufl = bufl;
     return fb_ary;
 }
 
@@ -296,7 +316,9 @@ fb_ary_free(fb_ary_t *fb_ary)
     Safefree(fb_ary->aindp);
     Safefree(fb_ary->arlen);
     Safefree(fb_ary->arcode);
+    Safefree(fb_ary->cb_abuf);
     Safefree(fb_ary);
+   
 }
 
 
