@@ -611,7 +611,7 @@ static sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid
  imp_fbh_t *fbh =(imp_fbh_t*)octxp;
   fb_ary_t  *fb_ary;
   fb_ary =  fbh->fb_ary;
-  *indpp = (dvoid *) 0;
+ /* *indpp = (dvoid *) 0;
   *rcpp = (ub2 *) 0;
 /*  PerlIO_printf(DBILOGFP,"-->in fb_ary->piece_count=%d a=%d *piecep=%d\n", fb_ary->piece_count,a,*piecep);
    PerlIO_printf(DBILOGFP," (a/2)=%u ",a%2);
@@ -636,6 +636,10 @@ static sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid
  /* fb_ary->cb_bufl=fbh->*/
   *bufpp = (dvoid *) fb_ary->abuf;
   *alenpp = &fb_ary->bufl;
+  *indpp   = (dvoid *) fb_ary->aindp;
+  *rcpp =  fb_ary->arcode;
+
+/*  PerlIO_printf(DBILOGFP,"fb_ary->arcode=%d,fb_ary->arcode=%d piecep=%d\n.,fb_ary->bufl=%d ", *fb_ary->arcode,*fb_ary->arcode,*piecep,fb_ary->bufl);*/
 
 /*  PerlIO_printf(DBILOGFP,"BEFORE DID COPY fb_ary->bufl=%d,fbh->piece_size=%d \n",fb_ary->bufl,fbh->piece_size);
 */
