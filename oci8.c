@@ -611,139 +611,18 @@ static sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid
  imp_fbh_t *fbh =(imp_fbh_t*)octxp;
   fb_ary_t  *fb_ary;
   fb_ary =  fbh->fb_ary;
- /* *indpp = (dvoid *) 0;
-  *rcpp = (ub2 *) 0;
-/*  PerlIO_printf(DBILOGFP,"-->in fb_ary->piece_count=%d a=%d *piecep=%d\n", fb_ary->piece_count,a,*piecep);
-   PerlIO_printf(DBILOGFP," (a/2)=%u ",a%2);
-
-   if (a%2==0){
-	a++;
-
-}
- /*  if (fb_ary->piece_count
-    *piecep =OCI_LAST_PIECE;
-    PerlIO_printf(DBILOGFP,"Getting in OCI_%s_PIECE .... \n",
-                     (piecep[0]==(ub1)OCI_ONE_PIECE) ? "ONE" :
-                     (piecep[0]==(ub1)OCI_FIRST_PIECE) ? "FIRST" :
-                     (piecep[0]==(ub1)OCI_NEXT_PIECE) ? "NEXT" :
-                   (piecep[0]==(ub1)OCI_LAST_PIECE) ? "LAST" : "???");
-
- /* if (fb_ary->piece_count == 1 ){
-  /* fb_ary->bufl=fbh->piece_size; /*reset this back to the disize */
-  /* fb_ary->cb_bufl=fbh->disize;
- *   PerlIO_printf(DBILOGFP," first\n");
-  }*/
- /* fb_ary->cb_bufl=fbh->*/
   *bufpp = (dvoid *) fb_ary->abuf;
   *alenpp = &fb_ary->bufl;
   *indpp   = (dvoid *) fb_ary->aindp;
   *rcpp =  fb_ary->arcode;
 
-/*  PerlIO_printf(DBILOGFP,"fb_ary->arcode=%d,fb_ary->arcode=%d piecep=%d\n.,fb_ary->bufl=%d ", *fb_ary->arcode,*fb_ary->arcode,*piecep,fb_ary->bufl);*/
-
-/*  PerlIO_printf(DBILOGFP,"BEFORE DID COPY fb_ary->bufl=%d,fbh->piece_size=%d \n",fb_ary->bufl,fbh->piece_size);
-*/
   if ( *piecep ==OCI_NEXT_PIECE){
 
-/*    PerlIO_printf(DBILOGFP,"my buff b_ary->bufl=%c\n",*fb_ary->abuf );*/
- fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,fb_ary->bufl);
-   /* PerlIO_printf(DBILOGFP,"my buff copy fb_ary->bufl=%s\n",(char*)fb_ary->cb_abuf );*/
+ 	fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,fb_ary->bufl);
 
   }
 
-  fb_ary->piece_count++;
-
-   /*   PerlIO_printf(DBILOGFP," strlen(fb_ary->cb_abuf)=%d \n",strlen(fb_ary->cb_abuf));*/
-
- /*  PerlIO_printf(DBILOGFP," fb_ary->piece_count is =%d\n",fb_ary->piece_count);*/
-
-
-
-/*  if (a<=1)
-  {
-    /*piecep = OCI_FIRST_PIECE;*
-    PerlIO_printf(DBILOGFP,"Select callback: 0th piece\n");
-  }
-  else if (a<3)
-  {
-    /*piecep = OCI_NEXT_PIECE;*
-    PerlIO_printf(DBILOGFP,"Select callback: %d'th piece:\n", a-1);
-  }
-  else {
-    /*piecep = OCI_LAST_PIECE;*
-    PerlIO_printf(DBILOGFP,"Select callback: %d'th piece: \n", a-1);
-    a = 0;
-  }
-*/
-
- /* *bufpp = (dvoid *) fb_ary->cb_abuf;
-  *alenpp = &fb_ary->cb_bufl;
-     PerlIO_printf(DBILOGFP,"  cbk 2\n");*/
-
-/*  strncat(fb_ary->abuf, fb_ary->cb_abuf,fb_ary->cb_bufl);*/
-
-
-
-  /*ind = 0;
-
-    if (glGetInd)
-      *indpp  = (dvoid *) &ind;
-    else
-      *indpp = (dvoid *)0;
-
-    rc = 0;
-    if (glGetRc)
-      *rcpp  = (ub2 *) &rc;
-    else
-      *rcpp = (ub2 *)0;
-
- /*  switch (piecep[0]) {
-
-      case OCI_ONE_PIECE:
-        PerlIO_printf(DBILOGFP," OCI_ONE_PIECE\n");
-        break;
-      case OCI_FIRST_PIECE:
-
-
-     /*  (void)SvUPGRADE(sv, SVt_PV);*/
-    /*    SvGROW(sv,fb_ary->bufl);
-
-      PerlIO_printf(DBILOGFP," first piece \n");
-    /*  sv=newSVpvn((char*)bufpp, fb_ary->bufl);
-      PerlIO_printf(DBILOGFP,"SvLEN(sv)=%d\n",SvLEN(sv));
-   /*     *bufpp =  SvGROW(sv, fb_ary->bufl));*/
-       /* bufpp[fb_ary->bufl] = '\0';*/
-     /*   PerlIO_printf(DBILOGFP,"strlen(p)=%s\n",strlen(p));*/
-    /*     sv_setpvn(sv,(char*)(*bufpp), fb_ary->bufl);*/
-     /*   PerlIO_printf(DBILOGFP,"SvLEN(sv)=%d\n",SvLEN(sv));
-      	break;
-
-      case OCI_NEXT_PIECE:
-
-        PerlIO_printf(DBILOGFP," OCI_NEXT_PIECE\n");
-
-      /*  sv_catpv(sv,(char *) bufpp);
-        PerlIO_printf(DBILOGFP,"SvLEN(sv)=%d\n",SvLEN(sv));
-     /* 	 row_data=&fb_ary->abuf[0]+(fb_ary->bufl);
-	  	  p = (char*)row_data;
-	      PerlIO_printf(DBILOGFP," OCI_FIRST_PIECE\n");  */
-
-	         /* bufpp[fb_ary->bufl] = '\0';*/
-	      /*   PerlIO_printf(DBILOGFP,"strlen(p)=%s\n",strlen(p));
-
-
-      	break;
-
-      case OCI_LAST_PIECE:
-      	PerlIO_printf(DBILOGFP," OCI_LAST_PIECE\n");
-      	break;
-      default:
-     	PerlIO_printf(DBILOGFP,"ERROR: piece-wise fetching, \n");
-		break;
-   }
-  *
-    PerlIO_printf(DBILOGFP,"<---out fb_ary->piece_count=%d a=%d *piecep=%d\n", fb_ary->piece_count,a,*piecep);
-*/
+  fb_ary->piece_count++;/*used to tell me how many pieces I have, Might be able to use aindp for this?*/
 
   return OCI_CONTINUE;
 
@@ -1956,6 +1835,8 @@ empty_oci_object(fbh_obj_t *obj){
 
 }
 
+
+
 static void
 fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 	dTHX;
@@ -2500,11 +2381,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
 	    		    if (fbh->dbtype == 112){
-	    		    	fbh->ftype  = SQLT_CHR;
+	    		    	fbh->ftype = SQLT_CHR;
 	    		    } else {
-	    				fbh->ftype       = SQLT_BIN; /*other Binary*/
+	    				fbh->ftype = SQLT_BIN; /*other Binary*/
 
-	    		/*		fbh->fetch_func = fetch_presis_binary; /* need a new fetch function for it */
 	    			}
 
 				} else {
@@ -2840,37 +2720,14 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
                 if (imp_sth->pers_lob){
                 	ub4 actual_bufl=imp_sth->piece_size*(fb_ary->piece_count-1)+fb_ary->bufl;
                     fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,fb_ary->bufl);
-
-                /*if (fbh->ftype == SQLT_BIN){ /*This uses a picewise fecth call to presist_lob_fetch_cbk*/
-                	/* the actual size of the data returned is the #of Pieces * pice_size + any left over which will be in bufl*/
-
-                /*    PerlIO_printf(DBILOGFP," actual_bufl=%d\n", actual_bufl);*/
 					if (fbh->ftype == SQLT_BIN){
                    		*(fb_ary->cb_abuf+(actual_bufl))='\0'; /* add a null teminator*/
 					}
                    sv_setpvn(sv, (char*)fb_ary->cb_abuf, actual_bufl);
-
-
-            /*       PerlIO_printf(DBILOGFP,"fetch 1 imp_sth->piece_sizel=%d\n", imp_sth->piece_size);
-				   PerlIO_printf(DBILOGFP,"fetch 1 imp_sth->long_readlen=%d\n", imp_sth->long_readlen);
-
-                  PerlIO_printf(DBILOGFP,"fetch 1 fbh->piece_size=%d\n", fbh->piece_size);
-				    PerlIO_printf(DBILOGFP,"fetch 1 fbh->disize=%d\n", fbh->disize);
-            */
                    fb_ary->piece_count=0;/*reset this back to the disize */
-            /*       PerlIO_printf(DBILOGFP,"fetch 1 fb_ary->bufl=%d\n", fb_ary->bufl);
-                   PerlIO_printf(DBILOGFP,"fetch 1 fb_ary->cb_bufl=%d\n", fb_ary->cb_bufl);
-                  */
                    fb_ary->bufl=fbh->piece_size; /*reset this back to the disize */
-                       memset( fb_ary->cb_abuf, '\0', sizeof(fbh->disize) );
-
-
-
-           		  /* fb_ary->cb_bufl=fbh->disize; /*reset this back to   piece_size */
-
-/*           		   PerlIO_printf(DBILOGFP,"fetch 1 fb_ary->bufl=%d\n", fb_ary->bufl);
-				   PerlIO_printf(DBILOGFP,"fetch 1 fb_ary->cb_bufl=%d\n", fb_ary->cb_bufl);
-*/
+                   memset( fb_ary->cb_abuf, '\0', sizeof(fbh->disize) );
+                   memset( fb_ary->abuf, '\0', fb_ary->bufl);
 
 				} else {
 					int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
