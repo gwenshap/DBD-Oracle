@@ -587,22 +587,22 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 
 
 
-/* -------------------------------------------------------------- */
-/* Fetch callback fill buffers.
-/* Finalyy figured out how this fucntion works					  */
-/* Seems it is like this. The function inits and then fills the
-/* buffer (fb_ary->abuf) with the data from the select untill it
-/* either runs out of data or its max size is reached
-/* (fb_ary->bufl).  If its max size is reached it then goes and gets
-/* the the next piece and sets *piecep ==OCI_NEXT_PIECE at this point
-/* I take the data in the buffer and strncat it onto my piece buffer
-/* fb_ary->cb_abuf. This will go on until it runs out of pieces
-/* There is no way in this function to get this (at least I do not know
-/* how) so when it returns to back to the fetch I add what remains in
-/* (fb_ary->bufl) (the last piece) and strncat onto fb_ary->cb_abuf
-/* to get it all.  I also take set fb_ary->cb_abuf back to empty just
-/* to keep things clean
-/* -------------------------------------------------------------- */
+/* -------------------------------------------------------------- 
+   Fetch callback fill buffers.
+   Finalyy figured out how this fucntion works					  
+   Seems it is like this. The function inits and then fills the
+   buffer (fb_ary->abuf) with the data from the select untill it
+   either runs out of data or its max size is reached
+   (fb_ary->bufl).  If its max size is reached it then goes and gets
+   the the next piece and sets *piecep ==OCI_NEXT_PIECE at this point
+   I take the data in the buffer and strncat it onto my piece buffer
+   fb_ary->cb_abuf. This will go on until it runs out of pieces
+   There is no way in this function to get this (at least I do not know
+   how) so when it returns to back to the fetch I add what remains in
+   (fb_ary->bufl) (the last piece) and strncat onto fb_ary->cb_abuf
+   to get it all.  I also take set fb_ary->cb_abuf back to empty just
+   to keep things clean
+ -------------------------------------------------------------- */
 static sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
                       ub4 **alenpp, ub1 *piecep, dvoid **indpp, ub2 **rcpp)
 {
