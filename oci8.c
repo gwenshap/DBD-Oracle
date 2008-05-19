@@ -603,24 +603,23 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
    to get it all.  I also take set fb_ary->cb_abuf back to empty just
    to keep things clean
  -------------------------------------------------------------- */
-static sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
+sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
                       ub4 **alenpp, ub1 *piecep, dvoid **indpp, ub2 **rcpp)
 {
   dTHX;
-  static int a = 0;
   imp_fbh_t *fbh =(imp_fbh_t*)octxp;
   fb_ary_t  *fb_ary;
   fb_ary =  fbh->fb_ary;
   
-  *bufpp = (dvoid *) fb_ary->abuf;
+  *bufpp  = (dvoid *) fb_ary->abuf;
   *alenpp = &fb_ary->bufl;
-  *indpp   = (dvoid *) fb_ary->aindp;
-  *rcpp =  fb_ary->arcode;
- 
-  if ( *piecep ==OCI_NEXT_PIECE ){
+  *indpp  = (dvoid *) fb_ary->aindp;
+  *rcpp   =  fb_ary->arcode;
 
+  if ( *piecep ==OCI_NEXT_PIECE ){
+ 
  	fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,fb_ary->bufl);
- 	fb_ary->piece_count++;/*used to tell me how many pieces I have, Might be able to use aindp for this?*/
+	fb_ary->piece_count++;/*used to tell me how many pieces I have, Might be able to use aindp for this?*/
     
   }
 
@@ -2501,7 +2500,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	        &fbh->defnp,
 		    imp_sth->errhp,
 		    (ub4) i,
-		    (fbh->desc_h) ? (dvoid*)&fbh->desc_h : (dvoid*)fb_ary->abuf,
+		    (fbh->desc_h) ? (dvoid*)&fbh->desc_h : fbh->pers_lob  ? (dvoid *) 0: (dvoid*)fb_ary->abuf,
 		    (fbh->desc_h) ?                   0 :        define_len,
 		    (ub2)fbh->ftype,
 		    fb_ary->aindp,
@@ -2510,7 +2509,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		    fbh->define_mode,
 			    status);
 
-			 if (imp_sth->pers_lob)  {
+			 if (fbh->pers_lob)  {
 
 				 /* uses a dynamic callback for persistent binary and char lobs*/
 			 	OCIDefineDynamic(fbh->defnp, imp_sth->errhp, (dvoid *) fbh,
@@ -2706,8 +2705,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 	    /* else fall through and let rc trigger failure below	*/
 		}
 
-
-
+       
 		if (rc == 0 || 	/* the normal case*/
 			(fbh->pers_lob && rc == 1406 && DBIc_has(imp_sth,DBIcf_LongTruncOk))/*or a trunckated record when using 10.2 Persistent Lob interface*/
  		) {
@@ -2742,7 +2740,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 					
                     fb_ary->piece_count=0;/*reset this back to the disize */
          			memset( fb_ary->abuf, '\0', fb_ary->bufl);
-                   	fb_ary->bufl=imp_sth->piece_size; /*reset this back to the disize */
+                   	fb_ary->bufl=fbh->piece_size; /*reset this back to the disize */
  					fb_ary->cb_bufl=fbh->disize;
  	                memset( fb_ary->cb_abuf, '\0', fbh->disize );
 
@@ -2763,7 +2761,13 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 		} else if (rc == 1405) {	/* field is null - return undef	*/
 	    	sv_set_undef(sv);
-
+			if (fbh->pers_lob){
+				fb_ary->piece_count=0;/*reset this back to the disize */
+				memset( fb_ary->abuf, '\0', fb_ary->bufl);
+				fb_ary->bufl=imp_sth->piece_size; /*reset this back to the disize */
+				fb_ary->cb_bufl=fbh->disize;
+ 	             memset( fb_ary->cb_abuf, '\0', fbh->disize );
+			}
 		} else {  /* See odefin rcode arg description in OCI docs	*/
 			char buf[200];
 		    char *hint = "";
