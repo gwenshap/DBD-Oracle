@@ -608,22 +608,23 @@ static sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid
 {
   dTHX;
   static int a = 0;
- imp_fbh_t *fbh =(imp_fbh_t*)octxp;
+  imp_fbh_t *fbh =(imp_fbh_t*)octxp;
   fb_ary_t  *fb_ary;
   fb_ary =  fbh->fb_ary;
+  
   *bufpp = (dvoid *) fb_ary->abuf;
   *alenpp = &fb_ary->bufl;
   *indpp   = (dvoid *) fb_ary->aindp;
   *rcpp =  fb_ary->arcode;
-
-  if ( *piecep ==OCI_NEXT_PIECE){
+ 
+  if ( *piecep ==OCI_NEXT_PIECE ){
 
  	fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,fb_ary->bufl);
-
+ 	fb_ary->piece_count++;/*used to tell me how many pieces I have, Might be able to use aindp for this?*/
+    
   }
 
-  fb_ary->piece_count++;/*used to tell me how many pieces I have, Might be able to use aindp for this?*/
-
+ 	
   return OCI_CONTINUE;
 
 }
@@ -2608,7 +2609,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		status = OCI_SUCCESS;
 
     } else {
-    	if (DBIS->debug <= 3){
+    	if (DBIS->debug >= 3){
 	    	PerlIO_printf(DBILOGFP, "    dbd_st_fetch %d fields...\n", DBIc_NUM_FIELDS(imp_sth));
 	    }
 
@@ -2672,7 +2673,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
     av = DBIS->get_fbav(imp_sth);
 
-    if (DBIS->debug <= 3) {
+    if (DBIS->debug >= 3) {
 		PerlIO_printf(DBILOGFP, "    dbd_st_fetch %d fields %s\n",	num_fields, oci_status_name(status));
     }
 
@@ -2708,7 +2709,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 
 		if (rc == 0 || 	/* the normal case*/
-			(imp_sth->pers_lob && rc == 1406 && DBIc_has(imp_sth,DBIcf_LongTruncOk))/*or a trunckated record when using 10.2 Persistent Lob interface*/
+			(fbh->pers_lob && rc == 1406 && DBIc_has(imp_sth,DBIcf_LongTruncOk))/*or a trunckated record when using 10.2 Persistent Lob interface*/
  		) {
 			if (fbh->fetch_func) {
 
@@ -2717,17 +2718,33 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				}
 
 	      	} else {
-                if (imp_sth->pers_lob){
-                	ub4 actual_bufl=imp_sth->piece_size*(fb_ary->piece_count-1)+fb_ary->bufl;
-                    fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,fb_ary->bufl);
-					if (fbh->ftype == SQLT_BIN){
-                   		*(fb_ary->cb_abuf+(actual_bufl))='\0'; /* add a null teminator*/
+                if (fbh->pers_lob){
+                	ub4 actual_bufl=imp_sth->piece_size*(fb_ary->piece_count)+fb_ary->bufl;
+                    if (fb_ary->piece_count==0){
+                    
+                    	strcpy (fb_ary->cb_abuf,fb_ary->abuf);
+				
+                    } else {
+                        fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,fb_ary->bufl);
 					}
-                   sv_setpvn(sv, (char*)fb_ary->cb_abuf, actual_bufl);
-                   fb_ary->piece_count=0;/*reset this back to the disize */
-                   fb_ary->bufl=fbh->piece_size; /*reset this back to the disize */
-                   memset( fb_ary->cb_abuf, '\0', sizeof(fbh->disize) );
-                   memset( fb_ary->abuf, '\0', fb_ary->bufl);
+					
+					if (fbh->ftype == SQLT_BIN){
+		           		*(fb_ary->cb_abuf+(actual_bufl))='\0'; /* add a null teminator*/
+                   		sv_setpvn(sv, (char*)fb_ary->cb_abuf, actual_bufl);
+                   
+					} else {
+				
+						sv_setpvn(sv, (char*)fb_ary->cb_abuf, (STRLEN)actual_bufl);
+						if (CSFORM_IMPLIES_UTF8(fbh->csform) ){
+				    		SvUTF8_on(sv);
+						}					
+					}
+					
+                    fb_ary->piece_count=0;/*reset this back to the disize */
+         			memset( fb_ary->abuf, '\0', fb_ary->bufl);
+                   	fb_ary->bufl=imp_sth->piece_size; /*reset this back to the disize */
+ 					fb_ary->cb_bufl=fbh->disize;
+ 	                memset( fb_ary->cb_abuf, '\0', fbh->disize );
 
 				} else {
 					int datalen = fb_ary->arlen[imp_sth->rs_array_idx];

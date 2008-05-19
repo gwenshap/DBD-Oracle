@@ -314,6 +314,8 @@ sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 sb4 dbd_phs_out _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
              dvoid **bufpp, ub4 **alenpp, ub1 *piecep,
              dvoid **indpp, ub2 **rcodepp));
+sb4 presist_lob_fetch_cbk _((dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
+                      ub4 **alenpp, ub1 *piecep, dvoid **indpp, ub2 **rcpp));
 int dbd_rebind_ph_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 void * oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags);
