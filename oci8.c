@@ -609,15 +609,21 @@ sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufp
   imp_fbh_t *fbh =(imp_fbh_t*)octxp;
   fb_ary_t  *fb_ary;
   fb_ary =  fbh->fb_ary;
-  
+ 
   *bufpp  = (dvoid *) fb_ary->abuf;
   *alenpp = &fb_ary->bufl;
   *indpp  = (dvoid *) fb_ary->aindp;
   *rcpp   =  fb_ary->arcode;
 
   if ( *piecep ==OCI_NEXT_PIECE ){/*more than one piece*/
- 
- 	fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,(STRLEN)fb_ary->bufl);/*cat into the the cb buffer the piece*/
+  	
+	memcpy(fb_ary->cb_abuf+fb_ary->piece_count*fb_ary->bufl,fb_ary->abuf,fb_ary->bufl );
+	/*as we will be using both blobs and clobs we have to use
+	  pointer arithmetic to get the values right.  in this case we simply 
+	  copy all of the memory of the buff into the cb buffer starting 
+	  at the piece count * the  buffer length   
+	  */
+	
 	fb_ary->piece_count++;/*used to tell me how many pieces I have, Might be able to use aindp for this?*/
     
   }
@@ -2736,23 +2742,23 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 						if (DBIS->debug >= 6)
 							PerlIO_printf(DBILOGFP,"  Fetch persistent lob of %d (char/bytes) with callback in 1 piece of %d (Char/Bytes)\n",actual_bufl,fb_ary->bufl);
-                    
-                    	strcpy (fb_ary->cb_abuf,fb_ary->abuf);
-				
+          
+          				memcpy(fb_ary->cb_abuf,fb_ary->abuf,fb_ary->bufl );
+			       
                     } else {
      					if (DBIS->debug >= 6)
 							PerlIO_printf(DBILOGFP,"  Fetch persistent lob of %d (Char/Bytes) with callback in %d piece(s) of %d (Char/Bytes) and one piece of %d (Char/Bytes)\n",actual_bufl,fb_ary->piece_count,fbh->piece_size,fb_ary->bufl);
-
-                        fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,fb_ary->bufl);
-					}
+				
+						memcpy(fb_ary->cb_abuf+imp_sth->piece_size*(fb_ary->piece_count),fb_ary->abuf,fb_ary->bufl );
+			    	}
                    	
 					if (fbh->ftype == SQLT_BIN){
 		           		*(fb_ary->cb_abuf+(actual_bufl))='\0'; /* add a null teminator*/
-		           		sv_setpvn(sv, (char*)fb_ary->cb_abuf, actual_bufl);
+		           		sv_setpvn(sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
                    
 					} else {
 				
-						sv_setpvn(sv, (char*)fb_ary->cb_abuf, (STRLEN)actual_bufl);
+						sv_setpvn(sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
 						if (CSFORM_IMPLIES_UTF8(fbh->csform) ){
 				    		SvUTF8_on(sv);
 						}					
