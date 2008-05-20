@@ -37,6 +37,13 @@
 */
 
 
+#define OCIDefineDynamic_log_stat(defnp,errhp,fbh,stat)\
+    stat =OCIDefineDynamic(defnp,errhp,fbh,(OCICallbackDefine) presist_lob_fetch_cbk );\
+    (DBD_OCI_TRACEON) \
+    		? PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCIDefineDynamic_log_stat(%p,%p,%p)=%s\n",\
+		         OciTp, (void*)defnp, (void*)errhp,fbh,oci_status_name(stat)),stat \
+   : stat
 
 #define OCIXMLTypeCreateFromSrc_log_stat(svchp,envhp,src_type,src_ptr,xml,stat)\
     stat =OCIXMLTypeCreateFromSrc (svchp,envhp,(OCIDuration)OCI_DURATION_CALLOUT,(ub1)src_type,(dvoid *)src_ptr,(sb4)OCI_IND_NOTNULL, xml);\

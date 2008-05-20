@@ -122,11 +122,11 @@ struct imp_sth_st {
 typedef struct fb_ary_st fb_ary_t;    /* field buffer array	*/
 struct fb_ary_st { 	/* field buffer array EXPERIMENTAL	*/
     ub4  bufl;		/* length of data buffer		*/
-    ub4  cb_bufl;	/* length of piece of data fetched in callback	*/
-    ub4  piece_count;
+    ub4  cb_bufl;	/* length of piece of data fetched in callback.*/
+    ub4  piece_count;/*# of pieces retrieved*/
     sb2  *aindp;	/* null/trunc indicator variable	*/
     ub1  *abuf;		/* data buffer (points to sv data)	*/
-    ub1  *cb_abuf;	/*yet another buffer for picewise callbacks*/
+    ub1  *cb_abuf;	/*yet another buffer for picewise callbacks this means I only need to allocate memory once a prepare rather than at each fetch*/
     ub2  *arlen;	/* length of returned data		*/
     ub2  *arcode;	/* field level error status		*/
 };

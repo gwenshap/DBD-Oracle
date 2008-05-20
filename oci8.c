@@ -589,17 +589,16 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 
 /* -------------------------------------------------------------- 
    Fetch callback fill buffers.
-   Finalyy figured out how this fucntion works					  
+   Finaly figured out how this fucntion works					  
    Seems it is like this. The function inits and then fills the
-   buffer (fb_ary->abuf) with the data from the select untill it
+   buffer (fb_ary->abuf) with the data from the select until it
    either runs out of data or its max size is reached
    (fb_ary->bufl).  If its max size is reached it then goes and gets
    the the next piece and sets *piecep ==OCI_NEXT_PIECE at this point
    I take the data in the buffer and strncat it onto my piece buffer
-   fb_ary->cb_abuf. This will go on until it runs out of pieces
-   There is no way in this function to get this (at least I do not know
-   how) so when it returns to back to the fetch I add what remains in
-   (fb_ary->bufl) (the last piece) and strncat onto fb_ary->cb_abuf
+   (fb_ary->cb_abuf). This will go on until it runs out of full pieces
+   so when it returns to back to the fetch I add what remains in
+   (fb_ary->bufl) (the last piece) and strncat onto my piece buffer (fb_ary->cb_abuf)
    to get it all.  I also take set fb_ary->cb_abuf back to empty just
    to keep things clean
  -------------------------------------------------------------- */
@@ -616,9 +615,9 @@ sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufp
   *indpp  = (dvoid *) fb_ary->aindp;
   *rcpp   =  fb_ary->arcode;
 
-  if ( *piecep ==OCI_NEXT_PIECE ){
+  if ( *piecep ==OCI_NEXT_PIECE ){/*more than one piece*/
  
- 	fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,fb_ary->bufl);
+ 	fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,(STRLEN)fb_ary->bufl);/*cat into the the cb buffer the piece*/
 	fb_ary->piece_count++;/*used to tell me how many pieces I have, Might be able to use aindp for this?*/
     
   }
@@ -1744,7 +1743,8 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 }
 
 
-/*static int
+/*static int This is another way to do the callback using set and get piece not 
+used right now.
 fetch_presis_binary(SV *sth, imp_fbh_t *fbh,SV *dest_sv){
 
 	dTHX;
@@ -1835,7 +1835,23 @@ empty_oci_object(fbh_obj_t *obj){
 
 }
 
-
+static void 
+fetch_cleanup_pres_lobs(SV *sth,imp_fbh_t *fbh){
+	dTHX;
+   	fb_ary_t *fb_ary = fbh->fb_ary;
+	   	
+   	if( sth ) { /* For GCC not to warn on unused parameter*/  }
+   	fb_ary->piece_count=0;/*reset the peice counter*/
+   	memset( fb_ary->abuf, '\0', fb_ary->bufl); /*clean out the piece fetch buffer*/
+   	fb_ary->bufl=fbh->piece_size; /*reset this back to the piece length */
+   	fb_ary->cb_bufl=fbh->disize; /*reset this back to the max size for the fetch*/
+ 	memset( fb_ary->cb_abuf, '\0', fbh->disize ); /*clean out the call back buffer*/
+ 	
+ 	if (DBIS->debug >= 3)
+		PerlIO_printf(DBILOGFP,"  fetch_cleanup_pres_lobs \n");
+	
+	return;
+}
 
 static void
 fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
@@ -2372,11 +2388,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
                 /* do we need some addition size logic here? (lab) */
 				if (imp_sth->pers_lob){ /*this only works on 10.2 */
 
-					fbh->pers_lob    = 1;
-    				fbh->define_mode = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
-	    		    fbh->disize 	 = imp_sth->long_readlen; /*user set max value*/
-	    		    fbh->piece_size	 = imp_sth->piece_size;
-
+					fbh->pers_lob      = 1;
+    				fbh->define_mode   = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
+	    		    fbh->disize 	   = imp_sth->long_readlen; /*user set max value for the fetch*/
+	    		    fbh->piece_size	   = imp_sth->piece_size; /*the size for each piece*/
+ 					fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+  	    	  
 	    		    if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
@@ -2476,7 +2493,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fb_ary_t  *fb_ary;
 		fbh->fb_ary = fb_ary_alloc(define_len, 1);
 
-		if (fbh->pers_lob){
+		if (fbh->pers_lob){/*init the cb_abuf with this call*/
 			fbh->fb_ary = fb_ary_cb_alloc(imp_sth->piece_size,define_len, imp_sth->rs_array_size);
 
 		} else {
@@ -2511,12 +2528,9 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 			 if (fbh->pers_lob)  {
 
-				 /* uses a dynamic callback for persistent binary and char lobs*/
-			 	OCIDefineDynamic(fbh->defnp, imp_sth->errhp, (dvoid *) fbh,
-			                   (OCICallbackDefine) presist_lob_fetch_cbk);
+				 /* use a dynamic callback for persistent binary and char lobs*/
+			    OCIDefineDynamic_log_stat(fbh->defnp,imp_sth->errhp,(dvoid *) fbh,status);
 			 }
-
-
 
 
 			if (fbh->ftype == 108)  { /* Embedded object bind it differently*/
@@ -2555,16 +2569,16 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 #ifdef OCI_ATTR_CHARSET_FORM
         	if ( (fbh->dbtype == 1) && fbh->csform ) {
 	    	/* csform may be 0 when talking to Oracle 8.0 database*/
-            if (DBIS->debug >= 3)
-               PerlIO_printf(DBILOGFP, "    calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d\n", fbh->csform );
-	            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform,
+	            if (DBIS->debug >= 3)
+	               PerlIO_printf(DBILOGFP, "    calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d\n", fbh->csform );
+		            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform,
 	                                 (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
-            if (status != OCI_SUCCESS) {
-                oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");
-                ++num_errors;
-            }
-        }
-	#endif /* OCI_ATTR_CHARSET_FORM */
+	            if (status != OCI_SUCCESS) {
+	                oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");
+	                ++num_errors;
+	            }
+	        }
+#endif /* OCI_ATTR_CHARSET_FORM */
 
     }
 
@@ -2719,16 +2733,22 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
                 if (fbh->pers_lob){
                 	ub4 actual_bufl=imp_sth->piece_size*(fb_ary->piece_count)+fb_ary->bufl;
                     if (fb_ary->piece_count==0){
+
+						if (DBIS->debug >= 6)
+							PerlIO_printf(DBILOGFP,"  Fetch persistent lob of %d (char/bytes) with callback in 1 piece of %d (Char/Bytes)\n",actual_bufl,fb_ary->bufl);
                     
                     	strcpy (fb_ary->cb_abuf,fb_ary->abuf);
 				
                     } else {
+     					if (DBIS->debug >= 6)
+							PerlIO_printf(DBILOGFP,"  Fetch persistent lob of %d (Char/Bytes) with callback in %d piece(s) of %d (Char/Bytes) and one piece of %d (Char/Bytes)\n",actual_bufl,fb_ary->piece_count,fbh->piece_size,fb_ary->bufl);
+
                         fb_ary->cb_abuf= strncat( fb_ary->cb_abuf, fb_ary->abuf,fb_ary->bufl);
 					}
-					
+                   	
 					if (fbh->ftype == SQLT_BIN){
 		           		*(fb_ary->cb_abuf+(actual_bufl))='\0'; /* add a null teminator*/
-                   		sv_setpvn(sv, (char*)fb_ary->cb_abuf, actual_bufl);
+		           		sv_setpvn(sv, (char*)fb_ary->cb_abuf, actual_bufl);
                    
 					} else {
 				
@@ -2737,13 +2757,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				    		SvUTF8_on(sv);
 						}					
 					}
-					
-                    fb_ary->piece_count=0;/*reset this back to the disize */
-         			memset( fb_ary->abuf, '\0', fb_ary->bufl);
-                   	fb_ary->bufl=fbh->piece_size; /*reset this back to the disize */
- 					fb_ary->cb_bufl=fbh->disize;
- 	                memset( fb_ary->cb_abuf, '\0', fbh->disize );
-
+	
+                   
 				} else {
 					int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
 				    char *p = (char*)row_data;
@@ -2761,13 +2776,6 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 		} else if (rc == 1405) {	/* field is null - return undef	*/
 	    	sv_set_undef(sv);
-			if (fbh->pers_lob){
-				fb_ary->piece_count=0;/*reset this back to the disize */
-				memset( fb_ary->abuf, '\0', fb_ary->bufl);
-				fb_ary->bufl=imp_sth->piece_size; /*reset this back to the disize */
-				fb_ary->cb_bufl=fbh->disize;
- 	             memset( fb_ary->cb_abuf, '\0', fbh->disize );
-			}
 		} else {  /* See odefin rcode arg description in OCI docs	*/
 			char buf[200];
 		    char *hint = "";

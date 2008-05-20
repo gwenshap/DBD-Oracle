@@ -40,6 +40,7 @@ SKIP: {
 
 my $table = table();
 
+eval { $dbh->do("DROP TABLE $table") };
 
 ok($dbh->do(qq{
 	CREATE TABLE $table (
@@ -70,7 +71,7 @@ ok($dbh->{LongReadLen} = 1000000); #twice as big as it should be
 
 $sql='select * from '.$table;
 
-ok($sth=$dbh->prepare($sql,{ora_pers_lob=>1}));
+ok($sth=$dbh->prepare($sql,{ora_pers_lob=>1,ora_piece_size=>.5*1024*1024}));
 
 ok($sth->execute());
 

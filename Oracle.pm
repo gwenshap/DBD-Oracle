@@ -1470,8 +1470,12 @@ of how to use LOB Locators.
 
 =item ora_pers_lob
 
-If 1 and your DBD::Oracle was built using OCI 10.2 or later the L<Data Interface for Persistent LOBs> will be
+If 1 and your DBD::Oracle was built using OCI 10.2 and you are selecting against an Oralce 10R2 DB or later the L<Data Interface for Persistent LOBs> will be
 used for LOBs.
+
+=item ora_piece_size
+
+This is the max piece size, in char for CLOBS, and bytes for BLOBS, for use with the <Data Interface for Persistent LOBs>. 
 
 =item ora_check_sql
 
@@ -2733,10 +2737,11 @@ is not included in the computing of the prefetch rows.
 
 =head1 Data Interface for Persistent LOBs
 
-Oracle 10.2 and later extended the OCI API to work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
+Oracle 10R2 and later extended the OCI API to work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
 a LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
 you would use on other datatypes that store character or binary data. There are fewer round trips to the server as no 'LOB Locators' are
-used, normally one can get an entire LOB is a single round trip. The data interface is suppose to supports LOBs of any size less than 2GB.
+used, normally one can get an entire LOB is a single round trip. The data interface is supports LOBs of any size less than 2GB. Only 
+support for 'Selects' has been implemented using a  piecewise callback fetch.
 
 =head2 Simple Usage
 
@@ -2744,9 +2749,9 @@ No special methods are needed to use this interface. To do a select statement al
   
   use DBD::Oracle qw(:ora_types);
   
-and ensure the set statement handle's prepare method 'ora_pers_lob' attribute is set to '1' and the database 
-handle's 'LongReadLen' attribute is set to a value that will exceed the expected size of the LOB. If the size of the lob exceeds this then DBD::Oracle
-will return a 'ORA-24345: A Truncation' error.  To stop this set the handle's 'LongTruncOk' attribute to '1'.
+Next ensure the set statement handle's prepare method 'ora_pers_lob' attribute is set to '1', and set the 'ora_piece_size' to the size of the pieces
+you want to return on the callback. Finally set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected 
+size of the LOB. If the size of the lob exceeds this then DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the handle's 'LongTruncOk' attribute to '1'.
 
 For example give this table;
 
@@ -2760,7 +2765,7 @@ this code;
 
   $dbh->{LongReadLen} = 2*1024*1024; #2 meg
   $SQL='select p_id,lob_1,lob_2,blob_2 from test_lobs';
-  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1});
+  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1,ora_piece_size=>1*1024*1024});
   $sth->execute();
   while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
     print "p_id=".$p_id."\n";
@@ -2770,11 +2775,14 @@ this code;
     print "blob2=".$blob2."\n";
   }
 
-Will select out all of the LOBs in the table as long as they are all under 2MB in length.  Longer lobs will throw a error. Adding this line;
+Will select out all of the LOBs in the table as long as they are all under 2MB in length. If the LOB is longer than 1meg(ora_piece_size) it will fetch it in at least two pieces,
+Longer lobs will throw a error. Adding this line;
 
   $dbh->{LongTruncOk}=1;
   
-before the execute will return all the lobs but they will only be a maximum of 2MB in size.
+before the execute will return all the lobs but they will only be a maximum of 2MB in size. 
+If 'ora_piece_size' is omitted then the value for piece size will default to your 'LongReadLen'.  The maximum value for 'ora_piece_size' is 
+about 15meg and 'LongReadLen' is  about 4gig.
 
 =head2 Binding for Updates and Inserts
 
@@ -2807,9 +2815,8 @@ to a remote database called 'test_lobs', the following code will work;
 
   $dbh = DBI->connect('dbi:Oracle:','test@lob_test','test');
   $dbh->{LongReadLen} = 2*1024*1024; #2 meg
-  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1});
   $SQL='select p_id,lob_1,lob_2,blob_2 from test_lobs@link_test';
-  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1,ora_check_sql=>0});
+  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1,ora_piece_size=>1*1024*1024});
   $sth->execute();
   while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
      print "p_id=".$p_id."\n";
@@ -2889,8 +2896,7 @@ Not all of the interface has been implemented yet, the following are not support
 
   1) Piecewise, and callback binds for INSERT and UPDATE operations.
   2) Array binds for INSERT and UPDATE operations.
-  3) Piecewise and callback binds for SELECT operation.
-
+ 
 
 =head1 Handling LOBs
 
