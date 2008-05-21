@@ -1,4 +1,5 @@
 =head1 Changes in DBD-Oracle 1.22(svn rev xxxx)  2008 
+  Fix for rt.cpan.org Ticket #=28811 ORA_CHAR(s) not returning correct length in functions and procedures from John Scoles
   Makefile.PL now working without flags for Linux 11.1.0.6 instant client and regular client from John Scoles, Andy Sautins, H.Merijn Brand, Nathan Vonnahme and Karun Dutt
   Fixed how persistant lob fetch works now uses callback correctly, from John Scoles & Darren Kipp
 

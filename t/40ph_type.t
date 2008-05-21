@@ -118,7 +118,7 @@ for my $test_info (@tests) {
   $expect =~ s/\s+$// if $test_info->{chops_space};
   my $ok = ($tmp->{ts}->{vc} eq $expect);
   if (!$ok && $ph_type==1 && $name eq 'VARCHAR2') {
-    warn " Placeholder behaviour for ora_type=1 (the default) varies with Oracle version.\n";
+    warn " Placeholder behaviour for ora_type=1 VARCHAR2 (the default) varies with Oracle version.\n";
     warn " Oracle 7 didn't strip trailing spaces, Oracle 8 did, until 9.2.x\n";
     warn " Your system doesn't. If that seems odd, let us know.\n";
     $ok = 1;

@@ -1611,7 +1611,7 @@ Oracle Clients after OCI 9.2 will automatically pad CHAR placeholder values to t
 As the default placeholder type value in DBD::Oracle is ORA_VARCHAR2 to access this behaviour you will 
 have to change the default placeholder type with L</ora_ph_type> or placeholder 
 type for a particular call with L<DBI/bind> or L<DBI/bind_param_inout>
-with L</ORA_CHAR> or C<ORA_CHARZ>.
+with L</ORA_CHAR>.
 
 =head1 Metadata
 

@@ -2185,22 +2185,22 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
   	  	if (imp_sth->ora_pad_empty)
 	  	  croak("Can't use ora_pad_empty with bind_param_inout");
 	  	if (SvTYPE(phs->sv)!=SVt_RV || !at_exec) {
-			 STRLEN min_len = (phs->ftype != 96) ? 28 : 0;
-
-
-	  /*  if (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) {*/
-
-	      /* if not an array ref then do this */
-	      /* ensure room for result, 28 is magic number (see sv_2pv)	*/
-	      /* don't apply 28 char min to CHAR types - probably shouldn't	*/
-	      /* apply it anywhere really, trying to be too helpful.		*/
-
-	      /* phs->sv _is_ the real live variable, it may 'mutate' later	*/
-	      /* pre-upgrade to high'ish type to reduce risk of SvPVX realloc/move */
-	      (void)SvUPGRADE(phs->sv, SVt_PVNV);
-	      SvGROW(phs->sv, (STRLEN)(((unsigned int) phs->maxlen < min_len) ? min_len : (unsigned int) phs->maxlen)+1/*for null*/);
-	   /* }*/
-	  }
+	  	
+			if (phs->ftype == 96){
+				SvGROW(phs->sv,(STRLEN) (unsigned int)phs->maxlen-1);
+		  	} else {
+				STRLEN min_len = 28;
+				(void)SvUPGRADE(phs->sv, SVt_PVNV);
+		      /* ensure room for result, 28 is magic number (see sv_2pv)	*/
+			  /* don't apply 28 char min to CHAR types - probably shouldn't	*/
+			  /* apply it anywhere really, trying to be too helpful.		*/
+		      /* phs->sv _is_ the real live variable, it may 'mutate' later	*/
+			  /* pre-upgrade to high'ish type to reduce risk of SvPVX realloc/move */
+				SvGROW(phs->sv, (STRLEN)(((unsigned int) phs->maxlen <= min_len) ? min_len : (unsigned int) phs->maxlen)+1/*for null*/);
+		
+			}
+		}
+	  
     }
 
     /* At this point phs->sv must be at least a PV with a valid buffer,	*/
@@ -2223,11 +2223,8 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
     }
 
     phs->sv_type = SvTYPE(phs->sv);	/* part of mutation check	*/
-
-
-    phs->maxlen  = ((IV)SvLEN(phs->sv))-1; /* avail buffer space (64bit safe) */
-
-
+    phs->maxlen  = ((IV)SvLEN(phs->sv)); /* avail buffer space (64bit safe) Logicaly maxlen should never change but it does why I know not*/
+	
     if (phs->maxlen < 0)		/* can happen with nulls	*/
 	  phs->maxlen = 0;
 
@@ -3237,7 +3234,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
         	}
         	if(len > (unsigned int) phs[i]->maxlen)
         	    phs[i]->maxlen = len;
-
+     
         	/* Do OCI bind calls on last iteration. */
         	if( ((unsigned int) j ) == exe_count - 1 ) {
         	    if(!do_bind_array_exec(sth, imp_sth, phs[i])) {
