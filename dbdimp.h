@@ -1,5 +1,6 @@
 /*
    Copyright (c) 1994-2006 Tim Bunce
+   Copyright (c) 2006-2008 John Scoles (The Pythian Group), Canada
 
    See the COPYRIGHT section in the Oracle.pm file for terms.
 

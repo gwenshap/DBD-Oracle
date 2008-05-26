@@ -3,6 +3,7 @@
    oci8.c
 
    Copyright (c) 1998-2006  Tim Bunce  Ireland
+   Copyright (c) 2006-2008 John Scoles (The Pythian Group), Canada
 
    See the COPYRIGHT section in the Oracle.pm file for terms.
 
@@ -2966,7 +2967,6 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     HV *lob_cols_hv = NULL;
     sword status;
     OCIError *errhp = imp_sth->errhp;
-    OCIDescribe  *dschp = NULL;
     OCIParam *parmhp = NULL, *collisthd = NULL, *colhd = NULL;
     ub2 numcols = 0;
     imp_fbh_t *fbh;
@@ -2994,15 +2994,21 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		return oci_error(sth, errhp, OCI_ERROR,
 		"Unable to parse table name for LOB refetch");
 
-    OCIHandleAlloc_ok(imp_sth->envhp, &dschp, OCI_HTYPE_DESCRIBE, status);
+ 	if (!imp_sth->dschp){
+   	    OCIHandleAlloc_ok(imp_sth->envhp, &imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
+   	    if (status != OCI_SUCCESS) {
+			oci_error(sth,imp_sth->errhp, status, "OCIHandleAlloc");
+		}
+
+	 }
 
     OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
-		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_SYN, dschp, status);
+		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_SYN, imp_sth->dschp, status);
     if (status == OCI_SUCCESS) { /* There is a synonym, get the schema */
     	char *syn_schema=NULL, *syn_name=NULL;
     	char new_tablename[100];
     	ub4 syn_schema_len = 0, syn_name_len = 0,new_tablename_len=0;
-      	OCIAttrGet_log_stat(dschp,  OCI_HTYPE_DESCRIBE,
+      	OCIAttrGet_log_stat(imp_sth->dschp,  OCI_HTYPE_DESCRIBE,
 				  &parmhp, 0, OCI_ATTR_PARAM, errhp, status);
       	OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
 			  &syn_schema, &syn_schema_len, OCI_ATTR_SCHEMA_NAME, errhp, status);
@@ -3020,19 +3026,19 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     }
 
     OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
-		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_TABLE, dschp, status);
+		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_TABLE, imp_sth->dschp, status);
 	if (status != OCI_SUCCESS) {
       /* XXX this OCI_PTYPE_TABLE->OCI_PTYPE_VIEW fallback should actually be	*/
       /* a loop that includes synonyms etc */
       OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
-	    (ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_VIEW, dschp, status);
+	    (ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_VIEW, imp_sth->dschp, status);
     	if (status != OCI_SUCCESS) {
-			OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, status);
+			OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 			return oci_error(sth, errhp, status, "OCIDescribeAny(view)/LOB refetch");
     	  }
     }
 
-    OCIAttrGet_log_stat(dschp,  OCI_HTYPE_DESCRIBE,
+    OCIAttrGet_log_stat(imp_sth->dschp,  OCI_HTYPE_DESCRIBE,
 				&parmhp, 0, OCI_ATTR_PARAM, errhp, status);
     if ( ! status ) {
 	    OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
@@ -3043,7 +3049,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 				&collisthd, 0, OCI_ATTR_LIST_COLUMNS, errhp, status);
     }
     if (status != OCI_SUCCESS) {
-		OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, status);
+		OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 		return oci_error(sth, errhp, status, "OCIDescribeAny/OCIAttrGet/LOB refetch");
     }
 
@@ -3087,7 +3093,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		    if (status != OCI_SUCCESS) {
 				oci_error(sth, errhp, status,
 				    "OCIDescribeAny/OCIParamGet/OCIAttrGet/LOB refetch");
-				OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, status);
+				OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 				return 0;
 		    }
 		    if (!lob_cols_hv)

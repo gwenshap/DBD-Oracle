@@ -1,4 +1,6 @@
 ## Makefile.PL for DBD::Oracle - see README file for more information.
+# Copyright (c) 1994-2006 Tim Bunce. Ireland.
+# Copyright (c) 2006-2008 John Scoles (The Pythian Group). Canada.
 
 # vim: ts=8:sw=4
 
