@@ -3245,6 +3245,8 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		}
     }
 
+    OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
+
     imp_sth->lob_refetch = lr;	/* structure copy */
     return 1;
 }
