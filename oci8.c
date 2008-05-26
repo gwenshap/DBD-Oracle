@@ -587,9 +587,9 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 
 
 
-/* -------------------------------------------------------------- 
+/* --------------------------------------------------------------
    Fetch callback fill buffers.
-   Finaly figured out how this fucntion works					  
+   Finaly figured out how this fucntion works
    Seems it is like this. The function inits and then fills the
    buffer (fb_ary->abuf) with the data from the select until it
    either runs out of data or its max size is reached
@@ -609,26 +609,26 @@ sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufp
   imp_fbh_t *fbh =(imp_fbh_t*)octxp;
   fb_ary_t  *fb_ary;
   fb_ary =  fbh->fb_ary;
- 
+
   *bufpp  = (dvoid *) fb_ary->abuf;
   *alenpp = &fb_ary->bufl;
   *indpp  = (dvoid *) fb_ary->aindp;
   *rcpp   =  fb_ary->arcode;
 
   if ( *piecep ==OCI_NEXT_PIECE ){/*more than one piece*/
-  	
+
 	memcpy(fb_ary->cb_abuf+fb_ary->piece_count*fb_ary->bufl,fb_ary->abuf,fb_ary->bufl );
 	/*as we will be using both blobs and clobs we have to use
-	  pointer arithmetic to get the values right.  in this case we simply 
-	  copy all of the memory of the buff into the cb buffer starting 
-	  at the piece count * the  buffer length   
+	  pointer arithmetic to get the values right.  in this case we simply
+	  copy all of the memory of the buff into the cb buffer starting
+	  at the piece count * the  buffer length
 	  */
-	
+
 	fb_ary->piece_count++;/*used to tell me how many pieces I have, Might be able to use aindp for this?*/
-    
+
   }
 
- 	
+
   return OCI_CONTINUE;
 
 }
@@ -1749,7 +1749,7 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 }
 
 
-/*static int This is another way to do the callback using set and get piece not 
+/*static int This is another way to do the callback using set and get piece not
 used right now.
 fetch_presis_binary(SV *sth, imp_fbh_t *fbh,SV *dest_sv){
 
@@ -1841,21 +1841,21 @@ empty_oci_object(fbh_obj_t *obj){
 
 }
 
-static void 
+static void
 fetch_cleanup_pres_lobs(SV *sth,imp_fbh_t *fbh){
 	dTHX;
    	fb_ary_t *fb_ary = fbh->fb_ary;
-	   	
+
    	if( sth ) { /* For GCC not to warn on unused parameter*/  }
    	fb_ary->piece_count=0;/*reset the peice counter*/
    	memset( fb_ary->abuf, '\0', fb_ary->bufl); /*clean out the piece fetch buffer*/
    	fb_ary->bufl=fbh->piece_size; /*reset this back to the piece length */
    	fb_ary->cb_bufl=fbh->disize; /*reset this back to the max size for the fetch*/
  	memset( fb_ary->cb_abuf, '\0', fbh->disize ); /*clean out the call back buffer*/
- 	
+
  	if (DBIS->debug >= 3)
 		PerlIO_printf(DBILOGFP,"  fetch_cleanup_pres_lobs \n");
-	
+
 	return;
 }
 
@@ -2399,7 +2399,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    		    fbh->disize 	   = imp_sth->long_readlen; /*user set max value for the fetch*/
 	    		    fbh->piece_size	   = imp_sth->piece_size; /*the size for each piece*/
  					fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
-  	    	  
+
 	    		    if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
@@ -2497,7 +2497,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		/* add space for STRING null term, or VAR len prefix */
 		sb4 define_len = (ftype==94||ftype==95) ? fbh->disize+4 : fbh->disize;
 		fb_ary_t  *fb_ary;
-		fbh->fb_ary = fb_ary_alloc(define_len, 1);
 
 		if (fbh->pers_lob){/*init the cb_abuf with this call*/
 			fbh->fb_ary = fb_ary_cb_alloc(imp_sth->piece_size,define_len, imp_sth->rs_array_size);
@@ -2725,7 +2724,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 	    /* else fall through and let rc trigger failure below	*/
 		}
 
-       
+
 		if (rc == 0 || 	/* the normal case*/
 			(fbh->pers_lob && rc == 1406 && DBIc_has(imp_sth,DBIcf_LongTruncOk))/*or a trunckated record when using 10.2 Persistent Lob interface*/
  		) {
@@ -2742,29 +2741,29 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 						if (DBIS->debug >= 6)
 							PerlIO_printf(DBILOGFP,"  Fetch persistent lob of %d (char/bytes) with callback in 1 piece of %d (Char/Bytes)\n",actual_bufl,fb_ary->bufl);
-          
+
           				memcpy(fb_ary->cb_abuf,fb_ary->abuf,fb_ary->bufl );
-			       
+
                     } else {
      					if (DBIS->debug >= 6)
 							PerlIO_printf(DBILOGFP,"  Fetch persistent lob of %d (Char/Bytes) with callback in %d piece(s) of %d (Char/Bytes) and one piece of %d (Char/Bytes)\n",actual_bufl,fb_ary->piece_count,fbh->piece_size,fb_ary->bufl);
-				
+
 						memcpy(fb_ary->cb_abuf+imp_sth->piece_size*(fb_ary->piece_count),fb_ary->abuf,fb_ary->bufl );
 			    	}
-                   	
+
 					if (fbh->ftype == SQLT_BIN){
 		           		*(fb_ary->cb_abuf+(actual_bufl))='\0'; /* add a null teminator*/
 		           		sv_setpvn(sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
-                   
+
 					} else {
-				
+
 						sv_setpvn(sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
 						if (CSFORM_IMPLIES_UTF8(fbh->csform) ){
 				    		SvUTF8_on(sv);
-						}					
+						}
 					}
-	
-                   
+
+
 				} else {
 					int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
 				    char *p = (char*)row_data;
@@ -2990,7 +2989,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		return oci_error(sth, errhp, OCI_ERROR,
 			"LOB refetch attempted for unsupported statement type (see also ora_auto_lob attribute)");
     }
-    
+
     if (!tablename)
 		return oci_error(sth, errhp, OCI_ERROR,
 		"Unable to parse table name for LOB refetch");
@@ -3002,7 +3001,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     if (status == OCI_SUCCESS) { /* There is a synonym, get the schema */
     	char *syn_schema=NULL, *syn_name=NULL;
     	char new_tablename[100];
-    	ub4 syn_schema_len = 0, syn_name_len = 0,new_tablename_len=0; 
+    	ub4 syn_schema_len = 0, syn_name_len = 0,new_tablename_len=0;
       	OCIAttrGet_log_stat(dschp,  OCI_HTYPE_DESCRIBE,
 				  &parmhp, 0, OCI_ATTR_PARAM, errhp, status);
       	OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
@@ -3015,7 +3014,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		strcat(new_tablename, ".");
       	strncat(new_tablename, tablename,tablename_len);
 	    tablename=new_tablename;
-	    
+
 	    if (DBIS->debug >= 3)
 			PerlIO_printf(DBILOGFP, "       lob refetching a synonym named=%s for %s \n", syn_name,tablename);
     }
@@ -3032,7 +3031,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 			return oci_error(sth, errhp, status, "OCIDescribeAny(view)/LOB refetch");
     	  }
     }
-	
+
     OCIAttrGet_log_stat(dschp,  OCI_HTYPE_DESCRIBE,
 				&parmhp, 0, OCI_ATTR_PARAM, errhp, status);
     if ( ! status ) {
@@ -3047,7 +3046,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, status);
 		return oci_error(sth, errhp, status, "OCIDescribeAny/OCIAttrGet/LOB refetch");
     }
-    
+
     if (DBIS->debug >= 3)
 		PerlIO_printf(DBILOGFP, "       lob refetch from table %s, %d columns:\n", tablename, numcols);
 
