@@ -978,7 +978,7 @@ Oracle 8 DB you just have to use a newer client.
 This is a topic which often causes problems. Mainly due to Oracle's many
 and sometimes complex ways of specifying and connecting to databases.
 (James Taylor and Lane Sharman have contributed much of the text in
-this section.)
+this section.) 
 
 =head2 Connecting without environment variables or tnsnames.ora file
 
@@ -1040,6 +1040,10 @@ that DBD::Oracle was compiled with.
 Discouraging the use of ORACLE_SID makes it easier on the users to see
 what is going on. (It's unfortunate that TWO_TASK couldn't be renamed,
 since it makes no sense to the end user, and doesn't have the ORACLE prefix).
+
+Also remember that depending on the operating system you are using
+the differing "ORACLE" environment variables may be case sensitive, so if you are not connecting
+as you should doubble check the case of both the variable and its value.
 
 =head2 Connection Examples Using DBD::Oracle
 
