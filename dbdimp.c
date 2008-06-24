@@ -776,7 +776,7 @@ dbd_db_login6_out:
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
     if (shared_dbh_ssv && !shared_dbh) {
 	/* much of this could be replaced with a single sv_setpvn() */
-		SvUPGRADE(shared_dbh_priv_sv, SVt_PV) ;
+		(void)SvUPGRADE(shared_dbh_priv_sv, SVt_PV);
 		SvGROW(shared_dbh_priv_sv, sizeof(imp_dbh_t) + 1) ;
 		SvCUR (shared_dbh_priv_sv) = sizeof(imp_dbh_t) ;
 		imp_dbh->refcnt = 1 ;

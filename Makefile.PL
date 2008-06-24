@@ -683,7 +683,7 @@ if ($is_developer){  # a reasonable guess
     if ($Config{gccversion}) {
 	$opts{DEFINE} .= ' -Wall -Wcast-align -Wpointer-arith';
 	$opts{DEFINE} .= ' -Wbad-function-cast -Wcast-qual';
-	$opts{DEFINE} .= ' -Wconversion'; # noisy
+	#$opts{DEFINE} .= ' -Wconversion'; # very noisy so remove to see what people say
 	$opts{DEFINE} .= ' -Wimplicit  -Wimplicit-int -Wimplicit-function-declaration -Werror-implicit-function-declaration -Wimport  -Winline -Wlong-long -Wmissing-braces -Wmissing-format-attribute  -Wmissing-noreturn -Wmultichar  -Wpacked -Wparentheses  -Wpointer-arith  -Wreturn-type  -Wsequence-point -Wsign-compare  -Wswitch  -Wtrigraphs  -Wundef -Wuninitialized -Wunreachable-code -Wunused  -Wunused-function  -Wunused-label  -Wunused-parameter -Wunused-value  -Wunused-variable  -Wwrite-strings -Wbad-function-cast  -Wmissing-declarations -Wnested-externs'
 		if $::opt_w;
     }

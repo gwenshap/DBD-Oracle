@@ -1483,8 +1483,8 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
             }
 
             sprintf(s_tz_min,":%02d", tz_minute);
-            strcat(str_buf, s_tz_hour);
-            strcat(str_buf, s_tz_min);
+            strcat((signed char*)str_buf, s_tz_hour);
+            strcat((signed char*)str_buf, s_tz_min);
             str_buf[str_len+7] = '\0';
 
 		} else {
@@ -1506,7 +1506,9 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
      case OCI_TYPECODE_BLOB:
 	 case OCI_TYPECODE_BFILE:
 		raw_sv = newSV(0);
-		fetch_lob(sth, fbh->imp_sth,*(OCILobLocator**)attr_value, typecode, raw_sv, name);
+		fetch_lob(sth, fbh->imp_sth,*(OCILobLocator**)attr_value, typecode, raw_sv, (signed char*)name);
+
+
 		av_push(list, raw_sv);
 		break;
 
@@ -1667,7 +1669,7 @@ id only shows you examples with the C struct built in and only a single record. 
 				case OCI_TYPECODE_VARRAY :                    /* variable array */
                		fld = &obj->fields[0]; /*get the field */
               		OCIIterCreate_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
-                         (CONST OCIColl*) value, &itr,status);
+                         (OCIColl*) value, &itr,status);
 
 					if (status != OCI_SUCCESS) {
 						/*not really an error just no data
@@ -2790,8 +2792,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				if (!fbh->fetch_func) {
 				    /* Copy the truncated value anyway, it may be of use,	*/
 				    /* but it'll only be accessible via prior bind_column()	*/
-				    sv_setpvn(sv, row_data,fb_ary->arlen[imp_sth->rs_array_idx]);
-				    if ((CSFORM_IMPLIES_UTF8(fbh->csform)) && (fbh->ftype != SQLT_BIN)){
+				    sv_setpvn(sv, (char *)row_data,fb_ary->arlen[imp_sth->rs_array_idx]);
+ 				    if ((CSFORM_IMPLIES_UTF8(fbh->csform)) && (fbh->ftype != SQLT_BIN)){
 						SvUTF8_on(sv);
 					}
 				}
