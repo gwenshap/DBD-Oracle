@@ -6,7 +6,7 @@
   Macros named "_log_stat" return status in last parameter.
 */
 
-#define DBD_OCI_TRACEON	(DBIS->debug >= 6)
+#define DBD_OCI_TRACEON	(DBIS->debug >= 6 || dbd_verbose>=6)
 #define DBD_OCI_TRACEFP	(DBILOGFP)
 #define OciTp		("\tOCI")		/* OCI Trace Prefix */
 #define OciTstr(s)	((s) ? (text*)(s) : (text*)"<NULL>")
@@ -47,7 +47,7 @@
 
 #define OCIXMLTypeCreateFromSrc_log_stat(svchp,envhp,src_type,src_ptr,xml,stat)\
     stat =OCIXMLTypeCreateFromSrc (svchp,envhp,(OCIDuration)OCI_DURATION_CALLOUT,(ub1)src_type,(dvoid *)src_ptr,(sb4)OCI_IND_NOTNULL, xml);\
-    (DBD_OCI_TRACEON) \
+    (DBD_OCI_TRACEON)  \
     		? PerlIO_printf(DBD_OCI_TRACEFP,\
 		         "%sOCIXMLTypeCreateFromSrc_log_stat(%p,%p,%p,%p,%p)=%s\n",\
 		         OciTp,  (void*)svchp,(void*)envhp, src_type, src_ptr,oci_status_name(stat)),stat \

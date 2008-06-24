@@ -1436,6 +1436,26 @@ used to limit or extend the number of rows processed at a time.
 Note that this attribute also applies to C<execute_array>, since that
 method is implemented using C<execute_for_fetch>.
 
+=item ora_verbose
+
+Use this value to enable DBD::Oracle only tracing.  Works the same way as DBI->trace(level), simply
+set the oar_verbose attribute on the connect() to the trace level you desire.
+
+For example:
+
+  my $dbh = DBI->connect($dsn, "", "", {ora_verbose=>6});
+
+Will set the DBD::Oracle trace level to 6, which is this level that will trace most of the calls to OCI. 
+
+
+=back
+
+.  call will promote the level to DBD-Unify, 
+showing both the DBI layer debugging messages as well as the DBD-Unify debug messages. 
+It is however also possible to trace only the DBD-Unify without the DBI->trace () 
+call by using the uni_verbose attribute on connect (). Currently, the following 
+levels are defined
+
 =back
 
 =head2 Prepare Attributes

@@ -245,6 +245,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 /* ------ define functions and external variables ------ */
 
 extern int ora_fetchtest;
+extern int dbd_verbose;
 
 extern ub2 charsetid;
 extern ub2 ncharsetid;
@@ -323,7 +324,6 @@ void * oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags);
 void * oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags);
 void fb_ary_free(fb_ary_t *fb_ary);
 
-#include "ocitrace.h"
 
 
 
@@ -352,6 +352,7 @@ void fb_ary_free(fb_ary_t *fb_ary);
 #define dbd_st_FETCH_attrib	ora_st_FETCH_attrib
 #define dbd_describe		ora_describe
 #define dbd_bind_ph		    ora_bind_ph
+#include "ocitrace.h"
 
 /* end */
 
