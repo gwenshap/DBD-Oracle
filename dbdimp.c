@@ -307,7 +307,7 @@ fb_ary_alloc(ub4 bufl, int size)
     Newz(42, fb_ary->arlen,  (unsigned)size,        ub2);
     Newz(42, fb_ary->arcode, (unsigned)size,        ub2);
     fb_ary->bufl = bufl;
-    fb_ary->cb_bufl = bufl;
+   /* fb_ary->cb_bufl = bufl;*/
     return fb_ary;
 }
 

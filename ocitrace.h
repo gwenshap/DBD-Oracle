@@ -36,6 +36,23 @@
 	If done well the log will read like a compilable program.
 */
 
+#define OCIStmtGetPieceInfo_log_stat(stmhp,errhp,hdlptr,hdltyp,in_out,iter,idx,piece,stat)\
+    stat =OCIStmtGetPieceInfo(stmhp,errhp,hdlptr,hdltyp,in_out,iter,idx,piece);\
+    (DBD_OCI_TRACEON) \
+    		? PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCIStmtGetPieceInfo_log_stat(%p,%p,%d)=%s\n",\
+		         OciTp, (void*)errhp,fbh,piece,oci_status_name(stat)),stat \
+   : stat
+
+
+#define OCIStmtSetPieceInfo_log_stat(ptr,errhp,buf,blen,p,indp,rc,stat)\
+    stat =OCIStmtSetPieceInfo(ptr,OCI_HTYPE_DEFINE,errhp, buf, blen, p,indp,rc);\
+    (DBD_OCI_TRACEON) \
+    		? PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCIStmtSetPieceInfo_log_stat(%p,%p,%d,%s,%d)=%s\n",\
+		         OciTp, (void*)errhp,fbh,piece,buf,blen,oci_status_name(stat)),stat \
+   : stat
+
 
 #define OCIDefineDynamic_log_stat(defnp,errhp,fbh,stat)\
     stat =OCIDefineDynamic(defnp,errhp,fbh,(OCICallbackDefine) presist_lob_fetch_cbk );\

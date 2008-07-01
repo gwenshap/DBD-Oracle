@@ -72,6 +72,8 @@ struct imp_sth_st {
    	ub2 			stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
     U16				auto_lob;	/* use auto lobs*/
     int				pers_lob;   /*use dblink for lobs only for 10g Release 2. or later*/
+    int				clbk_lob;   /*use dblink for lobs only for 10g Release 2. or later*/
+    int             piece_lob;  /*use piece fetch for lobs*/
 	ub4				piece_size; /*used in callback to set the size of the piece to get*/
     int  			has_lobs;   /* Statement has bound LOBS*/
 
@@ -184,7 +186,8 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     char 		*bless;	/* for Oracle::OCI style handle data	*/
     void 		*special;	/* hook for special purposes (LOBs etc)	*/
     int			pers_lob;   /*for persistant lobs 10g Release 2. or later*/
-
+    int			clbk_lob;   /*for persistant lobs 10g Release 2. or later*/
+    int         piece_lob;  /*use piecewise fetch for lobs*/
     /* Our storage space for the field data as it's fetched	*/
     sword  		ftype;	/* external datatype we wish to get	*/
     fb_ary_t 	*fb_ary ;	/* field buffer array			*/
