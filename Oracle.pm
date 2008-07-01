@@ -1494,12 +1494,24 @@ of how to use LOB Locators.
 
 =item ora_pers_lob
 
-If 1 and your DBD::Oracle was built using OCI 10.2 and you are selecting against an Oralce 10R2 DB or later the L<Data Interface for Persistent LOBs> will be
+If true the <Simple Fetch> method for the <Data Interface for Persistent LOBs> will be
+used for LOBs.
+
+=ora_clbk_lob
+
+If true the <Piecewise Fetch with Callback> method for the <Data Interface for Persistent LOBs> will be
+used for LOBs.
+
+
+=ora_piece_lob
+
+If true the <Piecewise Fetch with Polling> method for the <Data Interface for Persistent LOBs> will be
 used for LOBs.
 
 =item ora_piece_size
 
-This is the max piece size, in char for CLOBS, and bytes for BLOBS, for use with the <Data Interface for Persistent LOBs>. 
+This is the max piece size for the <Piecewise Fetch with Callback> and <Piecewise Fetch with Polling> methods, in chars for CLOBS, 
+and bytes for BLOBS. 
 
 =item ora_check_sql
 
@@ -2761,19 +2773,15 @@ is not included in the computing of the prefetch rows.
 
 =head1 Data Interface for Persistent LOBs
 
-Oracle 10R2 and later extended the OCI API to work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
+Oracle 9iR1 and later extended the OCI API to work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
 a LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
 you would use on other datatypes that store character or binary data. There are fewer round trips to the server as no 'LOB Locators' are
-used, normally one can get an entire LOB is a single round trip. The data interface is supports LOBs of any size less than 2GB. Only 
-support for 'Selects' has been implemented using a  piecewise callback fetch.
+used, normally one can get an entire LOB is a single round trip. Depending on the version or Oracle you are using the interface supports LOBs 
+of any size up to 2GB. Presently only support for 'Selects' have been implemented.
 
-=head2 Simple Usage
+=head2 Simple Fetch
 
-No special methods are needed to use this interface. To do a select statement all that is required import the 'ora_types' constants with;
-  
-  use DBD::Oracle qw(:ora_types);
-  
-Next ensure the set statement handle's prepare method 'ora_pers_lob' attribute is set to '1', and set the 'ora_piece_size' to the size of the pieces
+No special methods are needed to use this interface. Simply ensure the statement handle's prepare method 'ora_pers_lob' attribute is set to '1', and set the 'ora_piece_size' to the size of the pieces
 you want to return on the callback. Finally set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected 
 size of the LOB. If the size of the lob exceeds this then DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the handle's 'LongTruncOk' attribute to '1'.
 
