@@ -1043,7 +1043,7 @@ since it makes no sense to the end user, and doesn't have the ORACLE prefix).
 
 Also remember that depending on the operating system you are using
 the differing "ORACLE" environment variables may be case sensitive, so if you are not connecting
-as you should doubble check the case of both the variable and its value.
+as you should double check the case of both the variable and its value.
 
 =head2 Connection Examples Using DBD::Oracle
 
@@ -1109,7 +1109,7 @@ Note the lack of a connection name (use the ORACLE_SID environment
 variable). If an explicit SID is used you'll probably get an ORA-01004 error.
 
 That only works for local databases. (Authentication to remote Oracle
-databases using your unix login name without a password and is possible
+databases using your Unix login name without a password and is possible
 but it's not secure and not recommended so not documented here. If you
 can't find the information elsewhere then you probably shouldn't be
 trying to do it.)
@@ -1255,7 +1255,7 @@ I recommend that you avoid checking for exact values.
   OCI_FETCH_CURRENT OCI_FETCH_NEXT OCI_FETCH_FIRST OCI_FETCH_LAST
   OCI_FETCH_PRIOR OCI_FETCH_ABSOLUTE OCI_FETCH_RELATIVE 
 
-These constants are used to set the orientaion of a fetch on a scrollable cursor.
+These constants are used to set the orientation of a fetch on a scrollable cursor.
 
 =item :ora_exe_modes
 
@@ -1451,15 +1451,6 @@ For example:
 
 Will set the DBD::Oracle trace level to 6, which is this level that will trace most of the calls to OCI. 
 
-
-=back
-
-.  call will promote the level to DBD-Unify, 
-showing both the DBI layer debugging messages as well as the DBD-Unify debug messages. 
-It is however also possible to trace only the DBD-Unify without the DBI->trace () 
-call by using the uni_verbose attribute on connect (). Currently, the following 
-levels are defined
-
 =back
 
 =head2 Prepare Attributes
@@ -1494,23 +1485,22 @@ of how to use LOB Locators.
 
 =item ora_pers_lob
 
-If true the <Simple Fetch> method for the <Data Interface for Persistent LOBs> will be
+If true the L</Simple Fetch> method for the L</Data Interface for Persistent LOBs> will be
 used for LOBs.
 
-=ora_clbk_lob
+=item ora_clbk_lob
 
-If true the <Piecewise Fetch with Callback> method for the <Data Interface for Persistent LOBs> will be
+If true the L</Piecewise Fetch with Callback> method for the L</Data Interface for Persistent LOBs> will be
 used for LOBs.
 
+=item ora_piece_lob
 
-=ora_piece_lob
-
-If true the <Piecewise Fetch with Polling> method for the <Data Interface for Persistent LOBs> will be
+If true the L</Piecewise Fetch with Polling> method for the L</Data Interface for Persistent LOBs> will be
 used for LOBs.
 
 =item ora_piece_size
 
-This is the max piece size for the <Piecewise Fetch with Callback> and <Piecewise Fetch with Polling> methods, in chars for CLOBS, 
+This is the max piece size for the L</Piecewise Fetch with Callback> and L</Piecewise Fetch with Polling> methods, in chars for CLOBS, 
 and bytes for BLOBS. 
 
 =item ora_check_sql
@@ -2586,7 +2576,7 @@ Works the same as fetchrow_array method however, one passes in a 'Fetch Orientat
 value which will then determine the row that will be fetched. It returns the row as a list containing the field values. 
 Null fields are returned as undef values in the list.
 
-The valid orientation constant and fetch offest values combination are detailed below 
+The valid orientation constant and fetch offset values combination are detailed below 
 
   OCI_FETCH_CURRENT, fetches the current row, the fetch offset value is ignored.
   OCI_FETCH_NEXT, fetches the next row from the current position, the fetch offset value is ignored.
@@ -2612,12 +2602,12 @@ The effect that a ora_fetch_scroll method call has on the current_positon attrib
   OCI_FETCH_LAST, sets the current_positon attribute to the total number of rows in the record set.
   OCI_FETCH_PRIOR, decrements current_positon attribute by 1.
   OCI_FETCH_PRIOR, when at the first row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_ABSOLUTE, sets the current_positon attribute to the fetch offest value.
+  OCI_FETCH_ABSOLUTE, sets the current_positon attribute to the fetch offset value.
   OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
   OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set, does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
   OCI_FETCH_RELATIVE, sets the current_positon attribute to (current_positon attribute + fetch offset value).
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes the current position less than 1, does not change fetch offest value so it is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, does not change fetch offest value so it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes the current position less than 1, does not change fetch offset value so it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, does not change fetch offset value so it is equivalent to a OCI_FETCH_CURRENT.
 
 The effects of the differing orientation constants on the first fetch (current_postion attribute at 0) are as follows.
 
@@ -2743,7 +2733,7 @@ The current_positon attribute will be 6 after this snippet.
   $sth->finish();
 
 When using scrollable cursors it is required that you use the $sth->finish() method when you are done with the cursor as this type of
-cursor has to be explicitly cancelled on the server. If you do not do this you may cause resource problems on your database.  
+cursor has to be explicitly canceled on the server. If you do not do this you may cause resource problems on your database.  
 
 =head2 Prefetching Rows
 
@@ -2771,19 +2761,59 @@ If the ora_prefetch_memory less than 1 or not present then memory size is not in
 number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
 is not included in the computing of the prefetch rows.  
 
-=head1 Data Interface for Persistent LOBs
+=head1 LOBs
+
+The key to working with LOBs it to remember the value of an Oracle LOB column is not the content of the LOB. It's a
+'LOB Locator' which, after being selected or inserted needs extra processing to read or write the content of the LOB. 
+
+DBD::Oracle now offers three interfaces to carry our this extra processing requirement for LOB data, 
+
+=item L</Data Interface for Persistent LOBs>
+
+With this interface DBD::Oracle handles your data directly utilizing regular OCI calls, Oracle itself takes care of the LOB Locator operations. 
+
+=item L</Data Interface for LOB Locators>
+
+With this interface DBD::Oracle handles your data utilizing LOB Locators OCI calls, so DBD::Oracle takes care of the LOB Locator operations.
+
+=item L</LOB Locator Method Interface>
+
+This allows the user direct access to the LOB Locator methods, so you have to take case of the LOB Locator operations yourself.
+
+=back4
+
+Generally speaking the interface that you will chose will be dependant on what end you are trying to achieve. All have their benefits and 
+drawbacks.
+
+One point to remember when working with LOBs is if your LOB column is NULL then there is no LOB Locator that 
+DBD::Oracle can work with so it will return a 
+
+  DBD::Oracle::db::ora_lob_read: locator is not of type OCILobLocatorPtr
+  
+error. 
+
+To correct this you must use an SQL UPDATE statement to reset the LOB column to a non-NULL (or empty LOB) value with an SQL like this;
+
+  UPDATE lob_example 
+     SET bindata=EMPTY_BLOB()
+   WHERE bindata IS NULL.
+
+=head2 Data Interface for Persistent LOBs
 
 Oracle 9iR1 and later extended the OCI API to work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
 a LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
 you would use on other datatypes that store character or binary data. There are fewer round trips to the server as no 'LOB Locators' are
-used, normally one can get an entire LOB is a single round trip. Depending on the version or Oracle you are using the interface supports LOBs 
-of any size up to 2GB. Presently only support for 'Selects' have been implemented.
+used, normally one can get an entire LOB is a single round trip. 
 
-=head2 Simple Fetch
+=head3 Simple Fetch
 
-No special methods are needed to use this interface. Simply ensure the statement handle's prepare method 'ora_pers_lob' attribute is set to '1', and set the 'ora_piece_size' to the size of the pieces
-you want to return on the callback. Finally set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected 
-size of the LOB. If the size of the lob exceeds this then DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the handle's 'LongTruncOk' attribute to '1'.
+As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LOB as a single large piece. 
+To use this interface set the 'ora_pers_lob' attribute of the statement handle to '1' with the prepare method, as well
+set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LOB. If the size of the LOB exceeds 
+the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
+The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on. 
+So far this seems to be about 15MB for 32bit system and xxxMB for 64bit.  If you run into an 'ORA-01062: unable to allocate memory for define buffer' 
+error try setting the size of 'LongReadLen' to a lower value.
 
 For example give this table;
 
@@ -2797,7 +2827,7 @@ this code;
 
   $dbh->{LongReadLen} = 2*1024*1024; #2 meg
   $SQL='select p_id,lob_1,lob_2,blob_2 from test_lobs';
-  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1,ora_piece_size=>1*1024*1024});
+  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1});
   $sth->execute();
   while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
     print "p_id=".$p_id."\n";
@@ -2807,16 +2837,66 @@ this code;
     print "blob2=".$blob2."\n";
   }
 
-Will select out all of the LOBs in the table as long as they are all under 2MB in length. If the LOB is longer than 1meg(ora_piece_size) it will fetch it in at least two pieces,
-Longer lobs will throw a error. Adding this line;
+Will select out all of the LOBs in the table as long as they are all under 2MB in length. Longer lobs will throw an error. Adding this line;
 
   $dbh->{LongTruncOk}=1;
   
-before the execute will return all the lobs but they will only be a maximum of 2MB in size. 
-If 'ora_piece_size' is omitted then the value for piece size will default to your 'LongReadLen'.  The maximum value for 'ora_piece_size' is 
-about 15meg and 'LongReadLen' is  about 4gig.
+before the execute will return all the lobs but they will be truncated at 2MBs. 
 
-=head2 Binding for Updates and Inserts
+=head3 Piecewise Fetch with Callback
+
+With a piecewise callback fetch DBD::Oracle sets up a function that will 'callback' to the DB during the fetch and gets your LOB piece by piece. To use this interface set the 'ora_clbk_lob'
+attribute of the statement handle to '1' with the prepare method. Next set the 'ora_piece_size' to the size of the piece that
+you want to return on the callback. Finally set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected 
+size of the LOB. Like the L</Simple Fetch> if the size of the LOB exceeds the is 'LongReadLen' you can use the 'LongTruncOk' attribute to truncate the LOB 
+or set the 'LongReadLen' to a higher value.  With this interface the value of 'ora_piece_size' seems to be constrained by the same memory limit as found on 
+the L</Simple Fetch>. If you encounter an 'ORA-01062' error try setting the value of 'ora_piece_size' to a smaller value.  The value for 'LongReadLen' is 
+dependant on the version and setting of the Oracle DB you are using, it ranges from 8GBs in 9iR1 up to 128 terabytes with 11g.
+
+Using the table from the last example this code;
+
+  $dbh->{LongReadLen} = 20*1024*1024; #20 meg
+  $SQL='select p_id,lob_1,lob_2,blob_2 from test_lobs';
+  $sth=$dbh->prepare($SQL,{ora_clbk_lob=>1,ora_piece_size=>5*1024*1024});
+  $sth->execute();
+  while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
+    print "p_id=".$p_id."\n";
+    print "clob1=".$clob1."\n";
+    print "clob2=".$clob2."\n";
+    print "blob1=".$blob2."\n";
+    print "blob2=".$blob2."\n";
+  }
+
+Will select out all of the LOBs in the table as long as they are all under 20MB in length. If the LOB is longer than 5MB (ora_piece_size) DBD::Oracle will fetch it in at least 2 pieces to a 
+maximum of 4 pieces (4*5MB=20MB). Like the L</Simple Fetch> Lobs longer than 20MB will throw an error.
+
+=head3 Piecewise Fetch with Polling
+
+With a polling piecewise fetch DBD::Oracle iterates (Polls) over the LOB during the fetch getting your LOB piece by piece. To use this interface set the 'ora_piece_lob'
+attribute of the statement handle to '1' with the prepare method. Next set the 'ora_piece_size' to the size of the piece that
+you want to return on the callback. Finally set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected 
+size of the LOB. Like the L</Piecewise Fetch with Callback> and L</Simple Fetch> if the size of the LOB exceeds the is 'LongReadLen' you can use the 'LongTruncOk' attribute to truncate the LOB 
+or set the 'LongReadLen' to a higher value.  With this interface the value of 'ora_piece_size' seems to be constrained by the same memory limit as found on 
+the L</Simple Fetch> and L</Piecewise Fetch with Callback> and the value for 'LongReadLen' is can be the same as in a L</Piecewise Fetch with Callback>.
+
+Using the table from the L</Simple Fetch> example this code;
+
+  $dbh->{LongReadLen} = 20*1024*1024; #20 meg
+  $SQL='select p_id,lob_1,lob_2,blob_2 from test_lobs';
+  $sth=$dbh->prepare($SQL,{ora_piece_lob=>1,ora_piece_size=>5*1024*1024});
+  $sth->execute();
+  while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
+    print "p_id=".$p_id."\n";
+    print "clob1=".$clob1."\n";
+    print "clob2=".$clob2."\n";
+    print "blob1=".$blob2."\n";
+    print "blob2=".$blob2."\n";
+  }
+
+Will select out all of the LOBs in the table as long as they are all under 20MB in length. If the LOB is longer than 5MB (ora_piece_size) DBD::Oracle will fetch it in at least 2 pieces to a 
+maximum of 4 pieces (4*5MB=20MB). Like the other fetch methods LOBs longer than 20MB will throw an error.
+
+=head3 Binding for Updates and Inserts
 
 To bind for updates and inserts all that is required to use this interface is to set the statement handle's prepare method 
 'ora_type' attribute to 'SQLT_CHR' in the case of CLOBs and NCLOBs or 'SQLT_BIN' in the case of BLOBs as in this example for an insert;
@@ -2837,9 +2917,9 @@ To bind for updates and inserts all that is required to use this interface is to
   
 So far the only limit reached with this form of insert is the BLOBs must be under 2GB in size.
 
-=head2 Support for Remote LOBs;
+=head3 Support for Remote LOBs;
 
-The data interface for Persistent LOBs also supports remote LOBs (access over a dblink). Given a database called 'lob_test' that has a 'LINK' defined like this;
+Starting with Oracle 10gR2 the interface for Persistent LOBs was expanded to support remote LOBs (access over a dblink). Given a database called 'lob_test' that has a 'LINK' defined like this;
 
   CREATE DATABASE LINK link_test CONNECT TO test_lobs IDENTIFIED BY tester USING 'lob_test';
   
@@ -2848,7 +2928,7 @@ to a remote database called 'test_lobs', the following code will work;
   $dbh = DBI->connect('dbi:Oracle:','test@lob_test','test');
   $dbh->{LongReadLen} = 2*1024*1024; #2 meg
   $SQL='select p_id,lob_1,lob_2,blob_2 from test_lobs@link_test';
-  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1,ora_piece_size=>1*1024*1024});
+  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1});
   $sth->execute();
   while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
      print "p_id=".$p_id."\n";
@@ -2917,45 +2997,12 @@ so the following returns an error:
 
 =back
 
-=head2 Caveats
+=head2 Data Interface for LOB Locators
 
-So far this is relatively new technology and this is a first attempt to incorporate it into DBD::ORCALE so 
-please report any problems you may have with it.
+=head3 Simple Usage
 
-If you are doing some critical programming I would use the regular LOB functions as they are well tried.
-
-Not all of the interface has been implemented yet, the following are not supported;
-
-  1) Piecewise, and callback binds for INSERT and UPDATE operations.
-  2) Array binds for INSERT and UPDATE operations.
- 
-
-=head1 Handling LOBs
-
-=head2 Simple Usage
-
-The value of an Oracle LOB column is not the content of the LOB. It's a
-'LOB Locator' which, after being selected or inserted needs extra
-processing to read or write the content of the LOB. This being said if your 
-LOB column is a NULL LOB then the locator is null and there is no locator for
-DBD::Oracle to work with and it will return a 
-
-  DBD::Oracle::db::ora_lob_read: locator is not of type OCILobLocatorPtr
-  
-error. 
-
-To correct for this you must use an SQL UPDATE statement to reset the 
-LOB column to a non-NULL (or empty) value with an SQL like this;
-
-  UPDATE lob_example 
-     SET bindata=EMPTY_BLOB()
-   WHERE bindata IS NULL.
-
-When fetching LOBs they are, by default, made to look just like LONGs and
-are subject to the LongReadLen and LongTruncOk attributes. Note that
-with OCI 7 DBD::Oracle pre-allocates the whole buffer (LongReadLen) at
-the time the statement is prepared.  With OCI 8+ it grows the buffer to
-the amount needed for the largest LOB to be fetched so far.
+When fetching LOBs they are, by default, made to look just like LONGs with this interface and
+are subject to the LongReadLen and LongTruncOk attributes. 
 
 When inserting or updating LOBs some I<major> magic has to be performed
 behind the scenes to make it transparent.  Basically the driver has to
@@ -2995,7 +3042,7 @@ If L</ora_auto_lob> is 0 in prepare(), you can fetch the LOB Locators and
 do all the work yourself using the ora_lob_*() methods and/or Oracle::OCI.
 See the L</LOB Methods> section below.
 
-=head2 LOB support in PL/SQL
+=head3 LOB support in PL/SQL
 
 LOB Locators can be passed to PL/SQL calls by binding them to placeholders
 with the proper C<ora_type>.  If L</ora_auto_lob> is true, output LOB
@@ -3039,11 +3086,35 @@ Example:
      $sth->execute;
 
 
-=head2 LOB Locator Methods
+=head3 Persistent & Locator Interface Caveats
 
-The following driver-specific methods let you manipulate "LOB Locators".
-LOB locators can be selected from tables directly, if the C<ora_auto_lob>
-attribute is false, or returned via PL/SQL procedure calls.
+Now that one has the option of using the Persistent or the Locator interface for LOBs the questions arises
+which one to use. For starters, if you want to access LOBs over a dblink you will have to use the Persistent 
+interface so that choice is simple.  The question of which one to use after that is a little more tricky.
+It basically boils down to a choice between size and speed. 
+
+The Callback and Polling piecewise fetches are very slow 
+when compared to the Simple and the Locator fetches but they can handle very large blocks of data. Given a situation where a 
+very very large LOB is to be read the Locator fetch could time out while either of the piecewise fetches will not. 
+
+With the Simple fetch you are limited by physical memory of you server but it runs a little faster than the Locator, as there are fewer round trips
+to the server. So if you have small LOBs and need to save a little banwidth this is the one to use.
+
+If you need to update more than row of with LOB data then the Persistent interface can do it while the Locator can't.
+
+Not all of the Persistent interface has been implemented yet, the following are not supported;
+
+  1) Piecewise, polling and callback binds for INSERT and UPDATE operations.
+  2) Piecewise, array binds for SELECT, INSERT and UPDATE operations.
+  
+All this being said if you are doing some critical programming I would use the L</Data Interface for LOB Locators> as this gives you very 
+fine grain control of your LOBs, of course the code for this will be somewhat more involved.
+
+=head2 Data Interface for LOB Locators
+
+The following driver-specific methods let you manipulate "LOB Locators" directly.
+To select a LOB locator directly set the if the C<ora_auto_lob>
+attribute to false, or alternatively they can be returned via PL/SQL procedure calls.
 
 (If using a DBI version earlier than 1.36 they must be called via the
 func() method. Note that methods called via func() don't honour
@@ -3082,9 +3153,6 @@ Uses the Oracle OCILobWrite function.
 
 Append $data to the LOB.  Uses the Oracle OCILobWriteAppend function.
 
-NOTE: This method should I<not> be used if either the client or the
-server are Oracle version 8 due to Oracle bug #886191.
-
 =item ora_lob_trim
 
   $rc = $dbh->ora_lob_trim($lob_locator, $length);
@@ -3101,7 +3169,7 @@ Uses the Oracle OCILobGetLength function.
 
 =back
 
-=head2 LOB Locator Method Examples
+=head3 LOB Locator Method Examples
 
 I<Note:> Make sure you first read the note in the section above about
 multi-byte character set issues with these methods.
@@ -3126,24 +3194,24 @@ lob_id field values, defined as follows:
    CREATE SEQUENCE lob_example_seq
 
 
-=head2 Example: Inserting a new row with large data
+=head3 Example: Inserting a new row with large data
 
 Unless enough memory is available to store and bind the
-entire lob data for insert all at once, the lob columns must
+entire LOB data for insert all at once, the LOB columns must
 be written interactively, piece by piece.  In the case of a new row,
 this is performed by first inserting a row, with empty values in
-the lob columns, then modifying the row by writing the large data
-interactively to the lob columns using their LOB locators as handles.
+the LOB columns, then modifying the row by writing the large data
+interactively to the LOB columns using their LOB locators as handles.
 
-The insert statement must create token values in the lob
+The insert statement must create token values in the LOB
 columns.  Here, we use the empty string for both the binary
 and character large object columns 'bindata' and 'chardata'.
 
 After the INSERT statement, a SELECT statement is used to
-acquire lob locators to the 'bindata' and 'chardata' fields
-of the newly inserted row.  Because these lob locators are
+acquire LOB locators to the 'bindata' and 'chardata' fields
+of the newly inserted row.  Because these LOB locators are
 subsequently written, they must be acquired from a select
-statement containing the clause 'FOR UPDATE' (lob locators
+statement containing the clause 'FOR UPDATE' (LOB locators
 are only valid within the transaction that fetched them, so
 can't be used effectively if AutoCommit is enabled).
 
@@ -3208,7 +3276,7 @@ needed, because ora_lob_append() keeps track of the offset
 for us.
 
 
-=head2 Example: Updating an existing row with large data
+=head3 Example: Updating an existing row with large data
 
 In this example, we demonstrate a technique for overwriting
 a portion of a blob field with new binary data.  The blob
@@ -3235,7 +3303,7 @@ After running this code, the row where lob_id = 5 will
 contain, starting at position 100234 in the bin_data column,
 the string "This string will overwrite a portion of the blob".
 
-=head2 Example: Streaming character data from the database
+=head3 Example: Streaming character data from the database
 
 In this example, we demonstrate a technique for streaming
 data from the database to a file handle, in this case
@@ -3260,22 +3328,22 @@ than could be stored in memory at a given time.
    }
 
 Notice that the select statement does not contain the phrase
-"FOR UPDATE".  Because we are only reading from the lob
-locator returned, and not modifying the lob it refers to,
+"FOR UPDATE".  Because we are only reading from the LOB
+Locator returned, and not modifying the LOB it refers to,
 the select statement does not require the "FOR UPDATE"
 clause.
 
-=head2 Example: Truncating existing large data
+=head3 Example: Truncating existing large data
 
 In this example, we truncate the data already present in a
 large object column in the database.  Specifically, for each
 row in the table, we truncate the 'bindata' value to half
 its previous length.
 
-After acquiring a lob locator for the column, we query its
+After acquiring a LOB Locator for the column, we query its
 length, then we trim the length by half.  Because we modify
 the large objects with the call to ora_lob_trim(), we must
-select the lob locators 'FOR UPDATE'.
+select the LOB locators 'FOR UPDATE'.
 
    my $sth = $dbh->prepare( <<"   SQL", { ora_auto_lob => 0 } );
       SELECT bindata
@@ -3481,9 +3549,9 @@ Which will return all the ids into @out_values.
 
 Note: 
 
-1) This will only work for numbered placeholders,
+1) This will only work for numbered (?) placeholders,
 
-2) The third parameter of bind_param_inout_array "maxlen" is required by DBI but not used by DBD::Oracle
+2) The third parameter of bind_param_inout_array, (0 in the example), "maxlen" is required by DBI but not used by DBD::Oracle
 
 3) The "ora_type" attribute is not needed but only ORA_VARCHAR2 will work.
 
@@ -3735,13 +3803,18 @@ This will also work for XML that is smaller than 32k as well. Attempting to inse
 
 =head1 Oracle Related Links
 
+=head2 DBD::Oracle Tutorial
+
+  http://www.pythian.com/blogs/wp-content/uploads/introduction-dbd-oracle.html
+
 =head2 Oracle Instant Client
 
   http://www.oracle.com/technology/tech/oci/instantclient/index.html
-  
+
 =head2 Oracle on Linux
 
   http://www.eGroups.com/list/oracle-on-linux
+
   http://www.ixora.com.au/
 
 =head2 Free Oracle Tools and Links
@@ -3767,7 +3840,7 @@ Also PL/Vision from RevealNet and Steven Feuerstein, and
 
 =head1 SEE ALSO
 
-L<DBI>
+DBI
 
 http://search.cpan.org/~timb/DBD-Oracle/MANIFEST for all files in
 the DBD::Oracle source distribution including the examples in the
@@ -3781,8 +3854,8 @@ DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
 
 =head1 ACKNOWLEDGEMENTS
 
-A great many people have helped me with DBD::Oracle over the 12 years
-between 1994 and 2006.  Far too many to name, but I thank them all.
+A great many people have helped me with DBD::Oracle over the 14 years
+between 1994 and 2008.  Far too many to name, but I thank them all.
 Many are named in the Changes file.
 
 See also L<DBI/ACKNOWLEDGEMENTS>.
