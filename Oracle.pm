@@ -1557,11 +1557,9 @@ Additional values when DBD::Oracle was built using OCI 8 and later:
 
   ORA_CLOB, ORA_BLOB, ORA_XMLTYPE, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE
 
-Additional values when DBD::Oracle was built using OCI 10.2 and later:
+Additional values when DBD::Oracle was built using OCI 9.2 and later:
 
   SQLT_CHR, SQLT_BIN 
-
-See L</Data Interface for Persistent LOBs> for how to use these two values.
 
 See L</Binding Cursors> for the correct way to use ORA_RSET.
 

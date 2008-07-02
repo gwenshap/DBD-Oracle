@@ -23,14 +23,14 @@ require 'nchar_test_lib.pl';
 
 $| = 1;
 
-plan tests => 11;
+plan tests => 21;
 
 # create a database handle
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1, 
 						AutoCommit=>1,
-						PrintError => 0 });
+						PrintError => 0 ,LongReadLen=>10000000});
 # check that our db handle is good
 my $ora_oci = DBD::Oracle::ORA_OCI(); # dualvar
 
@@ -67,15 +67,33 @@ ok($sth->bind_param(4,$in_blob,{ora_type=>SQLT_BIN}));
 ok($sth->bind_param(5,$in_blob,{ora_type=>SQLT_BIN}));
 ok($sth->execute());
 
-ok($dbh->{LongReadLen} = 1000000); #twice as big as it should be
+ok($dbh->commit());
+
 
 $sql='select * from '.$table;
 
-ok($sth=$dbh->prepare($sql,{ora_pers_lob=>1,ora_piece_size=>.5*1024*1024}));
+ok($sth=$dbh->prepare($sql,{ora_pers_lob=>1}));
+
+ok($sth->execute());
+my ($p_id,$log,$log2,$log3,$log4);
+
+ok(( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow());
+
+ok ($log eq $in_clob); #clob1 = in_clob
+ok ($log2 eq $in_clob); #clob2 = in_clob
+ok ($log3 eq $in_blob); #clob1 = in_clob
+ok ($log4 eq $in_blob); #clob2 = in_clob
+
+ok($sth=$dbh->prepare($sql,{ora_clbk_lob=>1,ora_piece_size=>1*1024*1024}));
 
 ok($sth->execute());
 
-ok(my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow());
+ok(( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow());
+
+ok($sth=$dbh->prepare($sql,{ora_piece_lob=>1,ora_piece_size=>1*1024*1024}));
+				
+ok($sth->execute());
+ok( ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow());
 
 #no neeed to look at the data is should be ok
 
