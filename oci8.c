@@ -1813,15 +1813,14 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	ub2   rcode  = 0;
 	sword status = OCI_NEED_DATA;
 
+
+	
     if (DBIS->debug >= 4 || dbd_verbose >= 4) {
 	  	PerlIO_printf(DBILOGFP, "in fetch_get_piece  \n");
 	}
 
 	while (status == OCI_NEED_DATA){
-	   /*OCIStmtGetPieceInfo(fbh->imp_sth->stmhp,
-						   fbh->imp_sth->errhp, &hdlptr, &hdltype,
-						                            &in_out, &iter, &idx, &piece);
-*/
+	
 	   	OCIStmtGetPieceInfo_log_stat(fbh->imp_sth->stmhp,
 						   			 fbh->imp_sth->errhp,
 						   			 &hdlptr,
@@ -1832,36 +1831,49 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 						   			 &piece,
 						   			 status);
 
+		/* This is how this works
+		First we get the piece Info above
+		the bugger thing is that this will get the piece info in sequential order so on each call to the above
+		you have to check to ensure you have the right define handle from the OCIDefineByPos
+		I do it in the next if statement.  So this will loop untill the handle changes at that point it exits the loop
+		during the loop I add the abuf to the  cb_abuf  using the buflen that is set above. 
+		Exter exiting the loop I get the actual buffer length by adding up all the pieces (buflen)..
+		*/
+		if ( hdlptr==fbh->defnp){
+	
+			OCIStmtSetPieceInfo_log_stat(fbh->defnp,
+										 fbh->imp_sth->errhp,
+										 fb_ary->abuf,
+										 &buflen,
+										 piece,
+										 (dvoid *)&indptr,
+										 &rcode,status);
 
-		OCIStmtSetPieceInfo_log_stat((dvoid *)hdlptr,
-									 fbh->imp_sth->errhp,
-									 (dvoid *)fb_ary->abuf,
-									 &buflen,
-									 piece,
-									 (dvoid *)&indptr,
-									 &rcode,status);
+PerlIO_printf(DBILOGFP, "rcode=%d\n",rcode);
+PerlIO_printf(DBILOGFP, "indptr=%d\n",indptr);
 
-		OCIStmtFetch_log_stat(fbh->imp_sth->stmhp,fbh->imp_sth->errhp,1,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
+PerlIO_printf(DBILOGFP, "status=%d\n",status);
 
-		if (status){/* There is more than one piece*/
 
-	   		memcpy(fb_ary->cb_abuf+fb_ary->piece_count*imp_sth->piece_size,fb_ary->abuf,buflen );
-			fb_ary->piece_count++;/*used to tell me how many pieces I have, Might be able to use aindp for this?*/
-
-		} else { /*Only one piece or the last part of a piece*/
-			memcpy(fb_ary->cb_abuf+fb_ary->piece_count*imp_sth->piece_size,fb_ary->abuf,buflen );
+   			OCIStmtFetch_log_stat(fbh->imp_sth->stmhp,fbh->imp_sth->errhp,1,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
+ 			memcpy(fb_ary->cb_abuf+fb_ary->piece_count*imp_sth->piece_size,fb_ary->abuf,buflen );
+			fb_ary->piece_count++;/*used to tell me how many pieces I have, */
+			actual_bufl=actual_bufl+buflen;
+ 	
+		}else {
+		  status=OCI_LAST_PIECE;
 		}
-
 	}
 
-  	actual_bufl=imp_sth->piece_size*(fb_ary->piece_count)+buflen;
-  	if (fbh->ftype == SQLT_BIN){
-		*(fb_ary->cb_abuf+(actual_bufl))='\0'; /* add a null teminator*/
+    sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
+    
+  	if (fbh->ftype != SQLT_BIN){
+		/**(fb_ary->cb_abuf+(actual_bufl))='\0'; /* add a null teminator
 		sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
 
 	} else {
-		sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
-		if (CSFORM_IMPLIES_UTF8(fbh->csform) ){
+		sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);*/
+		if (CSFORM_IMPLIES_UTF8(fbh->csform) ){ /* do the UTF 8 magic*/
 			SvUTF8_on(dest_sv);
 		}
 	}
@@ -2390,7 +2402,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fbh->name    = SvPVX(fbh->name_sv);
 
 		fbh->ftype   = 5;	/* default: return as null terminated string */
-
 		switch (fbh->dbtype) {
 		/*	the simple types	*/
  			case   1:				/* VARCHAR2	*/
@@ -2482,7 +2493,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				  	} else {
 				  		fbh->ftype = SQLT_LVB; /*Binary form seems this is the only value where we cna get the length correctly*/
 				  	}
-			   } else if (imp_sth->clbk_lob){ /*this only works on 10.2 */
+			   } else if (imp_sth->clbk_lob){ 
 
 					fbh->clbk_lob      = 1;
     				fbh->define_mode   = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
@@ -2493,6 +2504,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    		    if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
+					
 	    		    if (fbh->dbtype == 112){
 	    		    	fbh->ftype = SQLT_CHR;
 	    		    } else {
@@ -2511,13 +2523,15 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 					if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
+					PerlIO_printf(DBILOGFP, "test 1 in ftype=%d\n",fbh->ftype);
 					if (fbh->dbtype == 112){
 						fbh->ftype = SQLT_CHR;
 					} else {
-						fbh->ftype = SQLT_BIN; /*other Binary*/
+						fbh->ftype = SQLT_BIN; /*other Binary */
 					}
 					fbh->fetch_func = fetch_get_piece;
 
+                    PerlIO_printf(DBILOGFP, "test 2 out ftype=%d\n",fbh->ftype);
 				} else {
 					fbh->disize = fbh->dbsize *10 ;	/* XXX! */
 
@@ -2639,15 +2653,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		    fb_ary->arcode,
 		    fbh->define_mode,
 			    status);
-
+                 
+                          
 		if (fbh->clbk_lob){
 			 /* use a dynamic callback for persistent binary and char lobs*/
 		    OCIDefineDynamic_log_stat(fbh->defnp,imp_sth->errhp,(dvoid *) fbh,status);
 		}
-
-
-		OCIAttrSet((dvoid *)fbh->defnp, (ub4)OCI_HTYPE_BIND, (dvoid *)&define_len,
-    (ub4)0, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp);
 
 		if (fbh->ftype == 108)  { /* Embedded object bind it differently*/
 
@@ -2784,6 +2795,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		}
 	}
 
+PerlIO_printf(DBILOGFP, "status 1 =%d\n",status);
+
     if (status != OCI_SUCCESS && status !=OCI_NEED_DATA) {
 		ora_fetchtest = 0;
 
@@ -2821,6 +2834,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		int rc = fb_ary->arcode[imp_sth->rs_array_idx];
 		ub1* row_data=&fb_ary->abuf[0]+(fb_ary->bufl*imp_sth->rs_array_idx);
 		SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/;
+
+		PerlIO_printf(DBILOGFP, "  rc =%d, field=%d \n",rc,i);
 
 		if (rc == 1406				/* field was truncated	*/
 		    && ora_dbtype_is_long(fbh->dbtype)/* field is a LONG	*/
