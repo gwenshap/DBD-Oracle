@@ -23,7 +23,7 @@ require 'nchar_test_lib.pl';
 
 $| = 1;
 
-plan tests => 21;
+plan tests => 29;
 
 # create a database handle
 my $dsn = oracle_test_dsn();
@@ -84,16 +84,25 @@ ok ($log2 eq $in_clob); #clob2 = in_clob
 ok ($log3 eq $in_blob); #clob1 = in_clob
 ok ($log4 eq $in_blob); #clob2 = in_clob
 
-ok($sth=$dbh->prepare($sql,{ora_clbk_lob=>1,ora_piece_size=>1*1024*1024}));
+ok($sth=$dbh->prepare($sql,{ora_clbk_lob=>1,ora_piece_size=>.5*1024*1024}));
 
 ok($sth->execute());
 
 ok(( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow());
+ok ($log eq $in_clob); #clob1 = in_clob
+ok ($log2 eq $in_clob); #clob2 = in_clob
+ok ($log3 eq $in_blob); #clob1 = in_clob
+ok ($log4 eq $in_blob); #clob2 = in_clob
 
-ok($sth=$dbh->prepare($sql,{ora_piece_lob=>1,ora_piece_size=>1*1024*1024}));
+ok($sth=$dbh->prepare($sql,{ora_piece_lob=>1,ora_piece_size=>.5*1024*1024}));
 				
 ok($sth->execute());
 ok( ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow());
+
+ok ($log eq $in_clob); #clob1 = in_clob
+ok ($log2 eq $in_clob); #clob2 = in_clob
+ok ($log3 eq $in_blob); #clob1 = in_clob
+ok ($log4 eq $in_blob); #clob2 = in_clob
 
 #no neeed to look at the data is should be ok
 

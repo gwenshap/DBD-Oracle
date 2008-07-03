@@ -599,13 +599,13 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
    Finaly figured out how this fucntion works
    Seems it is like this. The function inits and then fills the
    buffer (fb_ary->abuf) with the data from the select until it
-   either runs out of data or its max size is reached
-   (fb_ary->bufl).  If its max size is reached it then goes and gets
+   either runs out of data or its piece size is reached
+   (fb_ary->bufl).  If its piece size is reached it then goes and gets
    the the next piece and sets *piecep ==OCI_NEXT_PIECE at this point
-   I take the data in the buffer and strncat it onto my piece buffer
+   I take the data in the buffer and memcpy it onto my buffer
    (fb_ary->cb_abuf). This will go on until it runs out of full pieces
    so when it returns to back to the fetch I add what remains in
-   (fb_ary->bufl) (the last piece) and strncat onto my piece buffer (fb_ary->cb_abuf)
+   (fb_ary->bufl) (the last piece) and memcpy onto my  buffer (fb_ary->cb_abuf)
    to get it all.  I also take set fb_ary->cb_abuf back to empty just
    to keep things clean
  -------------------------------------------------------------- */
@@ -623,9 +623,10 @@ sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufp
   *rcpp   =  fb_ary->arcode;
 
 
-	if (dbd_verbose >= 5) {
+  if (dbd_verbose >= 5) {
 	  		PerlIO_printf(DBILOGFP, " In presist_lob_fetch_cbk\n");
-	}
+  }
+  
   if ( *piecep ==OCI_NEXT_PIECE ){/*more than one piece*/
 
 	memcpy(fb_ary->cb_abuf+fb_ary->piece_count*fb_ary->bufl,fb_ary->abuf,fb_ary->bufl );
@@ -1837,7 +1838,10 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 		you have to check to ensure you have the right define handle from the OCIDefineByPos
 		I do it in the next if statement.  So this will loop untill the handle changes at that point it exits the loop
 		during the loop I add the abuf to the  cb_abuf  using the buflen that is set above. 
-		Exter exiting the loop I get the actual buffer length by adding up all the pieces (buflen)..
+		I get the actual buffer length by adding up all the pieces (buflen) as I go along
+		Another really anoying thing is once can only find out if there is data left over at the very end of the fetching of the colums
+		so I make it warn if the LongTruncOk. I could also do this before but that would not result in any of the good data getting
+		in
 		*/
 		if ( hdlptr==fbh->defnp){
 	
@@ -1849,15 +1853,17 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 										 (dvoid *)&indptr,
 										 &rcode,status);
 
-PerlIO_printf(DBILOGFP, "rcode=%d\n",rcode);
-PerlIO_printf(DBILOGFP, "indptr=%d\n",indptr);
-
-PerlIO_printf(DBILOGFP, "status=%d\n",status);
-
 
    			OCIStmtFetch_log_stat(fbh->imp_sth->stmhp,fbh->imp_sth->errhp,1,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
+   			
+   		
+            if (status==OCI_SUCCESS_WITH_INFO && !DBIc_has(fbh->imp_sth,DBIcf_LongTruncOk)){
+             	dTHR; 			/* for DBIc_ACTIVE_off	*/
+			    DBIc_ACTIVE_off(fbh->imp_sth);	/* eg finish		*/
+			    oci_error(sth, fbh->imp_sth->errhp, status, "OCIStmtFetch, LongReadLen too small and/or LongTruncOk not set");
+			}   			
  			memcpy(fb_ary->cb_abuf+fb_ary->piece_count*imp_sth->piece_size,fb_ary->abuf,buflen );
-			fb_ary->piece_count++;/*used to tell me how many pieces I have, */
+			fb_ary->piece_count++;/*used to tell me how many pieces I have, for debuffing in this case */
 			actual_bufl=actual_bufl+buflen;
  	
 		}else {
@@ -1865,6 +1871,15 @@ PerlIO_printf(DBILOGFP, "status=%d\n",status);
 		}
 	}
 
+
+    if (DBIS->debug >= 6 || dbd_verbose >= 6){
+        if (fb_ary->piece_count==1){
+			PerlIO_printf(DBILOGFP,"     Fetch persistent lob of %d (Char/Bytes) with Polling in 1 piece\n",actual_bufl);
+        
+        } else {
+			PerlIO_printf(DBILOGFP,"     Fetch persistent lob of %d (Char/Bytes) with Polling in %d piece(s) of %d (Char/Bytes) and one piece of %d (Char/Bytes)\n",actual_bufl,fb_ary->piece_count,fbh->piece_size,buflen);
+		}
+    }
     sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
     
   	if (fbh->ftype != SQLT_BIN){
@@ -2485,7 +2500,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
                 /* do we need some addition size logic here? (lab) */
 
-                if (imp_sth->pers_lob){
+                if (imp_sth->pers_lob){  /*get as one peice fasted but limited to how big you can get.*/
 					fbh->pers_lob      = 1;
 					fbh->disize 	   = fbh->disize+long_readlen; /*user set max value for the fetch*/
 	    			if (fbh->dbtype == 112){
@@ -2493,7 +2508,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				  	} else {
 				  		fbh->ftype = SQLT_LVB; /*Binary form seems this is the only value where we cna get the length correctly*/
 				  	}
-			   } else if (imp_sth->clbk_lob){ 
+			   } else if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
 
 					fbh->clbk_lob      = 1;
     				fbh->define_mode   = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
@@ -2513,7 +2528,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    			}
 	    			fbh->fetch_func = fetch_clbk_lob;
 
-				} else if (imp_sth->piece_lob){
+				} else if (imp_sth->piece_lob){ /*get by peice with polling slowest*/
+				
 					fbh->piece_lob      = 1;
 					fbh->define_mode   = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
 					fbh->disize 	   = imp_sth->long_readlen; /*user set max value for the fetch*/
@@ -2523,18 +2539,15 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 					if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
-					PerlIO_printf(DBILOGFP, "test 1 in ftype=%d\n",fbh->ftype);
 					if (fbh->dbtype == 112){
 						fbh->ftype = SQLT_CHR;
 					} else {
 						fbh->ftype = SQLT_BIN; /*other Binary */
 					}
 					fbh->fetch_func = fetch_get_piece;
-
-                    PerlIO_printf(DBILOGFP, "test 2 out ftype=%d\n",fbh->ftype);
-				} else {
+				} else { /*auto lob fetch with locator by far the fastest*/
+				
 					fbh->disize = fbh->dbsize *10 ;	/* XXX! */
-
 					fbh->fetch_func = (imp_sth->auto_lob) ? fetch_func_autolob : fetch_func_getrefpv;
 					fbh->bless  = "OCILobLocatorPtr";
 					fbh->desc_t = OCI_DTYPE_LOB;
@@ -2795,8 +2808,6 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		}
 	}
 
-PerlIO_printf(DBILOGFP, "status 1 =%d\n",status);
-
     if (status != OCI_SUCCESS && status !=OCI_NEED_DATA) {
 		ora_fetchtest = 0;
 
@@ -2834,9 +2845,7 @@ PerlIO_printf(DBILOGFP, "status 1 =%d\n",status);
 		int rc = fb_ary->arcode[imp_sth->rs_array_idx];
 		ub1* row_data=&fb_ary->abuf[0]+(fb_ary->bufl*imp_sth->rs_array_idx);
 		SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/;
-
-		PerlIO_printf(DBILOGFP, "  rc =%d, field=%d \n",rc,i);
-
+	
 		if (rc == 1406				/* field was truncated	*/
 		    && ora_dbtype_is_long(fbh->dbtype)/* field is a LONG	*/
 		){
@@ -2862,7 +2871,6 @@ PerlIO_printf(DBILOGFP, "status 1 =%d\n",status);
  				if (!fbh->fetch_func(sth, fbh, sv)){
 					++err;	/* fetch_func already called oci_error */
 				}
-
 	      	} else {
 
 				int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
