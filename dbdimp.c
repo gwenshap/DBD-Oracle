@@ -364,8 +364,11 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     D_imp_drh_from_dbh;
     ub2 new_charsetid = 0;
     ub2 new_ncharsetid = 0;
-    /* dbi_imp_data code adapted from DBD::mysql */
+    /* check to see if DBD_verbose or ora_verbose is set*/
+    if ( (svp=DBD_ATTRIB_GET_SVP(attr, "dbd_verbose",11)) && SvOK(*svp) || (svp=DBD_ATTRIB_GET_SVP(attr, "ora_verbose",11)) && SvOK(*svp))
+    	dbd_verbose =(int)svp;
 
+    /* dbi_imp_data code adapted from DBD::mysql */
     if (DBIc_has(imp_dbh, DBIcf_IMPSET)) {
         /* dbi_imp_data from take_imp_data */
         if (DBIc_has(imp_dbh, DBIcf_ACTIVE)) {
@@ -484,12 +487,15 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     if (!imp_dbh->envhp || is_extproc) {
 	SV **init_mode_sv;
 	ub4 init_mode = OCI_OBJECT;	/* needed for LOBs (8.0.4)	*/
+	
+	
 	DBD_ATTRIB_GET_IV(attr, "ora_init_mode",13, init_mode_sv, init_mode);
 
 #if defined(USE_ITHREADS) || defined(MULTIPLICITY) || defined(USE_5005THREADS)
 	init_mode |= OCI_THREADED;
 #endif
 
+	
 	if (use_proc_connection) {
 	    char *err_hint = Nullch;
 #ifdef SQL_SINGLE_RCTX
@@ -550,7 +556,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	    attribute and ncharset controls the encoding for data with SQLCS_NCHAR
 	    form attribute.
 	    }*/
-
+				
             OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
 			charsetid, ncharsetid, status );
             if (status != OCI_SUCCESS) {
@@ -608,13 +614,15 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	    /* OCIInitialize + OCIEnvInit, we'd need ifdef's for pre-OCIEnvNlsCreate */
 
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
+	    
+	    
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, NULL, status,
 		    "OCIInitialize. Check ORACLE_HOME env var, Oracle NLS settings, permissions etc.");
 		return 0;
 	    }
 
-	    OCIEnvInit_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, 0, status);
+		OCIEnvInit_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, 0, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCIEnvInit");
 		return 0;
@@ -721,7 +729,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	    OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 	    OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 
-	    OCIServerAttach_log_stat(imp_dbh, dbname, status);
+	    OCIServerAttach_log_stat(imp_dbh, dbname,OCI_DEFAULT, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCIServerAttach");
 		OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);

@@ -40,9 +40,39 @@ dbd_init_oci_drh(imp_drh_t * imp_drh)
 }
 
 char *
+oci_exe_mode(ub4 mode)
+{
+
+	dTHX;
+	SV *sv;
+    switch (mode) {
+	/*----------------------- Execution Modes -----------------------------------*/
+		case OCI_DEFAULT:   	return "DEFAULT";
+		case OCI_BATCH_MODE:		return "BATCH_MODE"; /* batch the oci stmt for exec */
+		case OCI_EXACT_FETCH:		return "EXACT_FETCH";   /* fetch exact rows specified */
+		case OCI_STMT_SCROLLABLE_READONLY :		return "STMT_SCROLLABLE_READONLY"; 
+		case OCI_DESCRIBE_ONLY:		return "DESCRIBE_ONLY";  /* only describe the statement */
+		case OCI_COMMIT_ON_SUCCESS:	return "COMMIT_ON_SUCCESS";   /* commit, if successful exec */
+		case OCI_NON_BLOCKING:		return "NON_BLOCKING";                /* non-blocking */
+		case OCI_BATCH_ERRORS:		return "BATCH_ERRORS";   /* batch errors in array dmls */
+		case OCI_PARSE_ONLY:		return "PARSE_ONLY";     /* only parse the statement */
+		case OCI_SHOW_DML_WARNINGS:	return "SHOW_DML_WARNINGS";    
+		case OCI_RESULT_CACHE:		return "RESULT_CACHE";   /* hint to use query caching */
+		case OCI_NO_RESULT_CACHE :	return "NO_RESULT_CACHE";   /*hint to bypass query caching*/
+	}
+	sv = sv_2mortal(newSVpv("",0));
+    sv_grow(sv, 50);
+    sprintf(SvPVX(sv),"(UNKNOWN OCI EXECUTE MODE %d)", mode);
+    return SvPVX(sv);
+}
+
+
+char *
 oci_typecode_name(int typecode){
 
 	dTHX;
+	SV *sv;
+    
     switch (typecode) {
     	case OCI_TYPECODE_INTERVAL_YM:		return "INTERVAL_YM";
     	case OCI_TYPECODE_INTERVAL_DS:		return "NTERVAL_DS";
@@ -75,7 +105,12 @@ oci_typecode_name(int typecode){
         case OCI_TYPECODE_TABLE:			return "TABLE";
         case OCI_TYPECODE_NAMEDCOLLECTION: 	return "NAMEDCOLLECTION";
     }
-    return "undef";
+    
+    sv = sv_2mortal(newSVpv("",0));
+	sv_grow(sv, 50);
+	sprintf(SvPVX(sv),"(UNKNOWN OCI TYPECODE %d)", typecode);
+    return SvPVX(sv);
+    
 }
 
 char *
@@ -84,14 +119,14 @@ oci_status_name(sword status)
 	dTHX;
     SV *sv;
     switch (status) {
-    case OCI_SUCCESS:		return "SUCCESS";
+    case OCI_SUCCESS:			return "SUCCESS";
     case OCI_SUCCESS_WITH_INFO:	return "SUCCESS_WITH_INFO";
-    case OCI_NEED_DATA:		return "NEED_DATA";
-    case OCI_NO_DATA:		return "NO_DATA";
-    case OCI_ERROR:		return "ERROR";
+    case OCI_NEED_DATA:			return "NEED_DATA";
+    case OCI_NO_DATA:			return "NO_DATA";
+    case OCI_ERROR:				return "ERROR";
     case OCI_INVALID_HANDLE:	return "INVALID_HANDLE";
     case OCI_STILL_EXECUTING:	return "STILL_EXECUTING";
-    case OCI_CONTINUE:		return "CONTINUE";
+    case OCI_CONTINUE:			return "CONTINUE";
     }
     sv = sv_2mortal(newSVpv("",0));
     sv_grow(sv, 50);
@@ -99,6 +134,109 @@ oci_status_name(sword status)
     return SvPVX(sv);
 }
 
+/* the various modes used in OCI */
+char *
+oci_define_options(ub4 options)
+{
+	dTHX;
+    SV *sv;
+    switch (options) {
+	/*------------------------Bind and Define Options----------------------------*/
+		case OCI_DEFAULT:   	return "DEFAULT";
+		case OCI_DYNAMIC_FETCH: return "DYNAMIC_FETCH";               /* fetch dynamically */
+		
+	 }
+    sv = sv_2mortal(newSVpv("",0));
+    sv_grow(sv, 50);
+    sprintf(SvPVX(sv),"(UNKNOWN OCI DEFINE MODE %d)", options);
+    return SvPVX(sv);
+}
+
+char *
+oci_bind_options(ub4 options)
+{
+	dTHX;
+    SV *sv;
+    switch (options) {
+	/*------------------------Bind and Define Options----------------------------*/
+		case OCI_DEFAULT:   	return "DEFAULT";
+		case OCI_SB2_IND_PTR:   return "SB2_IND_PTR";                          /* unused */
+		case OCI_DATA_AT_EXEC:  return "DATA_AT_EXEC";             /* data at execute time */
+		case OCI_PIECEWISE:   	return "PIECEWISE";         /* piecewise DMLs or fetch */
+		case OCI_BIND_SOFT:   	return "BIND_SOFT";               /* soft bind or define */
+		case OCI_DEFINE_SOFT:   return "DEFINE_SOFT";           /* soft bind or define */
+		case OCI_IOV:   		return "";   /* For scatter gather bind/define */
+		
+	 }
+    sv = sv_2mortal(newSVpv("",0));
+    sv_grow(sv, 50);
+    sprintf(SvPVX(sv),"(UNKNOWN BIND MODE %d)", options);
+    return SvPVX(sv);
+}
+
+/* the various modes used in OCI */
+char *
+oci_mode(ub4  mode)
+{
+	dTHX;
+    SV *sv;
+    switch (mode) {
+        case 3:					return "THREADED | OBJECT";
+		case OCI_DEFAULT:   	return "DEFAULT";
+		/* the default value for parameters and attributes */
+		/*-------------OCIInitialize Modes / OCICreateEnvironment Modes -------------*/
+		case OCI_THREADED:      return "THREADED";      /* appl. in threaded environment */
+		case OCI_OBJECT:        return "OBJECT";  /* application in object environment */
+		case OCI_EVENTS:        return "EVENTS";  /* application is enabled for events */
+		case OCI_SHARED:        return "SHARED";  /* the application is in shared mode */
+		/* The following *TWO* are only valid for OCICreateEnvironment call */
+		case OCI_NO_UCB:        return "NO_UCB "; /* No user callback called during ini */
+		case OCI_NO_MUTEX:      return "NO_MUTEX"; /* the environment handle will not be */
+		                                    /*  protected by a mutex internally */
+		case OCI_SHARED_EXT:     return "SHARED_EXT";              /* Used for shared forms */
+		case OCI_ALWAYS_BLOCKING:return "ALWAYS_BLOCKING";    /* all connections always blocking */
+		case OCI_USE_LDAP:       return "USE_LDAP";            /* allow  LDAP connections */
+		case OCI_REG_LDAPONLY:   return "REG_LDAPONLY";              /* only register to LDAP */
+		case OCI_UTF16:          return "UTF16";        /* mode for all UTF16 metadata */
+		case OCI_AFC_PAD_ON:     return "AFC_PAD_ON";  /* turn on AFC blank padding when rlenp present */
+		case OCI_NEW_LENGTH_SEMANTICS: return "NEW_LENGTH_SEMANTICS";   /* adopt new length semantics */
+											       /* the new length semantics, always bytes, is used by OCIEnvNlsCreate */
+		case OCI_NO_MUTEX_STMT:  return "NO_MUTEX_STMT";           /* Do not mutex stmt handle */
+		case OCI_MUTEX_ENV_ONLY: return "MUTEX_ENV_ONLY";  /* Mutex only the environment handle */
+		case OCI_SUPPRESS_NLS_VALIDATION:  return "SUPPRESS_NLS_VALIDATION";  /* suppress nls validation */
+													  	 /* nls validation suppression is on by default;
+													     use OCI_ENABLE_NLS_VALIDATION to disable it */
+		case OCI_MUTEX_TRY:                return "MUTEX_TRY";    /* try and acquire mutex */
+		case OCI_NCHAR_LITERAL_REPLACE_ON: return "NCHAR_LITERAL_REPLACE_ON"; /* nchar literal replace on */
+		case OCI_NCHAR_LITERAL_REPLACE_OFF:return "NCHAR_LITERAL_REPLACE_OFF"; /* nchar literal replace off*/
+		case OCI_ENABLE_NLS_VALIDATION:    return "ENABLE_NLS_VALIDATION";    /* enable nls validation */
+		/*------------------------OCIConnectionpoolCreate Modes----------------------*/
+		case OCI_CPOOL_REINITIALIZE:	return "CPOOL_REINITIALIZE";
+		/*--------------------------------- OCILogon2 Modes -------------------------*/
+/*case OCI_LOGON2_SPOOL:      	return "LOGON2_SPOOL";     /* Use session pool */
+		case OCI_LOGON2_CPOOL:      	return "LOGON2_CPOOL"; /* Use connection pool */
+/*case OCI_LOGON2_STMTCACHE:  	return "LOGON2_STMTCACHE";     /* Use Stmt Caching */
+		case OCI_LOGON2_PROXY:      	return "LOGON2_PROXY";     /* Proxy authentiaction */
+		/*------------------------- OCISessionPoolCreate Modes ----------------------*/
+/*case OCI_SPC_REINITIALIZE:		return "SPC_REINITIALIZE";   /* Reinitialize the session pool */
+/*case OCI_SPC_HOMOGENEOUS: 		return "SPC_HOMOGENEOUS"; "";   /* Session pool is homogeneneous */
+/*case OCI_SPC_STMTCACHE:   		return "SPC_STMTCACHE";   /* Session pool has stmt cache */
+/*case OCI_SPC_NO_RLB:      		return "SPC_NO_RLB "; /* Do not enable Runtime load balancing. */ 
+		/*--------------------------- OCISessionGet Modes ---------------------------*/
+/*case OCI_SESSGET_SPOOL:     	return "SESSGET_SPOOL";     /* SessionGet called in SPOOL mode */
+/*case OCI_SESSGET_CPOOL:    		return "SESSGET_CPOOL";  /* SessionGet called in CPOOL mode */
+/*case OCI_SESSGET_STMTCACHE: 	return "SESSGET_STMTCACHE";                 /* Use statement cache */
+/*case OCI_SESSGET_CREDPROXY: 	return "SESSGET_CREDPROXY";     /* SessionGet called in proxy mode */
+/*case OCI_SESSGET_CREDEXT:   	return "SESSGET_CREDEXT";     */
+		case OCI_SESSGET_SPOOL_MATCHANY:return "SESSGET_SPOOL_MATCHANY";
+/*case OCI_SESSGET_PURITY_NEW:    return "SESSGET_PURITY_NEW"; 
+		case OCI_SESSGET_PURITY_SELF:   return "SESSGET_PURITY_SELF"; */
+    }
+    sv = sv_2mortal(newSVpv("",0));
+    sv_grow(sv, 50);
+    sprintf(SvPVX(sv),"(UNKNOWN OCI MODE %d)", mode);
+    return SvPVX(sv);
+}
 
 char *
 oci_stmt_type_name(int stmt_type)
