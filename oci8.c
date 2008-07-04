@@ -458,8 +458,8 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
     dTHX;
     D_imp_dbh_from_sth;
     sword status 		 = 0;
-    IV  ora_piece_size   = 0; /*used only for persistent lobs with 10g Release 2. or later*/
-    IV  ora_pers_lob     = 0; /*used only for persistent lobs with 10g Release 2. or later*/
+    IV  ora_piece_size   = 0; 
+    IV  ora_pers_lob     = 0; 
     IV  ora_piece_lob    = 0;
     IV  ora_clbk_lob     = 0;
     ub4	oparse_lng   	 = 1;  /* auto v6 or v7 as suits db connected to	*/
@@ -513,6 +513,8 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql", 13, svp, ora_check_sql);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_exe_mode", 12, svp, imp_sth->exe_mode);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_prefetch_memory",  19, svp, imp_sth->prefetch_memory);
+		DBD_ATTRIB_GET_IV(  attribs, "dbd_verbose",  11, svp, dbd_verbose);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_verbose",  11, svp, dbd_verbose);
 
    	}
 
