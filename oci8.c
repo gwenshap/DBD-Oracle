@@ -500,9 +500,9 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
     *indpp  = &phs->indp;
     *piecep = OCI_ONE_PIECE;
     if (DBIS->debug >= 3 || dbd_verbose >=3)
- 		PerlIO_printf(DBILOGFP, "       in  '%s' [%lu,%lu]: len %2lu, ind %d%s\n",
+ 		PerlIO_printf(DBILOGFP, "       in  '%s' [%lu,%lu]: len %2lu, ind %d%s, value=%s\n",
 			phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
-			(phs->desc_h) ? " via descriptor" : "");
+			(phs->desc_h) ? " via descriptor" : "",neatsvpv(phs->sv,0));
     if (!tuples_av && (index > 0 || iter > 0))
 		croak(" Arrays and multiple iterations not currently supported by DBD::Oracle (in %d/%d)", index,iter);
     return OCI_CONTINUE;

@@ -921,7 +921,7 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
     int on = SvTRUE(valuesv);
     int cacheit = 1;
 
-    if (kl==11 && strEQ(key, "ora_verbose")) {
+    if (kl==11 && (strEQ(key, "ora_verbose") || strEQ(key, "dbd_verbose"))) {
 		dbd_verbose = SvIV (valuesv);
     }
     else if (kl==10 && strEQ(key, "AutoCommit")) {
@@ -972,7 +972,7 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 
     /* AutoCommit FETCH via DBI */
 
-    if (kl==11 && strEQ(key, "ora_verbose")) {
+    if (kl==11 && (strEQ(key, "ora_verbose") || strEQ(key, "dbd_verbose"))) {
 		retsv = newSViv (dbd_verbose);
 	}
     else if (kl==10 && strEQ(key, "AutoCommit")) {
@@ -2878,7 +2878,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 
 
     if (debug >= 2 || dbd_verbose >= 2)
-  	   PerlIO_printf(DBILOGFP, "    dbd_st_execute %s (out%d, lob%d)...\n",
+  	   PerlIO_printf(DBILOGFP, "   dbd_st_execute %s (out%d, lob%d)...\n",
 	    oci_stmt_type_name(imp_sth->stmt_type), outparams, imp_sth->has_lobs);
 
 
