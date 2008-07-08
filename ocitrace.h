@@ -49,8 +49,8 @@
     stat =OCIStmtSetPieceInfo(ptr,OCI_HTYPE_DEFINE,errhp, buf, blen, p,indp,rc);\
     (DBD_OCI_TRACEON) \
     		? PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%sOCIStmtSetPieceInfo_log_stat(%p,%p,%d,%s,%d)=%s\n",\
-		         OciTp, (void*)errhp,fbh,piece,buf,blen,oci_status_name(stat)),stat \
+		         "%sOCIStmtSetPieceInfo_log_stat(%p,%p,%d,%d)=%s\n",\
+		         OciTp, (void*)errhp,fbh,piece,blen,oci_status_name(stat)),stat \
    : stat
 
 

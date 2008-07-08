@@ -318,6 +318,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_charset		=> undef,	
                  ora_ncharset		=> undef,
                  ora_session_mode	=> undef,
+                 ora_verbose		=> undef,
                  };
     }
    
@@ -1370,6 +1371,19 @@ These attributes override the settings from environment variables.
   $dbh = DBI->connect ($dsn, $user, $passwd,
                        {ora_charset => 'AL32UTF8'});
 
+=item ora_verbose
+
+Use this value to enable DBD::Oracle only tracing.  Simply
+either set the ora_verbose attribute on the connect() method to the trace level you desire like this
+
+  my $dbh = DBI->connect($dsn, "", "", {ora_verbose=>6});
+
+or set it directly on the DB handle like this;
+
+  $dbh->{ora_verbose} =6';
+
+In both cases the DBD::Oracle trace level to 6, which is this level that will trace most of the calls to OCI. 
+
 =head2 Database Handle Attributes
 
 =item ora_ph_type
@@ -1440,17 +1454,6 @@ used to limit or extend the number of rows processed at a time.
 Note that this attribute also applies to C<execute_array>, since that
 method is implemented using C<execute_for_fetch>.
 
-=item ora_verbose
-
-Use this value to enable DBD::Oracle only tracing.  Works the same way as DBI->trace(level), simply
-set the oar_verbose attribute on the connect() to the trace level you desire.
-
-For example:
-
-  my $dbh = DBI->connect($dsn, "", "", {ora_verbose=>6});
-
-Will set the DBD::Oracle trace level to 6, which is this level that will trace most of the calls to OCI. 
-
 =back
 
 =head2 Prepare Attributes
@@ -1479,14 +1482,14 @@ If true (the default), fetching retrieves the contents of the CLOB or
 BLOB column in most circumstances.  If false, fetching retrieves the
 Oracle "LOB Locator" of the CLOB or BLOB value.
 
-See L</Handling LOBs> for more details.
+See L</LOBs and LONGs> for more details.
 See also the LOB tests in 05dbi.t of Oracle::OCI for examples
 of how to use LOB Locators.
 
 =item ora_pers_lob
 
-If true the L</Simple Fetch> method for the L</Data Interface for Persistent LOBs> will be
-used for LOBs.
+If true the L</Simple Fetch for CLOBs and BLOBs> method for the L</Data Interface for Persistent LOBs> will be
+used for LOBs rather than the default method L</Data Interface for LOB Locators>.
 
 =item ora_clbk_lob
 
@@ -1528,6 +1531,10 @@ the memory value entered is used to compute the number of rows to prefetch.
 
 See L</Prefetching Rows> for more details.
 
+=item ora_verbose
+
+Use this value to enable DBD::Oracle only tracing.  Simply set the attribute to the trace level you desire.
+
 =back
 
 =head2 Placeholder Binding Attributes
@@ -1563,7 +1570,7 @@ Additional values when DBD::Oracle was built using OCI 9.2 and later:
 
 See L</Binding Cursors> for the correct way to use ORA_RSET.
 
-See L</Handling LOBs> for how to use ORA_CLOB and ORA_BLOB.
+See L</LOBs and LONGs> for how to use ORA_CLOB and ORA_BLOB.
 
 See L</SYS.DBMS_SQL datatypes> for ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE.
 
@@ -1601,6 +1608,7 @@ TABLE OF ... .
 
 Specify internal data representation. Currently is supported only for
 ORA_NUMBER_TABLE.
+
 
 =back
 
@@ -2759,20 +2767,24 @@ If the ora_prefetch_memory less than 1 or not present then memory size is not in
 number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
 is not included in the computing of the prefetch rows.  
 
-=head1 LOBs
 
-The key to working with LOBs it to remember the value of an Oracle LOB column is not the content of the LOB. It's a
-'LOB Locator' which, after being selected or inserted needs extra processing to read or write the content of the LOB. 
+=head1 LOBs and LONGs
 
-DBD::Oracle now offers three interfaces to carry our this extra processing requirement for LOB data, 
+The key to working with LOBs (CLOB, BLOBs) is to remember the value of an Oracle LOB column is not the content of the LOB. It's a
+'LOB Locator' which, after being selected or inserted needs extra processing to read or write the content of the LOB. There are also legacy LONG types (LONG, LONG RAW, VARCHAR2)
+which are presently deprecated by Oracle but are still in use.  These LONG types do not utilize a 'LOB Locator' and also are more limited in
+functionality than CLOB or BLOB fields. 
+
+DBD::Oracle now offers three interfaces to LOB and LONG data, 
 
 =item L</Data Interface for Persistent LOBs>
 
-With this interface DBD::Oracle handles your data directly utilizing regular OCI calls, Oracle itself takes care of the LOB Locator operations. 
+With this interface DBD::Oracle handles your data directly utilizing regular OCI calls, Oracle itself takes care of the LOB Locator operations in the case of 
+BLOBs and CLOBs treating them exactly as if they were the same as the legacy LONG or LONG RAW types. 
 
 =item L</Data Interface for LOB Locators>
 
-With this interface DBD::Oracle handles your data utilizing LOB Locators OCI calls, so DBD::Oracle takes care of the LOB Locator operations.
+With this interface DBD::Oracle handles your data utilizing LOB Locator OCI calls so it only works with CLOB and BLOB datatypes. With this interface DBD::Oracle takes care of the LOB Locator operations for you.
 
 =item L</LOB Locator Method Interface>
 
@@ -2783,35 +2795,76 @@ This allows the user direct access to the LOB Locator methods, so you have to ta
 Generally speaking the interface that you will chose will be dependant on what end you are trying to achieve. All have their benefits and 
 drawbacks.
 
-One point to remember when working with LOBs is if your LOB column is NULL then there is no LOB Locator that 
-DBD::Oracle can work with so it will return a 
+One point to remember when working with LOBs (CLOBs, BLOBs) is if your LOB column can be in one of three states;
+
+=item NULL
+
+The table cell is created, but the cell holds no locator or value.
+If your LOB field is in this state then there is no LOB Locator that DBD::Oracle can work with so it will return a 
 
   DBD::Oracle::db::ora_lob_read: locator is not of type OCILobLocatorPtr
   
 error. 
 
-To correct this you must use an SQL UPDATE statement to reset the LOB column to a non-NULL (or empty LOB) value with an SQL like this;
+To correct this you must use an SQL UPDATE statement to reset the LOB column to a non-NULL (or empty LOB) value with either EMPTY_BLOB or EMPTY_CLOB as in this example;
 
   UPDATE lob_example 
      SET bindata=EMPTY_BLOB()
    WHERE bindata IS NULL.
 
+=item Empty
+
+A LOB instance with a locator exists in the cell, but it has no value. The length of the LOB is zero. In this case DBD::Oracle will return 'undef' for the field.
+
+=item Populated
+
+A LOB instance with a locator and a value exists in the cell. You actually get the LOB value.
+
 =head2 Data Interface for Persistent LOBs
 
-Oracle 9iR1 and later extended the OCI API to work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
-a LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
-you would use on other datatypes that store character or binary data. There are fewer round trips to the server as no 'LOB Locators' are
+This is the original interface for LONG and LONG RAW datatypes and from Oracle 9iR1 and later the OCI API was extended to work directly with the other LOB datatypes. 
+In other words you can treat all LOB type data (BLOB, CLOB) as if it was a LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
+you would use on other datatypes that store character or binary data. In some cases there are fewer round trips to the server as no 'LOB Locators' are
 used, normally one can get an entire LOB is a single round trip. 
 
-=head3 Simple Fetch
+=head3 Simple Fetch for LONGs and LONG RAWs
 
-As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LOB as a single large piece. 
-To use this interface set the 'ora_pers_lob' attribute of the statement handle to '1' with the prepare method, as well
-set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LOB. If the size of the LOB exceeds 
-the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
+As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LONG datatypes as a single large piece. 
+There are no special settings, simply set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LONG or LONG RAW.
+If the size of the LONG or LONG RAW exceeds  the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
 The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on. 
 So far this seems to be about 15MB for 32bit system and xxxMB for 64bit.  If you run into an 'ORA-01062: unable to allocate memory for define buffer' 
 error try setting the size of 'LongReadLen' to a lower value.
+
+For example give this table;
+
+  CREATE TABLE test_long (
+  	    id NUMBER,
+	    long1 long)
+
+this code;
+
+  $dbh->{LongReadLen} = 2*1024*1024; #2 meg
+  $SQL='select p_id,long1 from test_long';
+  $sth=$dbh->prepare($SQL);
+  $sth->execute();
+  while (my ( $p_id,$long )=$sth->fetchrow()){
+    print "p_id=".$p_id."\n";
+    print "long=".$long."\n";
+  }
+
+Will select out all of the long1 fields in the table as long as they are all under 2MB in length. A value in long1 longer than this will throw an error. Adding this line;
+
+  $dbh->{LongTruncOk}=1;
+  
+before the execute will return all the long1 fields but they will be truncated at 2MBs. 
+
+=head3 Simple Fetch for CLOBs and BLOBs
+
+To use this interface for CLOBs and LOBs datatypes set the 'ora_pers_lob' attribute of the statement handle to '1' with the prepare method, as well
+set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LOB. If the size of the LOB exceeds 
+the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
+The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on in the same way that LONGs and LONG RAWs are. 
 
 For example give this table;
 
@@ -2843,13 +2896,14 @@ before the execute will return all the lobs but they will be truncated at 2MBs.
 
 =head3 Piecewise Fetch with Callback
 
-With a piecewise callback fetch DBD::Oracle sets up a function that will 'callback' to the DB during the fetch and gets your LOB piece by piece. To use this interface set the 'ora_clbk_lob'
-attribute of the statement handle to '1' with the prepare method. Next set the 'ora_piece_size' to the size of the piece that
+With a piecewise callback fetch DBD::Oracle sets up a function that will 'callback' to the DB during the fetch and gets your LOB (LONG, LONG RAW, CLOB, BLOB) piece by piece. 
+To use this interface set the 'ora_clbk_lob' attribute of the statement handle to '1' with the prepare method. Next set the 'ora_piece_size' to the size of the piece that
 you want to return on the callback. Finally set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected 
-size of the LOB. Like the L</Simple Fetch> if the size of the LOB exceeds the is 'LongReadLen' you can use the 'LongTruncOk' attribute to truncate the LOB 
+size of the LOB. Like the L</Simple Fetch for LONGs and LONG RAWs> and L</Simple Fetch for CLOBs and BLOBs> the if the size of the LOB exceeds the is 'LongReadLen' you can use the 'LongTruncOk' attribute to truncate the LOB 
 or set the 'LongReadLen' to a higher value.  With this interface the value of 'ora_piece_size' seems to be constrained by the same memory limit as found on 
-the L</Simple Fetch>. If you encounter an 'ORA-01062' error try setting the value of 'ora_piece_size' to a smaller value.  The value for 'LongReadLen' is 
-dependant on the version and setting of the Oracle DB you are using, it ranges from 8GBs in 9iR1 up to 128 terabytes with 11g.
+the Simple Fetch interface. If you encounter an 'ORA-01062' error try setting the value of 'ora_piece_size' to a smaller value.   The value for 'LongReadLen' is 
+dependant on the version and settings of the Oracle DB you are using. In theory it ranges from 8GBs
+in 9iR1 up to 128 terabytes with 11g but you will also be limited by the physical memory of your PERL instance.
 
 Using the table from the last example this code;
 
@@ -2866,18 +2920,32 @@ Using the table from the last example this code;
   }
 
 Will select out all of the LOBs in the table as long as they are all under 20MB in length. If the LOB is longer than 5MB (ora_piece_size) DBD::Oracle will fetch it in at least 2 pieces to a 
-maximum of 4 pieces (4*5MB=20MB). Like the L</Simple Fetch> Lobs longer than 20MB will throw an error.
+maximum of 4 pieces (4*5MB=20MB). Like the Simple Fetch examples Lobs longer than 20MB will throw an error.
+
+Using the table from the first example (LONG) this code;
+
+  $dbh->{LongReadLen} = 20*1024*1024; #2 meg
+  $SQL='select p_id,long1 from test_long';
+  $sth=$dbh->prepare($SQL,{ora_clbk_lob=>1,ora_piece_size=>5*1024*1024});
+  $sth->execute();
+  while (my ( $p_id,$long )=$sth->fetchrow()){
+    print "p_id=".$p_id."\n";
+    print "long=".$long."\n";
+  }
+
+Will select all of the long1 fields from table as long as they are is under 20MB in length. If the long1 filed is longer than 5MB (ora_piece_size) DBD::Oracle will fetch it in at least 2 pieces to a 
+maximum of 4 pieces (4*5MB=20MB). Like the other examples long1 fields longer than 20MB will throw an error.
 
 =head3 Piecewise Fetch with Polling
 
-With a polling piecewise fetch DBD::Oracle iterates (Polls) over the LOB during the fetch getting your LOB piece by piece. To use this interface set the 'ora_piece_lob'
+With a polling piecewise fetch DBD::Oracle iterates (Polls) over the LOB during the fetch getting your LOB (LONG, LONG RAW, CLOB, BLOB) piece by piece. To use this interface set the 'ora_piece_lob'
 attribute of the statement handle to '1' with the prepare method. Next set the 'ora_piece_size' to the size of the piece that
 you want to return on the callback. Finally set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected 
-size of the LOB. Like the L</Piecewise Fetch with Callback> and L</Simple Fetch> if the size of the LOB exceeds the is 'LongReadLen' you can use the 'LongTruncOk' attribute to truncate the LOB 
+size of the LOB. Like the L</Piecewise Fetch with Callback> and Simple Fetches if the size of the LOB exceeds the is 'LongReadLen' you can use the 'LongTruncOk' attribute to truncate the LOB 
 or set the 'LongReadLen' to a higher value.  With this interface the value of 'ora_piece_size' seems to be constrained by the same memory limit as found on 
-the L</Simple Fetch> and L</Piecewise Fetch with Callback> and the value for 'LongReadLen' is can be the same as in a L</Piecewise Fetch with Callback>.
+the L</Piecewise Fetch with Callback>. 
 
-Using the table from the L</Simple Fetch> example this code;
+Using the table from the example above this code;
 
   $dbh->{LongReadLen} = 20*1024*1024; #20 meg
   $SQL='select p_id,lob_1,lob_2,blob_2 from test_lobs';
@@ -2894,7 +2962,21 @@ Using the table from the L</Simple Fetch> example this code;
 Will select out all of the LOBs in the table as long as they are all under 20MB in length. If the LOB is longer than 5MB (ora_piece_size) DBD::Oracle will fetch it in at least 2 pieces to a 
 maximum of 4 pieces (4*5MB=20MB). Like the other fetch methods LOBs longer than 20MB will throw an error.
 
-=head3 Binding for Updates and Inserts
+Finally with this code;
+
+  $dbh->{LongReadLen} = 20*1024*1024; #2 meg
+  $SQL='select p_id,long1 from test_long';
+  $sth=$dbh->prepare($SQL,{ora_piece_lob=>1,ora_piece_size=>5*1024*1024});
+  $sth->execute();
+  while (my ( $p_id,$long )=$sth->fetchrow()){
+    print "p_id=".$p_id."\n";
+    print "long=".$long."\n";
+  }
+  
+Will select all of the long1 fields from table as long as they are is under 20MB in length. If the long1 field is longer than 5MB (ora_piece_size) DBD::Oracle will fetch it in at least 2 pieces to a 
+maximum of 4 pieces (4*5MB=20MB). Like the other examples long1 fields longer than 20MB will throw an error.
+
+=head3 Binding for Updates and Inserts for CLOBs and  BLOBs
 
 To bind for updates and inserts all that is required to use this interface is to set the statement handle's prepare method 
 'ora_type' attribute to 'SQLT_CHR' in the case of CLOBs and NCLOBs or 'SQLT_BIN' in the case of BLOBs as in this example for an insert;
@@ -2913,7 +2995,7 @@ To bind for updates and inserts all that is required to use this interface is to
   $sth->bind_param(5,$in_blob,{ora_type=>SQLT_BIN});
   $sth->execute();
   
-So far the only limit reached with this form of insert is the BLOBs must be under 2GB in size.
+So far the only limit reached with this form of insert is the LOBs must be under 2GB in size.
 
 =head3 Support for Remote LOBs;
 
@@ -3000,7 +3082,9 @@ so the following returns an error:
 =head3 Simple Usage
 
 When fetching LOBs they are, by default, made to look just like LONGs with this interface and
-are subject to the LongReadLen and LongTruncOk attributes. 
+are subject to the LongReadLen and LongTruncOk attributes.  The value for 'LongReadLen' is 
+dependant on the version and settings of the Oracle DB you are using. In theory it ranges from 8GBs
+in 9iR1 up to 128 terabytes with 11g but you will also be limited by the physical memory of your PERL instance.
 
 When inserting or updating LOBs some I<major> magic has to be performed
 behind the scenes to make it transparent.  Basically the driver has to
@@ -3084,27 +3168,32 @@ Example:
      $sth->execute;
 
 
-=head3 Persistent & Locator Interface Caveats
+=head2 Persistent & Locator Interface Caveats
 
 Now that one has the option of using the Persistent or the Locator interface for LOBs the questions arises
 which one to use. For starters, if you want to access LOBs over a dblink you will have to use the Persistent 
 interface so that choice is simple.  The question of which one to use after that is a little more tricky.
-It basically boils down to a choice between size and speed. 
+It basically boils down to a choice between LOB size and speed. 
 
-The Callback and Polling piecewise fetches are very slow 
+The Callback and Polling piecewise fetches are very very slow 
 when compared to the Simple and the Locator fetches but they can handle very large blocks of data. Given a situation where a 
-very very large LOB is to be read the Locator fetch could time out while either of the piecewise fetches will not. 
+large LOB is to be read the Locator fetch may time out while either of the piecewise fetches will not. 
 
-With the Simple fetch you are limited by physical memory of you server but it runs a little faster than the Locator, as there are fewer round trips
-to the server. So if you have small LOBs and need to save a little banwidth this is the one to use.
+With the Simple fetch you are limited by physical memory of your server but it runs a little faster than the Locator, as there are fewer round trips
+to the server. So if you have small LOBs and need to save a little bandwidth this is the one to use. It you are going after large LOBs then the Locator interface is the one to use.
 
 If you need to update more than row of with LOB data then the Persistent interface can do it while the Locator can't.
+
+If you encounter a situation where you have to access the legacy LOBs (LONG, LONG RAW) and the values are to large for you system then you can use
+the Callback or Polling piecewise fetches to  get all of the data.
 
 Not all of the Persistent interface has been implemented yet, the following are not supported;
 
   1) Piecewise, polling and callback binds for INSERT and UPDATE operations.
-  2) Piecewise, array binds for SELECT, INSERT and UPDATE operations.
+  2) Piecewise array binds for SELECT, INSERT and UPDATE operations.
   
+Most of the time you should just use the LOB Locator interface as this is in one that has the best combination of speed and size.
+
 All this being said if you are doing some critical programming I would use the L</Data Interface for LOB Locators> as this gives you very 
 fine grain control of your LOBs, of course the code for this will be somewhat more involved.
 

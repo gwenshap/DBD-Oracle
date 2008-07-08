@@ -290,12 +290,15 @@ int pp_rebind_ph_rset_in _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 int oci_error_err _((SV *h, OCIError *errhp, sword status, char *what, sb4 force_err));
 #define oci_error(h, errhp, status, what) oci_error_err(h, errhp, status, what, 0)
 char *oci_stmt_type_name _((int stmt_type));
+char *oci_typecode_name _((int typecode));
+char *sql_typecode_name _((int dbtype));
 char *oci_status_name _((sword status));
 char *oci_mode _((ub4  mode));
 char *oci_bind_options _((ub4 options));
 char *oci_define_options _((ub4 options));
 char *oci_hdtype_name _((ub4 hdtype));
 char *oci_exe_mode _((ub4 mode));
+char *oci_col_return_codes _((int rc));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 int dbd_rebind_ph_nty _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));

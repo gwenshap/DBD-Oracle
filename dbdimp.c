@@ -365,6 +365,15 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     ub2 new_charsetid = 0;
     ub2 new_ncharsetid = 0;
     /* check to see if DBD_verbose or ora_verbose is set*/
+    if (DBD_ATTRIB_TRUE(attr,"dbd_verbose",11,svp))
+    	DBD_ATTRIB_GET_IV(  attr, "dbd_verbose",  11, svp, dbd_verbose);
+	 if (DBD_ATTRIB_TRUE(attr,"ora_verbose",11,svp))
+    	DBD_ATTRIB_GET_IV(  attr, "ora_verbose",  11, svp, dbd_verbose);
+   
+  
+  
+  /*if (DBD_ATTRIB_GET_IV(  attribs, "dbd_verbose",  11, svp, dbd_verbose);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_verbose",  11, svp, dbd_verbose);
     if ( (svp=DBD_ATTRIB_GET_SVP(attr, "dbd_verbose",11)) && SvOK(*svp) || (svp=DBD_ATTRIB_GET_SVP(attr, "ora_verbose",11)) && SvOK(*svp))
     	dbd_verbose =(int)svp;
 
@@ -430,7 +439,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     imp_dbh->get_oci_handle = oci_db_handle;
 
     if (DBIS->debug >= 6 || dbd_verbose >= 6)
-	dump_env_to_trace();
+		dump_env_to_trace();
 
     if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_envhp", 9)) && SvOK(*svp)) {
 	if (!SvTRUE(*svp)) {
@@ -1593,8 +1602,8 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     }
 
     if (!phs->csid_orig) {	/* get the default csid Oracle would use */
-	OCIAttrGet_log_stat(phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
-		OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
+		OCIAttrGet_log_stat(phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
+			OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
     }
 
     /* if app has specified a csid then use that, else use default */
@@ -1605,23 +1614,23 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
         csid = utf8_csid; /* not al32utf8_csid here on purpose */
 
     if (trace_level >= 3  || dbd_verbose >= 3 )
-	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): bind %s <== %s "
-		"(%s, %s, csid %d->%d->%d, ftype %d, csform %d->%d, maxlen %lu, maxdata_size %lu)\n",
-	      phs->name, neatsvpv(phs->sv,0),
-	      (phs->is_inout) ? "inout" : "in",
-	      flag_data_is_utf8 ? "is-utf8" : "not-utf8",
-	      phs->csid_orig, phs->csid, csid,
-	      phs->ftype, phs->csform, csform,
-	      (unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
+		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): bind %s <== %s "
+			"(%s, %s, csid %d->%d->%d, ftype %d, csform %d->%d, maxlen %lu, maxdata_size %lu)\n",
+	   	   	phs->name, neatsvpv(phs->sv,0),
+	    	(phs->is_inout) ? "inout" : "in",
+	   	 	flag_data_is_utf8 ? "is-utf8" : "not-utf8",
+	    	phs->csid_orig, phs->csid, csid,
+	    	phs->ftype, phs->csform, csform,
+	    	(unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
 
 
     if (csid) {
-	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
-	    &csid, (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
-	if ( status != OCI_SUCCESS ) {
-	    oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)"));
-	    return 0;
-	}
+		OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+	 	   &csid, (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
+		if ( status != OCI_SUCCESS ) {
+	  	  oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)"));
+	   	 return 0;
+		}
     }
 
     if (phs->maxdata_size) {
@@ -2180,14 +2189,14 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 
 
     if (DBIS->debug >= 2 || dbd_verbose >=2 ) {
-		char *val = neatsvpv(phs->sv,0);
+		char *val = neatsvpv(phs->sv,10);
 	 	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (1): bind %s <== %.1000s (", phs->name, val);
 	 	if (!SvOK(phs->sv))
 		    PerlIO_printf(DBILOGFP, "NULL, ");
 		PerlIO_printf(DBILOGFP, "size %ld/%ld/%ld, ",
 	    (long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
-	 	PerlIO_printf(DBILOGFP, "ptype %d, otype %d%s)\n",
- 	    (int)SvTYPE(phs->sv), phs->ftype,
+	 	PerlIO_printf(DBILOGFP, "ptype %d(%s), otype %d%s)\n",
+ 	    (int)SvTYPE(phs->sv), sql_typecode_name(phs->ftype),phs->ftype,
  	    (phs->is_inout) ? ", inout" : "");
     }
 
@@ -2248,11 +2257,12 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 
     if (DBIS->debug >= 3 || dbd_verbose >=3) {
  	  	UV neatsvpvlen = (UV)DBIc_DBISTATE(imp_sth)->neatsvpvlen;
-	  	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (2): bind %s <== '%.*s' (size %ld/%ld, otype %d, indp %d, at_exec %d)\n",
+ 	  	char *val = neatsvpv(phs->sv,10);
+	  	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (2): bind %s <== '%.*s' (size %ld/%ld, otype %d(%s), indp %d, at_exec %d)\n",
  	   	 	phs->name,
 	    	(int)(phs->alen > neatsvpvlen ? neatsvpvlen : phs->alen),
-	    	(phs->progv) ? phs->progv : "",
- 	    	(long)phs->alen, (long)phs->maxlen, phs->ftype, phs->indp, at_exec);
+	    	(phs->progv) ?  val: "",
+ 	    	(long)phs->alen, (long)phs->maxlen, phs->ftype,sql_typecode_name(phs->ftype), phs->indp, at_exec);
     }
 
     return 1;
@@ -2471,9 +2481,9 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     ub2 csid;
 
     if (trace_level >= 5 || dbd_verbose >= 5 )
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph() (1): rebinding %s as %s (%s, ftype %d, csid %d, csform %d, inout %d)\n",
-		phs->name, (SvPOK(phs->sv) ? neatsvpv(phs->sv,0) : "NULL"),(SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
-		phs->ftype, phs->csid, phs->csform, phs->is_inout);
+		PerlIO_printf(DBILOGFP, "dbd_rebind_ph() (1): rebinding %s as %s (%s, ftype %d (%s), csid %d, csform %d, inout %d)\n",
+		phs->name, (SvPOK(phs->sv) ? neatsvpv(phs->sv,10) : "NULL"),(SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
+		phs->ftype,sql_typecode_name(phs->csid), phs->csform, phs->is_inout);
 
 
     switch (phs->ftype) {
@@ -2580,12 +2590,12 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
     if (trace_level >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(DBILOGFP, "dbd_rebind_ph(): bind %s <== %s "
-		"(%s, %s, csid %d->%d->%d, ftype %d, csform %d->%d, maxlen %lu, maxdata_size %lu)\n",
-	      phs->name, neatsvpv(phs->sv,0),
+		"(%s, %s, csid %d->%d->%d, ftype %d (%s), csform %d->%d, maxlen %lu, maxdata_size %lu)\n",
+	      phs->name, neatsvpv(phs->sv,10),
 	      (phs->is_inout) ? "inout" : "in",
 	      (SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
 	      phs->csid_orig, phs->csid, csid,
-	      phs->ftype, phs->csform, csform,
+	      phs->ftype,sql_typecode_name(phs->ftype), phs->csform, csform,
 	      (unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
 
 
@@ -2658,8 +2668,8 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 		croak("Can't bind ``lvalue'' mode scalar as inout parameter (currently)");
 
     if (DBIS->debug >= 2 || dbd_verbose >=2) {
-		PerlIO_printf(DBILOGFP, "dbd_bind_ph(): bind %s <== %s (type %ld",
-		name, neatsvpv(newvalue,0), (long)sql_type);
+		PerlIO_printf(DBILOGFP, "dbd_bind_ph(): bind %s <== %s (type %ld (%s)",
+		name, neatsvpv(newvalue,0), (long)sql_type,sql_typecode_name(sql_type));
 		if (is_inout)
 		    PerlIO_printf(DBILOGFP, ", inout 0x%lx, maxlen %ld",
 			(long)newvalue, (long)maxlen);

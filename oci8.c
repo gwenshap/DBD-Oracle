@@ -66,6 +66,42 @@ oci_exe_mode(ub4 mode)
     return SvPVX(sv);
 }
 
+/* SQL Types we support for placeholders basically we support types that can be returned as strings */ 
+char *
+sql_typecode_name(int dbtype) {
+    dTHX;
+	SV *sv;
+    switch(dbtype) {
+        case  0:    return "DEFAULT (varchar)";
+    	case  1:	return "VARCHAR";
+    	case  2:	return "NVARCHAR2";
+    	case  5:	return "STRING";
+    	case  8:	return "LONG";
+    	case 21:	return "BINARY FLOAT os-endian";
+    	case 22:	return "BINARY DOUBLE os-endian";
+    	case 23:	return "RAW";
+    	case 24:	return "LONG RAW";
+    	case 96:	return "CHAR";
+    	case 97:	return "CHARZ";
+    	case 100:	return "BINARY FLOAT oracle-endian";
+    	case 101:	return "BINARY DOUBLE oracle-endian";
+    	case 106:	return "MLSLABEL";
+    	case 102:	return "SQLT_CUR	OCI 7 cursor variable";
+    	case 112:	return "SQLT_CLOB / long";
+    	case 113:	return "SQLT_BLOB / long";
+    	case 116:	return "SQLT_RSET	OCI 8 cursor variable";
+    	case ORA_VARCHAR2_TABLE:return "ORA_VARCHAR2_TABLE";
+    	case ORA_NUMBER_TABLE: 	return "ORA_NUMBER_TABLE";
+    	case ORA_XMLTYPE:   	return "ORA_XMLTYPE or SQLT_NTY";/* SQLT_NTY   must be carefull here as its value (108) is the same for an embedded object Well realy only XML clobs not embedded objects  */
+		
+    }
+     sv = sv_2mortal(newSVpv("",0));
+	 sv_grow(sv, 50);
+	 sprintf(SvPVX(sv),"(UNKNOWN SQL TYPECODE %d)", dbtype);
+     return SvPVX(sv);
+}
+
+
 
 char *
 oci_typecode_name(int typecode){
@@ -260,6 +296,23 @@ oci_stmt_type_name(int stmt_type)
     return SvPVX(sv);
 }
 
+char *
+oci_col_return_codes(int rc)
+{
+	dTHX;
+    SV *sv;
+    switch (rc) {
+	    case 1406:	return "TRUNCATED";
+	    case 0:		return "OK";
+	    case 1405:	return "NULL";
+	    case 1403:	return "NO DATA";
+	    
+    }
+    sv = sv_2mortal(newSVpv("",0));
+    sv_grow(sv, 50);
+    sprintf(SvPVX(sv),"UNKNOWN RC=%d)", rc);
+    return SvPVX(sv);
+}
 
 char *
 oci_hdtype_name(ub4 hdtype)
@@ -513,12 +566,15 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		DBD_ATTRIB_GET_IV(  attribs, "ora_check_sql", 13, svp, ora_check_sql);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_exe_mode", 12, svp, imp_sth->exe_mode);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_prefetch_memory",  19, svp, imp_sth->prefetch_memory);
-		DBD_ATTRIB_GET_IV(  attribs, "dbd_verbose",  11, svp, dbd_verbose);
-		DBD_ATTRIB_GET_IV(  attribs, "ora_verbose",  11, svp, dbd_verbose);
-
+  	    DBD_ATTRIB_GET_IV(  attribs, "ora_verbose",  11, svp, dbd_verbose);	
+  	 
+  	   	if (!dbd_verbose)
+	   		DBD_ATTRIB_GET_IV(  attribs, "dbd_verbose",  11, svp, dbd_verbose);
+	   		
+   
    	}
 
-
+	
  	/* scan statement for '?', ':1' and/or ':foo' style placeholders	*/
     if (ora_placeholders)
 		dbd_preparse(imp_sth, statement);
@@ -640,9 +696,9 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
     *indpp  = &phs->indp;
     *piecep = OCI_ONE_PIECE;
     if (DBIS->debug >= 3 || dbd_verbose >=3)
- 		PerlIO_printf(DBILOGFP, "       in  '%s' [%lu,%lu]: len %2lu, ind %d%s, value='%s'\n",
+ 		PerlIO_printf(DBILOGFP, "       in  '%s' [%lu,%lu]: len %2lu, ind %d%s, value=%s\n",
 			phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
-			(phs->desc_h) ? " via descriptor" : "",neatsvpv(phs->sv,0));
+			(phs->desc_h) ? " via descriptor" : "",neatsvpv(phs->sv,10));
     if (!tuples_av && (index > 0 || iter > 0))
 		croak(" Arrays and multiple iterations not currently supported by DBD::Oracle (in %d/%d)", index,iter);
     return OCI_CONTINUE;
@@ -837,33 +893,32 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
 #ifdef UTF8_SUPPORT
     if (fbh->ftype == 94) {
-	if (datalen > imp_sth->long_readlen) {
-	    ub4 bytelen = ora_utf8_to_bytes((ub1*)p, (ub4)imp_sth->long_readlen, datalen);
+		if (datalen > imp_sth->long_readlen) {
+		    ub4 bytelen = ora_utf8_to_bytes((ub1*)p, (ub4)imp_sth->long_readlen, datalen);
 
-	    if (bytelen < datalen) {	/* will be truncated */
-		int oraperl = DBIc_COMPAT(imp_sth);
-		if (DBIc_has(imp_sth,DBIcf_LongTruncOk)
-		      || (oraperl && SvIV(imp_drh->ora_trunc))) {
-		    /* user says truncation is ok */
-		    /* Oraperl recorded the truncation in ora_errno so we	*/
-		    /* so also but only for Oraperl mode handles.		*/
-		    if (oraperl) sv_setiv(DBIc_ERR(imp_sth), 1406);
-		} else {
-		    char buf[300];
-		    sprintf(buf,"fetching field %d of %d. LONG value truncated from %lu to %lu. %s",
-			    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), ul_t(datalen), ul_t(bytelen),
-			    "DBI attribute LongReadLen too small and/or LongTruncOk not set");
-		    oci_error_err(sth, NULL, OCI_ERROR, buf, 24345); /* appropriate ORA error number */
-		    sv_set_undef(dest_sv);
-		    return 0;
-		}
+		    if (bytelen < datalen ) {	/* will be truncated */
+				int oraperl = DBIc_COMPAT(imp_sth);
+				if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(imp_drh->ora_trunc))) {
+				    /* user says truncation is ok */
+				    /* Oraperl recorded the truncation in ora_errno so we	*/
+				    /* so also but only for Oraperl mode handles.		*/
+				    if (oraperl) sv_setiv(DBIc_ERR(imp_sth), 1406);
+				} else {
+				    char buf[300];
+				    sprintf(buf,"fetching field %d of %d. LONG value truncated from %lu to %lu. %s",
+					    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), ul_t(datalen), ul_t(bytelen),
+					    "DBI attribute LongReadLen too small and/or LongTruncOk not set");
+				    oci_error_err(sth, NULL, OCI_ERROR, buf, 24345); /* appropriate ORA error number */
+				    sv_set_undef(dest_sv);
+				    return 0;
+				}
 
-		if (DBIS->debug >= 3 || dbd_verbose >=3)
-		    PerlIO_printf(DBILOGFP, "       fetching field %d of %d. LONG value truncated from %lu to %lu.\n",
-			    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth),
-			    ul_t(datalen), ul_t(bytelen));
-		datalen = bytelen;
-	    }
+			if (DBIS->debug >= 3 || dbd_verbose >=3)
+			    PerlIO_printf(DBILOGFP, "       fetching field %d of %d. LONG value truncated from %lu to %lu.\n",
+				    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth),
+				    ul_t(datalen), ul_t(bytelen));
+					datalen = bytelen;
+		    }
 	}
 	sv_setpvn(dest_sv, p, (STRLEN)datalen);
 	if (CSFORM_IMPLIES_UTF8(fbh->csform))
@@ -2557,6 +2612,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fbh->name    = SvPVX(fbh->name_sv);
 
 		fbh->ftype   = 5;	/* default: return as null terminated string */
+		
+		
+		if (DBIS->debug >= 4 || dbd_verbose >= 4)
+	    	PerlIO_printf(DBILOGFP, "Describe col #%d type=%d(%s)\n",i,fbh->dbtype,sql_typecode_name(fbh->dbtype));
+	    
+	    
 		switch (fbh->dbtype) {
 		/*	the simple types	*/
  			case   1:				/* VARCHAR2	*/
@@ -2592,23 +2653,86 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				break;
 
 			case   8:				/* LONG		*/
-				if ( CSFORM_IMPLIES_UTF8(fbh->csform) && !CS_IS_UTF8(fbh->csid) )
-			        fbh->disize = long_readlen * 4;
-        	    else
-        	        fbh->disize = long_readlen;
+			
+			   if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
+			
+					fbh->clbk_lob      = 1;
+					fbh->define_mode   = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
+				    fbh->disize 	   = imp_sth->long_readlen; /*user set max value for the fetch*/
+				    fbh->piece_size	   = imp_sth->piece_size; /*the size for each piece*/
+					fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+			
+				    if (!imp_sth->piece_size){ /*if not set use max value*/
+						imp_sth->piece_size=imp_sth->long_readlen;
+					}
+								
+			    	fbh->ftype = SQLT_CHR;
+				    fbh->fetch_func = fetch_clbk_lob;
+			
+				} else if (imp_sth->piece_lob){ /*get by peice with polling slowest*/
+						
+					fbh->piece_lob      = 1;
+					fbh->define_mode   = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
+					fbh->disize 	   = imp_sth->long_readlen; /*user set max value for the fetch*/
+					fbh->piece_size	   = imp_sth->piece_size; /*the size for each piece*/
+					fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+			
+					if (!imp_sth->piece_size){ /*if not set use max value*/
+						imp_sth->piece_size=imp_sth->long_readlen;
+					}
+					fbh->ftype = SQLT_CHR;
+					fbh->fetch_func = fetch_get_piece;
+				}else {
+				
+					if ( CSFORM_IMPLIES_UTF8(fbh->csform) && !CS_IS_UTF8(fbh->csid) )
+			    	    fbh->disize = long_readlen * 4;
+        	    	else
+        	    	    fbh->disize = long_readlen;
 
         	        /* not governed by else: */
-				fbh->dbsize = (fbh->disize>65535) ? 65535 : fbh->disize;
-				fbh->ftype  = 94; /* VAR form */
-				fbh->fetch_func = fetch_func_varfield;
-				++has_longs;
+					fbh->dbsize = (fbh->disize>65535) ? 65535 : fbh->disize;
+					fbh->ftype  = 94; /* VAR form */
+					fbh->fetch_func = fetch_func_varfield;
+					++has_longs;
+					
+				}
 				break;
 			case  24:				/* LONG RAW	*/
-				fbh->disize = long_readlen * 2;
-				fbh->dbsize = (fbh->disize>65535) ? 65535 : fbh->disize;
-				fbh->ftype  = 95; /* VAR form */
-				fbh->fetch_func = fetch_func_varfield;
-				++has_longs;
+			 	if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
+						
+						fbh->clbk_lob      = 1;
+						fbh->define_mode   = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
+					    fbh->disize 	   = imp_sth->long_readlen; /*user set max value for the fetch*/
+					    fbh->piece_size	   = imp_sth->piece_size; /*the size for each piece*/
+						fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+						
+					    if (!imp_sth->piece_size){ /*if not set use max value*/
+							imp_sth->piece_size=imp_sth->long_readlen;
+						}
+											
+				    	fbh->ftype = SQLT_BIN;
+					    fbh->fetch_func = fetch_clbk_lob;
+					
+				} else if (imp_sth->piece_lob){ /*get by peice with polling slowest*/
+									
+						fbh->piece_lob      = 1;
+						fbh->define_mode   = OCI_DYNAMIC_FETCH; /* piecwise fetch*/
+						fbh->disize 	   = imp_sth->long_readlen; /*user set max value for the fetch*/
+						fbh->piece_size	   = imp_sth->piece_size; /*the size for each piece*/
+						fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+						
+						if (!imp_sth->piece_size){ /*if not set use max value*/
+							imp_sth->piece_size=imp_sth->long_readlen;
+						}
+						fbh->ftype = SQLT_BIN;
+						fbh->fetch_func = fetch_get_piece;
+				}else {
+					fbh->disize = long_readlen * 2;
+					fbh->dbsize = (fbh->disize>65535) ? 65535 : fbh->disize;
+					fbh->ftype  = 95; /* VAR form */
+					fbh->fetch_func = fetch_func_varfield;
+					++has_longs;
+				}
 				break;
 
 			case  11:				/* ROWID	*/
@@ -2734,9 +2858,9 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 		if (DBIS->debug >= 3 || dbd_verbose >= 3)
         	  PerlIO_printf(DBILOGFP,
-	    	    "    col %2d: dbtype %d, scale %d, prec %d, nullok %d, name %s\n"
+	    	    "Described col %2d: dbtype %d(%s), scale %d, prec %d, nullok %d, name %s\n"
 	    	     "          : dbsize %d, char_used %d, char_size %d, csid %d, csform %d, disize %d\n",
-					i, fbh->dbtype, fbh->scale, fbh->prec, fbh->nullok, fbh->name,
+					i, fbh->dbtype, sql_typecode_name(fbh->dbtype),fbh->scale, fbh->prec, fbh->nullok, fbh->name,
 					fbh->dbsize, fbh->len_char_used, fbh->len_char_size, fbh->csid, fbh->csform, fbh->disize);
 
 		if (fbh->ftype == 5)	/* XXX need to handle wide chars somehow */
@@ -2971,7 +3095,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
     av = DBIS->get_fbav(imp_sth);
 
     if (DBIS->debug >= 3  || dbd_verbose >= 3) {
-		PerlIO_printf(DBILOGFP, "    dbd_st_fetch %d fields %s\n",	num_fields, oci_status_name(status));
+		PerlIO_printf(DBILOGFP, "    dbd_st_fetched %d fields with status of %d(%s)\n",	num_fields,status, oci_status_name(status));
     }
 
     ChopBlanks = DBIc_has(imp_sth, DBIcf_ChopBlanks);
@@ -2986,13 +3110,17 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		ub1* row_data=&fb_ary->abuf[0]+(fb_ary->bufl*imp_sth->rs_array_idx);
 		SV *sv = AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/;
 	
+	
+		if (DBIS->debug >= 4  || dbd_verbose >= 4) {
+			PerlIO_printf(DBILOGFP, "    field #%d with rc=%d(%s)\n",i+1,rc,oci_col_return_codes(rc));
+    	}
+
 		if (rc == 1406				/* field was truncated	*/
 		    && ora_dbtype_is_long(fbh->dbtype)/* field is a LONG	*/
 		){
 	    	int oraperl = DBIc_COMPAT(imp_sth);
 	    	D_imp_dbh_from_sth ;
 	    	D_imp_drh_from_dbh ;
-
 	    	if (DBIc_has(imp_sth,DBIcf_LongTruncOk) || (oraperl && SvIV(imp_drh -> ora_trunc))) {
 			/* user says truncation is ok */
 			/* Oraperl recorded the truncation in ora_errno so we	*/
@@ -3002,10 +3130,11 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		    }
 	    /* else fall through and let rc trigger failure below	*/
 		}
-
-		if (rc == 0 || 	/* the normal case*/
-			( rc == 1406 && DBIc_has(imp_sth,DBIcf_LongTruncOk))/*or a trunckated record when using 10.2 Persistent Lob interface*/
- 		) {
+	
+		if (rc == 0    || 	/* the normal case*/
+		   (rc == 1406 && DBIc_has(imp_sth,DBIcf_LongTruncOk))/*Field Truncaded*/
+		   ) {
+			
 			if (fbh->fetch_func) {
 
  				if (!fbh->fetch_func(sth, fbh, sv)){
@@ -3064,7 +3193,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		}
 
 		if (DBIS->debug >= 5 || dbd_verbose >= 5){
-		    PerlIO_printf(DBILOGFP, "\n        %p (rc=%d): %s\n",	 av, i,neatsvpv(sv,0));
+		    PerlIO_printf(DBILOGFP, "\n        %p (field=%d): %s\n",	 av, i,neatsvpv(sv,10));
 		}
 	}
     return (err) ? Nullav : av;
