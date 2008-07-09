@@ -155,7 +155,8 @@ die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
       or -d "$OH/lib/." 	# normal Oracle installation
       or glob("$OH/libclntsh.$so*") # pre-sdk instant client or rpm
       or -e "$OH/oci.dll";	# Windows Instant Client
- 
+
+print "Installing on a $os, Ver#$osvers\n"; 
 print "Using Oracle in $OH\n";
 
 # $client_version => Major.Minor, $client_version_full => Major.Minor.X.Y.Z
@@ -1787,8 +1788,8 @@ ORACLE_HOME = '.$OH.'
 			$m =  "NMEDIT = nmedit\n" . $m . 
 			      "\t\$(NMEDIT) -R ./hints/macos_bundle.syms \$(INST_DYNAMIC) || true\n";
 		}
-		elsif ($os eq 'hpux') {
-		 	$m =~ "s/LD_RUN_PATH=(\S+)\s+(\S+)/$2 -Wl,+b $1/";
+		elsif (($os eq 'hpux') and ($osvers <11)) {
+		 	$m =~ s/LD_RUN_PATH=(\S+)\s+(\S+)/$2 -Wl,+b $1/;
 
 		}
 		return ($m);

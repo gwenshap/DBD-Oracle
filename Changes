@@ -1,6 +1,8 @@
 =head1 Changes in DBD-Oracle 1.22(svn rev xxxx)  2008 
+  Fix for rt.cpan.org Ticket #=37501 fail HP-UX Itanium 11.31 makefile also added the OS and version to the output of the Makefile.PL for easier debugging. from John Scoles and Rich Roemer 
+  Added a number of internal functions for decoding OCI debug values from John Scoles
   Fix for  hpux 11.23 linker error unrecognized argument on the Makefile from someone on CPAN forum
-  Added fetch by piece for lobs, fixed persistent lobs and changed to pod to reflect the changes 
+  Added fetch by piece for lobs, fixed persistent lobs and expansed thier usage for LONG and LONG RAW and changed to pod to reflect the changes from John Scoles
   Added comment to POD on case sensitivity of ORACLE environment variables suggested by Gerhard Lausser
   Added patch to fix a number of harmless, but annoying, GCC warnings from Eric Simon
   Added (finally) ora_verbose for DBD only tracking from John Scoles and thanks to H.Merijn Brand
