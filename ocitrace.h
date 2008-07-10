@@ -448,7 +448,8 @@
 	  OciTp, (void*)sv,(void*)st,(void*)eh,ul_t((i)),		\
 	  ul_t((ro)),(void*)(si),(void*)(so),oci_exe_mode(md),ul_t((md)),		\
 	  oci_status_name(stat)),stat : stat
- #define OCIStmtFetch_log_stat(sh,eh,nr,or,os,stat)                     \
+
+#define OCIStmtFetch_log_stat(sh,eh,nr,or,os,stat)                     \
          stat=OCIStmtFetch2(sh,eh,nr,or,os,OCI_DEFAULT);                                \
          (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,                        \
            "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",                                \

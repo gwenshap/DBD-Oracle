@@ -5,6 +5,47 @@ So until 64bit Perl comes out we will be posing in this README any success stori
 
 -------- Original Message --------
 
+Subject:   Building 32bit DBD::Oracle against 64bit Oracle
+From:  Dennis Reso
+Date:   7/9/2008 5:44 PM
+Priority:   Normal 
+
+Building DBD::Oracle v1.21 against Perl 5.8.5 Oracle 9.2.0.4 Solaris 8
+
+Got the dreaded "wrong ELF class" when the Oracle.so ends up built
+against the 64bit library instead of the one in $ORACLE_HOME/lib32.
+Use 'dump -vL Oracle.so' to see the internalized RPATH definition.
+
+Tried the following solution, widely posted, without success:
+
+  perl Makefile.PL -m $ORACLE_HOME/rdbms/demo/demo_rdbms32.mk
+
+What worked for me (pass the LIBDIR to the Oracle make process):
+
+  export ORACLE_HOME=/apps/Oracle9.2.0.4
+  export LD_LIBRARY_PATH=$ORACLE_HOME/lib32
+  perl -pi -e 's/CC=true/CC=true LIBDIR=lib32/' Makefile.PL
+  perl Makefile.PL -m $ORACLE_HOME/rdbms/demo/demo_rdbms32.mk
+  make
+
+The LIBDIR= is defined in $ORACLE_HOME/rdbms/lib/env_rdbms.mk which
+also includes a REDEFINES32= that overrides it, but is only used by
+the $ORACLE_HOME/rdbms/lib/ins_rdbms.mk.  Oracle bug?
+
+Also repeated the same failure and success with
+  Oracle 9.2.0.8 Solaris 10
+  Oracle 10.2.0.3 Solaris 10
+
+Seems fixed in demo_rdbms32.mk (no Makefile.PL edit needed ) as of
+  Oracle 10.2.0.4 Solaris 10
+
+Probably also fixed in some patchset newer than 9.2.0.4.
+
+-- 
+Dennis Reso <dreso (at) comcast.net> 
+
+-------- Original Message --------
+
 Subject:   DBD::Oracle 64-bit success story 
 From:   H.Merijn Brand
 Date:   On Mon, 14 Apr 2008 09:48:41
