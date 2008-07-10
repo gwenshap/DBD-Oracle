@@ -47,7 +47,7 @@ oci_exe_mode(ub4 mode)
 	SV *sv;
     switch (mode) {
 	/*----------------------- Execution Modes -----------------------------------*/
-		case OCI_DEFAULT:   	return "DEFAULT";
+		case OCI_DEFAULT:   		return "DEFAULT";
 		case OCI_BATCH_MODE:		return "BATCH_MODE"; /* batch the oci stmt for exec */
 		case OCI_EXACT_FETCH:		return "EXACT_FETCH";   /* fetch exact rows specified */
 		case OCI_STMT_SCROLLABLE_READONLY :		return "STMT_SCROLLABLE_READONLY"; 

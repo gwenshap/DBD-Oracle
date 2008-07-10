@@ -86,7 +86,7 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 	&& eg_status != OCI_INVALID_HANDLE
 	&& recno < 100
     ) {
-	if (debug >= 4 || recno>1/*XXX temp*/)
+	if (debug >= 4 || recno>1/*XXX temp*/  || dbd_verbose >= 4)
 	    PerlIO_printf(DBILOGFP, "    OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
 		what ? what : "<NULL>", (long)recno,
 		    (eg_status==OCI_SUCCESS) ? "ok" : oci_status_name(eg_status),
@@ -2827,10 +2827,11 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 		}
 		else {	/* shouldn't happen */
 		  	debug = 2;
+		  	dbd_verbose =2;
 		  	note = " [placeholder has no data buffer]";
 		}
 
-		if (debug >= 2)
+		if (debug >= 2 || dbd_verbose >=2)
 		    PerlIO_printf(DBILOGFP, "  out %s = %s (arcode %d, ind %d, len %d)%s\n",
 			phs->name, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen, note);
     }
@@ -2843,9 +2844,10 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 			}
 			else {	/* shouldn't happen */
 				debug = 2;
+				dbd_verbose =2;
 				note = " [placeholder has no data buffer]";
 			}
-			if (debug >= 2)
+			if (debug >= 2  || dbd_verbose >=2)
 				PerlIO_printf(DBILOGFP,
 				"       out %s = %s\t(TRUNCATED from %d to %ld, arcode %d)%s\n",
 					phs->name, neatsvpv(sv,0), phs->indp, (long)phs->alen, phs->arcode, note);
@@ -2853,7 +2855,7 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
     	else {
     		if (phs->indp == -1) {                      /* is NULL      */
 				(void)SvOK_off(phs->sv);
-				if (debug >= 2)
+				if (debug >= 2 || dbd_verbose >=2)
 	    			PerlIO_printf(DBILOGFP,
 							"       out %s = undef (NULL, arcode %d)\n",
 						phs->name, phs->arcode);
@@ -2871,7 +2873,7 @@ dbd_phs_avsv_complete(phs_t *phs, I32 index, I32 debug)
     AV *av = (AV*)SvRV(phs->sv);
     SV *sv = *av_fetch(av, index, 1);
     dbd_phs_sv_complete(phs, sv, 0);
-    if (debug >= 2)
+    if (debug >= 2 || dbd_verbose >=2)
 		PerlIO_printf(DBILOGFP, " dbd_phs_avsv_complete out '%s'[%ld] = %s (arcode %d, ind %d, len %d)\n",
 	   	phs->name, (long)index, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen);
 }
@@ -2925,7 +2927,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 		    }
 		    else
 		    if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
-				if (debug >= 2)
+				if (debug >= 2  || dbd_verbose >=2)
 		 		    PerlIO_printf(DBILOGFP,
 	 		        "      with %s = [] (len %ld/%ld, indp %d, otype %d, ptype %d)\n",
  				phs->name,
@@ -2950,7 +2952,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
  					/* so tell Oracle about it's current length		*/
 					ub2 prev_alen = phs->alen;
 					phs->alen = (SvOK(sv)) ? SvCUR(sv) + phs->alen_incnull : 0+phs->alen_incnull;
-					if (debug >= 2)
+					if (debug >= 2  || dbd_verbose >=2)
  			    		PerlIO_printf(DBILOGFP,
  				        "      with %s = '%.*s' (len %ld(%ld)/%ld, indp %d, otype %d, ptype %d)\n",
  							phs->name, (int)phs->alen,
@@ -2971,7 +2973,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
         }
 
 
-        if (debug >= 2)
+        if (debug >= 2 || dbd_verbose >= 2)
 		   	PerlIO_printf(DBILOGFP,"Statement Execute Mode is %d\n",imp_sth->exe_mode);
 
 
@@ -2997,7 +2999,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 		OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
     }
 
-    if (debug >= 2) {
+    if (debug >= 2 || dbd_verbose >= 2) {
 		ub2 sqlfncode;
 		OCIAttrGet_stmhp_stat(imp_sth, &sqlfncode, 0, OCI_ATTR_SQLFNCODE, status);
 		PerlIO_printf(DBILOGFP,
@@ -3024,7 +3026,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
  		    /* phs->alen has been updated by Oracle to hold the length of the result */
 		    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
 		    SV *sv = phs->sv;
-		    if (debug >= 2) {
+		    if (debug >= 2 || dbd_verbose >= 2) {
 				PerlIO_printf(DBILOGFP,
 				"dbd_st_execute(): Analyzing inout parameter '%s'\n",
 				phs->name);
@@ -3139,7 +3141,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     STRLEN len;
     int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
 
-    if (debug >= 2)
+    if (debug >= 2  || dbd_verbose >=2)
  		PerlIO_printf(DBILOGFP, "  ora_st_execute_array %s count=%d (%s %s %s)...\n",
                       oci_stmt_type_name(imp_sth->stmt_type), exe_count,
                       neatsvpv(tuples,0), neatsvpv(tuples_status,0),
@@ -3306,7 +3308,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 
     OCIAttrGet_stmhp_stat(imp_sth, &num_errs, 0, OCI_ATTR_NUM_DML_ERRORS, status);
 
-    if (debug >= 6)
+    if (debug >= 6  || dbd_verbose >= 6)
 		 PerlIO_printf(DBILOGFP, "    ora_st_execute_array %d errors in batch.\n",
                       num_errs);
 
@@ -3327,7 +3329,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
                                  (ub4)i, status);
             OCIAttrGet_log_stat(row_errhp, OCI_HTYPE_ERROR, &row_off, 0,
                                 OCI_ATTR_DML_ROW_OFFSET, imp_sth->errhp, status);
-            if (debug >= 6)
+            if (debug >= 6  || dbd_verbose >= 6)
                 PerlIO_printf(DBILOGFP, "    ora_st_execute_array error in row %d.\n",
                               row_off);
             sv_setpv(err_svs[1], "");
@@ -3431,7 +3433,7 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
     int i;
 
 
-    if (DBIc_DBISTATE(imp_sth)->debug >= 6)
+    if (DBIc_DBISTATE(imp_sth)->debug >= 6  || dbd_verbose >= 6)
         PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_finish\n");
 
     if (!DBIc_ACTIVE(imp_sth))
@@ -3564,7 +3566,7 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 	}
 
 
-    if (DBIc_DBISTATE(imp_sth)->debug >= 6)
+    if (DBIc_DBISTATE(imp_sth)->debug >= 6  || dbd_verbose >= 6 )
 	PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_destroy %s\n",
 	 (dirty) ? "(OCIHandleFree skipped during global destruction)" :
 	 (imp_sth->nested_cursor) ?"(OCIHandleFree skipped for nested cursor)" : "");
