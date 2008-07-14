@@ -76,6 +76,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
         DBD::Oracle::db->install_method("ora_can_unicode");
  	DBD::Oracle::st->install_method("ora_fetch_scroll");
  	DBD::Oracle::st->install_method("ora_scroll_position");
+ 	DBD::Oracle::st->install_method("ora_ping");
  	
 	$drh;
     }
@@ -277,18 +278,14 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	$sth;
     }
 
-
-    sub ping {
+#Ah! I see you have the machine that goes PING!!
+    sub ping { 
 	my($dbh) = @_;
 	my $ok = 0;
 	eval {
 	    local $SIG{__DIE__};
 	    local $SIG{__WARN__};
-	    # we know that Oracle 7 prepare does a describe so this will
-	    # actually talk to the server and is this a valid and cheap test.
-	    my $sth =  $dbh->prepare("select SYSDATE from DUAL /* ping */");
-	    # But Oracle 8+ doesn't talk to server unless we describe the query
-	    $ok = $sth && $sth->FETCH('NUM_OF_FIELDS');
+	    $ok=ora_ping($dbh);
 	};
 	return ($@) ? 0 : $ok;
     }

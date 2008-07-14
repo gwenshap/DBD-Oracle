@@ -123,6 +123,10 @@ ora_fetch_scroll(sth,fetch_orient,fetch_offset)
     ST(0) = (av) ? sv_2mortal(newRV((SV *)av)) : &PL_sv_undef;
 }
 
+
+
+
+
 void
 ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
     SV *	sth
@@ -142,14 +146,14 @@ ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
 	croak("Modification of a read-only value attempted");
     if (attribs) {
     	if (SvNIOK(attribs)) {
-	    sql_type = SvIV(attribs);
-	    attribs = Nullsv;
-	}
-	else {
-	    SV **svp;
-	    DBD_ATTRIBS_CHECK("bind_param", sth, attribs);
-	    DBD_ATTRIB_GET_IV(attribs, "ora_type",4, svp, sql_type);
-	}
+	    	sql_type = SvIV(attribs);
+	    	attribs = Nullsv;
+		}
+		else {
+	   	 	SV **svp;
+	    	DBD_ATTRIBS_CHECK("bind_param", sth, attribs);
+	    	DBD_ATTRIB_GET_IV(attribs, "ora_type",4, svp, sql_type);
+		}
     }
     ST(0) = dbd_bind_ph(sth, imp_sth, param,av_value, sql_type, attribs, TRUE, maxlen)
 		? &sv_yes : &sv_no;
@@ -233,6 +237,30 @@ cancel(sth)
 
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::db
+
+
+void
+ora_ping(dbh)
+	SV *dbh
+	PREINIT:
+	D_imp_dbh(dbh);
+	sword status;
+	text buf[2];
+	CODE:
+	/*simply does a call to OCIServerVersion which should make 1 round trip*/
+    /*later I will replace this with the actual OCIPing command*/
+    /*This will work if the DB goes down, /*
+    /*If the listener goes down it is another case as the Listener is needed to establish the connection not maintain it*/
+    /*so we should stay connected but we cannot get nay new connections*/
+	{
+	OCIServerVersion_log_stat(imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
+	if (status != OCI_SUCCESS){
+		XSRETURN_IV(0);
+	} else {
+		XSRETURN_IV(1);
+	}
+}
+
 
 void
 reauthenticate(dbh, uid, pwd)

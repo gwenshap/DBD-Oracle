@@ -36,6 +36,15 @@
 	If done well the log will read like a compilable program.
 */
 
+
+
+#define OCIServerVersion_log_stat(sc,errhp,b,bl,ht,stat)\
+    stat =OCIServerVersion(sc,errhp,b,bl,ht);\
+    (DBD_OCI_TRACEON) \
+    		? PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sCIServerVersion_log_stat(%p,%s)=%s\n",\
+		         OciTp, sc,b,oci_status_name(stat)),stat \
+   : stat
 #define OCIStmtGetPieceInfo_log_stat(stmhp,errhp,hdlptr,hdltyp,in_out,iter,idx,piece,stat)\
     stat =OCIStmtGetPieceInfo(stmhp,errhp,hdlptr,hdltyp,in_out,iter,idx,piece);\
     (DBD_OCI_TRACEON) \

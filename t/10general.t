@@ -13,7 +13,7 @@ require 'nchar_test_lib.pl';
 
 $| = 1;
 
-plan tests => 33;
+plan tests => 31;
 
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
@@ -95,8 +95,6 @@ $dbh->{RaiseError} = 0;
 # ---
 
 ok( $dbh->ping);
-ok(!$ora_errno);	# ora_errno reset ok
-ok(!$DBI::err);	# DBI::err  reset ok
 
 $dbh->disconnect;
 $dbh->{PrintError} = 0;

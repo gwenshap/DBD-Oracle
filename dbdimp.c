@@ -435,7 +435,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
     imp_dbh->get_oci_handle = oci_db_handle;
 
-    if (DBIS->debug >= 6 || dbd_verbose >= 6)
+    if (DBIS->debug >= 6 || dbd_verbose >= 7)
 		dump_env_to_trace();
 
     if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_envhp", 9)) && SvOK(*svp)) {
@@ -742,6 +742,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 				OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 				OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+				OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
 				return 0;
 			}
 	    	OCIAttrSet_log_stat( imp_dbh->svchp, OCI_HTYPE_SVCCTX, imp_dbh->srvhp,
@@ -769,6 +770,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 				OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 				OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+			    OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
+                 
 				return 0;
 	    	}
 
