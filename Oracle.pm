@@ -2829,9 +2829,10 @@ used, normally one can get an entire LOB is a single round trip.
 As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LONG datatypes as a single large piece. 
 There are no special settings, simply set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LONG or LONG RAW.
 If the size of the LONG or LONG RAW exceeds  the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
-The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on. 
-So far this seems to be about 15MB for 32bit system and xxxMB for 64bit.  If you run into an 'ORA-01062: unable to allocate memory for define buffer' 
-error try setting the size of 'LongReadLen' to a lower value.
+The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on.  You have most likely reached this limit if you run into
+an 'ORA-01062: unable to allocate memory for define buffer' error.  One solution is to set the size of 'LongReadLen' to a lower value. 
+
+
 
 For example give this table;
 
@@ -3074,12 +3075,12 @@ so the following returns an error:
 
 =back
 
-=head2 Data Interface for LOB Locators
+=head2 Locator Data Interface
 
 =head3 Simple Usage
 
-When fetching LOBs they are, by default, made to look just like LONGs with this interface and
-are subject to the LongReadLen and LongTruncOk attributes.  The value for 'LongReadLen' is 
+When fetching LOBs with this interface a 'LOB Locator' is created then used to get the lob up dependant on the settings of
+LongReadLen and LongTruncOk attributes.  The value for 'LongReadLen' is 
 dependant on the version and settings of the Oracle DB you are using. In theory it ranges from 8GBs
 in 9iR1 up to 128 terabytes with 11g but you will also be limited by the physical memory of your PERL instance.
 
@@ -3164,6 +3165,12 @@ Example:
      $sth->bind_param_inout( ':out', \$out_clob, 0, { ora_type => ORA_CLOB } );
      $sth->execute;
 
+If you ever get an  
+
+  ORA-01691 unable to extend lob segment sss.ggg by nnn in tablespace ttt
+
+error, while attempting to insert a LOB, this means the Oracle user has insufficient space for LOB you are trying to insert.  
+One solution it to use "alter database datafile 'sss.ggg' resize nnnn" to increase the available memory for LOBs.
 
 =head2 Persistent & Locator Interface Caveats
 
@@ -3174,12 +3181,12 @@ It basically boils down to a choice between LOB size and speed.
 
 The Callback and Polling piecewise fetches are very very slow 
 when compared to the Simple and the Locator fetches but they can handle very large blocks of data. Given a situation where a 
-large LOB is to be read the Locator fetch may time out while either of the piecewise fetches will not. 
+large LOB is to be read the Locator fetch may time out while either of the piecewise fetches may not. 
 
 With the Simple fetch you are limited by physical memory of your server but it runs a little faster than the Locator, as there are fewer round trips
 to the server. So if you have small LOBs and need to save a little bandwidth this is the one to use. It you are going after large LOBs then the Locator interface is the one to use.
 
-If you need to update more than row of with LOB data then the Persistent interface can do it while the Locator can't.
+If you need to update more than a single row of with LOB data then the Persistent interface can do it while the Locator can't.
 
 If you encounter a situation where you have to access the legacy LOBs (LONG, LONG RAW) and the values are to large for you system then you can use
 the Callback or Polling piecewise fetches to  get all of the data.
@@ -3189,7 +3196,7 @@ Not all of the Persistent interface has been implemented yet, the following are 
   1) Piecewise, polling and callback binds for INSERT and UPDATE operations.
   2) Piecewise array binds for SELECT, INSERT and UPDATE operations.
   
-Most of the time you should just use the LOB Locator interface as this is in one that has the best combination of speed and size.
+Most of the time you should just use the L</Locator Data Interface> as this is in one that has the best combination of speed and size.
 
 All this being said if you are doing some critical programming I would use the L</Data Interface for LOB Locators> as this gives you very 
 fine grain control of your LOBs, of course the code for this will be somewhat more involved.
