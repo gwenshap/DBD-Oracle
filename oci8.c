@@ -57,8 +57,8 @@ oci_exe_mode(ub4 mode)
 		case OCI_BATCH_ERRORS:		return "BATCH_ERRORS";   /* batch errors in array dmls */
 		case OCI_PARSE_ONLY:		return "PARSE_ONLY";     /* only parse the statement */
 		case OCI_SHOW_DML_WARNINGS:	return "SHOW_DML_WARNINGS";    
-		case OCI_RESULT_CACHE:		return "RESULT_CACHE";   /* hint to use query caching */
-		case OCI_NO_RESULT_CACHE :	return "NO_RESULT_CACHE";   /*hint to bypass query caching*/
+/*		case OCI_RESULT_CACHE:		return "RESULT_CACHE";   hint to use query caching only 11 so wait this one out*/
+/*		case OCI_NO_RESULT_CACHE :	return "NO_RESULT_CACHE";   hint to bypass query caching*/
 	}
 	sv = sv_2mortal(newSVpv("",0));
     sv_grow(sv, 50);
@@ -201,7 +201,7 @@ oci_bind_options(ub4 options)
 		case OCI_PIECEWISE:   	return "PIECEWISE";         /* piecewise DMLs or fetch */
 		case OCI_BIND_SOFT:   	return "BIND_SOFT";               /* soft bind or define */
 		case OCI_DEFINE_SOFT:   return "DEFINE_SOFT";           /* soft bind or define */
-		case OCI_IOV:   		return "";   /* For scatter gather bind/define */
+/*		case OCI_IOV:   		return "";   11g only release 1.23 me thinks For scatter gather bind/define */
 		
 	 }
     sv = sv_2mortal(newSVpv("",0));
@@ -227,42 +227,42 @@ oci_mode(ub4  mode)
 		case OCI_SHARED:        return "SHARED";  /* the application is in shared mode */
 		/* The following *TWO* are only valid for OCICreateEnvironment call */
 		case OCI_NO_UCB:        return "NO_UCB "; /* No user callback called during ini */
-		case OCI_NO_MUTEX:      return "NO_MUTEX"; /* the environment handle will not be */
-		                                    /*  protected by a mutex internally */
+		case OCI_NO_MUTEX:      return "NO_MUTEX"; /* the environment handle will not be 
+		                                      protected by a mutex internally */
 		case OCI_SHARED_EXT:     return "SHARED_EXT";              /* Used for shared forms */
 		case OCI_ALWAYS_BLOCKING:return "ALWAYS_BLOCKING";    /* all connections always blocking */
 		case OCI_USE_LDAP:       return "USE_LDAP";            /* allow  LDAP connections */
 		case OCI_REG_LDAPONLY:   return "REG_LDAPONLY";              /* only register to LDAP */
 		case OCI_UTF16:          return "UTF16";        /* mode for all UTF16 metadata */
 		case OCI_AFC_PAD_ON:     return "AFC_PAD_ON";  /* turn on AFC blank padding when rlenp present */
-		case OCI_NEW_LENGTH_SEMANTICS: return "NEW_LENGTH_SEMANTICS";   /* adopt new length semantics */
-											       /* the new length semantics, always bytes, is used by OCIEnvNlsCreate */
+		case OCI_NEW_LENGTH_SEMANTICS: return "NEW_LENGTH_SEMANTICS";   /* adopt new length semantics 
+											       the new length semantics, always bytes, is used by OCIEnvNlsCreate */
 		case OCI_NO_MUTEX_STMT:  return "NO_MUTEX_STMT";           /* Do not mutex stmt handle */
 		case OCI_MUTEX_ENV_ONLY: return "MUTEX_ENV_ONLY";  /* Mutex only the environment handle */
-		case OCI_SUPPRESS_NLS_VALIDATION:  return "SUPPRESS_NLS_VALIDATION";  /* suppress nls validation */
-													  	 /* nls validation suppression is on by default;
+		case OCI_SUPPRESS_NLS_VALIDATION:  return "SUPPRESS_NLS_VALIDATION";  /* suppress nls validation 
+													  	  nls validation suppression is on by default;
 													     use OCI_ENABLE_NLS_VALIDATION to disable it */
 		case OCI_MUTEX_TRY:                return "MUTEX_TRY";    /* try and acquire mutex */
 		case OCI_NCHAR_LITERAL_REPLACE_ON: return "NCHAR_LITERAL_REPLACE_ON"; /* nchar literal replace on */
 		case OCI_NCHAR_LITERAL_REPLACE_OFF:return "NCHAR_LITERAL_REPLACE_OFF"; /* nchar literal replace off*/
-		case OCI_ENABLE_NLS_VALIDATION:    return "ENABLE_NLS_VALIDATION";    /* enable nls validation */
+/*		case OCI_ENABLE_NLS_VALIDATION:    return "ENABLE_NLS_VALIDATION";     enable nls validation */
 		/*------------------------OCIConnectionpoolCreate Modes----------------------*/
 		case OCI_CPOOL_REINITIALIZE:	return "CPOOL_REINITIALIZE";
 		/*--------------------------------- OCILogon2 Modes -------------------------*/
-/*case OCI_LOGON2_SPOOL:      	return "LOGON2_SPOOL";     /* Use session pool */
+/*case OCI_LOGON2_SPOOL:      	return "LOGON2_SPOOL";      Use session pool */
 		case OCI_LOGON2_CPOOL:      	return "LOGON2_CPOOL"; /* Use connection pool */
-/*case OCI_LOGON2_STMTCACHE:  	return "LOGON2_STMTCACHE";     /* Use Stmt Caching */
+/*case OCI_LOGON2_STMTCACHE:  	return "LOGON2_STMTCACHE";      Use Stmt Caching */
 		case OCI_LOGON2_PROXY:      	return "LOGON2_PROXY";     /* Proxy authentiaction */
 		/*------------------------- OCISessionPoolCreate Modes ----------------------*/
-/*case OCI_SPC_REINITIALIZE:		return "SPC_REINITIALIZE";   /* Reinitialize the session pool */
-/*case OCI_SPC_HOMOGENEOUS: 		return "SPC_HOMOGENEOUS"; "";   /* Session pool is homogeneneous */
-/*case OCI_SPC_STMTCACHE:   		return "SPC_STMTCACHE";   /* Session pool has stmt cache */
-/*case OCI_SPC_NO_RLB:      		return "SPC_NO_RLB "; /* Do not enable Runtime load balancing. */ 
+/*case OCI_SPC_REINITIALIZE:		return "SPC_REINITIALIZE";    Reinitialize the session pool */
+/*case OCI_SPC_HOMOGENEOUS: 		return "SPC_HOMOGENEOUS"; "";    Session pool is homogeneneous */
+/*case OCI_SPC_STMTCACHE:   		return "SPC_STMTCACHE";    Session pool has stmt cache */
+/*case OCI_SPC_NO_RLB:      		return "SPC_NO_RLB ";  Do not enable Runtime load balancing. */ 
 		/*--------------------------- OCISessionGet Modes ---------------------------*/
-/*case OCI_SESSGET_SPOOL:     	return "SESSGET_SPOOL";     /* SessionGet called in SPOOL mode */
-/*case OCI_SESSGET_CPOOL:    		return "SESSGET_CPOOL";  /* SessionGet called in CPOOL mode */
-/*case OCI_SESSGET_STMTCACHE: 	return "SESSGET_STMTCACHE";                 /* Use statement cache */
-/*case OCI_SESSGET_CREDPROXY: 	return "SESSGET_CREDPROXY";     /* SessionGet called in proxy mode */
+/*case OCI_SESSGET_SPOOL:     	return "SESSGET_SPOOL";      SessionGet called in SPOOL mode */
+/*case OCI_SESSGET_CPOOL:    		return "SESSGET_CPOOL";   SessionGet called in CPOOL mode */
+/*case OCI_SESSGET_STMTCACHE: 	return "SESSGET_STMTCACHE";                  Use statement cache */
+/*case OCI_SESSGET_CREDPROXY: 	return "SESSGET_CREDPROXY";      SessionGet called in proxy mode */
 /*case OCI_SESSGET_CREDEXT:   	return "SESSGET_CREDEXT";     */
 		case OCI_SESSGET_SPOOL_MATCHANY:return "SESSGET_SPOOL_MATCHANY";
 /*case OCI_SESSGET_PURITY_NEW:    return "SESSGET_PURITY_NEW"; 
@@ -989,7 +989,7 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
     int count;
 
     if (DBIS->debug >= 3 || dbd_verbose >=3)
-	PerlIO_printf(DBILOGFP,
+		PerlIO_printf(DBILOGFP,
 		"    fetch_func_rset - allocating handle for cursor nested within %s ...\n",
                 		neatsvpv(sth, 0));
 
@@ -1043,6 +1043,10 @@ int
 dbd_rebind_ph_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
   dTHX;
+  
+   if (DBIS->debug >= 6 || dbd_verbose >=6)
+	 PerlIO_printf(DBILOGFP, "     dbd_rebind_ph_rset phs->is_inout=%d\n",phs->is_inout);
+
   /* Only do this part for inout cursor refs because pp_exec_rset only gets called for all the output params */
   if (phs->is_inout) {
     phs->out_prepost_exec = pp_exec_rset;
@@ -2524,7 +2528,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	   		PerlIO_printf(DBILOGFP, "    dbd_describe skipped for %s\n",
 			oci_stmt_type_name(imp_sth->stmt_type));
 	/* imp_sth memory was cleared when created so no setup required here	*/
-	return 1;
+		return 1;
     }
 
     if (DBIS->debug >= 3 || dbd_verbose >= 3)
@@ -2810,7 +2814,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 					}
 					fbh->fetch_func = fetch_get_piece;
 				} else { /*auto lob fetch with locator by far the fastest*/
-				
+	    
 					fbh->disize = fbh->dbsize *10 ;	/* XXX! */
 					fbh->fetch_func = (imp_sth->auto_lob) ? fetch_func_autolob : fetch_func_getrefpv;
 					fbh->bless  = "OCILobLocatorPtr";
@@ -3389,7 +3393,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     if (status == OCI_SUCCESS) { /* There is a synonym, get the schema */
     	char *syn_schema=NULL, *syn_name=NULL;
     	char new_tablename[100];
-    	ub4 syn_schema_len = 0, syn_name_len = 0,new_tablename_len=0;
+    	ub4 syn_schema_len = 0, syn_name_len = 0;
       	OCIAttrGet_log_stat(imp_sth->dschp,  OCI_HTYPE_DESCRIBE,
 				  &parmhp, 0, OCI_ATTR_PARAM, errhp, status);
       	OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
