@@ -69,6 +69,7 @@ struct imp_sth_st {
     OCISvcCtx		*svchp;	/* copy of dbh pointer	*/
     OCIStmt			*stmhp;	/* oci statement  handle */
     OCIDescribe 	*dschp; /* oci describe handle */
+    int             is_child;  /* if this is child from a ref cursor or SP*/
    	ub2 			stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
     U16				auto_lob;	/* use auto lobs*/
     int				pers_lob;   /*use dblink for lobs only for 10g Release 2. or later*/
@@ -193,6 +194,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     fb_ary_t 	*fb_ary ;	/* field buffer array			*/
     /* if this is an embedded object we use this */
     fbh_obj_t   *obj;
+
 
  };
 

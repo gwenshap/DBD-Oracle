@@ -2220,7 +2220,12 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
     else if (SvOK(imp_drh->ora_cache))   imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
 
 
-   	if (imp_dbh->RowCacheSize || imp_sth->prefetch_memory){
+    if (imp_sth->is_child){ /*ref cursors and sp only one row is allowed*/
+    
+       cache_rows  =1;
+	   cache_mem  =0;
+	   
+   	} else if (imp_dbh->RowCacheSize || imp_sth->prefetch_memory){
 	/*user set values */
    		 cache_rows  =imp_dbh->RowCacheSize;
 	     cache_mem   =imp_sth->prefetch_memory;
@@ -3059,7 +3064,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			if (imp_sth->rs_array_on) {	/* if array fetch on, fetch only if not in cache */
 				imp_sth->rs_array_idx++;
 				if (imp_sth->rs_array_num_rows<=imp_sth->rs_array_idx && imp_sth->rs_array_status==OCI_SUCCESS) {
-					OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
+		      		OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
 					imp_sth->rs_array_status=status;
 					OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->rs_array_num_rows,0,OCI_ATTR_ROWS_FETCHED, status);
 					imp_sth->rs_array_idx=0;

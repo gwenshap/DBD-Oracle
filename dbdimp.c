@@ -2392,7 +2392,8 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	imp_sth_csr->clbk_lob   = imp_sth->clbk_lob;
 	imp_sth_csr->piece_size = imp_sth->piece_size;
 	imp_sth_csr->piece_lob  = imp_sth->piece_lob;
-
+	imp_sth_csr->is_child   = 1; /*no prefetching on a cursor or sp*/
+	
 	
 	/* assign statement handle from placeholder descriptor	*/
 	imp_sth_csr->stmhp = (OCIStmt*)phs->desc_h;
@@ -3002,12 +3003,12 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 
 
 		if (status != OCI_SUCCESS) { /* may be OCI_ERROR or OCI_SUCCESS_WITH_INFO etc */
-	/* we record the error even for OCI_SUCCESS_WITH_INFO */
+			/* we record the error even for OCI_SUCCESS_WITH_INFO */
 			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIStmtExecute"));
-	/* but only bail out here if not OCI_SUCCESS_WITH_INFO */
-		if (status != OCI_SUCCESS_WITH_INFO)
-		    return -2;
-    }
+			/* but only bail out here if not OCI_SUCCESS_WITH_INFO */
+			if (status != OCI_SUCCESS_WITH_INFO)
+			    return -2;
+    	}
 
     if (is_select) {
 		DBIc_ACTIVE_on(imp_sth);
@@ -3030,40 +3031,40 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 
     if (is_select && !imp_sth->done_desc) {
 	/* describe and allocate storage for results (if any needed)	*/
-	if (!dbd_describe(sth, imp_sth))
-	    return -2; /* dbd_describe already called oci_error()	*/
-    }
+		if (!dbd_describe(sth, imp_sth))
+		    return -2; /* dbd_describe already called oci_error()	*/
+	}
 
-    if (imp_sth->has_lobs && imp_sth->stmt_type != OCI_STMT_SELECT) {
+	if (imp_sth->has_lobs && imp_sth->stmt_type != OCI_STMT_SELECT) {
 		if (!post_execute_lobs(sth, imp_sth, row_count))
 		    return -2; /* post_insert_lobs already called oci_error()	*/
-   	}
+	}
 
-    if (outparams) {	/* check validity of bound output SV's	*/
+	if (outparams) {	/* check validity of bound output SV's	*/
 		int i = outparams;
 		while(--i >= 0) {
- 		    /* phs->alen has been updated by Oracle to hold the length of the result */
-		    phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
-		    SV *sv = phs->sv;
-		    if (debug >= 2 || dbd_verbose >= 2) {
+ 			/* phs->alen has been updated by Oracle to hold the length of the result */
+			phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
+			SV *sv = phs->sv;
+			if (debug >= 2 || dbd_verbose >= 2) {
 				PerlIO_printf(DBILOGFP,
-				"dbd_st_execute(): Analyzing inout parameter '%s of type=%d'\n",
-				phs->name,phs->ftype);
-		    }
-		    if( phs->ftype == ORA_VARCHAR2_TABLE ){
+					"dbd_st_execute(): Analyzing inout parameter '%s of type=%d'\n",
+					phs->name,phs->ftype);
+			}
+			if( phs->ftype == ORA_VARCHAR2_TABLE ){
 				dbd_phs_ora_varchar2_table_fixup_after_execute(phs);
 				continue;
-		    }
-		    if( phs->ftype == ORA_NUMBER_TABLE ){
+			}
+			if( phs->ftype == ORA_NUMBER_TABLE ){
 				dbd_phs_ora_number_table_fixup_after_execute(phs);
 				continue;
-		    }
+			}
 
-		    if (phs->out_prepost_exec) {
+			if (phs->out_prepost_exec) {
 				if (!phs->out_prepost_exec(sth, imp_sth, phs, 0))
 				    return -2; /* out_prepost_exec already called ora_error()	*/
-		    }
-		    else {
+			 }
+			  else {
 			    if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
 					AV *av = (AV*)SvRV(sv);
 					I32 avlen = AvFILL(av);
@@ -3075,7 +3076,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 				}
 			}
 		}
-    }
+	}
 
     return row_count;	/* row count (0 will be returned as "0E0")	*/
 }
