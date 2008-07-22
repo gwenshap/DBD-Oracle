@@ -456,7 +456,7 @@ ora_lob_length(dbh, locator)
     CODE:
     OCILobGetLength_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &len, status);
     if (status != OCI_SUCCESS) {
-        oci_error(dbh, imp_dbh->errhp, status, "OCILobTrim");
+        oci_error(dbh, imp_dbh->errhp, status, "OCILobGetLength");
 	ST(0) = &sv_undef;
     }
     else {
