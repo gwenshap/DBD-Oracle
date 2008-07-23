@@ -2194,11 +2194,8 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 	 	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (1): bind %s <== %.1000s (", phs->name, val);
 	 	if (!SvOK(phs->sv))
 		    PerlIO_printf(DBILOGFP, "NULL, ");
-		PerlIO_printf(DBILOGFP, "size %ld/%ld/%ld, ",
-	    (long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
-	 	PerlIO_printf(DBILOGFP, "ptype %d(%s), otype %d%s)\n",
- 	    (int)SvTYPE(phs->sv), sql_typecode_name(phs->ftype),phs->ftype,
- 	    (phs->is_inout) ? ", inout" : "");
+		PerlIO_printf(DBILOGFP, "size %ld/%ld/%d, ",(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
+	 	PerlIO_printf(DBILOGFP, "ptype %d(%s), otype %d %s)\n",(int)SvTYPE(phs->sv), sql_typecode_name(phs->ftype),phs->ftype,(phs->is_inout) ? ", inout" : "");
     }
 
     /* At the moment we always do sv_setsv() and rebind.	*/
@@ -2249,8 +2246,15 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
     }
 
     phs->sv_type = SvTYPE(phs->sv);	/* part of mutation check	*/
-    phs->maxlen  = ((IV)SvLEN(phs->sv)); /* avail buffer space (64bit safe) Logicaly maxlen should never change but it does why I know not*/
+    if (SvTYPE(phs->sv) == SVt_RV && SvTYPE(SvRV(phs->sv)) == SVt_PVAV) { /* it is returning an array of scalars not a single scalar*/
+    	phs->maxlen  = 4000; /* Just make is a varchar max should be ok for most things*/
 
+    } else {
+   		phs->maxlen  = ((IV)SvLEN(phs->sv)); /* avail buffer space (64bit safe) Logicaly maxlen should never change but it does why I know not*/
+
+    }
+  	   
+    
     if (phs->maxlen < 0)		/* can happen with nulls	*/
 	  phs->maxlen = 0;
 
@@ -2498,7 +2502,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
     if (trace_level >= 5 || dbd_verbose >= 5 )
 		PerlIO_printf(DBILOGFP, "dbd_rebind_ph() (1): rebinding %s as %s (%s, ftype %d (%s), csid %d, csform %d, inout %d)\n",
 		phs->name, (SvPOK(phs->sv) ? neatsvpv(phs->sv,10) : "NULL"),(SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
-		phs->ftype,sql_typecode_name(phs->ftype), phs->csform, phs->is_inout);
+		phs->ftype,sql_typecode_name(phs->ftype),phs->csid, phs->csform, phs->is_inout);
 
 
     switch (phs->ftype) {

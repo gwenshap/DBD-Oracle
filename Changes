@@ -1,4 +1,5 @@
 =head1 Changes in DBD-Oracle 1.22(svn rev xxxx)  2008 
+  Fix for memory hemorrhage in bind_param_inout_array found by Ricky Egeland, Fix by John Scoles
   Fix for a typo in oracle.xs from Milo van der Leij 
   Fix for bugs on SPs with Lobs reported by Martin Evans, Fix by J Scoles
   Changed the way Ping works rather than using prepare and execute it now makes a single round trip call to DB by John Scoles
