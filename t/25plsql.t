@@ -1,17 +1,5 @@
 #!perl -w
-
-sub ok ($$;$) {
-    my($n, $ok, $warn) = @_;
-    ++$t;
-    die "sequence error, expected $n but actually $t"
-    if $n and $n != $t;
-    ($ok) ? print "ok $t\n"
-	  : print "# failed test $t at line ".(caller)[2]."\nnot ok $t\n";
-	if (!$ok && $warn) {
-		$warn = $DBI::errstr || "(DBI::errstr undefined)" if $warn eq '1';
-		warn "$warn\n";
-	}
-}
+use Test::More;
 
 use DBI;
 use DBD::Oracle qw(ORA_RSET SQLCS_NCHAR);
@@ -26,66 +14,60 @@ my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect($dsn, $dbuser, '', { PrintError => 0 });
 
-unless($dbh) {
-	warn "Unable to connect to Oracle ($DBI::errstr)\nTests skiped.\n";
-	print "1..0\n";
-	exit 0;
+if ($dbh) {
+    # ORA-00900: invalid SQL statement
+    # ORA-06553: PLS-213: package STANDARD not accessible
+    my $tst = $dbh->prepare(q{declare foo char(50); begin RAISE INVALID_NUMBER; end;});
+    if ($dbh->err && ($dbh->err==900 || $dbh->err==6553 || $dbh->err==600)) {
+        diag("Your Oracle server doesn't support PL/SQL") if $dbh->err== 900;
+        diag("Your Oracle PL/SQL is not properly installed")
+            if $dbh->err==6553||$dbh->err==600;
+        plan skip_all => 'Oracle server either does not support pl/sql or it is not properly installed';
+    }
+    plan tests=>82;
+} else {
+    plan skip_all => "Unable to connect to Oracle ($DBI::errstr)\n";
 }
 
-# ORA-00900: invalid SQL statement
-# ORA-06553: PLS-213: package STANDARD not accessible
-my $tst = $dbh->prepare(q{declare foo char(50); begin RAISE INVALID_NUMBER; end;});
-if ($dbh->err && ($dbh->err==900 || $dbh->err==6553 || $dbh->err==600)) {
-	warn "Your Oracle server doesn't support PL/SQL"	if $dbh->err== 900;
-	warn "Your Oracle PL/SQL is not properly installed"	if $dbh->err==6553||$dbh->err==600;
-	warn "Tests skipped\n";
-	print "1..0\n";
-	exit 0;
-}
-
-my $tests;
-print "1..$tests\n";
 
 my($csr, $p1, $p2, $tmp, @tmp);
 #DBI->trace(4,"trace.log");
 
 
 # --- test raising predefined exception
-ok(0, $csr = $dbh->prepare(q{
-    begin RAISE INVALID_NUMBER; end;
-}), 1);
+ok($csr = $dbh->prepare(q{
+    begin RAISE INVALID_NUMBER; end;}), 'prepare raising predefined exception');
 
 # ORA-01722: invalid number
-ok(0, ! $csr->execute, 1);
-ok(0, $DBI::err == 1722);
-ok(0, $DBI::err == 1722);	# make sure error doesn't get cleared
+ok(! $csr->execute, 'execute predefined exception');
+is($DBI::err, 1722, 'err expected 1722 error');
+is($DBI::err, 1722, 'err does not get cleared');
 
 
 # --- test raising user defined exception
-ok(0, $csr = $dbh->prepare(q{
+ok($csr = $dbh->prepare(q{
     DECLARE FOO EXCEPTION;
-    begin raise FOO; end;
-}), 1);
+    begin raise FOO; end;}), 'prepare user defined expcetion');
 
 # ORA-06510: PL/SQL: unhandled user-defined exception
-ok(0, ! $csr->execute, 1);
-ok(0, $DBI::err == 6510);
+ok(! $csr->execute, 'execute user defined exception');
+is($DBI::err, 6510, 'user exception 6510 error');
 
 
 # --- test raise_application_error with literal values
-ok(0, $csr = $dbh->prepare(q{
+ok($csr = $dbh->prepare(q{
     declare err_num number; err_msg char(510);
-    begin RAISE_APPLICATION_ERROR(-20101,'app error'); end;
-}), 1);
+    begin RAISE_APPLICATION_ERROR(-20101,'app error'); end;}),
+  'prepare raise application error with literal values');
 
 # ORA-20101: app error
-ok(0, ! $csr->execute, 1);
-ok(0, $DBI::err    == 20101);
-ok(0, $DBI::errstr =~ m/app error/);
+ok(! $csr->execute, 'execite raise application error with literal values');
+is($DBI::err, 20101, 'expected 20101 error');
+like($DBI::errstr, qr/app error/, 'app error');
 
 
 # --- test raise_application_error with 'in' parameters
-ok(0, $csr = $dbh->prepare(q{
+ok($csr = $dbh->prepare(q{
     declare err_num varchar2(555); err_msg varchar2(510);
     --declare err_num number; err_msg char(510);
     begin
@@ -93,107 +75,108 @@ ok(0, $csr = $dbh->prepare(q{
 	err_msg := :2;
 	raise_application_error(-20000-err_num, 'msg is '||err_msg);
     end;
-}), 1);
+}), 'prepare raise application error with in params');
 
-ok(0, ! $csr->execute(42, "hello world"), 1);
-ok(0, $DBI::err    == 20042, $DBI::err);
-ok(0, $DBI::errstr =~ m/msg is hello world/, 1);
+ok(! $csr->execute(42, "hello world"),
+   'execute raise application error with in params');
+is($DBI::err, 20042, 'expected 20042 error');
+like($DBI::errstr, qr/msg is hello world/, 'hello world msg');
 
 # --- test named numeric in/out parameters
-ok(0, $csr = $dbh->prepare(q{
+ok($csr = $dbh->prepare(q{
     begin
 	:arg := :arg * :mult;
-    end;
-}), 1);
+    end;}), 'prepare named numeric in/out params');
 
 $p1 = 3;
-ok(0, $csr->bind_param_inout(':arg', \$p1, 50), 1);
-ok(0, $csr->bind_param(':mult', 2), 1);
-ok(0, $csr->execute, 1);
-ok(0, $p1 == 6);
+ok($csr->bind_param_inout(':arg', \$p1, 50), 'bind arg');
+ok($csr->bind_param(':mult', 2), 'bind mult');
+ok($csr->execute, 'execute named numeric in/out params');
+is($p1, 6, 'expected 3 * 3 = 6');
 # execute 10 times from $p1=1, 2, 4, 8, ... 1024
-$p1 = 1; foreach (1..10) { $csr->execute || die $DBI::errstr; }
-ok(0, $p1 == 1024);
+$p1 = 1;
+eval {
+    foreach (1..10) { $csr->execute || die $DBI::errstr; };
+};
+my $ev = $@;
+ok(!$ev, 'execute named numeric in/out params 10 times');
+is($p1, 1024, 'expected p1 = 1024');
 
 # --- test undef parameters
-ok(0, $csr = $dbh->prepare(q{
+ok($csr = $dbh->prepare(q{
 	declare foo char(500);
-	begin foo := :arg; end;
-}), 1);
+	begin foo := :arg; end;}), 'prepare undef parameters');
 my $undef;
-ok(0, $csr->bind_param_inout(':arg', \$undef,10), 1);
-ok(0, $csr->execute, 1);
-
+ok($csr->bind_param_inout(':arg', \$undef,10), 'bind arg');
+ok($csr->execute, 'execute undef parameters');
 
 # --- test named string in/out parameters
-ok(0, $csr = $dbh->prepare(q{
+ok($csr = $dbh->prepare(q{
     declare str varchar2(1000);
     begin
 	:arg := nvl(upper(:arg), 'null');
 	:arg := :arg || :append;
-    end;
-}), 1);
+    end;}), 'prepare named string in/out parameters');
 
 undef $p1;
 $p1 = "hello world";
-ok(0, $csr->bind_param_inout(':arg', \$p1, 1000), 1);
-ok(0, $csr->bind_param(':append', "!"), 1);
-ok(0, $csr->execute, 1);
-ok(0, $p1 eq "HELLO WORLD!");
+ok($csr->bind_param_inout(':arg', \$p1, 1000), 'bind arg');
+ok($csr->bind_param(':append', "!"), 'bind append');
+ok($csr->execute, 'execute named string in/out parameters');
+is($p1, "HELLO WORLD!", 'expected HELLO WORLD');
 # execute 10 times growing $p1 to force realloc
-foreach (1..10) {
-    $p1 .= " xxxxxxxxxx";
-    $csr->execute || die $DBI::errstr;
-}
+eval {
+    foreach (1..10) {
+        $p1 .= " xxxxxxxxxx";
+        $csr->execute || die $DBI::errstr;
+    };
+};
+$ev = $@;
+ok(!$ev, 'execute named string in/out parameters 1- times');
 my $expect = "HELLO WORLD!" . (" XXXXXXXXXX!" x 10);
-ok(0, $p1 eq $expect);
-
+is($p1, $expect, 'p1 as expected');
 
 # --- test binding a null and getting a string back
 undef $p1;
-ok(0, $csr->execute, 1);
-ok(0, $p1 eq 'null!');
+ok($csr->execute, 'execute binding a null');
+is($p1, 'null!', 'get a null string back');
 
 $csr->finish;
 
 
-ok(0, $csr = $dbh->prepare(q{
+ok($csr = $dbh->prepare(q{
     begin
 	:out := nvl(upper(:in), 'null');
-    end;
-}), 1);
+    end;}), 'prepare nvl');
 #$csr->trace(3);
 my $out;
-ok(0, $csr->bind_param_inout(':out', \$out, 1000), 1);
+ok($csr->bind_param_inout(':out', \$out, 1000), 'bind out');
+ok($csr->bind_param(':in', "foo", DBI::SQL_CHAR()), 'bind in');
+ok($csr->execute, 'execute nvl');
+is($out, "FOO", 'expected FOO');
 
-ok(0, $csr->bind_param(':in', "foo", DBI::SQL_CHAR()), 1);
-ok(0, $csr->execute, 1);
-ok(0, $out eq "FOO");
-
-ok(0, $csr->bind_param(':in', ""), 1);
-ok(0, $csr->execute, 1);
-ok(0, $out eq "null");
-
+ok($csr->bind_param(':in', ""), 'bind empty string');
+ok($csr->execute, 'execute empty string');
+is($out, "null", 'returned null string');
 
 # --- test out buffer being too small
-ok(0, $csr = $dbh->prepare(q{
+ok($csr = $dbh->prepare(q{
     begin
 	select rpad('foo',200) into :arg from dual;
-    end;
-}), 1);
+    end;}), 'prepare test output buffer too small');
 #$csr->trace(3);
 undef $p1;	# force buffer to be freed
-ok(0, $csr->bind_param_inout(':arg', \$p1, 20), 1);
+ok($csr->bind_param_inout(':arg', \$p1, 20), 'bind arg');
 # Execute fails with:
 #	ORA-06502: PL/SQL: numeric or value error
 #	ORA-06512: at line 3 (DBD ERROR: OCIStmtExecute)
 $tmp = $csr->execute;
 #$tmp = undef if DBD::Oracle::ORA_OCI()>=8; # because BindByName given huge max len
-ok(0, !defined $tmp, 1);
+ok(!defined $tmp, 'output buffer too small');
 # rebind with more space - and it should work
-ok(0, $csr->bind_param_inout(':arg', \$p1, 200), 1);
-ok(0, $csr->execute, 1);
-ok(0, length($p1) == 200, 0);
+ok($csr->bind_param_inout(':arg', \$p1, 200), 'rebind arg with more space');
+ok($csr->execute, 'execute rebind with more space');
+is(length($p1), 200, 'expected return length');
 
 
 # --- test plsql_errstr function
@@ -218,20 +201,20 @@ ok(0, length($p1) == 200, 0);
 
 # --- test dbms_output_* functions
 $dbh->{PrintError} = 1;
-ok(0, $dbh->func(30000, 'dbms_output_enable'), 1);
+ok($dbh->func(30000, 'dbms_output_enable'), 'dbms_output_enable');
 
 #$dbh->trace(3);
 my @ary = ("foo", ("bar" x 15), "baz", "boo");
-ok(0, $dbh->func(@ary, 'dbms_output_put'), 1);
+ok($dbh->func(@ary, 'dbms_output_put'), 'dbms_output_put');
 
 @ary = scalar $dbh->func('dbms_output_get');	# scalar context
-ok(0, @ary==1 && $ary[0] && $ary[0] eq 'foo', 0);
+ok(@ary==1 && $ary[0] && $ary[0] eq 'foo', 'dbms_output_get foo');
 
 @ary = scalar $dbh->func('dbms_output_get');	# scalar context
-ok(0, @ary==1 && $ary[0] && $ary[0] eq 'bar' x 15, 0);
+ok(@ary==1 && $ary[0] && $ary[0] eq 'bar' x 15, 'dbms_output_get bar');
 
 @ary = $dbh->func('dbms_output_get');			# list context
-ok(0, join(':',@ary) eq 'baz:boo', 0);
+is(join(':',@ary), 'baz:boo', 'dbms_output_get baz:boo');
 $dbh->{PrintError} = 0;
 #$dbh->trace(0);
 
@@ -248,38 +231,40 @@ if (1) {
     my $parent = $dbh->prepare(qq{
 	BEGIN OPEN :cur1 FOR $cur_query; END;
     });
-    ok(0, $parent, $DBI::errstr);
-    ok(0, $parent->bind_param(":p1", "V%"));
-    ok(0, $parent->bind_param_inout(":cur1", \$cur1, 0, { ora_type => ORA_RSET } ));
-    ok(0, $parent->execute());
+    ok($parent, 'prepare cursor');
+    ok($parent->bind_param(":p1", "V%"), 'bind p1');
+    ok($parent->bind_param_inout(
+        ":cur1", \$cur1, 0, { ora_type => ORA_RSET }), 'bind cursor');
+    ok($parent->execute(), 'execute for cursor');
     my @r;
     push @r, @tmp while @tmp = $cur1->fetchrow_array;
-    ok(0, @r>0, "rows: ".@r);
+    ok(@r>0, "rows: ".@r);
     #$dbh->trace(0); $parent->trace(0);
 
     # compare results with normal execution of query
     my $s1 = $dbh->selectall_arrayref($cur_query, undef, "V%");
     my @s1 = map { @$_ } @$s1;
-    ok(0, "@r" eq "@s1", "\nref=(@r),\nsql=(@s1)");
+    is("@r", "@s1", "ref = sql");
 
     # --- test re-bind and re-execute of same 'parent' statement
     my $cur1_str = "$cur1";
     #$dbh->trace(4); $parent->trace(4);
-    ok(0, $parent->bind_param(":p1", "U%"));
-    ok(0, $parent->execute());
-    ok(0, "$cur1" ne $cur1_str);	# must be ref to new handle object
+    ok($parent->bind_param(":p1", "U%"), 'bind p1');
+    ok($parent->execute(), 'execute for cursor');
+    # must be ref to new handle object
+    isnt("$cur1", $cur1_str, 'expected ref to new handle');
     @r = ();
     push @r, @tmp while @tmp = $cur1->fetchrow_array;
     #$dbh->trace(0); $parent->trace(0); $cur1->trace(0);
     my $s2 = $dbh->selectall_arrayref($cur_query, undef, "U%");
     my @s2 = map { @$_ } @$s2;
-    ok(0, "@r" eq "@s2", "\nref=(@r),\nsql=(@s2)");
+    is("@r", "@s2", "ref = sql");
 }
 
-print "test bind_param_inout of param that's not assigned to in executed statement\n";
+diag("test bind_param_inout of param that's not assigned to in executed statement\n");
 # See http://www.mail-archive.com/dbi-users@perl.org/msg18835.html
 if (1) {
-my $sth = $dbh->prepare (q(
+    my $sth = $dbh->prepare (q(
     BEGIN
  --     :p1 := :p1 ;
  --     :p2 := :p2 ;
@@ -287,28 +272,26 @@ my $sth = $dbh->prepare (q(
             :p1 := 'AAA' ;
             :p2 := 'Z' ;
         END IF ;
-    END ;
-)) ;
-my ($p1, $p2, $p3) = ('Hello', 'Y', 'Y') ;
-$sth->bind_param_inout(':p1', \$p1, 30) ;
-$sth->bind_param_inout(':p2', \$p2, 1) ;
-$sth->bind_param_inout(':p3', \$p3, 1) ;
-print "Before p1=[$p1] p2=[$p2] p3=[$p3]\n" ;
-ok(0, $sth->execute);
-ok(0, $p1 eq 'Hello');
-ok(0, $p2 eq 'Y');
-ok(0, $p3 eq 'Y');
-print "After p1=[$p1] p2=[$p2] p3=[$p3]\n" ;
+    END ;));
+    my ($p1, $p2, $p3) = ('Hello', 'Y', 'Y') ;
+    $sth->bind_param_inout(':p1', \$p1, 30) ;
+    $sth->bind_param_inout(':p2', \$p2, 1) ;
+    $sth->bind_param_inout(':p3', \$p3, 1) ;
+    diag("Before p1=[$p1] p2=[$p2] p3=[$p3]\n");
+    ok($sth->execute, 'test bind_param_inout for non assigned');
+    is($p1, 'Hello', 'p1 ok');
+    is($p2, 'Y', 'p2 ok');
+    is($p3, 'Y', 'p3 ok');
+    diag("After p1=[$p1] p2=[$p2] p3=[$p3]\n");
 }
 
 SKIP: {
-    sub skip { ok(0,1) for (1..$_[1]); print "$_[0]\n"; local $^W; last SKIP };
-
-    print "test nvarchar2 arg passing to functions\n";
+    diag("test nvarchar2 arg passing to functions\n");
     # http://www.nntp.perl.org/group/perl.dbi.users/24217
     my $ora_server_version = $dbh->func("ora_server_version");
     skip "Client/server version < 9.0", 15
 	if DBD::Oracle::ORA_OCI() < 9.0 || $ora_server_version->[0] < 9;
+
     my $func_name = "dbd_oracle_nvctest".($ENV{DBD_ORACLE_SEQ}||'');
     $dbh->do(qq{
 	CREATE OR REPLACE FUNCTION $func_name(arg nvarchar2, arg2 nvarchar2)
@@ -320,24 +303,26 @@ SKIP: {
 	     return 1;
 	  end if;
 	END;
-    }) or skip("Can't create a function ($DBI::errstr)", 15);
+    }) or skip "Can't create a function ($DBI::errstr)", 15;
     my $sth = $dbh->prepare(qq{SELECT $func_name(?, ?) FROM DUAL}, {
 	# Oracle 8 describe fails with ORA-06553: PLS-561: charset mismatch
 	ora_check_sql => 0,
     });
-    ok(0, $sth, sprintf("Can't prepare select from function (%s)",$DBI::errstr||''));
-    skip("Can't select from function ($DBI::errstr)", 14) unless $sth;
+    ok($sth, sprintf("Can't prepare select from function (%s)",$DBI::errstr||''));
+    skip "Can't select from function ($DBI::errstr)", 14 unless $sth;
     for (1..2) {
-	ok(0, $sth->bind_param(1, "foo", { ora_csform => SQLCS_NCHAR }));
-	ok(0, $sth->bind_param(2, "bar", { ora_csform => SQLCS_NCHAR }));
-	ok(0, $sth->execute());
-	ok(0, my($returnVal) = $sth->fetchrow_array);
-	ok(0, $returnVal eq "1");
+	ok($sth->bind_param(1, "foo", { ora_csform => SQLCS_NCHAR }),
+           'bind foo');
+	ok($sth->bind_param(2, "bar", { ora_csform => SQLCS_NCHAR }),
+          'bind bar');
+	ok($sth->execute(), 'execute');
+	ok(my($returnVal) = $sth->fetchrow_array, 'fetchrow returns value');
+	is($returnVal, "1", 'expected return value of 1');
     }
-    ok(0, $sth->execute("baz",undef));
-    ok(0, my($returnVal) = $sth->fetchrow_array);
-    ok(0, $returnVal eq "-1");
-    ok(0, $dbh->do(qq{drop function $func_name}));
+    ok($sth->execute("baz",undef), 'execute with baz');
+    ok(my($returnVal) = $sth->fetchrow_array, 'fetchrow_returns value');
+    is($returnVal, "-1", 'expected -1 return');
+    ok($dbh->do(qq{drop function $func_name}), "drop $func_name");
 }
 
 
@@ -348,13 +333,6 @@ SKIP: {
     #   multiple params, mixed types and in only vs inout
 
 
-print "test ping\n";
-ok(0,  $dbh->ping);
-$dbh->disconnect;
-ok(0, !$dbh->ping);
-
 exit 0;
-BEGIN { $tests = 82 }
-# end.
 
 __END__

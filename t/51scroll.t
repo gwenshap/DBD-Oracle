@@ -13,7 +13,7 @@ require 'nchar_test_lib.pl';
 ## By John Scoles, The Pythian Group
 ## ----------------------------------------------------------------------------
 ##  Just a few checks to see if one can use a scrolling cursor
-##  Nothing fancy. 
+##  Nothing fancy.
 ## ----------------------------------------------------------------------------
 
 BEGIN {
@@ -23,7 +23,7 @@ BEGIN {
 # create a database handle
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1, 
+my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1,
 						AutoCommit=>1,
 						PrintError => 0 });
 ok ($dbh->{RowCacheSize} = 10);
@@ -64,7 +64,7 @@ for($i=1;$i<=10;$i++){
 
 $value =  $sth->ora_fetch_scroll(OCI_FETCH_CURRENT,0);
 cmp_ok($value->[0], '==', 10, '... we should get the 10th record');
- 
+
 #now loop all the way back
 for($i=1;$i<=9;$i++){
    $value =  $sth->ora_fetch_scroll(OCI_FETCH_PRIOR,0);
@@ -84,14 +84,14 @@ cmp_ok($value->[0], '==', 7, '... we should get the 7th record');
 #now -3 records relative from the present position of 6;
 
 $value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,-3);
- 
+
 cmp_ok($value->[0], '==', 4, '... we should get the 4th record');
 
 #now get the 9th record from the start
 $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,9);
- 
+
 cmp_ok($value->[0], '==', 9, '... we should get the 9th record');
- 
+
 #now get the last record
 
 $value =  $sth->ora_fetch_scroll(OCI_FETCH_LAST,0);

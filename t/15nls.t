@@ -13,6 +13,7 @@ plan tests => $testcount;
 
 $| = 1;
 
+diag('test nls_date_format, ora_can_unicode');
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 

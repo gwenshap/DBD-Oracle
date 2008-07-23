@@ -33,7 +33,7 @@ SKIP: {
                   + select_test_count( $tdata ) * 1;
                   ;
 
-    plan tests => $testcount; 
+    plan tests => $testcount;
     show_test_data( $tdata ,0 );
     drop_table($dbh);
     create_table( $dbh, $tdata );

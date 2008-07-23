@@ -3,12 +3,13 @@ $| = 1;
 
 ## ----------------------------------------------------------------------------
 ## 12imptdata.t
-## By Jeffrey Klein, 
+## By Jeffrey Klein,
 ## ----------------------------------------------------------------------------
 
 use strict;
 use DBI;
 use Config qw(%Config);
+# must be done before Test::More - see Threads in Test::More pod
 BEGIN { eval "use threads; use threads::shared;" }
 my $use_threads_err = $@;
 use Test::More;

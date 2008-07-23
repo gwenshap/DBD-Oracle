@@ -25,7 +25,7 @@ SKIP: {
 
     plan skip_all => "Not connected to oracle" if not $dbh;
     plan skip_all => "Database character set is not Unicode" if not db_ochar_is_utf($dbh) ;
-    print "testing utf8 with char columns (wide mode database)\n" ;
+    diag("testing utf8 with char columns (wide mode database)\n") ;
 
     my $tdata = test_data( 'wide_char' );
     my $testcount = 0 #create table
@@ -33,7 +33,7 @@ SKIP: {
                   + select_test_count( $tdata ) * 1;
                   ;
 
-    plan tests => $testcount; 
+    plan tests => $testcount;
     show_test_data( $tdata ,0 );
     drop_table($dbh);
     create_table( $dbh, $tdata );
