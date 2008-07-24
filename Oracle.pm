@@ -42,7 +42,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
     bootstrap DBD::Oracle $VERSION;
 
-    $drh = undef;	# holds driver handle once initialised
+    $drh = undef;	# holds driver handle once initialized
 
     sub CLONE {
         $drh = undef ;
@@ -967,16 +967,55 @@ DBD::Oracle - Oracle database driver for the DBI module
 DBD::Oracle is a Perl module which works with the DBI module to provide
 access to Oracle databases. 
 
-Since version 1.22 it only supports Oracle clients 9 or greater.  You still can connect to an 
-Oracle 8 DB you just have to use a newer client.
 
+=head1 Which version DBD::Oracle is for me?
+
+Since version 1.22 DBD::Oracle only supports Oracle clients 9 or greater. Sorry for this it was just getting to hard to 
+maintain even more so with the many new functions being introduced in 10g and 11g.
+If you are still stuck with an older version of Oracle or its client you might want to look at the table below.
+
+  +---------------------+--------------------------------------------+
+  |                     |             Oracle Version                 | 
+  +---------------------+----+-------------+---------+------+--------+
+  | DBD::Oracle Version | <8 | 8.0.3~8.0.6 | 8iR1~R2 | 8iR3 | 9i~11g |
+  +---------------------+----+-------------+---------+------+--------+
+  |      0.1~16         | Y  |      Y      |    Y    |  Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+
+  |      1.17           | Y  |      Y      |    Y    |  Y   |    Y   |  
+  +---------------------+----+-------------+---------+------+--------+
+  |      1.18           | N  |      N      |    N    |  Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+
+  |      1.19           | N  |      N      |    N    |  Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+
+  |      1.20           | N  |      N      |    N    |  Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+
+  |      1.21           | N  |      N      |    N    |  Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+
+  |      1.22           | N  |      N      |    N    |  N   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+
+
+As there are dozens and dozens of different versions of Oracle's clients I did not bother to list any of them, just the major release versions of Oracle that are out there.  
+
+Note that one can still connect to any Oracle version with the older DBD::Oracle versions the only problem you will have is that some of the newer OCI and Oracle features available in later DBD::Oracle releases will not be available to you.
+
+So to make a short story a little longer;
+
+  1) If you are using Oracle 7 or early 8 get a 9 client and you can use any DBD::Oracle version.
+  2) If you have to use an Oracle 7 client then DBD::Oracle 1.17 should work
+  3) Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might go with 1.18.
+  4) For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your patch-set, If you run into trouble go with 1.19
+  5) After 9i you can use any version you want.
+  6) For you Luddites out there ORAPERL still works and is still included but not updated or supported anymore.
+  7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 and even get to 10. I am not sure what the 11g client can connect to.
 
 =head1 CONNECTING TO ORACLE
 
 This is a topic which often causes problems. Mainly due to Oracle's many
 and sometimes complex ways of specifying and connecting to databases.
-(James Taylor and Lane Sharman have contributed much of the text in
-this section.) 
+James Taylor and Lane Sharman have contributed much of the text in
+this section. Unfortunately it is only really relative for connecting into older Oracle (<9) versions. 
+Most of this stuff is well out of date  but it will be left in for now.  
+See the next section L</CONNECTING TO ORACLE II> for some more up to date connection hints.
 
 =head2 Connecting without environment variables or tnsnames.ora file
 
@@ -991,16 +1030,15 @@ If a C<port> number is not specified then the descriptor will try both
 1526 and 1521 in that order (e.g., new then old).  You can check which
 port(s) are in use by typing "$ORACLE_HOME/bin/lsnrctl stat" on the server.
 
-
 =head2 Oracle Environment Variables
 
-Oracle typically uses two environment variables to specify default
-connections: ORACLE_SID and TWO_TASK.
+Oracle typically no longer needs two environment variables to specify default
+connections: ORACLE_SID and TWO_TASK. 
 
 ORACLE_SID is really unnecessary to set since TWO_TASK provides the
 same functionality in addition to allowing remote connections.
 
-  % setenv TWO_TASK T:hostname:ORACLE_SID            # for csh shell
+  % setenv //xxx.yyy.zzz:1521/ORACLE_SID           # for csh shell
   $ TWO_TASK=T:hostname:ORACLE_SID export TWO_TASK   # for sh shell
 
   % sqlplus username/password
@@ -1022,6 +1060,9 @@ will use TCP/IP (or D for DECNET, etc.) for remote SQL*Net v1 connection.
 
 will use the info stored in the SQL*Net v2 F<tnsnames.ora>
 configuration file for local or remote connections.
+
+Support for 'T:' syntax of Oracle SQL*Net V1 is only supported on older 7 clients and I have my doubts it will even work 
+if the DB or client has been patched and I know it will not work on any later clients.
 
 The ORACLE_HOME environment variable should be set correctly.
 In general, the value used should match the version of Oracle that
@@ -1064,7 +1105,7 @@ connection descriptor for the database.
 B<Note:> Some of these formats may not work with Oracle 9+.
 
   BEGIN {
-     $ENV{ORACLE_HOME} = '/home/oracle/product/7.x.x';
+     $ENV{ORACLE_HOME} = '/home/oracle/product/10.x.x';
      $ENV{TWO_TASK}    = 'DB';
   }
   $dbh = DBI->connect('dbi:Oracle:','scott', 'tiger');
@@ -1111,6 +1152,93 @@ databases using your Unix login name without a password and is possible
 but it's not secure and not recommended so not documented here. If you
 can't find the information elsewhere then you probably shouldn't be
 trying to do it.)
+
+
+=head1 CONNECTING TO ORACLE II
+
+If you are reading this it is assumed that DBD::Oracle has been successfully installed on you PERL instance and 
+you are having some problems connecting to Oracle.
+
+First off you will have to tell DBD::Oracle where the binaries reside for the Oracle client it was compiled against.
+This is the case when you encounter a
+
+ DBI connect('','system',...) failed: ERROR OCIEnvNlsCreate. 
+ 
+error in Lunix or in Windows when you get 
+
+  OCI.DLL not found
+  
+The solution to this problem in the case of Linux is to ensure your 'ORACLE_HOME' environment variable points to the correct directory. 
+
+  export ORACLE_HOME=/app/oracle/product/xx.x.x
+
+For Windows solution is to add this value to you PATH 
+
+  PATH=c:\app\oracle\product\xx.x.x;%PATH%
+  
+
+If you get past this stage and get a
+
+  ORA-12154: TNS:could not resolve the connect identifier specified 
+  
+error then the most likely cause is DBD::ORACLE cannot find your .ORA (TNSNAMES.ORA, LISTENER.ORA, SQLNET.ORA) files. This can be solved by setting the 
+TNS_ADMIN environment variable to the directory where these files can be found.
+
+If you get to this stage you then either of  the following errors;
+
+  ORA-12560: TNS:protocol adapter error
+  ORA-12162: TNS:net service name is incorrectly specified 
+
+
+usually means that DBD::Oracle can find the listener but the it cannot connect to the DB because the listener cannot find the DB you asked for. 
+
+=head2 Connection Examples Using DBD::Oracle
+
+It is best to not use ORACLE_SID or TWO_TASK as both of these are rather out of date. You are better off keeping it simple like the following examples
+
+  $dbh = DBI->connect('dbi:Oracle:DB','username','password');
+
+  $dbh = DBI->connect('dbi:Oracle:DB','username/password','');
+
+  $dbh = DBI->connect('dbi:Oracle:','username@DB','password');
+
+  $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=DB;port=1521', 'scott/tiger', '');
+
+
+For those who really want to use ORACLE_SID and TWO_TASK here are examples of it in use;
+
+Given this TNS entry;
+
+ DB.TEST = 
+    (DESCRIPTION =    
+         (ADDRESS =
+            (PROTOCOL = TCP)
+            (HOST = xxx.xxx.xxx.xx)
+            (PORT = 1523))    
+         (CONNECT_DATA =      (SID = DB)    )  
+)
+
+and this code
+
+  BEGIN {
+     $ENV{ORACLE_SID} = 'DB';
+  }
+  
+  $dbh = DBI->connect('dbi:Oracle:','username/password','');
+  
+you will be able to connect to DB. Note this may not work for Windows.
+
+TWO_TASK works the same way except it should override the value in ORACLE_SID so this
+
+  BEGIN {
+     $ENV{ORACLE_SID} = 'DB';
+     $ENV{TWO_TASK}  = 'DB.TEST';
+     
+  }
+  
+  $dbh = DBI->connect('dbi:Oracle:','username/password','');
+  
+will work as well. Note this may not work for Windows.
 
 
 =head2 Optimizing Oracle's listener
@@ -2797,13 +2925,13 @@ One point to remember when working with LOBs (CLOBs, BLOBs) is if your LOB colum
 =item NULL
 
 The table cell is created, but the cell holds no locator or value.
-If your LOB field is in this state then there is no LOB Locator that DBD::Oracle can work with so it will return a 
+If your LOB field is in this state then there is no LOB Locator that DBD::Oracle can work so if your encounter a 
 
   DBD::Oracle::db::ora_lob_read: locator is not of type OCILobLocatorPtr
   
-error. 
+error when working with a LOB. 
 
-To correct this you must use an SQL UPDATE statement to reset the LOB column to a non-NULL (or empty LOB) value with either EMPTY_BLOB or EMPTY_CLOB as in this example;
+You can correct this by using an SQL UPDATE statement to reset the LOB column to a non-NULL (or empty LOB) value with either EMPTY_BLOB or EMPTY_CLOB as in this example;
 
   UPDATE lob_example 
      SET bindata=EMPTY_BLOB()
@@ -2831,7 +2959,6 @@ There are no special settings, simply set the database handle's 'LongReadLen' at
 If the size of the LONG or LONG RAW exceeds  the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
 The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on.  You have most likely reached this limit if you run into
 an 'ORA-01062: unable to allocate memory for define buffer' error.  One solution is to set the size of 'LongReadLen' to a lower value. 
-
 
 
 For example give this table;
@@ -3170,7 +3297,7 @@ If you ever get an
   ORA-01691 unable to extend lob segment sss.ggg by nnn in tablespace ttt
 
 error, while attempting to insert a LOB, this means the Oracle user has insufficient space for LOB you are trying to insert.  
-One solution it to use "alter database datafile 'sss.ggg' resize nnnn" to increase the available memory for LOBs.
+One solution it to use "alter database datafile 'sss.ggg' resize Mnnn" to increase the available memory for LOBs.
 
 =head2 Persistent & Locator Interface Caveats
 
@@ -3215,12 +3342,6 @@ It's recommended that you upgrade to DBI 1.38 or later.)
 Note that LOB locators are only valid while the statement handle that
 created them is valid.  When all references to the original statement
 handle are lost, the handle is destroyed and the locators are freed.
-
-B<Warning:> Currently multi-byte character set issues have not been
-fully worked out.  So these methods may not do what you expect if
-either the Perl data is utf8 or the CLOB is a multi-byte character set
-(including uft8). The current behaviour in these situations may not be
-correct and is B<subject to change>. I<Testing and patches are most welcome.>
 
 =over 4
 
