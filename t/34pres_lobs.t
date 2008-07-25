@@ -35,7 +35,7 @@ my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1,
 my $ora_oci = DBD::Oracle::ORA_OCI(); # dualvar
 
 SKIP: {
-   	skip "OCI version less than 10.2\n Persistent LOBs Tests skiped.", 11 unless $ora_oci >= 10.2;
+   	skip "OCI version less than 9.2\n Persistent LOBs Tests skiped.", 29 unless $ora_oci >= 9.2;
 
 
 my $table = table();
