@@ -140,7 +140,7 @@ if (!$OH) {
   $ENV{$ORACLE_ENV} = $OH;
   print "\n";
   print "WARNING: Setting $ORACLE_ENV env var to $OH for you.\a\n";
-  print "WARNING: The tests will probably fail unless you set $ORACLE_ENV yourself!\n";
+  print "WARNING: If these tests fail you may have to set ORACLE_HOME yourself!\n";
   sleep 5;
 }
 

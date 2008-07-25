@@ -83,6 +83,7 @@ t/26exe_array.t
 t/28array_bind.t
 t/30long.t
 t/31lob.t
+t/31lob_extended.t
 t/32xmltype.t
 t/34pres_lobs.t
 t/40ph_type.t

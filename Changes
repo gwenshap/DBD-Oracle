@@ -1,5 +1,6 @@
 =head1 Changes in DBD-Oracle 1.22(svn rev xxxx)  2008 
-  Update to connection part of POB from  John Scoles
+  Added new Test 31lob_extended.t for use of LOBs when returned via stored procedures with bind_param_inout from Martin Evans 
+  Update to connection part of POD from  John Scoles
   Fix to test suite to bring it up to standard from Martin Evans
   Fix for memory hemorrhage in bind_param_inout_array found by Ricky Egeland, Fix by John Scoles
   Fix for a typo in oracle.xs from Milo van der Leij 

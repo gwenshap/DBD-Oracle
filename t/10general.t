@@ -22,7 +22,7 @@ my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect($dsn, $dbuser, '');
 
 unless($dbh) {
-    BAILOUT("Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n");
+    BAIL_OUT("Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n");
     exit 0;
 }
 

@@ -7,7 +7,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.21';
+$DBD::Oracle::VERSION = '1.22';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -2915,7 +2915,7 @@ With this interface DBD::Oracle handles your data utilizing LOB Locator OCI call
 
 This allows the user direct access to the LOB Locator methods, so you have to take case of the LOB Locator operations yourself.
 
-=back4
+=back 
 
 Generally speaking the interface that you will chose will be dependant on what end you are trying to achieve. All have their benefits and 
 drawbacks.

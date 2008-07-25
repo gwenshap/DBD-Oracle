@@ -135,15 +135,16 @@ sub run_select_tests {
       $sth->{ChopBlanks} = 1;
       ok($tmp = $sth->fetchall_arrayref, 'fetchall');
       my $dif;
-      $dif = DBI::data_diff($tmp->[0][1], $data0);
-      ok(!$dif, 'first row matches');
-      diag($dif) if $dif;
-      $dif = DBI::data_diff($tmp->[1][1], $data1);
-      ok(!$dif, 'second row matches');
-      diag($dif) if $dif;
-      $dif = DBI::data_diff($tmp->[2][1], $data2);
-      ok(!$dif, 'third row matches');
-      diag($dif) if $dif;
+      if ($utf8_test) {
+      	$dif = DBI::data_diff($tmp->[0][1], $data0);
+         ok(!defined($dif) || $dif eq '', 'first row matches');
+        diag($dif) if $dif;
+      } else {
+        is($tmp->[0][1], $data0, 'first row matches');
+      }
+      is($tmp->[1][1], $data1, 'second row matches');
+      is($tmp->[2][1], $data2, 'third row matches');
+
   }
 } # end of run_select_tests
 
