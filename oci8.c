@@ -199,8 +199,8 @@ oci_bind_options(ub4 options)
 		case OCI_SB2_IND_PTR:   return "SB2_IND_PTR";                          /* unused */
 		case OCI_DATA_AT_EXEC:  return "DATA_AT_EXEC";             /* data at execute time */
 		case OCI_PIECEWISE:   	return "PIECEWISE";         /* piecewise DMLs or fetch */
-		case OCI_BIND_SOFT:   	return "BIND_SOFT";               /* soft bind or define */
-		case OCI_DEFINE_SOFT:   return "DEFINE_SOFT";           /* soft bind or define */
+/*		case OCI_BIND_SOFT:   	return "BIND_SOFT";                soft bind or define */
+/*		case OCI_DEFINE_SOFT:   return "DEFINE_SOFT";            soft bind or define */
 /*		case OCI_IOV:   		return "";   11g only release 1.23 me thinks For scatter gather bind/define */
 
 	 }
@@ -243,8 +243,8 @@ oci_mode(ub4  mode)
 													 /* 	  nls validation suppression is on by default;*/
 													  /*   use OCI_ENABLE_NLS_VALIDATION to disable it */
 		case OCI_MUTEX_TRY:                return "MUTEX_TRY";    /* try and acquire mutex */
-		case OCI_NCHAR_LITERAL_REPLACE_ON: return "NCHAR_LITERAL_REPLACE_ON"; /* nchar literal replace on */
-		case OCI_NCHAR_LITERAL_REPLACE_OFF:return "NCHAR_LITERAL_REPLACE_OFF"; /* nchar literal replace off*/
+/*		case OCI_NCHAR_LITERAL_REPLACE_ON: return "NCHAR_LITERAL_REPLACE_ON";  nchar literal replace on */
+/*		case OCI_NCHAR_LITERAL_REPLACE_OFF:return "NCHAR_LITERAL_REPLACE_OFF";  nchar literal replace off*/
 /*		case OCI_ENABLE_NLS_VALIDATION:    return "ENABLE_NLS_VALIDATION";     enable nls validation */
 		/*------------------------OCIConnectionpoolCreate Modes----------------------*/
 		case OCI_CPOOL_REINITIALIZE:	return "CPOOL_REINITIALIZE";
@@ -2082,11 +2082,7 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
     sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
 
   	if (fbh->ftype != SQLT_BIN){
-		/**(fb_ary->cb_abuf+(actual_bufl))='\0'; /* add a null teminator
-		sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
-
-	} else {
-		sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);*/
+		
 		if (CSFORM_IMPLIES_UTF8(fbh->csform) ){ /* do the UTF 8 magic*/
 			SvUTF8_on(dest_sv);
 		}

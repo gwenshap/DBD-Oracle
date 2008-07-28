@@ -612,7 +612,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
             al16utf16_csid = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"AL16UTF16");
 
 #else /* (the old init code) NEW_OCI_INIT */
-        /* this is now depricated and will be removed as we no longer support <9.2 oracle
+        /* this is now depricated and will be removed as we no longer support <9.2 oracle*/
 	    /* XXX recent oracle docs recommend using OCIEnvCreate() instead of	*/
 	    /* OCIInitialize + OCIEnvInit, we'd need ifdef's for pre-OCIEnvNlsCreate */
 	    	OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
@@ -685,8 +685,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     *  BTW: NLS_NCHAR is set as follows: NSL_LANG=AL32UTF8
     */
     if (DBIS->debug >= 3 || dbd_verbose >= 3) {
-        char charsetname[OCI_NLS_MAXBUFSZ];
-        char ncharsetname[OCI_NLS_MAXBUFSZ];
+        oratext  charsetname[OCI_NLS_MAXBUFSZ];
+        oratext  ncharsetname[OCI_NLS_MAXBUFSZ];
        	OCINlsCharSetIdToName(imp_dbh->envhp,charsetname, sizeof(charsetname),charsetid );
        	OCINlsCharSetIdToName(imp_dbh->envhp,ncharsetname, sizeof(ncharsetname),ncharsetid );
      	PerlIO_printf(DBILOGFP,"       charset id=%d, name=%s, ncharset id=%d, name=%s"
@@ -1038,7 +1038,7 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
   dTHX;
   dTHR;
   OCIXMLType *xml = NULL;
-  ub4 len;
+  STRLEN len;
   sword status;
   ub1 src_type;
   dvoid* src_ptr = NULL;

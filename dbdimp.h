@@ -277,7 +277,7 @@ void ora_free_fbh_contents _((imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
 fb_ary_t *fb_ary_alloc _((ub4 bufl, int size));
-fb_ary_t *fb_ary_cb_alloc _((ub4 bufl,ub4 cb_bufl, int size));
+fb_ary_t *fb_ary_cb_alloc _((ub4 piece_size,ub4 max_len, int size));
 
 int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
 
