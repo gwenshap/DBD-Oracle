@@ -1184,11 +1184,10 @@ If you get past this stage and get a
 error then the most likely cause is DBD::ORACLE cannot find your .ORA (TNSNAMES.ORA, LISTENER.ORA, SQLNET.ORA) files. This can be solved by setting the 
 TNS_ADMIN environment variable to the directory where these files can be found.
 
-If you get to this stage you then either of  the following errors;
+If you get to this stage and you then either one of the following errors;
 
   ORA-12560: TNS:protocol adapter error
   ORA-12162: TNS:net service name is incorrectly specified 
-
 
 usually means that DBD::Oracle can find the listener but the it cannot connect to the DB because the listener cannot find the DB you asked for. 
 

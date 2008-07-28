@@ -242,7 +242,7 @@ oci_mode(ub4  mode)
 /*		case OCI_SUPPRESS_NLS_VALIDATION:  return "SUPPRESS_NLS_VALIDATION";   suppress nls validation*/
 													 /* 	  nls validation suppression is on by default;*/
 													  /*   use OCI_ENABLE_NLS_VALIDATION to disable it */
-		case OCI_MUTEX_TRY:                return "MUTEX_TRY";    /* try and acquire mutex */
+/*		case OCI_MUTEX_TRY:                return "MUTEX_TRY";     try and acquire mutex */
 /*		case OCI_NCHAR_LITERAL_REPLACE_ON: return "NCHAR_LITERAL_REPLACE_ON";  nchar literal replace on */
 /*		case OCI_NCHAR_LITERAL_REPLACE_OFF:return "NCHAR_LITERAL_REPLACE_OFF";  nchar literal replace off*/
 /*		case OCI_ENABLE_NLS_VALIDATION:    return "ENABLE_NLS_VALIDATION";     enable nls validation */
