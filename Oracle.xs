@@ -464,6 +464,24 @@ ora_lob_length(dbh, locator)
     }
 
 
+void
+ora_lob_chunk_size(dbh, locator)
+    SV *dbh
+    OCILobLocator   *locator
+    PREINIT:
+    D_imp_dbh(dbh);
+    sword status;
+    ub4 chunk_size = 0;
+    CODE:
+    OCILobGetChunkSize_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &chunk_size, status);
+    if (status != OCI_SUCCESS) {
+        oci_error(dbh, imp_dbh->errhp, status, "OCILobGetChunkSize");
+        ST(0) = &sv_undef;
+    }
+    else {
+        ST(0) = sv_2mortal(newSVuv(chunk_size));
+    }
+
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::dr
 

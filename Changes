@@ -1,4 +1,8 @@
 =head1 Changes in DBD-Oracle 1.22(svn rev xxxx)  2008 
+  Patch to Makfile for 64bit boxes from Alex Laslavic
+  Added OCILobGetLength to lob functions from Milo van der Leij
+  Updated readmes to state the test user has to have create, call and drop a procedure privileges by John Scoles suggested by Gisle Aas  
+  Patch to Makfile to prevent the installation of the lib/DBD/mkta.pl fil from Gisle Aas  
   Added new Test 31lob_extended.t for use of LOBs when returned via stored procedures with bind_param_inout from Martin Evans 
   Update to connection part of POD from  John Scoles
   Fix to test suite to bring it up to standard from Martin Evans
@@ -22,6 +26,7 @@
 
   
 =head1 Changes in DBD-Oracle 1.21(svn rev 11067) 11th April 2008 
+ 
   Added Notes to README.win32.txt on installing Instant Client 11.1.0.6.0 from John Scoles
   Added the oci_typecode_name method to get the name rather than just the number of an OCI_TYPECODE from John Scoles
   Fixed a unreported bug with Embedded Objects from John Scoles

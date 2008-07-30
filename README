@@ -110,8 +110,10 @@ The supplied tests will connect to the database using the value of the
 ORACLE_USERID environment variable to supply the username/password.
 So you should set that to a valid user (e.g. 'scott/tiger') and ensure that
 this user has sufficient privileges to create, insert into, select from and 
-drop a table, and is able to select from systemtables like 'v$sessions'.
-Using 'system/manager' might work but is not recommended! See also
+drop a table,  is also able to create, call and drop a procedure  and is able to select from 
+systemtables like 'v$sessions'. Using 'system/manager' might work but is not
+recommended! See also
+
 README.login.txt.
 
     make test

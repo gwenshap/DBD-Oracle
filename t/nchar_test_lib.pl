@@ -364,7 +364,7 @@ sub cmp_ok_byte_nice {
     return $ok1 && $ok2;
 }
 
-sub create_table 
+sub create_table
 {
     my ($dbh,$tdata,$drop) = @_;
     my $tcols = $tdata->{cols};
@@ -383,6 +383,8 @@ sub create_table
         $dbh->do(qq{ drop table $table });
         warn "Unexpectedly had to drop old test table '$table'\n" unless $dbh->err;
         $dbh->do($sql);
+    } elsif ($dbh->err) {
+        return;
     } else {
        #$sql =~ s/ \( */(\n\t/g;
        #$sql =~ s/, */,\n\t/g;
@@ -522,4 +524,3 @@ select $cols from $table;
 
 
 1;
-

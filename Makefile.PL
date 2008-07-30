@@ -1442,8 +1442,13 @@ sub find_headers {
        "/include/oracle/$client_version_trim/client", # Instant Client for RedHat FC3
        "/usr/include/oracle/$client_version/client", # Instant Client 11.1 and up
        "/usr/include/oracle/$client_version/client64", # Instant Client 11.1 and up
+       "/usr/include/oracle/$client_version_trim/client64", # Instant Client 64
+       "/usr/include/oracle/$client_version_full/client64", # Instant Client 64
+       
     );
 
+
+     
    # Add /usr/include/oracle based on the oracle home location if oracle home is under
    # /usr/lib/oracle ( Linux RPM install ).  The 11g instant client reports
    # client_version as 11.1.0.6 from sqlplus, but installs under 11.1.0.1.
@@ -1634,6 +1639,12 @@ sub symbol_search {
 
     use strict;
     use Config;
+
+    sub libscan {
+       my($self, $path) = @_;
+       return '' if $path =~ m/\.pl$/;
+       $path;
+    }
 
 
     sub post_initialize {

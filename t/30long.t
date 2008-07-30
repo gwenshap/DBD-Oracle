@@ -18,8 +18,11 @@ push @test_sets, [ "NCLOB",	ORA_CLOB,	0 ] unless ORA_OCI() < 9.0 or $ENV{DBD_ALL
 push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] ;
 push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
 
-my $tests_per_set = 94;
-my $tests = @test_sets * $tests_per_set;
+my $tests_per_set = 96;
+my $tests = @test_sets * $tests_per_set-1; 
+#very odd little thing that took a while to figure out.
+#Seems I now have 479 tests which is 9 more so 96 test then -1 to round it off
+
 plan tests => $tests;
 
 $| = 1;
@@ -306,6 +309,11 @@ sub run_long_tests
                 ok($lob_locator, '$lob_locator is true' );
                 is(ref $lob_locator , 'OCILobLocatorPtr', '$lob_locator is a OCILobLocatorPtr' );
                 ok( (ref $lob_locator and $$lob_locator), '$lob_locator deref ptr is true' ) ;
+                
+                # check ora_lob_chunk_size:
+		my $chunk_size = $dbh->func($lob_locator, 'ora_lob_chunk_size');
+		ok(!$DBI::err, "DBI::errstr");
+		
                 my $data = sprintf $data_fmt, $idx; #create a little data
                 diag("length of data to be written at offset 1: " .length($data) ."\n" );
                 ok($dbh->func($lob_locator, 1, $data, 'ora_lob_write') ,"ora_lob_write" );

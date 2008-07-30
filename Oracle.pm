@@ -72,6 +72,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
         DBD::Oracle::db->install_method("ora_lob_append");
         DBD::Oracle::db->install_method("ora_lob_trim");
         DBD::Oracle::db->install_method("ora_lob_length");
+        DBD::Oracle::db->install_method("ora_lob_chunk_size");
         DBD::Oracle::db->install_method("ora_nls_parameters");
         DBD::Oracle::db->install_method("ora_can_unicode");
  	DBD::Oracle::st->install_method("ora_fetch_scroll");
@@ -3378,6 +3379,18 @@ Uses the Oracle OCILobTrim function.
 Returns the length of the LOB.
 Uses the Oracle OCILobGetLength function.
 
+=item ora_lob_chunk_size
+
+  $chunk_size = $dbh->ora_lob_chunk_size($lob_locator);
+
+Returns the chunk size of the LOB.
+Uses the Oracle OCILobGetChunkSize function.
+
+For optimal performance, Oracle recommends reading from and
+writing to a LOB in batches using a multiple of the LOB chunk size.
+In Oracle 10g and before, when all defaults are in place, this
+chunk size defaults to 8k (8192).
+
 =back
 
 =head3 LOB Locator Method Examples
@@ -3449,7 +3462,7 @@ can't be used effectively if AutoCommit is enabled).
 
    open BIN_FH, "/binary/data/source" or die;
    open CHAR_FH, "/character/data/source" or die;
-   my $chunk_size = 4096;   # Arbitrary chunk size
+   my $chunk_size = $dbh->ora_lob_chunk_size( $bin_locator );
 
    # BEGIN WRITING BIN_DATA COLUMN
    my $offset = 1;   # Offsets start at 1, not 0
@@ -3461,6 +3474,7 @@ can't be used effectively if AutoCommit is enabled).
    }
 
    # BEGIN WRITING CHAR_DATA COLUMN
+   $chunk_size = $dbh->ora_lob_chunk_size( $char_locator );
    $offset = 1;   # Offsets start at 1, not 0
    $length = 0;
    $buffer = '';

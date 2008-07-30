@@ -353,6 +353,15 @@
 	  OciTp, (void*)sh,(void*)eh,(void*)lh,pul_t(l),		\
 	  oci_status_name(stat)),stat : stat
 
+
+#define OCILobGetChunkSize_log_stat(sh,eh,lh,cs,stat)                      \
+	stat=OCILobGetChunkSize(sh,eh,lh,cs);				\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
+	  "%sLobGetChunkSize(%p,%p,%p,%p)=%s\n",				\
+	  OciTp, (void*)sh,(void*)eh,(void*)lh,pul_t(cs),		\
+	  oci_status_name(stat)),stat : stat
+
+
 #define OCILobFileOpen_log_stat(sv,eh,lh,mode,stat) \
 	stat=OCILobFileOpen(sv,eh,lh,mode);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
