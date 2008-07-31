@@ -249,7 +249,7 @@ ora_ping(dbh)
 	CODE:
 	/*simply does a call to OCIServerVersion which should make 1 round trip*/
     /*later I will replace this with the actual OCIPing command*/
-    /*This will work if the DB goes down, /*
+    /*This will work if the DB goes down, */
     /*If the listener goes down it is another case as the Listener is needed to establish the connection not maintain it*/
     /*so we should stay connected but we cannot get nay new connections*/
 	{

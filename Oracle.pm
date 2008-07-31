@@ -3145,6 +3145,8 @@ to a remote database called 'test_lobs', the following code will work;
   
 Below are the limitations of Remote LOBs;
 
+=over
+
 =item Queries involving more than one database are not supported;
 
 so the following returns an error:
