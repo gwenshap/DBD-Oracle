@@ -23,7 +23,7 @@ SKIP: {
     plan skip_all => "Database NCHAR character set is not Unicode" if not db_nchar_is_utf($dbh) ;
     $dbh->disconnect();
 
-    print " --- testing implicit csform (dbhimp.c sets csform implicitly)\n" ;
+    diag(" --- testing implicit csform (dbhimp.c sets csform implicitly)\n") ;
     my $tdata = test_data( 'wide_nchar' );
     my $testcount = 0 
                   + insert_test_count( $tdata )
@@ -37,7 +37,7 @@ SKIP: {
     foreach my $nchar_cset (@nchar_cset)  {
         $dbh->disconnect() if $dbh;
 	undef $dbh;
-        print " --- testing with NLS_NCHAR=$nchar_cset\n" ;
+        diag(" --- testing with NLS_NCHAR=$nchar_cset\n") ;
         SKIP: { 
             set_nls_nchar( $nchar_cset ,1 ); 
             $dbh = db_handle();

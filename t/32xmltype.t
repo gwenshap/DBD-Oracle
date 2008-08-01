@@ -31,7 +31,11 @@ my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1,
 # check that our db handle is good
 isa_ok($dbh, "DBI::db");
 
+
+
 my $table = table();
+eval { $dbh->do("DROP TABLE $table") };
+
 $dbh->do(qq{
 	CREATE TABLE $table (
 	    id INTEGER NOT NULL,

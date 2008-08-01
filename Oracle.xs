@@ -21,7 +21,7 @@ constant(name=Nullch)
     ORA_CHAR	 =  96
     ORA_CHARZ	 =  97
     ORA_MLSLABEL = 105
-    ORA_XMLTYPE	 = 108
+    ORA_XMLTYPE	 = ORA_XMLTYPE
     ORA_CLOB	 = 112
     ORA_BLOB	 = 113
     ORA_RSET	 = 116
@@ -123,6 +123,10 @@ ora_fetch_scroll(sth,fetch_orient,fetch_offset)
     ST(0) = (av) ? sv_2mortal(newRV((SV *)av)) : &PL_sv_undef;
 }
 
+
+
+
+
 void
 ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
     SV *	sth
@@ -142,14 +146,14 @@ ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
 	croak("Modification of a read-only value attempted");
     if (attribs) {
     	if (SvNIOK(attribs)) {
-	    sql_type = SvIV(attribs);
-	    attribs = Nullsv;
-	}
-	else {
-	    SV **svp;
-	    DBD_ATTRIBS_CHECK("bind_param", sth, attribs);
-	    DBD_ATTRIB_GET_IV(attribs, "ora_type",4, svp, sql_type);
-	}
+	    	sql_type = SvIV(attribs);
+	    	attribs = Nullsv;
+		}
+		else {
+	   	 	SV **svp;
+	    	DBD_ATTRIBS_CHECK("bind_param", sth, attribs);
+	    	DBD_ATTRIB_GET_IV(attribs, "ora_type",4, svp, sql_type);
+		}
     }
     ST(0) = dbd_bind_ph(sth, imp_sth, param,av_value, sql_type, attribs, TRUE, maxlen)
 		? &sv_yes : &sv_no;
@@ -234,6 +238,30 @@ cancel(sth)
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::db
 
+
+void
+ora_ping(dbh)
+	SV *dbh
+	PREINIT:
+	D_imp_dbh(dbh);
+	sword status;
+	text buf[2];
+	CODE:
+	/*simply does a call to OCIServerVersion which should make 1 round trip*/
+    /*later I will replace this with the actual OCIPing command*/
+    /*This will work if the DB goes down, */
+    /*If the listener goes down it is another case as the Listener is needed to establish the connection not maintain it*/
+    /*so we should stay connected but we cannot get nay new connections*/
+	{
+	OCIServerVersion_log_stat(imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
+	if (status != OCI_SUCCESS){
+		XSRETURN_IV(0);
+	} else {
+		XSRETURN_IV(1);
+	}
+}
+
+
 void
 reauthenticate(dbh, uid, pwd)
     SV *	dbh
@@ -308,7 +336,7 @@ ora_lob_append(dbh, locator, data)
     STRLEN data_len; /* bytes not chars */
     dvoid *bufp;
     sword status;
-#if defined(ORA_OCI_8) || !defined(OCI_HTYPE_DIRPATH_FN_CTX) /* Oracle is < 9.0 */
+#if !defined(OCI_HTYPE_DIRPATH_FN_CTX) /* Oracle is < 9.0 */
     ub4 startp;
 #endif
     ub1 csform;
@@ -339,7 +367,6 @@ ora_lob_append(dbh, locator, data)
 #endif /* OCI_ATTR_CHARSET_ID */
     /* if data is utf8 but charset isn't then switch to utf8 csid */
     csid = (SvUTF8(data) && !CS_IS_UTF8(csid)) ? utf8_csid : CSFORM_IMPLIED_CSID(csform);
-#if !defined(ORA_OCI_8) && defined(OCI_HTYPE_DIRPATH_FN_CTX) /* Oracle is >= 9.0 */
     OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 			       &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
 			       NULL, NULL,
@@ -351,31 +378,6 @@ ora_lob_append(dbh, locator, data)
     else {
        ST(0) = &sv_yes;
     }
-#else
-    OCILobGetLength_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &startp, status);
-    if (status != OCI_SUCCESS) {
-       oci_error(dbh, imp_dbh->errhp, status, "OCILobGetLength");
-       ST(0) = &sv_undef;
-    } else {
-       /* start one after the end -- the first position in the LOB is 1 */
-       startp++;
-       if (DBIS->debug >= 2 )
-            PerlIO_printf(DBILOGFP, "    Calling OCILobWrite with csid=%d csform=%d\n",csid, csform );
-       OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
-			    &amtp, startp,
-			    bufp, (ub4)data_len, OCI_ONE_PIECE,
-			    NULL, NULL,
-			    csid, csform , status);
-       if (status != OCI_SUCCESS) {
-	  oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
-	  ST(0) = &sv_undef;
-       }
-       else {
-	  ST(0) = &sv_yes;
-       }
-    }
-#endif
-
 
 void
 ora_lob_read(dbh, locator, offset, length)
@@ -454,13 +456,31 @@ ora_lob_length(dbh, locator)
     CODE:
     OCILobGetLength_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &len, status);
     if (status != OCI_SUCCESS) {
-        oci_error(dbh, imp_dbh->errhp, status, "OCILobTrim");
+        oci_error(dbh, imp_dbh->errhp, status, "OCILobGetLength");
 	ST(0) = &sv_undef;
     }
     else {
 	ST(0) = sv_2mortal(newSVuv(len));
     }
 
+
+void
+ora_lob_chunk_size(dbh, locator)
+    SV *dbh
+    OCILobLocator   *locator
+    PREINIT:
+    D_imp_dbh(dbh);
+    sword status;
+    ub4 chunk_size = 0;
+    CODE:
+    OCILobGetChunkSize_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &chunk_size, status);
+    if (status != OCI_SUCCESS) {
+        oci_error(dbh, imp_dbh->errhp, status, "OCILobGetChunkSize");
+        ST(0) = &sv_undef;
+    }
+    else {
+        ST(0) = sv_2mortal(newSVuv(chunk_size));
+    }
 
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::dr
