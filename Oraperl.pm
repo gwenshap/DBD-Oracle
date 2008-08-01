@@ -19,7 +19,7 @@ package Oraperl;
 
 require 5.004;
 
-use DBI 1.21;
+use DBI 1.22;
 use Exporter;
 
 $VERSION = substr(q$Revision: 1.44 $, 10);

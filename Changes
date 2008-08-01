@@ -1,4 +1,5 @@
-=head1 Changes in DBD-Oracle 1.22(svn rev xxxx)  2008 
+=head1 Changes in DBD-Oracle 1.22(svn rev 11618)  2008 
+  Patch to remove compiler warnings from H.Merijn Brand
   Patch to Makfile for 64bit boxes from Alex Laslavic
   Added OCILobGetLength to lob functions from Milo van der Leij
   Updated readmes to state the test user has to have create, call and drop a procedure privileges by John Scoles suggested by Gisle Aas  
