@@ -658,50 +658,51 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 	if( bindp ) { /* For GCC not to warn on unused parameter*/ }
 
  		/* Check for bind values supplied by tuple array. */
-		tuples_av = phs->imp_sth->bind_tuples;
-		if(tuples_av) {
-		   	/* NOTE: we already checked the validity in ora_st_bind_for_array_exec(). */
-		   	sv_p = av_fetch(tuples_av, phs->imp_sth->rowwise ? (int)iter : phs->idx, 0);
-		   	av = (AV*)SvRV(*sv_p);
-		   	sv_p = av_fetch(av, phs->imp_sth->rowwise ? phs->idx : (int)iter, 0);
-			sv = *sv_p;
-	   		if(SvOK(sv)) {
-	     		*bufpp = SvPV(sv, phs_len);
-	     		phs->alen = (phs->alen_incnull) ? phs_len+1 : phs_len;
-	     		phs->indp = 0;
-	   		} else {
-	     		*bufpp = SvPVX(sv);
-	     		phs->alen = 0;
-	     		phs->indp = -1;
-	   		}
-    	}
-    	else
-    		if (phs->desc_h) {
-				*bufpp  = phs->desc_h;
-				phs->alen = 0;
-				phs->indp = 0;
-    	}
-    	else
-    		if (SvOK(phs->sv)) {
-				*bufpp  = SvPV(phs->sv, phs_len);
+	tuples_av = phs->imp_sth->bind_tuples;
+	if(tuples_av) {
+	   	/* NOTE: we already checked the validity in ora_st_bind_for_array_exec(). */
+	   	sv_p = av_fetch(tuples_av, phs->imp_sth->rowwise ? (int)iter : phs->idx, 0);
+	   	av = (AV*)SvRV(*sv_p);
+	   	sv_p = av_fetch(av, phs->imp_sth->rowwise ? phs->idx : (int)iter, 0);
+		sv = *sv_p;
+		if(SvOK(sv)) {
+	   		*bufpp = SvPV(sv, phs_len);
+	   		phs->alen = (phs->alen_incnull) ? phs_len+1 : phs_len;
+	   		phs->indp = 0;
+		} else {
+	   		*bufpp = SvPVX(sv);
+	   		phs->alen = 0;
+	   		phs->indp = -1;
+		}
+    }
+    else
+	if (phs->desc_h) {
+		*bufpp  = phs->desc_h;
+		phs->alen = 0;
+		phs->indp = 0;
+    }
+    else
+   	if (SvOK(phs->sv)) {
+		*bufpp  = SvPV(phs->sv, phs_len);
 		phs->alen = (phs->alen_incnull) ? phs_len+1 : phs_len;;
 		phs->indp = 0;
-   	}
-    else {
+	}
+   	else {
 		*bufpp  = SvPVX(phs->sv);	/* not actually used? */
 		phs->alen = 0;
 		phs->indp = -1;
-    }
-    *alenp  = phs->alen;
-    *indpp  = &phs->indp;
-    *piecep = OCI_ONE_PIECE;
-    if (DBIS->debug >= 3 || dbd_verbose >=3)
- 		PerlIO_printf(DBILOGFP, "       in  '%s' [%lu,%lu]: len %2lu, ind %d%s, value=%s\n",
+   	}
+   	*alenp  = phs->alen;
+   	*indpp  = &phs->indp;
+   	*piecep = OCI_ONE_PIECE;
+   	if (DBIS->debug >= 3 || dbd_verbose >=3)
+		PerlIO_printf(DBILOGFP, "       in  '%s' [%lu,%lu]: len %2lu, ind %d%s, value=%s\n",
 			phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
 			(phs->desc_h) ? " via descriptor" : "",neatsvpv(phs->sv,10));
-    if (!tuples_av && (index > 0 || iter > 0))
+   	if (!tuples_av && (index > 0 || iter > 0))
 		croak(" Arrays and multiple iterations not currently supported by DBD::Oracle (in %d/%d)", index,iter);
-    return OCI_CONTINUE;
+
+   	return OCI_CONTINUE;
 }
 
 /*
@@ -1625,7 +1626,7 @@ calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs)
     return cache_rows;
 }
 
-/* called by get_object to return the actual value in the proerty */
+/* called by get_object to return the actual value in the property */
 
 static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typecode, dvoid   *attr_value )
 {
@@ -2082,7 +2083,7 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
     sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
 
   	if (fbh->ftype != SQLT_BIN){
-		
+
 		if (CSFORM_IMPLIES_UTF8(fbh->csform) ){ /* do the UTF 8 magic*/
 			SvUTF8_on(dest_sv);
 		}
@@ -3396,7 +3397,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
     	char new_tablename[100];
     	ub4 syn_schema_len = 0, syn_name_len = 0,tn_len;
       	OCIAttrGet_log_stat(imp_sth->dschp,  OCI_HTYPE_DESCRIBE,
-				  &parmhp, 0, OCI_ATTR_PARAM, errhp, status);				  
+				  &parmhp, 0, OCI_ATTR_PARAM, errhp, status);
       	OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
       		      &syn_schema, &syn_schema_len, OCI_ATTR_SCHEMA_NAME, errhp, status);
 		OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,

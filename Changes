@@ -1,3 +1,7 @@
+=head1 Changes in DBD-Oracle 1.23(svn rev #####)  
+  Patch for UTF8 check on execute_array from David Mansfield and a little by John Scoles
+  
+  
 =head1 Changes in DBD-Oracle 1.22(svn rev 11618)  1st Aug 2008 
   Patch to remove compiler warnings from H.Merijn Brand
   Patch to Makfile for 64bit boxes from Alex Laslavic

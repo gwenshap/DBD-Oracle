@@ -43,8 +43,15 @@ int ora_fetchtest;	/* intrnal test only, not thread safe */
 int is_extproc = 0;
 int dbd_verbose = 0; /* DBD only debugging*/
 
+/* bitflag constants for figuring out how to handle utf8 for array binds */
+#define ARRAY_BIND_NATIVE 0x01
+#define ARRAY_BIND_UTF8   0x02
+#define ARRAY_BIND_MIXED  (ARRAY_BIND_NATIVE|ARRAY_BIND_UTF8)
+
+
 ub2 charsetid = 0;
 ub2 ncharsetid = 0;
+ub2 us7ascii_csid = 1;
 ub2 utf8_csid = 871;
 ub2 al32utf8_csid = 873;
 ub2 al16utf16_csid = 2000;
@@ -369,8 +376,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     	DBD_ATTRIB_GET_IV(  attr, "dbd_verbose",  11, svp, dbd_verbose);
 	if (DBD_ATTRIB_TRUE(attr,"ora_verbose",11,svp))
     	DBD_ATTRIB_GET_IV(  attr, "ora_verbose",  11, svp, dbd_verbose);
-   
-  
+
+
     /* dbi_imp_data code adapted from DBD::mysql */
     if (DBIc_has(imp_dbh, DBIcf_IMPSET)) {
         /* dbi_imp_data from take_imp_data */
@@ -404,13 +411,13 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		mg = mg_find(shared_dbh_priv_sv, PERL_MAGIC_shared_scalar) ;
 
 		shared_dbh_ssv = (shared_sv * )(mg?mg -> mg_ptr:NULL) ;  /*sharedsv_find(*shared_dbh_priv_sv) ;*/
-		
+
 		if (!shared_dbh_ssv)
 			croak ("value of ora_dbh_share must be a scalar that is shared") ;
 
 		shared_dbh 		= (imp_dbh_t *)SvPVX(shared_dbh_ssv -> sv) ;
 		shared_dbh_len 	= SvCUR((shared_dbh_ssv -> sv)) ;
-		
+
 		if (shared_dbh_len > 0 && shared_dbh_len != sizeof (imp_dbh_t))
 	    	croak ("Invalid value for ora_dbh_dup") ;
 
@@ -429,7 +436,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 #endif
 
     /* Check if we should re-use a ProC connection and not connect ourselves. */
-    
+
     DBD_ATTRIB_GET_IV(attr, "ora_use_proc_connection", 23,
 		      use_proc_connection_sv, use_proc_connection);
 
@@ -558,7 +565,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	    attribute and ncharset controls the encoding for data with SQLCS_NCHAR
 	    form attribute.
 	    }*/
-				
+
             OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
 			charsetid, ncharsetid, status );
             if (status != OCI_SUCCESS) {
@@ -581,7 +588,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
             }
 
             svp = DBD_ATTRIB_GET_SVP(attr, "ora_ncharset", 12); /*get the ncharset passed in by the user*/
-            
+
             if (svp) {
                 if (!SvPOK(*svp)) {
                     croak("ora_ncharset is not a string");
@@ -616,8 +623,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	    /* XXX recent oracle docs recommend using OCIEnvCreate() instead of	*/
 	    /* OCIInitialize + OCIEnvInit, we'd need ifdef's for pre-OCIEnvNlsCreate */
 	    	OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
-	    
-	    
+
+
 	    	if (status != OCI_SUCCESS) {
 				oci_error(dbh, NULL, status,
 			    "OCIInitialize. Check Check ORACLE_HOME (Linux) env var  or PATH (Windows) and or NLS settings, permissions, etc");
@@ -649,7 +656,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 						err_hint = "SQLEnvGet failed to load ProC environment";
 		   			oci_error(dbh, (OCIError*)imp_dbh->envhp, status, err_hint);
 		   			return 0;
-				}		
+				}
 	    	}
 	    	else {
 				OCIEnvInit_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, 0, status);
@@ -771,7 +778,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 				OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 			    OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
-                 
+
 				return 0;
 	    	}
 
@@ -2253,8 +2260,8 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
    		phs->maxlen  = ((IV)SvLEN(phs->sv)); /* avail buffer space (64bit safe) Logicaly maxlen should never change but it does why I know not*/
 
     }
-  	   
-    
+
+
     if (phs->maxlen < 0)		/* can happen with nulls	*/
 	  phs->maxlen = 0;
 
@@ -2302,15 +2309,15 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 			   (ub4)OCI_DEFAULT,
 			   status
 			   );
- 
+
  	if (status != OCI_SUCCESS) {
       oci_error(sth, imp_sth->errhp, status, "OCIBindByName SQLT_RSET");
       return 0;
     }
- 
+
  	if (DBIS->debug >= 3 || dbd_verbose >=3)
 		PerlIO_printf(DBILOGFP, "    pp_rebind_ph_rset_in: END\n");
-		
+
     return 2;
 }
 
@@ -2342,11 +2349,11 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	    phs->desc_t = OCI_HTYPE_STMT;
 	    OCIHandleAlloc_ok(imp_sth->envhp, &phs->desc_h, phs->desc_t, status);
 	}
-	
-	
+
+
 	phs->progv = (char*)&phs->desc_h;
 	phs->maxlen = 0;
-	
+
 	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 		(text*)phs->name, (sb4)strlen(phs->name),
 		phs->progv, 0,
@@ -2397,8 +2404,8 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	imp_sth_csr->piece_size = imp_sth->piece_size;
 	imp_sth_csr->piece_lob  = imp_sth->piece_lob;
 	imp_sth_csr->is_child   = 1; /*no prefetching on a cursor or sp*/
-	
-	
+
+
 	/* assign statement handle from placeholder descriptor	*/
 	imp_sth_csr->stmhp = (OCIStmt*)phs->desc_h;
 	phs->desc_h = NULL;		  /* tell phs that we own it now	*/
@@ -2531,8 +2538,8 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		    PerlIO_printf(DBILOGFP, "      rebind %s done with ftype %d (%s)\n",
 			    phs->name, phs->ftype,sql_typecode_name(phs->ftype));
 		return 1;
-    } 
-    
+    }
+
     if (trace_level >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(DBILOGFP, "      bind %s as ftype %d (%s)\n",
 		phs->name, phs->ftype,sql_typecode_name(phs->ftype));
@@ -3086,13 +3093,20 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 }
 
 static int
-do_bind_array_exec(sth, imp_sth, phs)
+do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_status_av)
     SV *sth;
     imp_sth_t *imp_sth;
     phs_t *phs;
-{
+    int utf8;
+    AV *tuples_utf8_av,*tuples_status_av;
+    int parma_index;
+    {
 	dTHX;
     sword status;
+    ub1 csform;
+	ub2 csid;
+	int trace_level = DBIS->debug;
+    int i;
     OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
             (text*)phs->name, (sb4)strlen(phs->name),
             0,
@@ -3117,6 +3131,87 @@ do_bind_array_exec(sth, imp_sth, phs)
         oci_error(sth, imp_sth->errhp, status, "OCIBindDynamic");
         return 0;
     }
+    /* copied and adapted from dbd_rebind_ph */
+
+	csform = phs->csform;
+
+	if (!csform && (utf8 & ARRAY_BIND_UTF8)) {
+		/* try to default csform to avoid translation through non-unicode */
+		if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT))                /* prefer IMPLICIT */
+			csform = SQLCS_IMPLICIT;
+		else if (CSFORM_IMPLIES_UTF8(SQLCS_NCHAR))
+			csform = SQLCS_NCHAR;   /* else leave csform == 0 */
+		if (trace_level || dbd_verbose >= 1)
+			PerlIO_printf(DBILOGFP, "do_bind_array_exec() (2): rebinding %s with UTF8 value %s", phs->name,
+				(csform == SQLCS_IMPLICIT) ? "so setting csform=SQLCS_IMPLICIT" :
+				(csform == SQLCS_NCHAR)    ? "so setting csform=SQLCS_NCHAR" :
+				 "but neither CHAR nor NCHAR are unicode\n");
+		}
+
+	if (csform) {
+		/* set OCI_ATTR_CHARSET_FORM before we get the default OCI_ATTR_CHARSET_ID */
+		OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+			&csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
+		if ( status != OCI_SUCCESS ) {
+			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)"));
+			return 0;
+		}
+	}
+
+	if (!phs->csid_orig) {      /* get the default csid Oracle would use */
+		OCIAttrGet_log_stat(phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
+			OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
+	}
+
+	/* if app has specified a csid then use that, else use default */
+	csid = (phs->csid) ? phs->csid : phs->csid_orig;
+
+	/* if data is utf8 but charset isn't then switch to utf8 csid if possible */
+	if ((utf8 & ARRAY_BIND_UTF8) && !CS_IS_UTF8(csid)) {
+	   /* if the specified or default csid is not utf8 _compatible_ AND we have
+	    * mixed utf8 and native (non-utf8) data, then it's a fatal problem
+	    * utf8 _compatible_ means, can be upgraded to utf8, ie. utf8 or ascii */
+	    if ((utf8 & ARRAY_BIND_NATIVE) && CS_IS_NOT_UTF8(csid)) {
+				oratext  charsetname[OCI_NLS_MAXBUFSZ];
+				OCINlsCharSetIdToName(imp_sth->envhp,charsetname, sizeof(charsetname),csid );
+
+				for(i=0;i<av_len(tuples_utf8_av)+1;i++){
+					SV *err_svs[2];
+					SV *item;
+					item=*(av_fetch(tuples_utf8_av,i,0));
+					err_svs[0] = newSViv((IV)0);
+        			err_svs[1] = newSVpvf("DBD Oracle Warning: You have mixed utf8 and non-utf8 in an array bind in parameter#%d. This may result in corrupt data. The Query charset id=%d, name=%s",parma_index+1,csid,charsetname);
+        		    av_store(tuples_status_av,SvIV(item),newRV_noinc((SV *)(av_make(2, err_svs))));
+        		}
+        		/*av_store(tuples_status_av,tuple_index,
+                     newRV_noinc((SV *)(av_make(2, err_svs))));
+*/
+
+
+		}
+	    csid = utf8_csid; /* not al32utf8_csid here on purpose */
+	}
+
+	if (trace_level >= 3 || dbd_verbose >= 3 )
+		PerlIO_printf(DBILOGFP, "do_bind_array_exec(): bind %s <== [array of values] "
+			"(%s, %s, csid %d->%d->%d, ftype %d (%s), csform %d->%d, maxlen %lu, maxdata_size %lu)\n",
+			phs->name,
+			(phs->is_inout) ? "inout" : "in",
+			(utf8 ? "is-utf8" : "not-utf8"),
+			phs->csid_orig, phs->csid, csid,
+			phs->ftype,sql_typecode_name(phs->ftype), phs->csform, csform,
+			(unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
+
+
+	if (csid) {
+		OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+			&csid, (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
+		if ( status != OCI_SUCCESS ) {
+			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)"));
+			return 0;
+		}
+	}
+
     return 1;
 }
 
@@ -3153,7 +3248,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     D_imp_dbh_from_sth;
     sword status, exe_status;
     int is_select = (imp_sth->stmt_type == OCI_STMT_SELECT);
-    AV *tuples_av, *tuples_status_av, *columns_av;
+    AV *tuples_av, *tuples_status_av, *columns_av,*tuples_utf8_av;
     ub4 oci_mode;
     ub4 num_errs;
     int i,j;
@@ -3166,6 +3261,8 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
     char namebuf[30];
     STRLEN len;
     int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
+	int *utf8_flgs;
+    tuples_utf8_av=newAV();
 
     if (debug >= 2  || dbd_verbose >=2)
  		PerlIO_printf(DBILOGFP, "  ora_st_execute_array %s count=%d (%s %s %s)...\n",
@@ -3206,11 +3303,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
         }
         tuples_status_av = (AV*)SvRV(tuples_status);
         av_fill(tuples_status_av, exe_count - 1);
-        /* Fill in 'unknown' exe count in every element (know not how to get
-           individual execute row counts from OCI). */
-        for(i = 0; (unsigned int) i < exe_count; i++) {
-            av_store(tuples_status_av, i, newSViv((IV)-1));
-        }
+
     } else {
         tuples_status_av = NULL;
     }
@@ -3229,18 +3322,29 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 
     param_count=DBIc_NUM_PARAMS(imp_sth);
 	phs = safemalloc(param_count*sizeof(*phs));
+	utf8_flgs = safemalloc(param_count*sizeof(int));
     memset(phs, 0, param_count*sizeof(*phs));
+	memset(utf8_flgs, 0, param_count*sizeof(int));
 
    	for(j = 0; (unsigned int) j < exe_count; j++) {
+		/* Fill in 'unknown' exe count in every element (know not how to get
+           individual execute row counts from OCI).
+           Moved it here as there is no need to iterate twice over it
+           this should speed it up somewhat for large binds*/
 
+		if (SvTRUE(tuples_status)){
+		    av_store(tuples_status_av, j, newSViv((IV)-1));
+		}
     	sv_p = av_fetch(tuples_av, j, 0);
         if(sv_p == NULL) {
             Safefree(phs);
-             croak("Cannot fetch tuple %d", j);
+            Safefree(utf8_flgs);
+            croak("Cannot fetch tuple %d", j);
         }
         sv = *sv_p;
         if(!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVAV) {
             Safefree(phs);
+            Safefree(utf8_flgs);
             croak("Not an array ref in element %d", j);
         }
         av = (AV*)SvRV(sv);
@@ -3251,8 +3355,9 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
                phs_svp = hv_fetch(imp_sth->all_params_hv,
                                 namebuf, strlen(namebuf), 0);
                if (phs_svp == NULL) {
-                    Safefree(phs);
-                    croak("Can't execute for non-existent placeholder :%d", i);
+				   Safefree(utf8_flgs);
+                   Safefree(phs);
+                   croak("Can't execute for non-existent placeholder :%d", i);
                }
                phs[i] = (phs_t*)(void*)SvPVX(*phs_svp); /* placeholder struct */
                if(phs[i]->idx < 0) {
@@ -3263,6 +3368,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
             }
             sv_p = av_fetch(av, phs[i]->idx, 0);
             if(sv_p == NULL) {
+				Safefree(utf8_flgs);
                 Safefree(phs);
                 croak("Cannot fetch value for param %d in entry %d", i, j);
         	}
@@ -3281,22 +3387,39 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
         	/* Find the value length, and increase maxlen if needed. */
         	if(SvROK(sv)) {
         	    Safefree(phs);
+        	    Safefree(utf8_flgs);
         	    croak("Can't bind a reference (%s) for param %d, entry %d",
         	    neatsvpv(sv,0), i, j);
         	}
         	if(len > (unsigned int) phs[i]->maxlen)
         	    phs[i]->maxlen = len;
 
+			/* update the utf8_flgs for this value */
+			if (SvUTF8(sv)) {
+				utf8_flgs[i] |= ARRAY_BIND_UTF8;
+				if (SvTRUE(tuples_status)){
+					av_push(tuples_utf8_av,newSViv(j));
+				}
+
+
+			}
+			else {
+				utf8_flgs[i] |= ARRAY_BIND_NATIVE;
+
+			}
         	/* Do OCI bind calls on last iteration. */
         	if( ((unsigned int) j ) == exe_count - 1 ) {
-        	    if(!do_bind_array_exec(sth, imp_sth, phs[i])) {
-        	        Safefree(phs);
-        		}
+
+				if(!do_bind_array_exec(sth, imp_sth, phs[i], utf8_flgs[i],i,tuples_utf8_av,tuples_status_av)) {
+   					Safefree(phs);
+   			 		Safefree(utf8_flgs);
+   			 		/*Safefree(tuples_utf8_av);*/
+				}
 			}
     	}
   	}
 	Safefree(phs);
-
+	Safefree(utf8_flgs);
     /* Store array of bind typles, for use in OCIBindDynamic() callback. */
     imp_sth->bind_tuples = tuples_av;
     imp_sth->rowwise = (columns_av == NULL);

@@ -2054,6 +2054,15 @@ or
 
    $dbh->{ora_ph_csform} = SQLCS_NCHAR; # default for all future placeholders
 
+Binding with bind_param_array and execute_array is also UTF-8 compatible in the same way.  If you attempt to 
+insert UTF-8 data into a non UTF-8 Oracle instance or with an non UTF-8 NCHAR or NVARCHAR the insert
+will still happen but a error code of 0 will be returned with the following warning; 
+  
+  DBD Oracle Warning: You have mixed utf8 and non-utf8 in an array bind in parameter#1. This may result in corrupt data. 
+  The Query charset id=1, name=US7ASCII
+
+The warning will report the parameter number and the NCHAR setting that the query is running.
+  
 B<Sending Data using SQL>
 
 Oracle assumes the SQL statement is in the default client character
