@@ -3176,12 +3176,13 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 	/* if app has specified a csid then use that, else use default */
 	csid = (phs->csid) ? phs->csid : phs->csid_orig;
 
+
 	/* if data is utf8 but charset isn't then switch to utf8 csid if possible */
 	if ((utf8 & ARRAY_BIND_UTF8) && !CS_IS_UTF8(csid)) {
 	   /* if the specified or default csid is not utf8 _compatible_ AND we have
 	    * mixed utf8 and native (non-utf8) data, then it's a fatal problem
 	    * utf8 _compatible_ means, can be upgraded to utf8, ie. utf8 or ascii */
-	    if ((utf8 & ARRAY_BIND_NATIVE) && CS_IS_NOT_UTF8(csid)) {
+	    if ((utf8 & ARRAY_BIND_NATIVE) && !CS_IS_UTF8_COMPATIBLE(csid)) {
 				oratext  charsetname[OCI_NLS_MAXBUFSZ];
 				OCINlsCharSetIdToName(imp_sth->envhp,charsetname, sizeof(charsetname),csid );
 

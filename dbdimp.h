@@ -259,16 +259,14 @@ extern ub2 utf8_csid;
 extern ub2 al32utf8_csid;
 extern ub2 al16utf16_csid;
 
-#define CS_IS_NOT_UTF8( cs ) ( cs == us7ascii_csid )
-
 #define CS_IS_UTF8( cs ) \
-   (  ( cs == utf8_csid )  )
+    (  ( cs == utf8_csid ) || ( cs == al32utf8_csid ) )
 
 #define CS_IS_UTF8_COMPATIBLE( cs ) \
   ( CS_IS_UTF8(cs) || ( (cs) == us7ascii_csid ) )
 
+ #define CS_IS_UTF16( cs ) ( cs == al16utf16_csid )
 
-#define CS_IS_UTF16( cs ) ( cs == al16utf16_csid )
 
 #define CSFORM_IMPLIED_CSID(csform) \
     ((csform==SQLCS_NCHAR) ? ncharsetid : charsetid)
