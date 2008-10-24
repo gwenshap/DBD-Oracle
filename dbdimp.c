@@ -2325,103 +2325,114 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 int
 pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 {
-	dTHX;
-    if (pre_exec) {	/* pre-execute - allocate a statement handle */
-	dSP;
-	D_imp_dbh_from_sth;
-	HV *init_attr = newHV();
-	int count;
-	sword status;
+   dTHX;
+   if (pre_exec) {	/* pre-execute - allocate a statement handle */
+	 dSP;
+	 D_imp_dbh_from_sth;
+	 HV *init_attr = newHV();
+	 int count;
+	 sword status;
 
 	if (DBIS->debug >= 3 || dbd_verbose >=3)
 	    PerlIO_printf(DBILOGFP, " pp_exec_rset bind %s - allocating new sth...\n", phs->name);
 
-
-	/* extproc deallocates everything for us */
-	if (is_extproc)
+	 /* extproc deallocates everything for us */
+	 if (is_extproc)
 	    return 1;
 
-	if (!phs->desc_h || 1) { /* XXX phs->desc_t != OCI_HTYPE_STMT) */
+	 if (!phs->desc_h || 1) { /* XXX phs->desc_t != OCI_HTYPE_STMT) */
 	    if (phs->desc_h) {
 			OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);
 			phs->desc_h = NULL;
 	    }
 	    phs->desc_t = OCI_HTYPE_STMT;
 	    OCIHandleAlloc_ok(imp_sth->envhp, &phs->desc_h, phs->desc_t, status);
-	}
+	 }
 
 
-	phs->progv = (char*)&phs->desc_h;
-	phs->maxlen = 0;
+	 phs->progv = (char*)&phs->desc_h;
+	 phs->maxlen = 0;
 
-	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
-		(text*)phs->name, (sb4)strlen(phs->name),
-		phs->progv, 0,
-		(ub2)phs->ftype, 0, /* using &phs->indp triggers ORA-01001 errors! */
-		NULL, 0, 0, NULL, OCI_DEFAULT, status);
-	if (status != OCI_SUCCESS) {
+	 OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+		(text*)phs->name,
+		(sb4)strlen(phs->name),
+		phs->progv,
+		0,
+		(ub2)phs->ftype,
+		NULL, /* using &phs->indp triggers ORA-01001 errors! */
+		NULL,
+		0,
+		0,
+		NULL,
+		OCI_DEFAULT,
+		status);
+
+	 if (status != OCI_SUCCESS) {
 	    oci_error(sth, imp_sth->errhp, status, "OCIBindByName SQLT_RSET");
 	    return 0;
-	}
-	ENTER;
-	SAVETMPS;
-	PUSHMARK(SP);
-	XPUSHs(sv_2mortal(newRV((SV*)DBIc_MY_H(imp_dbh))));
-	XPUSHs(sv_2mortal(newRV((SV*)init_attr)));
-	PUTBACK;
-	count = perl_call_pv("DBI::_new_sth", G_ARRAY);
-	SPAGAIN;
-	if (count != 2)
-	    croak("panic: DBI::_new_sth returned %d values instead of 2", count);
-	(void)POPs;			/* discard inner handle */
-	sv_setsv(phs->sv, POPs); 	/* save outer handle */
-	SvREFCNT_dec(init_attr);
-	PUTBACK;
-	FREETMPS;
-	LEAVE;
-	if (DBIS->debug >= 3 || dbd_verbose >=3)
+	 }
+
+	 ENTER;
+	 SAVETMPS;
+	 PUSHMARK(SP);
+	 XPUSHs(sv_2mortal(newRV((SV*)DBIc_MY_H(imp_dbh))));
+	 XPUSHs(sv_2mortal(newRV((SV*)init_attr)));
+	 PUTBACK;
+	 count = perl_call_pv("DBI::_new_sth", G_ARRAY);
+	 SPAGAIN;
+
+	 if (count != 2)
+	     croak("panic: DBI::_new_sth returned %d values instead of 2", count);
+
+	 (void)POPs;			/* discard inner handle */
+	 sv_setsv(phs->sv, POPs); 	/* save outer handle */
+	 SvREFCNT_dec(init_attr);
+	 PUTBACK;
+	 FREETMPS;
+	 LEAVE;
+	 if (DBIS->debug >= 3 || dbd_verbose >=3)
 	    PerlIO_printf(DBILOGFP, "   pp_exec_rset   bind %s - allocated %s...\n",
 		phs->name, neatsvpv(phs->sv, 0));
 
-    }
+   }
     else {		/* post-execute - setup the statement handle */
-	dTHR;
-	SV * sth_csr = phs->sv;
-	D_impdata(imp_sth_csr, imp_sth_t, sth_csr);
+ 	 dTHR;
+	 SV * sth_csr = phs->sv;
+	 D_impdata(imp_sth_csr, imp_sth_t, sth_csr);
 
-	if (DBIS->debug >= 3 || dbd_verbose >=3 )
+	 if (DBIS->debug >= 3 || dbd_verbose >=3 )
 	    PerlIO_printf(DBILOGFP, "       bind %s - initialising new %s for cursor 0x%lx...\n",
 		phs->name, neatsvpv(sth_csr,0), (unsigned long)phs->progv);
 
-	/* copy appropriate handles and atributes from parent statement	*/
-	imp_sth_csr->envhp      = imp_sth->envhp;
-	imp_sth_csr->errhp      = imp_sth->errhp;
-	imp_sth_csr->srvhp      = imp_sth->srvhp;
-	imp_sth_csr->svchp      = imp_sth->svchp;
-	imp_sth_csr->auto_lob   = imp_sth->auto_lob;
-	imp_sth_csr->pers_lob   = imp_sth->pers_lob;
-	imp_sth_csr->clbk_lob   = imp_sth->clbk_lob;
-	imp_sth_csr->piece_size = imp_sth->piece_size;
-	imp_sth_csr->piece_lob  = imp_sth->piece_lob;
-	imp_sth_csr->is_child   = 1; /*no prefetching on a cursor or sp*/
+	 /* copy appropriate handles and atributes from parent statement	*/
+	 imp_sth_csr->envhp      = imp_sth->envhp;
+	 imp_sth_csr->errhp      = imp_sth->errhp;
+	 imp_sth_csr->srvhp      = imp_sth->srvhp;
+	 imp_sth_csr->svchp      = imp_sth->svchp;
+	 imp_sth_csr->auto_lob   = imp_sth->auto_lob;
+	 imp_sth_csr->pers_lob   = imp_sth->pers_lob;
+	 imp_sth_csr->clbk_lob   = imp_sth->clbk_lob;
+	 imp_sth_csr->piece_size = imp_sth->piece_size;
+	 imp_sth_csr->piece_lob  = imp_sth->piece_lob;
+	 imp_sth_csr->is_child   = 1; /*no prefetching on a cursor or sp*/
 
 
-	/* assign statement handle from placeholder descriptor	*/
-	imp_sth_csr->stmhp = (OCIStmt*)phs->desc_h;
-	phs->desc_h = NULL;		  /* tell phs that we own it now	*/
+	 /* assign statement handle from placeholder descriptor	*/
+	 imp_sth_csr->stmhp = (OCIStmt*)phs->desc_h;
+	 phs->desc_h = NULL;		  /* tell phs that we own it now	*/
 
-	/* force stmt_type since OCIAttrGet(OCI_ATTR_STMT_TYPE) doesn't work! */
-	imp_sth_csr->stmt_type = OCI_STMT_SELECT;
-	imp_sth_csr->rs_array_on=1;	/* turn on array fetch for ref cursors */
- 	DBIc_IMPSET_on(imp_sth_csr);
+	 /* force stmt_type since OCIAttrGet(OCI_ATTR_STMT_TYPE) doesn't work! */
+	 imp_sth_csr->stmt_type = OCI_STMT_SELECT;
+	 imp_sth_csr->rs_array_on=1;	/* turn on array fetch for ref cursors */
+ 	 DBIc_IMPSET_on(imp_sth_csr);
 
-	/* set ACTIVE so dbd_describe doesn't do explicit OCI describe */
-	DBIc_ACTIVE_on(imp_sth_csr);
-	if (!dbd_describe(sth_csr, imp_sth_csr)) {
-	    return 0;
-	}
-    }
-    return 1;
+	 /* set ACTIVE so dbd_describe doesn't do explicit OCI describe */
+	 DBIc_ACTIVE_on(imp_sth_csr);
+	 if (!dbd_describe(sth_csr, imp_sth_csr)) {
+	     return 0;
+	 }
+   }
+   return 1;
 }
 
 static int
@@ -2511,26 +2522,25 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		phs->name, (SvPOK(phs->sv) ? neatsvpv(phs->sv,10) : "NULL"),(SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
 		phs->ftype,sql_typecode_name(phs->ftype),phs->csid, phs->csform, phs->is_inout);
 
-
     switch (phs->ftype) {
-    case ORA_VARCHAR2_TABLE:
-		done = dbd_rebind_ph_varchar2_table(sth, imp_sth, phs);
-		break;
-	case ORA_NUMBER_TABLE:
-		done = dbd_rebind_ph_number_table(sth, imp_sth, phs);
-		break;
-    case SQLT_CLOB:
-    case SQLT_BLOB:
-	    done = dbd_rebind_ph_lob(sth, imp_sth, phs);
-	    break;
-    case SQLT_RSET:
-	    done = dbd_rebind_ph_rset(sth, imp_sth, phs);
-	    break;
-	 case ORA_XMLTYPE:
-	    done = dbd_rebind_ph_xml(sth, imp_sth, phs);
- 	    break;
-    default:
-	    done = dbd_rebind_ph_char(imp_sth, phs);
+	    case ORA_VARCHAR2_TABLE:
+			done = dbd_rebind_ph_varchar2_table(sth, imp_sth, phs);
+			break;
+		case ORA_NUMBER_TABLE:
+			done = dbd_rebind_ph_number_table(sth, imp_sth, phs);
+			break;
+	    case SQLT_CLOB:
+	    case SQLT_BLOB:
+		    done = dbd_rebind_ph_lob(sth, imp_sth, phs);
+		    break;
+	    case SQLT_RSET:
+		    done = dbd_rebind_ph_rset(sth, imp_sth, phs);
+		    break;
+		 case ORA_XMLTYPE:
+		    done = dbd_rebind_ph_xml(sth, imp_sth, phs);
+	 	    break;
+	    default:
+		    done = dbd_rebind_ph_char(imp_sth, phs);
     }
 
     if (done == 2) { /* the dbd_rebind_* did the OCI bind call itself successfully */

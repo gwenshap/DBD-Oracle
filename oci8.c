@@ -155,21 +155,20 @@ oci_status_name(sword status)
 	dTHX;
     SV *sv;
     switch (status) {
-    case OCI_SUCCESS:			return "SUCCESS";
-    case OCI_SUCCESS_WITH_INFO:	return "SUCCESS_WITH_INFO";
-    case OCI_NEED_DATA:			return "NEED_DATA";
-    case OCI_NO_DATA:			return "NO_DATA";
-    case OCI_ERROR:				return "ERROR";
-    case OCI_INVALID_HANDLE:	return "INVALID_HANDLE";
-    case OCI_STILL_EXECUTING:	return "STILL_EXECUTING";
-    case OCI_CONTINUE:			return "CONTINUE";
+    	case OCI_SUCCESS:			return "SUCCESS";
+    	case OCI_SUCCESS_WITH_INFO:	return "SUCCESS_WITH_INFO";
+    	case OCI_NEED_DATA:			return "NEED_DATA";
+    	case OCI_NO_DATA:			return "NO_DATA";
+    	case OCI_ERROR:				return "ERROR";
+    	case OCI_INVALID_HANDLE:	return "INVALID_HANDLE";
+   	 	case OCI_STILL_EXECUTING:	return "STILL_EXECUTING";
+    	case OCI_CONTINUE:			return "CONTINUE";
     }
     sv = sv_2mortal(newSVpv("",0));
     sv_grow(sv, 50);
     sprintf(SvPVX(sv),"(UNKNOWN OCI STATUS %d)", status);
     return SvPVX(sv);
 }
-
 /* the various modes used in OCI */
 char *
 oci_define_options(ub4 options)
@@ -3060,7 +3059,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 			if (imp_sth->rs_array_on) {	/* if array fetch on, fetch only if not in cache */
 				imp_sth->rs_array_idx++;
-				if (imp_sth->rs_array_num_rows<=imp_sth->rs_array_idx && imp_sth->rs_array_status==OCI_SUCCESS) {
+				if (imp_sth->rs_array_num_rows<=imp_sth->rs_array_idx && (imp_sth->rs_array_status==OCI_SUCCESS || imp_sth->rs_array_status==OCI_SUCCESS_WITH_INFO)) {
 		      		OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
 					imp_sth->rs_array_status=status;
 					OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->rs_array_num_rows,0,OCI_ATTR_ROWS_FETCHED, status);
