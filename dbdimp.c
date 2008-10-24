@@ -40,9 +40,9 @@
 DBISTATE_DECLARE;
 
 int ora_fetchtest;	/* intrnal test only, not thread safe */
-int is_extproc = 0;
+int is_extproc  = 0;
 int dbd_verbose = 0; /* DBD only debugging*/
-
+int oci_warn    = 0; /* show oci warnings */
 /* bitflag constants for figuring out how to handle utf8 for array binds */
 #define ARRAY_BIND_NATIVE 0x01
 #define ARRAY_BIND_UTF8   0x02
@@ -376,6 +376,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     	DBD_ATTRIB_GET_IV(  attr, "dbd_verbose",  11, svp, dbd_verbose);
 	if (DBD_ATTRIB_TRUE(attr,"ora_verbose",11,svp))
     	DBD_ATTRIB_GET_IV(  attr, "ora_verbose",  11, svp, dbd_verbose);
+	if (DBD_ATTRIB_TRUE(attr,"ora_oci_success_warn",20,svp))
+    	DBD_ATTRIB_GET_IV(  attr, "ora_oci_success_warn",  20, svp, oci_warn);
 
 
     /* dbi_imp_data code adapted from DBD::mysql */
@@ -946,7 +948,12 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
     int on = SvTRUE(valuesv);
     int cacheit = 1;
 
-    if (kl==11 && (strEQ(key, "ora_verbose") || strEQ(key, "dbd_verbose"))) {
+
+
+ 	if (kl==20 && strEQ(key, "ora_oci_success_warn") ) {
+		oci_warn = SvIV (valuesv);
+    }
+    else if (kl==11 && (strEQ(key, "ora_verbose") || strEQ(key, "dbd_verbose"))) {
 		dbd_verbose = SvIV (valuesv);
     }
     else if (kl==10 && strEQ(key, "AutoCommit")) {
@@ -997,7 +1004,10 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 
     /* AutoCommit FETCH via DBI */
 
-    if (kl==11 && (strEQ(key, "ora_verbose") || strEQ(key, "dbd_verbose"))) {
+    if (kl==20 && strEQ(key, "ora_oci_success_warn")) {
+		retsv = newSViv (oci_warn);
+	}
+    else if (kl==11 && (strEQ(key, "ora_verbose") || strEQ(key, "dbd_verbose"))) {
 		retsv = newSViv (dbd_verbose);
 	}
     else if (kl==10 && strEQ(key, "AutoCommit")) {

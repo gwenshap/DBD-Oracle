@@ -566,6 +566,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		DBD_ATTRIB_GET_IV(  attribs, "ora_exe_mode", 12, svp, imp_sth->exe_mode);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_prefetch_memory",  19, svp, imp_sth->prefetch_memory);
   	    DBD_ATTRIB_GET_IV(  attribs, "ora_verbose",  11, svp, dbd_verbose);
+  	    DBD_ATTRIB_GET_IV(  attribs, "ora_oci_success_warn",  20, svp, oci_warn);
 
   	   	if (!dbd_verbose)
 	   		DBD_ATTRIB_GET_IV(  attribs, "dbd_verbose",  11, svp, dbd_verbose);
@@ -3062,6 +3063,9 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				if (imp_sth->rs_array_num_rows<=imp_sth->rs_array_idx && (imp_sth->rs_array_status==OCI_SUCCESS || imp_sth->rs_array_status==OCI_SUCCESS_WITH_INFO)) {
 		      		OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
 					imp_sth->rs_array_status=status;
+					if (oci_warn &&  (imp_sth->rs_array_status == OCI_SUCCESS_WITH_INFO)) {
+						oci_error(sth, imp_sth->errhp, status, "OCIStmtFetch");
+		    		}
 					OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->rs_array_num_rows,0,OCI_ATTR_ROWS_FETCHED, status);
 					imp_sth->rs_array_idx=0;
 				}
@@ -3093,6 +3097,11 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		    oci_error(sth, imp_sth->errhp, status, "OCIStmtFetch");
 		    return Nullav;
 		}
+		if (oci_warn && (status == OCI_SUCCESS_WITH_INFO)) {
+		    oci_error(sth, imp_sth->errhp, status, "OCIStmtFetch");
+		}
+
+
 	/* for OCI_SUCCESS_WITH_INFO we fall through and let the	*/
 	/* per-field rcode value be dealt with as we fetch the data	*/
     }

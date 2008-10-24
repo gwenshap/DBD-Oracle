@@ -251,6 +251,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
 extern int ora_fetchtest;
 extern int dbd_verbose;
+extern int oci_warn;
 
 extern ub2 charsetid;
 extern ub2 ncharsetid;

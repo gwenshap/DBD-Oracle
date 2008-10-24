@@ -317,6 +317,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_ncharset		=> undef,
                  ora_session_mode	=> undef,
                  ora_verbose		=> undef,
+                 ora_oci_success_warn	=> undef
                  };
     }
    
@@ -1505,11 +1506,16 @@ either set the ora_verbose attribute on the connect() method to the trace level 
 
 or set it directly on the DB handle like this;
 
-  $dbh->{ora_verbose} =6';
+  $dbh->{ora_verbose} =6;
 
 In both cases the DBD::Oracle trace level to 6, which is this level that will trace most of the calls to OCI. 
 
-=head2 Database Handle Attributes
+
+=item ora_oci_success_warn
+
+Use this value to print silent OCI warnings that may happen when an execute or fetch returns "Success With Info".
+
+  $dbh->{ora_oci_success_warn} =1;
 
 =item ora_ph_type
 
@@ -1659,6 +1665,10 @@ See L</Prefetching Rows> for more details.
 =item ora_verbose
 
 Use this value to enable DBD::Oracle only tracing.  Simply set the attribute to the trace level you desire.
+
+=item ora_oci_success_warn
+
+Use this value to print silent OCI warnings that may happen when a fetch returns "Success With Info".
 
 =back
 
