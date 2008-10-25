@@ -441,7 +441,8 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	    # remove any echo's as the following line should be the result of the echo
 	    next if $line =~ /^\s*\S*echo\s+/;
 	    next if $line =~ /^\s*\S*make\s+/; # remove recursive calls to make
-	    next if $line =~ /^\s*\S*make:/;   # remove message from make
+	    next if $line =~ /^\s*\S*make(\[\d\])?:/; # remove message rom "make:" or "make[x]:"
+
 	    next if $line =~ /^\s*$/; # remove any blank lines
 	    push @filtered_cmds, $line;
 	}

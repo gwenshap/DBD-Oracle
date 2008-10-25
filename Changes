@@ -1,4 +1,5 @@
 =head1 Changes in DBD-Oracle 1.23(svn rev #####) 
+  Fix for rt.cpan.org Ticket #=39374 Makefile.PL: error when reducing echo messages from make from Tippa
   Fix for rt.cpan.org Ticket #=39232 binding large XMLTYPE fails on 64-bit perl from Jeff Klein 
   Fix for rt.cpan.org Ticket #=38749 Warning of a NULL column in an aggregate function also added ora_oci_success_warn to display silent OCI warnings from John Scoles
   Patch for UTF8 check on execute_array from David Mansfield and a little by John Scoles
