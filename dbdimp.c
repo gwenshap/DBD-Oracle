@@ -1056,6 +1056,7 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
   dTHR;
   OCIXMLType *xml = NULL;
   STRLEN len;
+  ub4 buflen;
   sword status;
   ub1 src_type;
   dvoid* src_ptr = NULL;
@@ -1090,9 +1091,9 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
         oci_error(sth, imp_sth->errhp, status, "OCILobCreateTemporary");
      }
      csid = (SvUTF8(source) && !CS_IS_UTF8(csid)) ? utf8_csid : CSFORM_IMPLIED_CSID(csform);
-
+	 buflen = len;
      OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, src_ptr,
-				       &len, bufp, (ub4)len, OCI_ONE_PIECE,
+				        &buflen, bufp, (ub4)len, OCI_ONE_PIECE,
 				       NULL, NULL,
 			       csid, csform, status);
 
