@@ -3811,7 +3811,7 @@ or later, you can make use of table (or pipelined) functions.
 
 For example, assume you have the existing PL/SQL Package :
 
-CREATE OR REPLACE PACKAGE Array_Example AS
+  CREATE OR REPLACE PACKAGE Array_Example AS
     --
     TYPE tRec IS RECORD (
         Col1    NUMBER,
@@ -3822,25 +3822,25 @@ CREATE OR REPLACE PACKAGE Array_Example AS
     --
     FUNCTION Array_Func RETURN taRec ;
     --
-END Array_Example ;
+  END Array_Example ;
 
-CREATE OR REPLACE PACKAGE BODY Array_Example AS
---
-FUNCTION Array_Func RETURN taRec AS
---
+  CREATE OR REPLACE PACKAGE BODY Array_Example AS
+  --
+  FUNCTION Array_Func RETURN taRec AS
+  --
     l_Ret       taRec ;
---
-BEGIN
+  --
+  BEGIN
     FOR i IN 1 .. 5 LOOP
         l_Ret (i).Col1 := i ;
         l_Ret (i).Col2 := 'Row : ' || i ;
         l_Ret (i).Col3 := TRUNC (SYSDATE) + i ;
     END LOOP ;
     RETURN l_Ret ;
-END ;
---
-END Array_Example ;
-/
+  END ;
+  --
+  END Array_Example ;
+  /
 
 Currently, there is no way to directly call the function
 Array_Example.Array_Func from DBI.  However, by making the following relatively
