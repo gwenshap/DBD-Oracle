@@ -2626,10 +2626,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 		switch (fbh->dbtype) {
 		/*	the simple types	*/
- 			case   1:				/* VARCHAR2	*/
+ 			case   ORA_VARCHAR2:				/* VARCHAR2	*/
 				avg_width = fbh->dbsize / 2;
 		/* FALLTHRU */
-			case  96:				/* CHAR		*/
+			case  ORA_CHAR:				/* CHAR		*/
 				if ( CSFORM_IMPLIES_UTF8(fbh->csform) && !CS_IS_UTF8(fbh->csid) )
 				    fbh->disize = fbh->dbsize * 4;
 				else
@@ -2637,12 +2637,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 				fbh->prec   = fbh->disize;
 				break;
-			case  23:				/* RAW		*/
+			case  ORA_RAW:				/* RAW		*/
 				fbh->disize = fbh->dbsize * 2;
 				fbh->prec   = fbh->disize;
 				break;
 
-			case   2:				/* NUMBER	*/
+			case   ORA_NUMBER:				/* NUMBER	*/
 			case  21:				/* BINARY FLOAT os-endian	*/
 			case  22:				/* BINARY DOUBLE os-endian	*/
 			case 100:				/* BINARY FLOAT oracle-endian	*/
@@ -2651,14 +2651,14 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				avg_width = 4;     /* NUMBER approx +/- 1_000_000 */
 				break;
 
-			case  12:				/* DATE		*/
+			case  ORA_DATE:				/* DATE		*/
 				/* actually dependent on NLS default date format*/
 				fbh->disize = 75;	/* a generous default	*/
 				fbh->prec   = fbh->disize;
 				avg_width = 8;	/* size in SQL*Net packet  */
 				break;
 
-			case   8:				/* LONG		*/
+			case   ORA_LONG:				/* LONG		*/
 
 			   if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
 
@@ -2703,7 +2703,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 				}
 				break;
-			case  24:				/* LONG RAW	*/
+			case  ORA_LONGRAW:				/* LONG RAW	*/
 			 	if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
 
 						fbh->clbk_lob      = 1;
@@ -2741,7 +2741,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				}
 				break;
 
-			case  11:				/* ROWID	*/
+			case  ORA_ROWID:				/* ROWID	*/
 			case 104:				/* ROWID Desc	*/
 				fbh->disize = 20;
 				fbh->prec   = fbh->disize;
@@ -2762,8 +2762,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	    	    }
         	    break;
 
-			case 112:				/* CLOB	& NCLOB	*/
-			case 113:				/* BLOB		*/
+			case ORA_CLOB:				/* CLOB	& NCLOB	*/
+			case ORA_BLOB:				/* BLOB		*/
 			case 114:				/* BFILE	*/
 				fbh->ftype  = fbh->dbtype;
 
@@ -2773,7 +2773,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
                 if (imp_sth->pers_lob){  /*get as one peice fasted but limited to how big you can get.*/
 					fbh->pers_lob      = 1;
 					fbh->disize 	   = fbh->disize+long_readlen; /*user set max value for the fetch*/
-	    			if (fbh->dbtype == 112){
+	    			if (fbh->dbtype == ORA_CLOB){
 				  		fbh->ftype = SQLT_CHR;
 				  	} else {
 				  		fbh->ftype = SQLT_LVB; /*Binary form seems this is the only value where we cna get the length correctly*/
@@ -2790,7 +2790,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
 
-	    		    if (fbh->dbtype == 112){
+	    		    if (fbh->dbtype == ORA_CLOB){
 	    		    	fbh->ftype = SQLT_CHR;
 	    		    } else {
 	    				fbh->ftype = SQLT_BIN; /*other Binary*/
@@ -2809,7 +2809,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 					if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
-					if (fbh->dbtype == 112){
+					if (fbh->dbtype == ORA_CLOB){
 						fbh->ftype = SQLT_CHR;
 					} else {
 						fbh->ftype = SQLT_BIN; /*other Binary */
@@ -2832,7 +2832,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				break;
 #endif
 
-			case 116:				/* RSET		*/
+			case ORA_RSET:				/* RSET		*/
 				fbh->ftype  = fbh->dbtype;
 				fbh->disize = sizeof(OCIStmt *);
 				fbh->fetch_func = fetch_func_rset;
@@ -2918,7 +2918,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 			/*add one extra byte incase the size of the lob is equal to the define_len*/
 		}
 
-		if (fbh->ftype == 116) { /* RSET */
+		if (fbh->ftype == ORA_RSET) { /* RSET */
 		    OCIHandleAlloc_ok(imp_sth->envhp,
 			(dvoid*)&((OCIStmt **)fb_ary->abuf)[0],
 			 OCI_HTYPE_STMT, status);

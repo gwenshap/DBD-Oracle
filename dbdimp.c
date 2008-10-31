@@ -2795,7 +2795,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 		    phs->ftype = ora_sql_type(imp_sth, phs->name, (int)sql_type);
 	/* treat Oracle7 SQLT_CUR as SQLT_RSET for Oracle8	*/
 		if (phs->ftype==102)
-		    phs->ftype = 116;
+		    phs->ftype = ORA_RSET;
 
 	/* some types require the trailing null included in the length.	*/
 	/* SQLT_STR=5=STRING, SQLT_AVC=97=VARCHAR	*/
@@ -3247,7 +3247,7 @@ init_bind_for_array_exec(phs)
         phs->maxlen = 1;
         /* treat Oracle7 SQLT_CUR as SQLT_RSET for Oracle8 */
         if (phs->ftype==102)
-            phs->ftype = 116;
+            phs->ftype = ORA_RSET;
         /* some types require the trailing null included in the length. */
         /* SQLT_STR=5=STRING, SQLT_AVC=97=VARCHAR */
         phs->alen_incnull = (phs->ftype==SQLT_STR || phs->ftype==SQLT_AVC);
