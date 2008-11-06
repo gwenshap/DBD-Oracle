@@ -1,4 +1,5 @@
 =head1 Changes in DBD-Oracle 1.23(svn rev #####)
+  Fix for rt.cpan.org Ticket #=21920 Bug with Oracle DBD for Mac OS X Instant Client From boingolover
   Added a few more constants to get rid of magic numbers from John Scoles
   Fix for rt.cpan.org Ticket #=38267 Inserts/Updates to BLOB's via synonyms fails from John Scoles
   Fix for rt.cpan.org Ticket #=39603 build problem and fix missing functions in oci.def from Zoltán Sebestyén
