@@ -3568,7 +3568,9 @@ than could be stored in memory at a given time.
 
    my $chunk_size = 1034;   # Arbitrary chunk size, for example
    my $offset = 1;   # Offsets start at 1, not 0
-   while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) ) {
+   while(1) {
+      my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size );
+      last unless length $data;
       print STDOUT $data;
       $offset += $chunk_size;
    }
@@ -3578,6 +3580,18 @@ Notice that the select statement does not contain the phrase
 Locator returned, and not modifying the LOB it refers to,
 the select statement does not require the "FOR UPDATE"
 clause.
+
+A word of catution when using the data retruned from an ora_lob_read in a condtional statement. 
+for example if the code below;
+
+   while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) ) {
+        print STDOUT $data;
+        $offset += $chunk_size;
+   }
+   
+was used with a chunk size of 4096 against a blob that requires more than 1 chunk to return 
+the data and the last chunk is one byte long and contains a zero (ASCII 48) you will miss this last byte
+as $data will contain 0 which PERL will see as false and not print it out.
 
 =head3 Example: Truncating existing large data
 

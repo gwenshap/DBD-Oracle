@@ -1,4 +1,5 @@
 =head1 Changes in DBD-Oracle 1.23(svn rev #####)
+  Update to POD from Chris Underhill
   Added README.win64.txt with content from Alex Buttery
   Fix for rt.cpan.org Ticket #=21920 Bug with Oracle DBD for Mac OS X Instant Client From boingolover
   Added a few more constants to get rid of magic numbers from John Scoles
