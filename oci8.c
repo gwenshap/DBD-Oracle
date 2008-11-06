@@ -3400,17 +3400,23 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
     OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
 		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_SYN, imp_sth->dschp, status);
-    if (status == OCI_SUCCESS) { /* There is a synonym, get the schema */
-    	char *syn_schema=NULL, *syn_name=NULL;
-    	char new_tablename[100];
 
-    	ub4 syn_schema_len = 0, syn_name_len = 0,tn_len;
+    if (status == OCI_SUCCESS) { /* There is a synonym, get the schema */
+    	char *syn_schema=NULL;
+    	char syn_name[100];
+    	char new_tablename[100];
+    	ub4  tn_len = 0, syn_schema_len = 0;
+
+    	strncpy(syn_name,tablename,strlen(tablename));
+    	/* Put the synonym name here for later user */
+
       	OCIAttrGet_log_stat(imp_sth->dschp,  OCI_HTYPE_DESCRIBE,
 				  &parmhp, 0, OCI_ATTR_PARAM, errhp, status);
+
       	OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
       		      &syn_schema, &syn_schema_len, OCI_ATTR_SCHEMA_NAME, errhp, status);
-		OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
-			      &syn_name, &syn_name_len, OCI_ATTR_OBJ_NAME, errhp, status);
+
+
 		OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
 			      &tablename, &tn_len, OCI_ATTR_NAME, errhp, status);
 
@@ -3418,9 +3424,13 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		new_tablename[syn_schema_len+1] = '\0';
 		new_tablename[syn_schema_len]='.';
 		strncat(new_tablename, tablename,tn_len);
+
 	    tablename=new_tablename;
-	    if (DBIS->debug >= 3 || dbd_verbose >= 3)
-			PerlIO_printf(DBILOGFP, "       lob refetching a synonym named=%s for %s \n", syn_name,tablename);
+
+	    if (DBIS->debug >= 3 ||  dbd_verbose >= 3)
+			PerlIO_printf(DBILOGFP, "       lob refetch using a synonym named=%s for %s \n", syn_name,tablename);
+
+
     }
 
     OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
