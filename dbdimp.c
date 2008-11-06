@@ -3997,9 +3997,15 @@ dump_env_to_trace() {
     PerlIO *fp = DBILOGFP;
     int i = 0;
     char *p;
-#ifndef __BORLANDC__
+
+#if defined (__APPLE__)
+    #include <crt_externs.h>
+    #define environ (*_NSGetEnviron())
+#elif defined (__BORLANDC__)
     extern char **environ;
 #endif
+
+
     PerlIO_printf(fp, "Environment variables:\n");
     do {
 	p = (char*)environ[i++];
