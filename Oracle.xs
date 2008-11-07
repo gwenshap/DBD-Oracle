@@ -96,6 +96,26 @@ INCLUDE: Oracle.xsi
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::st
 
+void ora_stmt_type(sth)
+ SV *	sth
+    PREINIT:
+    D_imp_sth(sth);
+   CODE:
+    {
+   	XSRETURN_IV( imp_sth->stmt_type);
+}
+
+void
+ora_stmt_type_name(sth)
+    SV *	sth
+    PREINIT:
+    D_imp_sth(sth);
+	CODE:
+	char *p = oci_stmt_type_name(imp_sth->stmt_type);
+	SV *sv = sv_newmortal();
+	if (p)
+	  sv_setpv(sv, p);
+    ST(0) = sv;
 
 void
 ora_scroll_position(sth)

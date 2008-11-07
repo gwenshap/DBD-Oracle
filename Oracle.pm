@@ -78,8 +78,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
  	DBD::Oracle::st->install_method("ora_fetch_scroll");
  	DBD::Oracle::st->install_method("ora_scroll_position");
  	DBD::Oracle::st->install_method("ora_ping");
+ 	DBD::Oracle::st->install_method("ora_stmt_type_name");
+ 	DBD::Oracle::st->install_method("ora_stmt_type");
  	
-	$drh;
+ 	$drh;
     }
 
 
@@ -2514,8 +2516,9 @@ returns a null value rather than an exception.
 
 =head1 Private database handle functions
 
-These functions are called through the method func()
-which is described in the DBI documentation.
+Some of these functions are called through the method func()
+which is described in the DBI documentation. Any function that begins with ora_
+can be called directly.
 
 =head2 plsql_errstr
 
@@ -2586,7 +2589,6 @@ Example 2:
   # retrieve the string
   $date_string = $dbh->func( 'dbms_output_get' );
 
-
 =over 4
 
 =item dbms_output_enable ( [ buffer_size ] )
@@ -2651,6 +2653,16 @@ $refresh parameter to it.
 2 = Database character set is a Unicode encoding.
 
 3 = Both character sets are Unicode encodings.
+
+=head1 Private statment handle functions
+
+=item ora_stmt_type
+
+Returns the OCI Statement Type number for the SQL of a statement handle.
+
+=item ora_stmt_type_name
+
+Returns the OCI Statement Type name for the SQL of a statement handle.
 
 =back
 
