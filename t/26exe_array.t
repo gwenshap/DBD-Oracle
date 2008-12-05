@@ -27,11 +27,12 @@ BEGIN {
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 $ENV{NLS_NCHAR} = "US7ASCII";
+$ENV{NLS_LANG} = "AMERICAN";
 my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1, 
 						AutoCommit=>1,
 						PrintError => 0,
-						ora_envhp  => 0});
-
+						ora_envhp  => 0,
+						});
 
 # check that our db handle is good
 isa_ok($dbh, "DBI::db");
@@ -168,7 +169,7 @@ cmp_ok(scalar @{$tuple_status}, '==', 10, '... we should have 10 tuple_status');
 
  drop_table($dbh);
 
-
+#dbh->{dbd_verbose}=0;
 $dbh->disconnect;
 
 1;

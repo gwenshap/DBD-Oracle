@@ -3167,7 +3167,7 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 				(csform == SQLCS_IMPLICIT) ? "so setting csform=SQLCS_IMPLICIT" :
 				(csform == SQLCS_NCHAR)    ? "so setting csform=SQLCS_NCHAR" :
 				 "but neither CHAR nor NCHAR are unicode\n");
-		}
+	}
 
 	if (csform) {
 		/* set OCI_ATTR_CHARSET_FORM before we get the default OCI_ATTR_CHARSET_ID */
@@ -3186,14 +3186,12 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 
 	/* if app has specified a csid then use that, else use default */
 	csid = (phs->csid) ? phs->csid : phs->csid_orig;
-
-
 	/* if data is utf8 but charset isn't then switch to utf8 csid if possible */
 	if ((utf8 & ARRAY_BIND_UTF8) && !CS_IS_UTF8(csid)) {
 	   /* if the specified or default csid is not utf8 _compatible_ AND we have
 	    * mixed utf8 and native (non-utf8) data, then it's a fatal problem
 	    * utf8 _compatible_ means, can be upgraded to utf8, ie. utf8 or ascii */
-	    if ((utf8 & ARRAY_BIND_NATIVE) && !CS_IS_UTF8_COMPATIBLE(csid)) {
+	    if ((utf8 & ARRAY_BIND_NATIVE) && CS_IS_NOT_UTF8_COMPATIBLE(csid)) {
 				oratext  charsetname[OCI_NLS_MAXBUFSZ];
 				OCINlsCharSetIdToName(imp_sth->envhp,charsetname, sizeof(charsetname),csid );
 
@@ -3205,9 +3203,7 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
         			err_svs[1] = newSVpvf("DBD Oracle Warning: You have mixed utf8 and non-utf8 in an array bind in parameter#%d. This may result in corrupt data. The Query charset id=%d, name=%s",parma_index+1,csid,charsetname);
         		    av_store(tuples_status_av,SvIV(item),newRV_noinc((SV *)(av_make(2, err_svs))));
         		}
-        		/*av_store(tuples_status_av,tuple_index,
-                     newRV_noinc((SV *)(av_make(2, err_svs))));
-*/
+
 
 
 		}
