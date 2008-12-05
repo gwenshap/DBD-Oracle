@@ -10,7 +10,6 @@ hints/svr4.pl
 lib/DBD/Oracle/GetInfo.pm
 Makefile.PL
 MANIFEST
-META.yml			Module meta-data (added by MakeMaker)
 mk.pm
 mkta.pl
 oci.def				OCI.DLL export declarations

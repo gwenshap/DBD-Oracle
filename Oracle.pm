@@ -993,7 +993,7 @@ If you are still stuck with an older version of Oracle or its client you might w
   +---------------------+----+-------------+---------+------+--------+
   |      1.20           | N  |      N      |    N    |  Y   |    Y   |
   +---------------------+----+-------------+---------+------+--------+
-  |      1.21           | N  |      N      |    N    |  Y   |    Y   |
+  |      1.21           | N  |      N      |    N    |  N   |    Y   |
   +---------------------+----+-------------+---------+------+--------+
   |      1.22           | N  |      N      |    N    |  N   |    Y   |
   +---------------------+----+-------------+---------+------+--------+
@@ -1965,7 +1965,7 @@ NLS_LANG to the database character set.
 The NLS_NCHAR environment variable can be used to define a different
 character set for 'national' (NCHAR) character types.
 
-Both UTF8 and AL32UTF32 can be used in NLS_LANG and NLS_NCHAR.
+Both UTF8 and AL32UTF8 can be used in NLS_LANG and NLS_NCHAR.
 For example:
 
    NLS_LANG=AMERICAN_AMERICA.UTF8

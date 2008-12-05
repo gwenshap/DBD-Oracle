@@ -143,10 +143,6 @@ ora_fetch_scroll(sth,fetch_orient,fetch_offset)
     ST(0) = (av) ? sv_2mortal(newRV((SV *)av)) : &PL_sv_undef;
 }
 
-
-
-
-
 void
 ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
     SV *	sth
@@ -178,6 +174,7 @@ ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
     ST(0) = dbd_bind_ph(sth, imp_sth, param,av_value, sql_type, attribs, TRUE, maxlen)
 		? &sv_yes : &sv_no;
 }
+
 
 void
 ora_fetch(sth)
@@ -398,6 +395,9 @@ ora_lob_append(dbh, locator, data)
     else {
        ST(0) = &sv_yes;
     }
+
+
+
 
 void
 ora_lob_read(dbh, locator, offset, length)
