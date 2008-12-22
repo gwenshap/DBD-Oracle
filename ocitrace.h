@@ -154,7 +154,7 @@
 	stat = OCIIterDelete(envhp,errhp,itr );\
 	(DBD_OCI_TRACEON) \
 			?	PerlIO_printf(DBD_OCI_TRACEFP,\
-				 "%sOCIIterDelete_log_stat(%p,%p,%d)=%s\n",\
+				 "%sOCIIterDelete_log_stat(%p,%p,%p)=%s\n",\
 				 OciTp, (void*)envhp, (void*)errhp,itr,oci_status_name(stat)),stat \
 	: stat
 
