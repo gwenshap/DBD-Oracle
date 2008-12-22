@@ -2654,7 +2654,7 @@ $refresh parameter to it.
 
 3 = Both character sets are Unicode encodings.
 
-=head1 Private statment handle functions
+=head1 Private statement handle functions
 
 =item ora_stmt_type
 

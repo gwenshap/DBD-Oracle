@@ -45,20 +45,21 @@
 		         "%sCIServerVersion_log_stat(%p,%s)=%s\n",\
 		         OciTp, sc,b,oci_status_name(stat)),stat \
    : stat
+
 #define OCIStmtGetPieceInfo_log_stat(stmhp,errhp,hdlptr,hdltyp,in_out,iter,idx,piece,stat)\
     stat =OCIStmtGetPieceInfo(stmhp,errhp,hdlptr,hdltyp,in_out,iter,idx,piece);\
     (DBD_OCI_TRACEON) \
     		? PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%sOCIStmtGetPieceInfo_log_stat(%p,%p,%d)=%s\n",\
-		         OciTp, (void*)errhp,fbh,piece,oci_status_name(stat)),stat \
-   : stat
+ 		         "%sOCIStmtGetPieceInfo_log_stat(%p,%p,%u)=%s\n",\
+ 		         OciTp, (void*)errhp,fbh,(unsigned int)piece,oci_status_name(stat)),stat \
+  : stat
 
 
 #define OCIStmtSetPieceInfo_log_stat(ptr,errhp,buf,blen,p,indp,rc,stat)\
     stat =OCIStmtSetPieceInfo(ptr,OCI_HTYPE_DEFINE,errhp, buf, blen, p,indp,rc);\
     (DBD_OCI_TRACEON) \
     		? PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "%sOCIStmtSetPieceInfo_log_stat(%p,%p,%d,%d)=%s\n",\
+		         "%sOCIStmtSetPieceInfo_log_stat(%p,%p,%d,%p)=%s\n",\
 		         OciTp, (void*)errhp,fbh,piece,blen,oci_status_name(stat)),stat \
    : stat
 
@@ -127,16 +128,16 @@
     stat = OCIIntervalToText(envhp,errhp, *(OCIInterval**)di,3,3,sb,ln,sl);\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "% OCIIntervalToText(%p,%p,%p,%s)=%s\n",\
-		         OciTp, (void*)errhp, di,sl,sb,oci_status_name(stat)),stat \
+				"%sOCIIntervalToText(%p,%p,%p,%s)=%s\n",\
+				OciTp, (void*)errhp, di,sl,sb,oci_status_name(stat)),stat \
   : stat
 
 #define OCIDateTimeToText_log_stat(envhp,errhp,d,sl,sb,stat)\
     stat = OCIDateTimeToText(envhp,errhp, *(OCIDateTime**)d,(CONST text*) 0,(ub1) 0,0, (CONST text*) 0, (ub4) 0,(ub4 *)sl,sb );\
     (DBD_OCI_TRACEON) \
 		   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-		         "% OCIDateTimeToText(%p,%p,%p,%s)=%s\n",\
-		         OciTp, (void*)errhp, d,sl,sb,oci_status_name(stat)),stat \
+		         "%sOCIDateTimeToText(%p,%p,%p,%s)=%s\n",\
+				 OciTp, (void*)errhp, d,sl,sb,oci_status_name(stat)),stat \
   : stat
 
 
@@ -178,7 +179,7 @@
     stat = OCIDefineObject(defnp,errhp,tdo,eo_buff,0,eo_ind, 0);\
     (DBD_OCI_TRACEON) \
 	   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
-	         "%sOCIDefineObject(%p,%p,%d)=%s\n",\
+	   		 "%sOCIDefineObject(%p,%p,%p)=%s\n",\
 	         OciTp, (void*)defnp, (void*)errhp, (void*)tdo,oci_status_name(stat)),stat \
    : stat
 
@@ -300,7 +301,7 @@
 	  "%sDescriptorAlloc(%p,%p,%s,0,0)\n",        			\
 	  OciTp,(void*)envhp,(void*)(p1),oci_hdtype_name(t));			\
 	if (OCIDescriptorAlloc((envhp), (void**)(p1), (t), 0, 0)==OCI_SUCCESS);	\
-	else croak("OCIDescriptorAlloc (type %ld) failed",t)
+	else croak("OCIDescriptorAlloc (type %d) failed",t)
 
 #define OCIDescriptorFree_log(d,t)                                     \
 	if (DBD_OCI_TRACEON) PerlIO_printf(DBD_OCI_TRACEFP,			\
@@ -455,7 +456,7 @@
 	stat=OCIServerAttach( imp_dbh->srvhp, imp_dbh->errhp,		\
 	  (text*)dbname, (sb4)strlen(dbname), md);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-	  "%sServerAttach(%p, %p, \"%s\", %d, mode=%s,%d)=%s\n",			\
+	  "%sServerAttach(%p, %p, \"%s\", %d, mode=%s,%lu)=%s\n",			\
 	  OciTp, (void*)imp_dbh->srvhp,(void*)imp_dbh->errhp, dbname,	\
 	  strlen(dbname), oci_mode(md),ul_t(md),oci_status_name(stat)),stat : stat
 
@@ -467,11 +468,11 @@
 	  ul_t((ro)),(void*)(si),(void*)(so),oci_exe_mode(md),ul_t((md)),		\
 	  oci_status_name(stat)),stat : stat
 
-#define OCIStmtFetch_log_stat(sh,eh,nr,or,os,stat)                     \
-         stat=OCIStmtFetch2(sh,eh,nr,or,os,OCI_DEFAULT);                                \
-         (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,                        \
-           "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",                                \
-           OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,(ub2)os,                \
+#define OCIStmtFetch_log_stat(sh,eh,nr,or,os,stat)				\
+         stat=OCIStmtFetch2(sh,eh,nr,or,os,OCI_DEFAULT);		\
+         (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,		\
+           "%sStmtFetch(%p,%p,%lu,%u,%d)=%s\n",					\
+           OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,(ub2)os, \
            oci_status_name(stat)),stat : stat
 
 #define OCIStmtPrepare_log_stat(sh,eh,s1,sl,l,m,stat)                   \

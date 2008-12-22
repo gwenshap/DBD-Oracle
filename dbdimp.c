@@ -988,6 +988,7 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 
     if (cacheit) /* cache value for later DBI 'quick' fetch? */
 	hv_store((HV*)SvRV(dbh), key, kl, newSVsv(valuesv), 0);
+	(void)hv_store((HV*)SvRV(dbh), key, kl, newSVsv(valuesv), 0);
     return TRUE;
 }
 
@@ -1258,9 +1259,9 @@ dbd_preparse(imp_sth_t *imp_sth, char *statement)
 	    imp_sth->all_params_hv = newHV();
 	phs_sv = newSVpv((char*)&phs_tpl, sizeof(phs_tpl)+namelen+1);
 	phs = (phs_t*)(void*)SvPVX(phs_sv);
-	hv_store(imp_sth->all_params_hv, start, namelen, phs_sv, 0);
-	phs->idx = idx-1;       /* Will be 0 for :1, -1 for :foo. */
-    strcpy(phs->name, start);
+	(void)hv_store(imp_sth->all_params_hv, start, namelen, phs_sv, 0);
+ 	phs->idx = idx-1;       /* Will be 0 for :1, -1 for :foo. */
+ 	strcpy(phs->name, start);
 
     }
     *dest = '\0';
@@ -2212,7 +2213,7 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 	 	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (1): bind %s <== %.1000s (", phs->name, val);
 	 	if (!SvOK(phs->sv))
 		    PerlIO_printf(DBILOGFP, "NULL, ");
-		PerlIO_printf(DBILOGFP, "size %ld/%ld/%d, ",(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
+		PerlIO_printf(DBILOGFP, "size %ld/%ld/%ld, ",(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
 	 	PerlIO_printf(DBILOGFP, "ptype %d(%s), otype %d %s)\n",(int)SvTYPE(phs->sv), sql_typecode_name(phs->ftype),phs->ftype,(phs->is_inout) ? ", inout" : "");
     }
 
@@ -2768,7 +2769,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 				if (!oratype_bind_ok(ora_type))
 				    croak("Can't bind %s, ora_type %d not supported by DBD::Oracle", phs->name, ora_type);
 				if (sql_type)
-				    croak("Can't specify both TYPE (%d) and ora_type (%d) for %s", sql_type, ora_type, phs->name);
+					croak("Can't specify both TYPE (%ld) and ora_type (%d) for %s", sql_type, ora_type, phs->name);
 				phs->ftype = ora_type;
 		    }
 		    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_field",9, 0)) != NULL) {
@@ -2777,7 +2778,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 		    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_csform", 10, 0)) != NULL) {
 				if (SvIV(*svp) == SQLCS_IMPLICIT || SvIV(*svp) == SQLCS_NCHAR)
 				    phs->csform = (ub1)SvIV(*svp);
-				else warn("ora_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR), not %d", SvIV(*svp));
+				else warn("ora_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR), not %ld", SvIV(*svp));
 		    }
 		    if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_maxdata_size", 16, 0)) != NULL) {
 				phs->maxdata_size = SvUV(*svp);
@@ -2810,8 +2811,8 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 
     }
     else if (sql_type && phs->ftype != ora_sql_type(imp_sth, phs->name, (int)sql_type)) {
-		croak("Can't change TYPE of param %s to %d after initial bind",
-			phs->name, sql_type);
+		croak("Can't change TYPE of param %s to %ld after initial bind",
+ 			phs->name, sql_type);
 
     }
     /* Array binding is supported for a limited number of data types. */
@@ -2824,8 +2825,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 			/* Supported */
 		    }else{
 				/* All the other types are not supported */
-				croak("Array bind is supported only for ORA_%_TABLE types. Unable to bind '%s'.",phs->name);
-
+				croak("Array bind is supported only for ORA_%%_TABLE types. Unable to bind '%s'.",phs->name);
 		    }
 		}
 	}
@@ -3466,7 +3466,6 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 		   		AV *av = (AV*)SvRV(sv);
 		   		I32 avlen = AvFILL(av);
 				for (j=0;j<=avlen;j++){
-					SV *sv2 = *av_fetch(av, j, 1);
 					dbd_phs_avsv_complete(phs, j, debug);
 				}
 	    	}
@@ -3810,8 +3809,8 @@ dbd_st_STORE_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv, SV *valuesv)
 	return FALSE;
 
     if (cachesv) /* cache value for later DBI 'quick' fetch? */
-	hv_store((HV*)SvRV(sth), key, kl, cachesv, 0);
-    return TRUE;
+		(void)hv_store((HV*)SvRV(sth), key, kl, cachesv, 0);
+    	return TRUE;
 }
 
 
@@ -3857,9 +3856,9 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 	    I32 keylen;
 	    hv_iterinit(imp_sth->all_params_hv);
 	    while ( (sv = hv_iternextsv(imp_sth->all_params_hv, &key, &keylen)) ) {
-		phs_t *phs = (phs_t*)(void*)SvPVX(sv);       /* placeholder struct   */
-		hv_store(pvhv, key, keylen, newSVsv(phs->sv), 0);
-	    }
+			phs_t *phs = (phs_t*)(void*)SvPVX(sv);       /* placeholder struct   */
+			(void)hv_store(pvhv, key, keylen, newSVsv(phs->sv), 0);
+ 		}
 	}
 	retsv = newRV_noinc((SV*)pvhv);
 	cacheit = FALSE;
