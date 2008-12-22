@@ -988,8 +988,8 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 	}
 
 	if (cacheit) /* cache value for later DBI 'quick' fetch? */
-	hv_store((HV*)SvRV(dbh), key, kl, newSVsv(valuesv), 0);
-	(void)hv_store((HV*)SvRV(dbh), key, kl, newSVsv(valuesv), 0);
+		(void)hv_store((HV*)SvRV(dbh), key, kl, newSVsv(valuesv), 0);
+		
 	return TRUE;
 }
 
