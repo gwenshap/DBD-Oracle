@@ -1,4 +1,5 @@
 =head1 Changes in DBD-Oracle 1.23(svn rev #####)
+  Added a README for sun suggested by Jim McCullars
   Clean up of white space and formating to 4 tabs  from John Scoles
   Fix for GCC 4.3 warnings from Eric Simon
   Standerdized the dbd_verbose levels so they are all 3 and over.  from John Scoles
