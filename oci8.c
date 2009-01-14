@@ -19,6 +19,9 @@
 
 DBISTATE_DECLARE;
 
+int describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level );
+int dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level);
+
 
 
 void
@@ -567,11 +570,10 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		DBD_ATTRIB_GET_IV(  attribs, "ora_prefetch_memory",  19, svp, imp_sth->prefetch_memory);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_verbose",  11, svp, dbd_verbose);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_oci_success_warn",  20, svp, oci_warn);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_objects",  11, svp, ora_objects);
 
-  			if (!dbd_verbose)
-				DBD_ATTRIB_GET_IV(  attribs, "dbd_verbose",  11, svp, dbd_verbose);
-
-
+		if (!dbd_verbose)
+			DBD_ATTRIB_GET_IV(  attribs, "dbd_verbose",  11, svp, dbd_verbose);
 		}
 
 
@@ -656,7 +658,7 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 	AV *av;
 	SV **sv_p;
 	if( bindp ){ /* For GCC not to warn on unused parameter*/ }
-	
+
 	tuples_av = phs->imp_sth->bind_tuples;
 	if(tuples_av) {
 		/* NOTE: we already checked the validity in ora_st_bind_for_array_exec(). */
@@ -668,7 +670,7 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 			*bufpp = SvPV(sv, phs_len);
 			phs->alen = (phs->alen_incnull) ? phs_len+1 : phs_len;
 			phs->indp = 0;
-		} 
+		}
 		else {
 			*bufpp = SvPVX(sv);
 			phs->alen = 0;
@@ -765,7 +767,7 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 		*bufpp  = phs->desc_h;
 		phs->alen = 0;
 
-	} 
+	}
 	else {
 		SV *sv = phs->sv;
 
@@ -1007,15 +1009,15 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 		imp_sth_nested->errhp = imp_sth->errhp;
 		imp_sth_nested->srvhp = imp_sth->srvhp;
 		imp_sth_nested->svchp = imp_sth->svchp;
-	
+
 		imp_sth_nested->stmhp = stmhp_nested;
 		imp_sth_nested->nested_cursor = 1;
 		imp_sth_nested->rs_array_on = 1;
 		imp_sth_nested->stmt_type = OCI_STMT_SELECT;
-	
+
 		DBIc_IMPSET_on(imp_sth_nested);
 		DBIc_ACTIVE_on(imp_sth_nested);  /* So describe won't do an execute */
-	
+
 		if (!dbd_describe(dest_sv, imp_sth_nested))
 			return 0;
 	}
@@ -1090,7 +1092,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		if (SvOK(phs->sv)) {	/* ie a number, convert to string ASAP  */
 			if (!(SvROK(phs->sv) && phs->is_inout))
 				sv_2pv(phs->sv, &na);
-		} 
+		}
 		else { /* ensure we're at least an SVt_PV (so SvPVX etc work)	 */
 			if(SvUPGRADE(phs->sv, SVt_PV)){} /* For GCC not to warn on unused result */
 		}
@@ -1122,7 +1124,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		ub4 amtp;
 
 		if(SvUPGRADE(phs->sv, SVt_PV)){/* For GCC not to warn on unused result */};	/* just in case */
-		
+
 		amtp = SvCUR(phs->sv);		/* XXX UTF8? */
 
 		/* Create a temp lob for non-empty string */
@@ -1754,10 +1756,27 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 	}
 }
 
+
+SV* new_ora_object (AV* list, OCITypeCode typecode) {
+	dTHX;
+	SV* objref = newRV_noinc((SV*) list);
+
+	if (ora_objects && typecode == OCI_TYPECODE_OBJECT) {
+		HV* self = newHV();
+		(void)hv_store(self, "type_name", 9, av_shift(list), 0);
+		(void)hv_store(self, "attributes", 10, objref, 0);
+		objref = newRV_noinc((SV*) self);
+		objref = sv_bless(objref, gv_stashpv("DBD::Oracle::Object", 0));
+
+	}
+	return objref;
+}
+
 /*gets the properties of an object from a fetch by using the attributes saved in the describe */
 
 int
-get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *value){
+get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObject *value){
+
 	dTHX;
 	sword 		status;
 	dvoid		*element ;
@@ -1771,6 +1790,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 	OCIIter  	*itr;
 	fbh_obj_t	*fld;
 	OCIInd		*obj_ind;
+	fbh_obj_t	*obj = base_obj;
 
 	if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%s\n",obj->type_name,oci_typecode_name(obj->typecode));
@@ -1780,12 +1800,72 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 
 		case OCI_TYPECODE_OBJECT :							/* embedded ADT */
 
+			if (ora_objects){
+
+				OCIRef  *type_ref=0;
+				sword   status;
+				OCIType *tdo;
+
+				status = OCIObjectNew(fbh->imp_sth->envhp, fbh->imp_sth->errhp, fbh->imp_sth->svchp,
+													OCI_TYPECODE_REF, (OCIType *)0,
+													(dvoid *)0, OCI_DURATION_DEFAULT, TRUE,
+													(dvoid **) &type_ref);
+				if (status != OCI_SUCCESS) {
+					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectNew");
+					return 0;
+				}
+
+				status=OCIObjectGetTypeRef(fbh->imp_sth->envhp,fbh->imp_sth->errhp, (dvoid*)fbh->obj->obj_value, type_ref);
+				if (status != OCI_SUCCESS) {
+					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetTypeRef");
+					return 0;
+				}
+
+				OCITypeByRef_log_stat(fbh->imp_sth->envhp,fbh->imp_sth->errhp,type_ref,&tdo,status);
+
+				if (status != OCI_SUCCESS) {
+					oci_error(sth, fbh->imp_sth->errhp, status, "OCITypeByRef");
+					return 0;
+				}
+
+				if (tdo != obj->tdo) {
+					/* this is subtype -> search for subtype obj */
+					while (obj->next_subtype && tdo != obj->tdo) {
+						obj = obj->next_subtype;
+					}
+					if (tdo != obj->tdo) {
+						/* new subtyped -> get obj description */
+						if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
+							PerlIO_printf(DBILOGFP, " describe subtype of object type %s\n",base_obj->type_name);
+						}
+
+						Newz(1, obj->next_subtype, 1, fbh_obj_t);
+						obj->next_subtype->tdo = tdo;
+						if ( describe_obj_by_tdo(sth, fbh->imp_sth, obj->next_subtype, 0 /*unknown level there*/) ) {
+							obj = obj->next_subtype;
+							if (DBIS->debug >= 5 || dbd_verbose >= 5 ){
+								dump_struct(fbh->imp_sth,obj,0);
+							}
+						}
+						else {
+							obj->next_subtype = 0;
+						}
+					}
+
+					if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
+						PerlIO_printf(DBILOGFP, " getting attributes of object subtype  %s\n",obj->type_name);
+					}
+				}
+
+				av_push(list, newSVpv((char*)obj->type_name, obj->type_namel));
+			}
+
 			if (obj->obj_ind) {
 				obj_ind = obj->obj_ind;
 			} else {
 
 				status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,(dvoid**)&obj_ind);
-	
+
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetInd");
 					return 0;
@@ -1793,7 +1873,13 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *obj,OCIComplexObject *v
 			}
 
 			for (pos = 0; pos < obj->field_count; pos++){
-  	  			fld = &obj->fields[pos]; /*get the field */
+
+				fld = &obj->fields[pos]; /*get the field */
+
+				if (ora_objects) {
+					/* add field name */
+					av_push(list, newSVpv((char*)fld->type_name, fld->type_namel));
+				}
 
 				status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,(dvoid**)&obj->obj_ind);
 /*
@@ -1837,8 +1923,9 @@ id only shows you examples with the C struct built in and only a single record. 
 						fld->fields[0].value = newAV();
 						if (fld->typecode != OCI_TYPECODE_OBJECT)
 							attr_value = *(dvoid **)attr_value;
+
 						get_object (sth,fld->fields[0].value, fbh, &fld->fields[0],attr_value);
-						av_push(list, newRV_noinc((SV *) fld->fields[0].value));
+						av_push(list, new_ora_object(fld->fields[0].value, fld->typecode));
 
 					} else{  /* else, display the scaler type attribute */
 
@@ -1872,14 +1959,14 @@ id only shows you examples with the C struct built in and only a single record. 
 						(dvoid **) &element,
 						(dvoid **) &element_null, &eoc) && !eoc;)
 					{
-	
+
 						if (*element_null==OCI_IND_NULL){
 							av_push(list,  &sv_undef);
 						} else {
 							if (obj->element_typecode == OCI_TYPECODE_OBJECT || obj->element_typecode == OCI_TYPECODE_VARRAY || obj->element_typecode== OCI_TYPECODE_TABLE || obj->element_typecode== OCI_TYPECODE_NAMEDCOLLECTION){
 								fld->value = newAV();
-				 				get_object (sth,fld->value, fbh, fld,element);
-								av_push(list, newRV_noinc((SV *) fld->value));
+								get_object (sth,fld->value, fbh, fld,element);
+								av_push(list, new_ora_object(fld->value, obj->element_typecode));
 							} else{  /* else, display the scaler type attribute */
 								get_attr_val(sth,list, fbh, obj->type_name, obj->element_typecode, element);
 							}
@@ -1932,7 +2019,7 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
   	if (!get_object(sth,fbh->obj->value,fbh,fbh->obj,fbh->obj->obj_value)){
   		return 0;
 	} else {
-		sv_setsv(dest_sv, sv_2mortal(newRV_noinc((SV *) fbh->obj->value)));
+		sv_setsv(dest_sv, sv_2mortal(new_ora_object(fbh->obj->value, fbh->obj->typecode)));
 		return 1;
 	}
 
@@ -2080,18 +2167,22 @@ empty_oci_object(fbh_obj_t *obj){
 
 			case OCI_TYPECODE_OBJECT :		/* embedded ADT */
 
-				for (pos = 0; pos < obj->field_count; pos++){
-				fld = &obj->fields[pos]; /*get the field */
-				if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
-					empty_oci_object(fld);
-					if (fld->value && SvTYPE(fld->value) == SVt_PVAV){
-						av_clear(fld->value);
-			 			av_undef(fld->value);
-					}
-
-				} else {
-					return 1;
+				if (obj->next_subtype) {
+					empty_oci_object(obj->next_subtype);
 				}
+
+				for (pos = 0; pos < obj->field_count; pos++){
+					fld = &obj->fields[pos]; /*get the field */
+					if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
+						empty_oci_object(fld);
+						if (fld->value && SvTYPE(fld->value) == SVt_PVAV){
+							av_clear(fld->value);
+				 			av_undef(fld->value);
+						}
+
+					} else {
+						return 1;
+					}
 				}
 			break;
 
@@ -2160,10 +2251,10 @@ void rs_array_init(imp_sth_t *imp_sth)
 	if (imp_sth->rs_array_on!=1		||
 		imp_sth->rs_array_size<1	||
 		imp_sth->rs_array_size>128){
-		
+
 		imp_sth->rs_array_on=0;
 		imp_sth->rs_array_size=1;
-		
+
 	}
 	imp_sth->rs_array_num_rows=0;
 	imp_sth->rs_array_idx=0;
@@ -2194,7 +2285,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	/* number of rows to cache	 if using oraperl */
 	if (SvOK(imp_drh->ora_cache_o)){
 		imp_sth->cache_rows = SvIV(imp_drh->ora_cache_o);
-	} 
+	}
 	else if (SvOK(imp_drh->ora_cache)){
 		imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
 	}
@@ -2271,15 +2362,79 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 {
 	dTHX;
 	sword status;
+	OCIRef *type_ref;
 
 	if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
 		PerlIO_printf(DBILOGFP, "At level=%d in description an embedded object \n",level);
 	}
 	/*Describe the field (OCIParm) we know it is a object or a collection */
 
-	OCIAttrGet_parmdp(imp_sth,parm, &obj->type_name, &obj->type_namel, OCI_ATTR_TYPE_NAME, status);
-	/*get its name and hence TDO*/
-	/*Now get the Actual TDO */
+	/* Get the Actual TDO */
+	OCIAttrGet_parmdp(imp_sth,parm, &type_ref, 0, OCI_ATTR_REF_TDO, status);
+
+	if (status != OCI_SUCCESS) {
+		oci_error(sth, imp_sth->errhp, status, "OCIAttrGet");
+		return 0;
+	}
+
+	OCITypeByRef_log_stat(imp_sth->envhp,imp_sth->errhp,type_ref,&obj->tdo,status);
+
+	if (status != OCI_SUCCESS) {
+		oci_error(sth, imp_sth->errhp, status, "OCITypeByRef");
+		return 0;
+	}
+
+	return describe_obj_by_tdo(sth, imp_sth, obj, level);
+	}
+
+int
+describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level ) {
+	dTHX;
+	sword status;
+	text *type_name, *schema_name;
+	ub4  type_namel, schema_namel;
+
+
+	OCIDescribeAny_log_stat(imp_sth->svchp,imp_sth->errhp,obj->tdo,(ub4)0,OCI_OTYPE_PTR,(ub1)1,OCI_PTYPE_TYPE,imp_sth->dschp,status);
+	/*we have the Actual TDO  so lets see what it is made up of by a describe*/
+
+	if (status != OCI_SUCCESS) {
+		oci_error(sth,imp_sth->errhp, status, "OCIDescribeAny");
+		return 0;
+	}
+
+	OCIAttrGet_parmap(imp_sth, imp_sth->dschp,OCI_HTYPE_DESCRIBE,  &obj->parmdp, 0, status);
+
+	if (status != OCI_SUCCESS) {
+		oci_error(sth,imp_sth->errhp, status, "OCIAttrGet");
+		return 0;
+	}
+
+	/*and we store it in the object's paramdp for now*/
+
+	OCIAttrGet_parmdp(imp_sth, obj->parmdp, &schema_name, &schema_namel, OCI_ATTR_SCHEMA_NAME, status);
+
+	if (status != OCI_SUCCESS) {
+		oci_error(sth,imp_sth->errhp, status, "OCIAttrGet");
+		return 0;
+	}
+
+	OCIAttrGet_parmdp(imp_sth, obj->parmdp, &type_name, &type_namel, OCI_ATTR_NAME, status);
+
+	if (status != OCI_SUCCESS) {
+		oci_error(sth,imp_sth->errhp, status, "OCIAttrGet");
+		return 0;
+	}
+
+	/* make full type_name: schema_name + "." + type_name */
+	obj->full_type_name = newSVpv((char*)schema_name, schema_namel);
+	sv_catpvn(obj->full_type_name, ".", 1);
+	sv_catpvn(obj->full_type_name, (char*)type_name, type_namel);
+	obj->type_name = (text*)SvPV(obj->full_type_name,na);
+
+	/*we need to know its type code*/
+
+	OCIAttrGet_parmdp(imp_sth, obj->parmdp, (dvoid *)&obj->typecode, 0, OCI_ATTR_TYPECODE, status);
 
 	if (status != OCI_SUCCESS) {
 		oci_error(sth,imp_sth->errhp, status, "OCIAttrGet");
@@ -2288,38 +2443,6 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 
 	if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
 		PerlIO_printf(DBILOGFP, "Geting the properties of object named =%s at level %d\n",obj->type_name,level);
-	}
-	
-	OCITypeByName_log_stat(imp_sth->envhp,imp_sth->errhp,imp_sth->svchp,obj->type_name,obj->type_namel,&obj->tdo,status);
-	
-	if (status != OCI_SUCCESS) {
-		oci_error(sth, imp_sth->errhp, status, "OCITypeByName");
-		return 0;
-	}
-	OCIDescribeAny_log_stat(imp_sth->svchp,imp_sth->errhp,obj->tdo,(ub4)0,OCI_OTYPE_PTR,(ub1)1,OCI_PTYPE_TYPE,imp_sth->dschp,status);
-	/*we have the Actual TDO  so lets see what it is made up of by a describe*/
-	
-	if (status != OCI_SUCCESS) {
-		oci_error(sth,imp_sth->errhp, status, "OCIDescribeAny");
-		return 0;
-	}
-
-	OCIAttrGet_parmap(imp_sth, imp_sth->dschp,OCI_HTYPE_DESCRIBE,  &obj->parmdp, 0, status);
-	
-	if (status != OCI_SUCCESS) {
-		oci_error(sth,imp_sth->errhp, status, "OCIAttrGet");
-		return 0;
-	}
-
-	/*and we store it in the object's paramdp for now*/
-
-	OCIAttrGet_parmdp(imp_sth,  obj->parmdp, (dvoid *)&obj->typecode, 0, OCI_ATTR_TYPECODE, status);
-
-	/*we need to know its type code*/
-
-	if (status != OCI_SUCCESS) {
-		oci_error(sth,imp_sth->errhp, status, "OCIAttrGet");
-		return 0;
 	}
 
 	if (obj->typecode == OCI_TYPECODE_OBJECT){
@@ -2755,11 +2878,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 					fbh->disize 		= fbh->disize+long_readlen; /*user set max value for the fetch*/
 					if (fbh->dbtype == ORA_CLOB){
 				  		fbh->ftype = SQLT_CHR;
-				  	} 
+				  	}
 				  	else {
 				  		fbh->ftype = SQLT_LVB; /*Binary form seems this is the only value where we cna get the length correctly*/
 				  	}
-				} 
+				}
 				else if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
 					fbh->clbk_lob	  = 1;
 					fbh->define_mode	= OCI_DYNAMIC_FETCH; /* piecwise fetch*/
@@ -2775,7 +2898,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 						fbh->ftype = SQLT_BIN; /*other Binary*/
 					}
 					fbh->fetch_func = fetch_clbk_lob;
-				} 
+				}
 				else if (imp_sth->piece_lob){ /*get by peice with polling slowest*/
 					fbh->piece_lob	  = 1;
 					fbh->define_mode	= OCI_DYNAMIC_FETCH; /* piecwise fetch*/
@@ -2792,7 +2915,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 						fbh->ftype = SQLT_BIN; /*other Binary */
 					}
 					fbh->fetch_func = fetch_get_piece;
-				} 
+				}
 				else { /*auto lob fetch with locator by far the fastest*/
 					fbh->disize = fbh->dbsize *10 ;	/* XXX! */
 					fbh->fetch_func = (imp_sth->auto_lob) ? fetch_func_autolob : fetch_func_getrefpv;
@@ -2996,14 +3119,14 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 	for(i=0; i < num_fields; ++i) {
 		imp_fbh_t *fbh = &imp_sth->fbh[i];
-		if (fbh->fetch_cleanup) 
+		if (fbh->fetch_cleanup)
 			fbh->fetch_cleanup(sth, fbh);
 	}
 
 	if (ora_fetchtest && DBIc_ROW_COUNT(imp_sth)>0) {
 		--ora_fetchtest; /* trick for testing performance */
 		status = OCI_SUCCESS;
-	} 
+	}
 	else {
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 ){
 			PerlIO_printf(DBILOGFP, "	dbd_st_fetch %d fields...\n", DBIc_NUM_FIELDS(imp_sth));
@@ -3040,7 +3163,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 					status=OCI_SUCCESS;
 				else
 					status=imp_sth->rs_array_status;
-			} 
+			}
 			else {
 				OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1,(ub2)OCI_FETCH_NEXT, OCI_DEFAULT, status);
 				imp_sth->rs_array_idx=0;
@@ -3081,7 +3204,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 	ChopBlanks = DBIc_has(imp_sth, DBIcf_ChopBlanks);
 	err = 0;
-	
+
 	for(i=0; i < num_fields; ++i) {
 		imp_fbh_t *fbh		= &imp_sth->fbh[i];
 		fb_ary_t *fb_ary	= fbh->fb_ary;
@@ -3116,7 +3239,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
  				if (!fbh->fetch_func(sth, fbh, sv)){
 					++err;	/* fetch_func already called oci_error */
 				}
-		  	} 
+		  	}
 		  	else {
 				int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
 				char *p = (char*)row_data;
@@ -3125,7 +3248,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						Seems I have to use SQLT_LVB to get the length all other will fail*/
 					datalen = *(ub4*)row_data;
 					sv_setpvn(sv, (char*)row_data+ sizeof(ub4), datalen);
-				} 
+				}
 				else {
 					if (ChopBlanks && fbh->dbtype == 96) {
 						while(datalen && p[datalen - 1]==' ')
@@ -3138,10 +3261,10 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				}
 			}
 
-		} 
+		}
 		else if (rc == 1405) {	/* field is null - return undef	*/
 			sv_set_undef(sv);
-		} 
+		}
 		else {  /* See odefin rcode arg description in OCI docs	*/
 			char buf[200];
 			char *hint = "";
@@ -3160,7 +3283,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 					hint = ", LongReadLen too small and/or LongTruncOk not set";
 				}
 
-			} 
+			}
 			else {	/* set field that caused error to undef */
 				sv_set_undef(sv);
 			}
@@ -3196,15 +3319,15 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 	if (**uidp == '\0' && **pwdp == '\0') {
 		return OCI_CRED_EXT;
 	}
-	
+
 	OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
 			*uidp, strlen(*uidp),
 			(ub4) OCI_ATTR_USERNAME, imp_dbh->errhp, status);
-	
+
 	OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
 			(strlen(*pwdp)) ? *pwdp : NULL, strlen(*pwdp),
 			(ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
-	
+
 	return OCI_CRED_RDBMS;
 }
 
@@ -3402,7 +3525,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
 	OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
 		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_TABLE, imp_sth->dschp, status);
-	
+
 	if (status != OCI_SUCCESS) {
 	/* XXX this OCI_PTYPE_TABLE->OCI_PTYPE_VIEW fallback should actually be	*/
 	/* a loop that includes synonyms etc */
@@ -3420,12 +3543,12 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
 				&numcols, 0, OCI_ATTR_NUM_COLS, errhp, status);
 	}
-	
+
 	if (!status ) {
 		OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
 				&collisthd, 0, OCI_ATTR_LIST_COLUMNS, errhp, status);
 	}
-	
+
 	if (status != OCI_SUCCESS) {
 		OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 		return oci_error(sth, errhp, status, "OCIDescribeAny/OCIAttrGet/LOB refetch");
@@ -3446,44 +3569,44 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 							OCI_ATTR_DATA_TYPE, errhp, status);
 		if (status)
 			break;
-			
+
 		OCIAttrGet_log_stat(colhd, OCI_DTYPE_PARAM, &col_name, &col_name_len,
 				OCI_ATTR_NAME, errhp, status);
 		if (status)
 			break;
-			
+
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(DBILOGFP, "		lob refetch table col %d: '%.*s' otype %d\n",
 				(int)i, (int)col_name_len,col_name, col_dbtype);
-				
+
 		if (col_dbtype != SQLT_CLOB && col_dbtype != SQLT_BLOB)
 			continue;
-			
+
 		if (!lob_cols_hv)
 			lob_cols_hv = newHV();
-	
+
 		sv = newSViv(col_dbtype);
 		(void)sv_setpvn(sv, col_name, col_name_len);
-	
+
 		if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT))
 			SvUTF8_on(sv);
-		
+
 		(void)SvIOK_on(sv);	/* "what a wonderful hack!" */
 		(void)hv_store(lob_cols_hv, col_name,col_name_len, sv,0);
 		OCIDescriptorFree(colhd, OCI_DTYPE_PARAM);
 		colhd = NULL;
 	}
-		
+
 	if (colhd)
 		OCIDescriptorFree(colhd, OCI_DTYPE_PARAM);
-		
+
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, errhp, status,
 			"OCIDescribeAny/OCIParamGet/OCIAttrGet/LOB refetch");
 		OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 		return 0;
 	}
-		
+
 	if (!lob_cols_hv)
 		return oci_error(sth, errhp, OCI_ERROR,
 			"LOB refetch failed, no lobs in table");
@@ -3505,15 +3628,15 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	while( (sv = hv_iternextsv(imp_sth->all_params_hv, &p, &i)) != NULL ) {
 		int matched = 0;
 		phs_t *phs = (phs_t*)(void*)SvPVX(sv);
-	
+
 		if (sv == &sv_undef || !phs)
 			croak("panic: unbound params");
-		
+
 		if (phs->ftype != SQLT_CLOB && phs->ftype != SQLT_BLOB)
 			continue;
-	
+
 		hv_iterinit(lob_cols_hv);
-		
+
 		while( (sv = hv_iternextsv(lob_cols_hv, &p, &i)) != NULL ) {
 			char sql_field[200];
 			if (phs->ora_field) {	/* must match this phs by field name	*/
@@ -3572,7 +3695,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		}
 	}
 	sv_free((SV*)lob_cols_hv);
-	
+
 	if (unmatched_params) {
 		Safefree(lr);
 		return oci_error(sth, errhp, OCI_ERROR,
@@ -3594,7 +3717,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	OCIStmtPrepare_log_stat(lr->stmthp, errhp,
 		(text*)SvPVX(sql_select), SvCUR(sql_select), OCI_NTV_SYNTAX,
 			OCI_DEFAULT, status);
-	
+
 	if (status != OCI_SUCCESS) {
 		OCIHandleFree(lr->stmthp, OCI_HTYPE_STMT);
 		Safefree(lr);
@@ -3693,12 +3816,12 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	lr = imp_sth->lob_refetch;
 
 	OCIAttrGet_stmhp_stat(imp_sth, lr->rowid, 0, OCI_ATTR_ROWID,status);
-	
+
 	if (status != OCI_SUCCESS)
 		return oci_error(sth, errhp, status, "OCIAttrGet OCI_ATTR_ROWID /LOB refetch");
-	
+
 	OCIStmtExecute_log_stat(imp_sth->svchp, lr->stmthp, errhp,1, 0, NULL, NULL, OCI_DEFAULT, status);	/* execute and fetch */
-	
+
 	if (status != OCI_SUCCESS)
 		return oci_error(sth, errhp, status,
 
@@ -3711,7 +3834,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 		ub4 amtp;
 
 		if(SvUPGRADE(phs->sv, SVt_PV)){/* For GCC not to warn on unused result */ };	/* just in case */
-	
+
 		amtp = SvCUR(phs->sv);		/* XXX UTF8? */
 		if (rc == 1405) {		/* NULL - return undef */
 			sv_set_undef(phs->sv);
@@ -3747,22 +3870,22 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 			if (status != OCI_SUCCESS) {
 				return oci_error(sth, errhp, status, "OCILobWrite in post_execute_lobs");
 			}
-			
+
 		} else {			/* amtp==0 so truncate LOB to zero length */
 			OCILobTrim_log_stat(imp_sth->svchp, errhp, (OCILobLocator*)fbh->desc_h, 0, status);
-			
+
 			if (status != OCI_SUCCESS) {
 				return oci_error(sth, errhp, status, "OCILobTrim in post_execute_lobs");
 			}
-			
+
 		}
-		
+
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(DBILOGFP,
 			"		lob refetch %d for '%s' param: ftype %d, len %ld: %s %s\n",
 			i+1,fbh->name, fbh->dbtype, ul_t(amtp),
 			(rc==1405 ? "NULL" : (amtp > 0) ? "LobWrite" : "LobTrim"), oci_status_name(status));
-			
+
 		if (status != OCI_SUCCESS) {
 			return oci_error(sth, errhp, status, "OCILobTrim/OCILobWrite/LOB refetch");
 		}
@@ -3784,10 +3907,10 @@ ora_free_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	if (lr->rowid)
 		OCIDescriptorFree(lr->rowid, OCI_DTYPE_ROWID);
 	OCIHandleFree_log_stat(lr->stmthp, OCI_HTYPE_STMT, status);
-	
+
 	if (status != OCI_SUCCESS)
 		oci_error(sth, imp_sth->errhp, status, "ora_free_lob_refetch/OCIHandleFree");
-		
+
 	for(i=0; i < lr->num_fields; ++i) {
 		imp_fbh_t *fbh = &lr->fbh_ary[i];
 		ora_free_fbh_contents(fbh);

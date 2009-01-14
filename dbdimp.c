@@ -43,6 +43,8 @@ int ora_fetchtest;	/* intrnal test only, not thread safe */
 int is_extproc	= 0;
 int dbd_verbose	= 0; /* DBD only debugging*/
 int oci_warn	= 0; /* show oci warnings */
+int ora_objects	= 0; /* get oracle embedded objects as instance of DBD::Oracle::Object */
+
 /* bitflag constants for figuring out how to handle utf8 for array binds */
 #define ARRAY_BIND_NATIVE 0x01
 #define ARRAY_BIND_UTF8   0x02
@@ -103,7 +105,7 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 		if (*(SvEND(errstr)-1) == '\n')
 			--SvCUR(errstr);
 	}
-	
+
 	if (what || status != OCI_ERROR) {
 		sv_catpv(errstr, (debug<0) ? " (" : " (DBD ");
 		sv_catpv(errstr, oci_status_name(status));
@@ -379,7 +381,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		DBD_ATTRIB_GET_IV(  attr, "ora_verbose",  11, svp, dbd_verbose);
 	if (DBD_ATTRIB_TRUE(attr,"ora_oci_success_warn",20,svp))
 		DBD_ATTRIB_GET_IV(  attr, "ora_oci_success_warn",  20, svp, oci_warn);
-
+	if (DBD_ATTRIB_TRUE(attr,"ora_objects",11,svp))
+		DBD_ATTRIB_GET_IV(  attr, "ora_objects",11, svp, ora_objects);
 
 	/* dbi_imp_data code adapted from DBD::mysql */
 	if (DBIc_has(imp_dbh, DBIcf_IMPSET)) {
@@ -954,6 +957,9 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 	if (kl==20 && strEQ(key, "ora_oci_success_warn") ) {
 		oci_warn = SvIV (valuesv);
 	}
+	else if (kl==11 && strEQ(key, "ora_objects")) {
+		ora_objects = SvIV (valuesv);
+	}
 	else if (kl==11 && (strEQ(key, "ora_verbose") || strEQ(key, "dbd_verbose"))) {
 		dbd_verbose = SvIV (valuesv);
 	}
@@ -989,7 +995,7 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 
 	if (cacheit) /* cache value for later DBI 'quick' fetch? */
 		(void)hv_store((HV*)SvRV(dbh), key, kl, newSVsv(valuesv), 0);
-		
+
 	return TRUE;
 }
 
@@ -1008,6 +1014,9 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 
 	if (kl==20 && strEQ(key, "ora_oci_success_warn")) {
 		retsv = newSViv (oci_warn);
+	}
+	else if (kl==11 && strEQ(key, "ora_objects")) {
+		retsv = newSViv (ora_objects);
 	}
 	else if (kl==11 && (strEQ(key, "ora_verbose") || strEQ(key, "dbd_verbose"))) {
 		retsv = newSViv (dbd_verbose);
@@ -1230,28 +1239,28 @@ phs_t *phs;
 			dest = start+strlen(start);
 			style = "?";
 
-		} 
+		}
 		else if (isDIGIT(*src)) {	/* ':1'		*/
 			idx = atoi(src);
 			*dest++ = 'p';		/* ':1'->':p1'	*/
 			if (idx <= 0)
 				croak("Placeholder :%d invalid, placeholders must be >= 1", idx);
-		
+
 			while(isDIGIT(*src))
 				*dest++ = *src++;
 			style = ":1";
 
-		} 
+		}
 		else if (isALNUM(*src)) {	/* ':foo'	*/
 			while(isALNUM(*src))	/* includes '_'	*/
 				*dest++ = toLOWER(*src), src++;
 			style = ":foo";
-		
+
 		} else {			/* perhaps ':=' PL/SQL construct */
 			/* if (src == ':') *dest++ = *src++; XXX? move past '::'? */
 			continue;
 		}
-		
+
 		*dest = '\0';			/* handy for debugging	*/
 		namelen = (dest-start);
 		if (laststyle && style != laststyle)
@@ -2450,7 +2459,7 @@ dTHX;
 	}
 
 	return 1;
-	
+
 }
 
 static int
@@ -3849,7 +3858,7 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 		while(--i >= 0)
 			av_store(av, i, newSVpv((char*)imp_sth->fbh[i].name,0));
 
-	} 
+	}
 	else if (kl==11 && strEQ(key, "ParamValues")) {
 		HV *pvhv = newHV();
 		if (imp_sth->all_params_hv) {
@@ -3865,55 +3874,55 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 		retsv = newRV_noinc((SV*)pvhv);
 		cacheit = FALSE;
 
-	} 
+	}
 	else if (kl==11 && strEQ(key, "ora_lengths")) {
 		AV *av = newAV();
 		retsv = newRV(sv_2mortal((SV*)av));
 		while(--i >= 0)
 			av_store(av, i, newSViv((IV)imp_sth->fbh[i].disize));
-	} 
+	}
 	else if (kl==9 && strEQ(key, "ora_types")) {
 		AV *av = newAV();
 		retsv = newRV(sv_2mortal((SV*)av));
 		while(--i >= 0)
 			av_store(av, i, newSViv(imp_sth->fbh[i].dbtype));
-	} 
+	}
 	else if (kl==4 && strEQ(key, "TYPE")) {
 		AV *av = newAV();
 		retsv = newRV(sv_2mortal((SV*)av));
 		while(--i >= 0)
 			av_store(av, i, newSViv(ora2sql_type(imp_sth->fbh+i).dbtype));
-	} 
+	}
 	else if (kl==5 && strEQ(key, "SCALE")) {
 		AV *av = newAV();
 		retsv = newRV(sv_2mortal((SV*)av));
 		while(--i >= 0)
 			av_store(av, i, newSViv(ora2sql_type(imp_sth->fbh+i).scale));
-	} 
+	}
 	else if (kl==9 && strEQ(key, "PRECISION")) {
 		AV *av = newAV();
 		retsv = newRV(sv_2mortal((SV*)av));
 		while(--i >= 0)
 			av_store(av, i, newSViv(ora2sql_type(imp_sth->fbh+i).prec));
 #ifdef XXX
-	} 
+	}
 	else if (kl==9 && strEQ(key, "ora_rowid")) {
 		/* return current _binary_ ROWID (oratype 11) uncached	*/
 		/* Use { ora_type => 11 } when binding to a placeholder	*/
 		retsv = newSVpv((char*)&imp_sth->cda->rid, sizeof(imp_sth->cda->rid));
 		cacheit = FALSE;
 #endif
-	} 
+	}
 	else if (kl==17 && strEQ(key, "ora_est_row_width")) {
 		retsv = newSViv(imp_sth->est_width);
 		cacheit = TRUE;
-	} 
+	}
 	else if (kl==8 && strEQ(key, "NULLABLE")) {
 		AV *av = newAV();
 		retsv = newRV(sv_2mortal((SV*)av));
 		while(--i >= 0)
 			av_store(av, i, boolSV(imp_sth->fbh[i].nullok));
-	} 
+	}
 	else {
 		return Nullsv;
 	}

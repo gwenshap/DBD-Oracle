@@ -152,7 +152,10 @@ struct fbh_obj_st {  /* embedded object or table will work recursively*/
  	OCIType	  		*obj_type;		 	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
 	fbh_obj_t		*fields;			/*one object for each field/property*/
 	int				field_count;		/*The number of fields Not really needed but nice to have*/
+	fbh_obj_t		*next_subtype;		/*There is strored information about subtypes for inteherited objects*/
 	AV				*value;				/*The value to send back to Perl This way there are no memory leaks*/
+	SV				*full_type_name;	/*Perl value of full type name = schema_name "." type_name*/
+
 };
 
 struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
@@ -251,6 +254,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 extern int ora_fetchtest;
 extern int dbd_verbose;
 extern int oci_warn;
+extern int ora_objects;
 
 extern ub2 charsetid;
 extern ub2 ncharsetid;

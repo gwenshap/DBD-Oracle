@@ -191,6 +191,14 @@
 			 OciTp, (void*)envhp, (void*)errhp, (void*)svchp, (char*)(p1),(l),oci_status_name(stat)),stat \
 	: stat
 
+#define OCITypeByRef_log_stat(envhp,errhp,ref,tdo,stat)\
+	stat = OCITypeByRef(envhp,errhp,ref,OCI_DURATION_TRANS,OCI_TYPEGET_ALL,tdo);\
+	(DBD_OCI_TRACEON) \
+		?	PerlIO_printf(DBD_OCI_TRACEFP,\
+			 "%sTypeByRef(%p,%p,%p)=%s\n",\
+			 OciTp, (void*)envhp, (void*)errhp, (void*)ref,oci_status_name(stat)),stat \
+	: stat
+
 /* added by lab */
 #define OCILobCharSetId_log_stat( envhp, errhp, locp, csidp, stat ) \
 	stat = OCILobCharSetId( envhp, errhp, locp, csidp ); \
@@ -343,7 +351,7 @@
 #define OCIInitialize_log_stat(md,cp,mlf,rlf,mfp,stat)				 \
 	stat=OCIInitialize(md,cp,mlf,rlf,mfp);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-		"%sInitialize(%lu,with mode =%s %p,%p,%p,%p)=%s\n",				\
+		"%sInitialize(with mode =%s %lu,%p,%p,%p,%p)=%s\n",				\
 		OciTp, oci_mode(md),ul_t(md),(void*)cp,(void*)mlf,(void*)rlf,(void*)mfp,	\
 		oci_status_name(stat)),stat : stat
 

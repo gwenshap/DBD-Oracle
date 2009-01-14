@@ -17,6 +17,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use DBI ();
     use DynaLoader ();
     use Exporter ();
+    use Object;
+
     @ISA = qw(DynaLoader Exporter);
     %EXPORT_TAGS = (
       ora_types => [ qw(
@@ -319,7 +321,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_ncharset		=> undef,
                  ora_session_mode	=> undef,
                  ora_verbose		=> undef,
-                 ora_oci_success_warn	=> undef
+                 ora_oci_success_warn	=> undef,
+                 ora_objects	=> undef
                  };
     }
    
@@ -1518,6 +1521,24 @@ In both cases the DBD::Oracle trace level to 6, which is this level that will tr
 Use this value to print silent OCI warnings that may happen when an execute or fetch returns "Success With Info".
 
   $dbh->{ora_oci_success_warn} =1;
+
+=item ora_objects 
+
+Use this value to enable extended embedded oracle objects mode. In extended:
+
+=over 8
+
+=item 1
+
+Embedded objects are returned as <DBD::Oracle::Object> instance (including type-name etc.) instead of simple ARRAY. 
+
+=item 2
+
+Determine object type for each instance. All object attributes are returned (not only super-type's attributes). 
+
+=back 
+
+  $dbh->{ora_objects} = 1;
 
 =item ora_ph_type
 
