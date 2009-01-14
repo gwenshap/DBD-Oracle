@@ -140,6 +140,7 @@ oci_typecode_name(int typecode){
 		case OCI_TYPECODE_NUMBER : 			return "NUMBER";
 		case OCI_TYPECODE_SMALLINT:			return "SMALLINT";
 		case OCI_TYPECODE_OBJECT:			return "OBJECT";
+		case OCI_TYPECODE_OPAQUE:			return "XMLTYPE~OPAQUE";
 		case OCI_TYPECODE_VARRAY:			return "VARRAY";
 		case OCI_TYPECODE_TABLE:			return "TABLE";
 		case OCI_TYPECODE_NAMEDCOLLECTION:	return "NAMEDCOLLECTION";
@@ -1798,8 +1799,8 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 
 	switch (obj->typecode) {
 
-		case OCI_TYPECODE_OBJECT :							/* embedded ADT */
-        case 58:
+		case OCI_TYPECODE_OBJECT:	/* embedded ADT */
+		case OCI_TYPECODE_OPAQUE: /*doesn't do anything though*/
 			if (ora_objects){
 
 				OCIRef  *type_ref=0;
@@ -2166,28 +2167,28 @@ empty_oci_object(fbh_obj_t *obj){
 
 	switch (obj->element_typecode) {
 
-			case OCI_TYPECODE_OBJECT :		/* embedded ADT */
-            case 58:
-				if (obj->next_subtype) {
-					empty_oci_object(obj->next_subtype);
-				}
+		case OCI_TYPECODE_OBJECT :		/* embedded ADT */
+		case OCI_TYPECODE_OPAQUE : /*usually an XML object*/
+			if (obj->next_subtype) {
+				empty_oci_object(obj->next_subtype);
+			}
 
-				for (pos = 0; pos < obj->field_count; pos++){
-					fld = &obj->fields[pos]; /*get the field */
-					if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
-						empty_oci_object(fld);
-						if (fld->value && SvTYPE(fld->value) == SVt_PVAV){
-							av_clear(fld->value);
-				 			av_undef(fld->value);
-						}
-
-					} else {
-						return 1;
+			for (pos = 0; pos < obj->field_count; pos++){
+				fld = &obj->fields[pos]; /*get the field */
+				if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
+					empty_oci_object(fld);
+					if (fld->value && SvTYPE(fld->value) == SVt_PVAV){
+						av_clear(fld->value);
+			 			av_undef(fld->value);
 					}
 				}
+				else {
+					return 1;
+				}
+			}
 			break;
 
-			case OCI_TYPECODE_NAMEDCOLLECTION :
+		case OCI_TYPECODE_NAMEDCOLLECTION :
 			fld = &obj->fields[0]; /*get the field */
 			if (obj->element_typecode == OCI_TYPECODE_OBJECT){
 				empty_oci_object(fld);
@@ -2199,6 +2200,7 @@ empty_oci_object(fbh_obj_t *obj){
 				}
 			}
 			break;
+
 		default:
 		 	break;
 	}
@@ -2446,7 +2448,7 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level ) {
 		PerlIO_printf(DBILOGFP, "Getting the properties of object named =%s at level %d typecode=%d\n",obj->type_name,level,obj->typecode);
 	}
 
-	if (obj->typecode == OCI_TYPECODE_OBJECT || obj->typecode == 58){
+	if (obj->typecode == OCI_TYPECODE_OBJECT || obj->typecode == OCI_TYPECODE_OPAQUE){
 		OCIParam *list_attr= (OCIParam *) 0;
 		ub2	  pos;
 		if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
