@@ -1799,7 +1799,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 	switch (obj->typecode) {
 
 		case OCI_TYPECODE_OBJECT :							/* embedded ADT */
-
+        case 58:
 			if (ora_objects){
 
 				OCIRef  *type_ref=0;
@@ -1859,6 +1859,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 
 				av_push(list, newSVpv((char*)obj->type_name, obj->type_namel));
 			}
+
 
 			if (obj->obj_ind) {
 				obj_ind = obj->obj_ind;
@@ -2166,7 +2167,7 @@ empty_oci_object(fbh_obj_t *obj){
 	switch (obj->element_typecode) {
 
 			case OCI_TYPECODE_OBJECT :		/* embedded ADT */
-
+            case 58:
 				if (obj->next_subtype) {
 					empty_oci_object(obj->next_subtype);
 				}
@@ -2442,10 +2443,10 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level ) {
 	}
 
 	if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
-		PerlIO_printf(DBILOGFP, "Geting the properties of object named =%s at level %d\n",obj->type_name,level);
+		PerlIO_printf(DBILOGFP, "Getting the properties of object named =%s at level %d typecode=%d\n",obj->type_name,level,obj->typecode);
 	}
 
-	if (obj->typecode == OCI_TYPECODE_OBJECT){
+	if (obj->typecode == OCI_TYPECODE_OBJECT || obj->typecode == 58){
 		OCIParam *list_attr= (OCIParam *) 0;
 		ub2	  pos;
 		if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
