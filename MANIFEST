@@ -8,6 +8,7 @@ hints/macos_lib.syms
 hints/macos_syms.pl
 hints/svr4.pl
 lib/DBD/Oracle/GetInfo.pm
+lib/DBD/Oracle/Object.pm
 Makefile.PL
 MANIFEST
 mk.pm

@@ -17,7 +17,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use DBI ();
     use DynaLoader ();
     use Exporter ();
-    use Object;
+    use DBD::Oracle::Object();
 
     @ISA = qw(DynaLoader Exporter);
     %EXPORT_TAGS = (
