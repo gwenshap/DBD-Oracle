@@ -1,6 +1,7 @@
 =head1 Changes in DBD-Oracle 1.23(svn rev #####)
-  Added rt.cpan.org Ticket #=42328 ora_objects attribute for extended embedded objects support from tnt at netsafe.cz
-  Fix for rt.cpan.org Ticket #=42328 user defined types from different schema in describe_obj from tnt at netsafe.cz
+  Added a change from a suggestion from Martic Evans for makeing ref cursors faster.
+  Added rt.cpan.org Ticket #=42328 ora_objects attribute for extended embedded objects support from Tomas Pokorny
+  Fix for rt.cpan.org Ticket #=42328 user defined types from different schema in describe_obj from Tomas Pokorny 
   Added a README for sun suggested by Jim McCullars
   Clean up of white space and formating to 4 tabs  from John Scoles
   Fix for GCC 4.3 warnings from Eric Simon

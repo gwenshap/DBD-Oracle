@@ -3990,10 +3990,11 @@ and REF--an object that uses the REF retrieval mechanism.
 
 DBD::Oracle supports only the 'selection' of embedded objects of the following types OBJECT, VARRAY
 and TABLE in any combination. Support is seamless and recursive, meaning you 
-need only supply a simple SQL statement to get all the values in an embedded object 
-as an array of scalars. 
+need only supply a simple SQL statement to get all the values in an embedded object.
+You can either get the values as an array of scalars or they can be returned into a DBD::Oracle::Object.
 
-For example, given this type and table;
+
+Array example, given this type and table;
 
   CREATE OR REPLACE TYPE  "PHONE_NUMBERS" as varray(10) of varchar(30);
   
@@ -4059,6 +4060,51 @@ The following code will access all of the embedded data;
       print "\n";
    }
 
+Object example, given this object and table;
+
+   CREATE OR REPLACE TYPE Person AS OBJECT (
+     name    VARCHAR2(20),
+     age     INTEGER)
+   ) NOT FINAL;
+
+   CREATE TYPE Employee UNDER Person (
+     salary  NUMERIC(8,2)
+   );
+
+   CREATE TABLE people (id INTEGER, obj Person);
+   
+   INSERT INTO people VALUES (1, Person('Black', 25));
+   INSERT INTO people VALUES (2, Employee('Smith', 44, 5000));
+
+The following code will access the data;
+
+   $dbh{'ora_objects'} =>1;
+   
+   $sth = $dbh->prepare("select * from people order by id");
+   $sth->execute();
+   
+   # object are fetched as instance of DBD::Oracle::Object
+   my ($id1, $obj1) = $sth->fetchrow();
+   my ($id2, $obj2) = $sth->fetchrow();
+   
+   # get full type-name of object
+   print $obj1->type_name."44\n";     # 'TEST.PERSON' is printed
+   print $obj2->type_name."4\n";      # 'TEST.EMPLOYEE' is printed
+   
+   # get attribute NAME from object 
+   print $obj1->attr('NAME')."3\n";   # 'Black' is printed
+   print $obj2->attr('NAME')."3\n";   # 'Smith' is printed
+   
+   # get all atributes as hash reference
+   my $h1 = $obj1->attr;        # returns {'NAME' => 'Black', 'AGE' => 25}
+   my $h2 = $obj2->attr;        # returns {'NAME' => 'Smith', 'AGE' => 44,
+                                #          'SALARY' => 5000 }
+   
+   # get all attributes (names and values) as array
+   my @a1 = $obj1->attributes;  # returns ('NAME', 'Black', 'AGE', 25)
+   my @a2 = $obj2->attributes;  # returns ('NAME', 'Smith', 'AGE', 44,
+                                #          'SALARY', 5000 )
+   
 So far DBD::Oracle has been tested on a table with 20 embedded Objects, Varrays and Tables 
 nested to 10 levels.
 

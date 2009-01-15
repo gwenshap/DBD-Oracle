@@ -72,17 +72,17 @@ struct imp_sth_st {
 	int				is_child;  /* if this is child from a ref cursor or SP*/
 	ub2				stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
 	U16				auto_lob;	/* use auto lobs*/
-	int				pers_lob;   /*use dblink for lobs only for 10g Release 2. or later*/
-	int				clbk_lob;   /*use dblink for lobs only for 10g Release 2. or later*/
-	int				piece_lob;  /*use piece fetch for lobs*/
-	ub4				piece_size; /*used in callback to set the size of the piece to get*/
-	int  			has_lobs;   /* Statement has bound LOBS*/
-
+	int				pers_lob;	/*use dblink for lobs only for 10g Release 2. or later*/
+	int				clbk_lob;	/*use dblink for lobs only for 10g Release 2. or later*/
+	int				piece_lob;	/*use piece fetch for lobs*/
+	ub4				piece_size;	/*used in callback to set the size of the piece to get*/
+	int  			has_lobs;	/*Statement has bound LOBS */
+    int				ret_lobs;	/*Statement returns LOBS */
 	lob_refetch_t	*lob_refetch;
-	int				nested_cursor; /* cursors fetched from SELECTs */
-	AV				*bind_tuples;  /* Bind tuples in array execute, or NULL */
-	int				rowwise;	   /* If true, bind_tuples is list of */
-								   /* tuples, otherwise list of columns. */
+	int				nested_cursor;	/* cursors fetched from SELECTs */
+	AV				*bind_tuples;	/* Bind tuples in array execute, or NULL */
+	int				rowwise;		/* If true, bind_tuples is list of */
+									/* tuples, otherwise list of columns. */
 	/* Input Details	*/
 	char			*statement;		/* sql (see sth_scan)		*/
 	HV				*all_params_hv;	/* all params, keyed by name	*/

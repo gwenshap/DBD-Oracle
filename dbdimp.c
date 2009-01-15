@@ -2395,7 +2395,7 @@ dTHX;
 		if (status != OCI_SUCCESS) {
 			oci_error(sth, imp_sth->errhp, status, "OCIBindByName SQLT_RSET");
 			return 0;
-		 }
+		}
 
 		ENTER;
 		SAVETMPS;

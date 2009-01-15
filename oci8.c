@@ -1043,7 +1043,7 @@ dbd_rebind_ph_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	}
 	else {
 	/* Call a special rebinder for cursor ref "in" params */
-	return(pp_rebind_ph_rset_in(sth, imp_sth, phs));
+		return(pp_rebind_ph_rset_in(sth, imp_sth, phs));
 	}
 }
 
@@ -2293,7 +2293,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 		imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
 	}
 
-	if (imp_sth->is_child){ /*ref cursors and sp only one row is allowed*/
+	if (imp_sth->is_child  && imp_sth->ret_lobs){ /*ref cursors and sp only one row is allowed*/
 		cache_rows  =1;
 		cache_mem  =0;
 
@@ -2873,25 +2873,25 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 			case	ORA_BLOB:				/* BLOB		*/
 			case	114:				/* BFILE	*/
 				fbh->ftype  = fbh->dbtype;
-
+				imp_sth->ret_lobs = 1;
 				/* do we need some addition size logic here? (lab) */
 
 				if (imp_sth->pers_lob){  /*get as one peice fasted but limited to how big you can get.*/
-					fbh->pers_lob	  = 1;
-					fbh->disize 		= fbh->disize+long_readlen; /*user set max value for the fetch*/
+					fbh->pers_lob	= 1;
+					fbh->disize 	= fbh->disize+long_readlen; /*user set max value for the fetch*/
 					if (fbh->dbtype == ORA_CLOB){
-				  		fbh->ftype = SQLT_CHR;
+				  		fbh->ftype  = SQLT_CHR;
 				  	}
 				  	else {
 				  		fbh->ftype = SQLT_LVB; /*Binary form seems this is the only value where we cna get the length correctly*/
 				  	}
 				}
 				else if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
-					fbh->clbk_lob	  = 1;
+					fbh->clbk_lob		= 1;
 					fbh->define_mode	= OCI_DYNAMIC_FETCH; /* piecwise fetch*/
 					fbh->disize 		= imp_sth->long_readlen; /*user set max value for the fetch*/
 					fbh->piece_size		= imp_sth->piece_size; /*the size for each piece*/
- 					fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+ 					fbh->fetch_cleanup	= fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
 					if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
@@ -2903,11 +2903,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 					fbh->fetch_func = fetch_clbk_lob;
 				}
 				else if (imp_sth->piece_lob){ /*get by peice with polling slowest*/
-					fbh->piece_lob	  = 1;
+					fbh->piece_lob		= 1;
 					fbh->define_mode	= OCI_DYNAMIC_FETCH; /* piecwise fetch*/
 					fbh->disize 		= imp_sth->long_readlen; /*user set max value for the fetch*/
 					fbh->piece_size		= imp_sth->piece_size; /*the size for each piece*/
-					fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+					fbh->fetch_cleanup 	= fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
 					if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
