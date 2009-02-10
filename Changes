@@ -1,4 +1,5 @@
 =head1 Changes in DBD-Oracle 1.23(svn rev #####)
+  Fix on the Makefile.PL for a possible sql bug in IC from Martin J. Evans
   Added a change from a suggestion from Martic Evans for making ref cursors faster.
   Added rt.cpan.org Ticket #=42328 ora_objects attribute for extended embedded objects support from Tomas Pokorny
   Fix for rt.cpan.org Ticket #=42328 user defined types from different schema in describe_obj from Tomas Pokorny 

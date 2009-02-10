@@ -2733,7 +2733,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 		switch (fbh->dbtype) {
 		/*	the simple types	*/
- 			case	ORA_VARCHAR2:				/* VARCHAR2	*/
+			case	ORA_VARCHAR2:				/* VARCHAR2	*/
+
+				if (fbh->dbsize == 0){
+					fbh->dbsize=32;
+				}
 				avg_width = fbh->dbsize / 2;
 		/* FALLTHRU */
 			case	ORA_CHAR:				/* CHAR		*/
