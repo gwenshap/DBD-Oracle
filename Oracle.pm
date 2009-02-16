@@ -7,7 +7,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.22';
+$DBD::Oracle::VERSION = '1.23';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 

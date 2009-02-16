@@ -2701,6 +2701,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 		OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->dbtype, 0, OCI_ATTR_DATA_TYPE, status);
 		OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->dbsize, 0, OCI_ATTR_DATA_SIZE, status);
+		/*may be a bug in 11 where the OCI_ATTR_DATA_SIZE my return 0 which should never happen*/
+		/*to fix or kludge for this I added a little code for ORA_VARCHAR2 below */
 
 #ifdef OCI_ATTR_CHAR_USED
 		/* 0 means byte-length semantics, 1 means character-length semantics */
@@ -2735,8 +2737,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		/*	the simple types	*/
 			case	ORA_VARCHAR2:				/* VARCHAR2	*/
 
-				if (fbh->dbsize == 0){
-					fbh->dbsize=32;
+				if (fbh->dbsize == 0){  
+					fbh->dbsize=4000;
 				}
 				avg_width = fbh->dbsize / 2;
 		/* FALLTHRU */

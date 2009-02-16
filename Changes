@@ -1,4 +1,5 @@
 =head1 Changes in DBD-Oracle 1.23(svn rev #####)
+  Fix in case there may be a bug in 11 where the OCI_ATTR_DATA_SIZE my return 0 which should never happen, John scoles
   Fix on the Makefile.PL for a possible sql bug in IC from Martin J. Evans
   Added a change from a suggestion from Martic Evans for making ref cursors faster.
   Added rt.cpan.org Ticket #=42328 ora_objects attribute for extended embedded objects support from Tomas Pokorny
