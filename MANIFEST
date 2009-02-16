@@ -62,8 +62,10 @@ README.login.txt
 README.longs.txt
 README.macosx.txt
 README.sec.txt
+README.sun.txt
 README.vms.txt
 README.win32.txt
+README.win64.txt
 README.wingcc.txt			Notes about building with mingw32 and cygwin32
 t/01base.t
 t/10general.t
@@ -91,6 +93,7 @@ t/50cursor.t
 t/51scroll.t
 t/55nested.t
 t/56embbeded.t
+t/58object.t
 t/60reauth.t
 t/70meta.t
 t/80ora_charset.t
