@@ -136,7 +136,7 @@ oci_typecode_name(int typecode){
 		case OCI_TYPECODE_SIGNED16 :		return "SHORT";
 		case OCI_TYPECODE_SIGNED32 :		return "LONG";
 		case OCI_TYPECODE_DECIMAL :			return "DECIMAL";
-		case OCI_TYPECODE_FLOAT :  			return "FLOAT";
+		case OCI_TYPECODE_FLOAT :			return "FLOAT";
 		case OCI_TYPECODE_NUMBER : 			return "NUMBER";
 		case OCI_TYPECODE_SMALLINT:			return "SMALLINT";
 		case OCI_TYPECODE_OBJECT:			return "OBJECT";
@@ -252,15 +252,15 @@ oci_mode(ub4  mode)
 		/*------------------------OCIConnectionpoolCreate Modes----------------------*/
 		case OCI_CPOOL_REINITIALIZE:	return "CPOOL_REINITIALIZE";
 		/*--------------------------------- OCILogon2 Modes -------------------------*/
-/*case OCI_LOGON2_SPOOL:	  	return "LOGON2_SPOOL";	  Use session pool */
+/*case OCI_LOGON2_SPOOL:		return "LOGON2_SPOOL";	  Use session pool */
 		case OCI_LOGON2_CPOOL:		return "LOGON2_CPOOL"; /* Use connection pool */
-/*case OCI_LOGON2_STMTCACHE:  	return "LOGON2_STMTCACHE";	  Use Stmt Caching */
+/*case OCI_LOGON2_STMTCACHE:	return "LOGON2_STMTCACHE";	  Use Stmt Caching */
 		case OCI_LOGON2_PROXY:		return "LOGON2_PROXY";	 /* Proxy authentiaction */
 		/*------------------------- OCISessionPoolCreate Modes ----------------------*/
 /*case OCI_SPC_REINITIALIZE:		return "SPC_REINITIALIZE";	Reinitialize the session pool */
 /*case OCI_SPC_HOMOGENEOUS: 		return "SPC_HOMOGENEOUS"; "";	Session pool is homogeneneous */
 /*case OCI_SPC_STMTCACHE:			return "SPC_STMTCACHE";	Session pool has stmt cache */
-/*case OCI_SPC_NO_RLB:	  		return "SPC_NO_RLB ";  Do not enable Runtime load balancing. */
+/*case OCI_SPC_NO_RLB:			return "SPC_NO_RLB ";  Do not enable Runtime load balancing. */
 		/*--------------------------- OCISessionGet Modes ---------------------------*/
 /*case OCI_SESSGET_SPOOL:	 	return "SESSGET_SPOOL";	  SessionGet called in SPOOL mode */
 /*case OCI_SESSGET_CPOOL:			return "SESSGET_CPOOL";	SessionGet called in CPOOL mode */
@@ -629,9 +629,9 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		D_imp_dbh_from_sth ;
 		D_imp_drh_from_dbh ;
 
-      if      (SvOK(imp_drh->ora_cache_o)) cache_mem_iv = -SvIV(imp_drh -> ora_cache_o);
-      else if (SvOK(imp_drh->ora_cache))   cache_mem_iv = -SvIV(imp_drh -> ora_cache);
-      else                                 cache_mem_iv = -imp_dbh->RowCacheSize;
+		if(SvOK(imp_drh->ora_cache_o)) cache_mem_iv = -SvIV(imp_drh -> ora_cache_o);
+		else if (SvOK(imp_drh->ora_cache))   cache_mem_iv = -SvIV(imp_drh -> ora_cache);
+		else	cache_mem_iv = -imp_dbh->RowCacheSize;
 		cache_mem = (cache_mem_iv <= 0) ? 10 * 1460 : cache_mem_iv;
 		OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
 			&cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
@@ -678,13 +678,13 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 			phs->indp = -1;
 		}
 	}
-    else
+	else
 		if (phs->desc_h) {
 			*bufpp  = phs->desc_h;
 			phs->alen = 0;
 			phs->indp = 0;
 		}
-    else
+	else
 			if (SvOK(phs->sv)) {
 				*bufpp  = SvPV(phs->sv, phs_len);
 				phs->alen = (phs->alen_incnull) ? phs_len+1 : phs_len;;
@@ -1664,7 +1664,7 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 			char s_tz_hour[3]="000";
 			char s_tz_min[3]="000";
 			sb1 tz_hour;
-  			sb1 tz_minute;
+			sb1 tz_minute;
 			status = OCIDateTimeGetTimeZoneOffset (fbh->imp_sth->envhp,
 												 fbh->imp_sth->errhp,
 												 *(OCIDateTime**)attr_value,
@@ -1788,7 +1788,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 	OCIInd 		attr_null_status;
 	OCIInd 		*element_null;
 	OCIType 	*attr_tdo;
-	OCIIter  	*itr;
+	OCIIter	*itr;
 	fbh_obj_t	*fld;
 	OCIInd		*obj_ind;
 	fbh_obj_t	*obj = base_obj;
@@ -1803,8 +1803,8 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 		case OCI_TYPECODE_OPAQUE: /*doesn't do anything though*/
 			if (ora_objects){
 
-				OCIRef  *type_ref=0;
-				sword   status;
+				OCIRef	*type_ref=0;
+				sword	status;
 				OCIType *tdo;
 
 				status = OCIObjectNew(fbh->imp_sth->envhp, fbh->imp_sth->errhp, fbh->imp_sth->svchp,
@@ -1992,7 +1992,7 @@ id only shows you examples with the C struct built in and only a single record. 
 				get_attr_val(sth,list, fbh, obj->type_name, obj->typecode, value);
 			}
 			else
-			  return 1;
+				return 1;
 			break;
 		}
 		return 1;
@@ -2011,15 +2011,15 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	}
 
 	if (fbh->obj->obj_ind && fbh->obj->obj_ind[0] == OCI_IND_NULL) {
-	  sv_set_undef(dest_sv);
-	  return 1;
+		sv_set_undef(dest_sv);
+		return 1;
 	}
 
 	fbh->obj->value=newAV();
 
 	/*will return referance to an array of scalars*/
-  	if (!get_object(sth,fbh->obj->value,fbh,fbh->obj,fbh->obj->obj_value)){
-  		return 0;
+	if (!get_object(sth,fbh->obj->value,fbh,fbh->obj,fbh->obj->obj_value)){
+		return 0;
 	} else {
 		sv_setsv(dest_sv, sv_2mortal(new_ora_object(fbh->obj->value, fbh->obj->typecode)));
 		return 1;
@@ -2081,7 +2081,7 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	sword status = OCI_NEED_DATA;
 
 	if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
-	  	PerlIO_printf(DBILOGFP, "in fetch_get_piece  \n");
+		PerlIO_printf(DBILOGFP, "in fetch_get_piece  \n");
 	}
 
 	while (status == OCI_NEED_DATA){
@@ -2131,7 +2131,7 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 			actual_bufl=actual_bufl+buflen;
 
 		}else {
-		  status=OCI_LAST_PIECE;
+			status=OCI_LAST_PIECE;
 		}
 	}
 
@@ -2146,7 +2146,7 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	}
 	sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
 
-  	if (fbh->ftype != SQLT_BIN){
+	if (fbh->ftype != SQLT_BIN){
 
 		if (CSFORM_IMPLIES_UTF8(fbh->csform) ){ /* do the UTF 8 magic*/
 			SvUTF8_on(dest_sv);
@@ -2160,8 +2160,8 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 int
 empty_oci_object(fbh_obj_t *obj){
 	dTHX;
-	int		pos  = 0;
-	fbh_obj_t *fld=NULL;
+	int			pos =0;
+	fbh_obj_t	*fld=NULL;
 
 
 
@@ -2523,8 +2523,8 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level ) {
 
 			if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
 				 /*this is some sort of object or collection so lets drill down some more*/
-  				Newz(1, fld->fields, 1, fbh_obj_t);
-  				fld->field_count=1;/*not really needed but used internally*/
+				Newz(1, fld->fields, 1, fbh_obj_t);
+				fld->field_count=1;/*not really needed but used internally*/
 					status=describe_obj(sth,imp_sth,parmdf,fld->fields,level+1);
 			}
 		}
@@ -2886,11 +2886,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 					fbh->pers_lob	= 1;
 					fbh->disize 	= fbh->disize+long_readlen; /*user set max value for the fetch*/
 					if (fbh->dbtype == ORA_CLOB){
-				  		fbh->ftype  = SQLT_CHR;
-				  	}
-				  	else {
-				  		fbh->ftype = SQLT_LVB; /*Binary form seems this is the only value where we cna get the length correctly*/
-				  	}
+						fbh->ftype  = SQLT_CHR;
+					}
+					else {
+						fbh->ftype = SQLT_LVB; /*Binary form seems this is the only value where we cna get the length correctly*/
+					}
 				}
 				else if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
 					fbh->clbk_lob		= 1;
@@ -3160,7 +3160,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			if (imp_sth->rs_array_on) {	/* if array fetch on, fetch only if not in cache */
 				imp_sth->rs_array_idx++;
 				if (imp_sth->rs_array_num_rows<=imp_sth->rs_array_idx && (imp_sth->rs_array_status==OCI_SUCCESS || imp_sth->rs_array_status==OCI_SUCCESS_WITH_INFO)) {
-			  		OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
+					OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
 					imp_sth->rs_array_status=status;
 					if (oci_warn &&  (imp_sth->rs_array_status == OCI_SUCCESS_WITH_INFO)) {
 						oci_error(sth, imp_sth->errhp, status, "OCIStmtFetch");
@@ -3248,8 +3248,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
  				if (!fbh->fetch_func(sth, fbh, sv)){
 					++err;	/* fetch_func already called oci_error */
 				}
-		  	}
-		  	else {
+			}
+			else {
 				int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
 				char *p = (char*)row_data;
 				if (fbh->ftype == SQLT_LVB){

@@ -273,8 +273,8 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
 	case 113:	/* SQLT_BLOB / long	*/
 	case 116:	/* SQLT_RSET	OCI 8 cursor variable	*/
  	case ORA_VARCHAR2_TABLE: /* 201 */
-	case ORA_NUMBER_TABLE: /* 202 */
-	case ORA_XMLTYPE:   /* SQLT_NTY   must be carefull here as its value (108) is the same for an embedded object Well realy only XML clobs not embedded objects  */
+	case ORA_NUMBER_TABLE:	/* 202 */
+	case ORA_XMLTYPE:		/* SQLT_NTY   must be carefull here as its value (108) is the same for an embedded object Well realy only XML clobs not embedded objects  */
 	return 1;
 	}
 	return 0;
@@ -288,15 +288,15 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
 fb_ary_t *
 fb_ary_cb_alloc(ub4 piece_size, ub4 max_len, int size)
 {
-   fb_ary_t *fb_ary;
+	fb_ary_t *fb_ary;
 	/* these should be reworked to only to one Newz()	*/
 	/* and setup the pointers in the head fb_ary struct	*/
 	Newz(42, fb_ary, sizeof(fb_ary_t), fb_ary_t);
-	Newz(42, fb_ary->abuf,	  size * piece_size, ub1);
-	Newz(42, fb_ary->cb_abuf,   size * max_len, ub1);
-	Newz(42, fb_ary->aindp,  (unsigned)size,		sb2);
-	Newz(42, fb_ary->arlen,  (unsigned)size,		ub2);
-	Newz(42, fb_ary->arcode, (unsigned)size,		ub2);
+	Newz(42, fb_ary->abuf,		size * piece_size, ub1);
+	Newz(42, fb_ary->cb_abuf,	size * max_len, ub1);
+	Newz(42, fb_ary->aindp,(unsigned)size,sb2);
+	Newz(42, fb_ary->arlen,(unsigned)size,ub2);
+	Newz(42, fb_ary->arcode(unsigned)size,ub2);
 	fb_ary->bufl = piece_size;
 	fb_ary->cb_bufl = max_len;
 	return fb_ary;
@@ -308,16 +308,16 @@ fb_ary_cb_alloc(ub4 piece_size, ub4 max_len, int size)
 fb_ary_t *
 fb_ary_alloc(ub4 bufl, int size)
 {
-   fb_ary_t *fb_ary;
+	fb_ary_t *fb_ary;
 	/* these should be reworked to only to one Newz()	*/
 	/* and setup the pointers in the head fb_ary struct	*/
 	Newz(42, fb_ary, sizeof(fb_ary_t), fb_ary_t);
-	Newz(42, fb_ary->abuf,   size * bufl, ub1);
-	Newz(42, fb_ary->aindp,  (unsigned)size,		sb2);
-	Newz(42, fb_ary->arlen,  (unsigned)size,		ub2);
-	Newz(42, fb_ary->arcode, (unsigned)size,		ub2);
+	Newz(42, fb_ary->abuf,	size * bufl, ub1);
+	Newz(42, fb_ary->aindp,	(unsigned)size,sb2);
+	Newz(42, fb_ary->arlen,	(unsigned)size,ub2);
+	Newz(42, fb_ary->arcode,(unsigned)size,ub2);
 	fb_ary->bufl = bufl;
-   /* fb_ary->cb_bufl = bufl;*/
+	/* fb_ary->cb_bufl = bufl;*/
 	return fb_ary;
 }
 
@@ -396,8 +396,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		}
 		/* not ACTIVE so connect not skipped */
 		if (DBIS->debug >= 2 || dbd_verbose >= 3 )
-		   PerlIO_printf(DBILOGFP,
-			   "dbd_db_login6 IMPSET but not ACTIVE so connect not skipped\n");
+			PerlIO_printf(DBILOGFP,
+				"dbd_db_login6 IMPSET but not ACTIVE so connect not skipped\n");
 	}
 	imp_dbh->envhp = imp_drh->envhp;	/* will be NULL on first connect */
 
@@ -437,7 +437,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				PerlIO_printf(DBILOGFP, "	dbd_db_login: use shared Oracle database handles.\n");
 		} else {
 			shared_dbh = NULL ;
-	   	}
+		}
 	}
 #endif
 
@@ -755,7 +755,6 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 				OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 				OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
-				OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
 				return 0;
 			}
 			OCIAttrSet_log_stat( imp_dbh->svchp, OCI_HTYPE_SVCCTX, imp_dbh->srvhp,
@@ -783,14 +782,12 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 				OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 				OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
-				OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
-
 				return 0;
 			}
 
 			OCIAttrSet_log_stat(imp_dbh->svchp, (ub4) OCI_HTYPE_SVCCTX,
-			   imp_dbh->authp, (ub4) 0,
-			   (ub4) OCI_ATTR_SESSION, imp_dbh->errhp, status);
+				imp_dbh->authp, (ub4) 0,
+				(ub4) OCI_ATTR_SESSION, imp_dbh->errhp, status);
 
 		} /* use_proc_connection */
 	}
@@ -931,7 +928,7 @@ dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 	if (is_extproc)
 		goto dbd_db_destroy_out;
 	if (!imp_dbh->proc_handles)
-	{   sword status;
+	{	sword status;
 		OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
 		OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 		OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
@@ -980,10 +977,10 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 			warn("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
 		else
 			imp_dbh->ph_type = SvIV(valuesv);
-   		 }
+		 }
 
 	else if (kl==13 && strEQ(key, "ora_ph_csform")) {
-	   	if (SvIV(valuesv)!=SQLCS_IMPLICIT && SvIV(valuesv)!=SQLCS_NCHAR)
+		if (SvIV(valuesv)!=SQLCS_IMPLICIT && SvIV(valuesv)!=SQLCS_NCHAR)
 			warn("ora_ph_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR)");
 		else
 			imp_dbh->ph_csform = (ub1)SvIV(valuesv);
@@ -1037,7 +1034,7 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 		retsv = newSViv(imp_dbh->ph_csform);
 	}
 	else if (kl==22 && strEQ(key, "ora_parse_error_offset")) {
-	   retsv = newSViv(imp_dbh->parse_error_offset);
+		retsv = newSViv(imp_dbh->parse_error_offset);
 	}
 	if (!retsv)
 		return Nullsv;
@@ -1646,9 +1643,9 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	if (trace_level >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): bind %s <== %s "
 			"(%s, %s, csid %d->%d->%d, ftype %d, csform %d->%d, maxlen %lu, maxdata_size %lu)\n",
-	   	   	phs->name, neatsvpv(phs->sv,0),
+			phs->name, neatsvpv(phs->sv,0),
 			(phs->is_inout) ? "inout" : "in",
-	   	 	flag_data_is_utf8 ? "is-utf8" : "not-utf8",
+			flag_data_is_utf8 ? "is-utf8" : "not-utf8",
 			phs->csid_orig, phs->csid, csid,
 			phs->ftype, phs->csform, csform,
 			(unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
@@ -2834,8 +2831,8 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 
 	if( SvROK(newvalue) ){
 		if( SvTYPE(SvRV(newvalue))==SVt_PVAV ){
-			if(  (phs->ftype == ORA_VARCHAR2_TABLE) ||
-				 (phs->ftype == ORA_NUMBER_TABLE)   ||
+			if(  (phs->ftype == ORA_VARCHAR2_TABLE)	||
+				 (phs->ftype == ORA_NUMBER_TABLE)	||
 				 (phs->ftype == 1)) /*ORA_VARCHAR2*/ {
 			/* Supported */
 			}else{
@@ -2876,7 +2873,7 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 	char *note = "";
 	/* XXX doesn't check arcode for error, caller is expected to */
 
-	if (phs->indp == 0) {					   /* is okay	  */
+	if (phs->indp == 0) {					/* is okay	  */
 
 		if (phs->is_inout && phs->alen == SvLEN(sv)) {
 
@@ -2916,7 +2913,7 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 			}
 			if (debug >= 2 || dbd_verbose >= 3 )
 				PerlIO_printf(DBILOGFP,
-				"	   out %s = %s\t(TRUNCATED from %d to %ld, arcode %d)%s\n",
+				"   out %s = %s\t(TRUNCATED from %d to %ld, arcode %d)%s\n",
 					phs->name, neatsvpv(sv,0), phs->indp, (long)phs->alen, phs->arcode, note);
 		}
 		else {
@@ -3161,8 +3158,8 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 
 
 	OCIBindDynamic_log(phs->bndhp, imp_sth->errhp,
-					   (dvoid *)phs, dbd_phs_in,
-					   (dvoid *)phs, dbd_phs_out, status);
+					(dvoid *)phs, dbd_phs_in,
+					(dvoid *)phs, dbd_phs_out, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCIBindDynamic");
 		return 0;
@@ -3203,7 +3200,7 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 	csid = (phs->csid) ? phs->csid : phs->csid_orig;
 	/* if data is utf8 but charset isn't then switch to utf8 csid if possible */
 	if ((utf8 & ARRAY_BIND_UTF8) && !CS_IS_UTF8(csid)) {
-	   /* if the specified or default csid is not utf8 _compatible_ AND we have
+		/* if the specified or default csid is not utf8 _compatible_ AND we have
 		* mixed utf8 and native (non-utf8) data, then it's a fatal problem
 		* utf8 _compatible_ means, can be upgraded to utf8, ie. utf8 or ascii */
 		if ((utf8 & ARRAY_BIND_NATIVE) && CS_IS_NOT_UTF8_COMPATIBLE(csid)) {
@@ -3314,7 +3311,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 	}
 
 	/* Check that the `tuples' parameter is an array ref, find the length,
-	   and store it in the statement handle for the OCI callback. */
+		and store it in the statement handle for the OCI callback. */
 	if(!SvROK(tuples) || SvTYPE(SvRV(tuples)) != SVt_PVAV) {
 		croak("ora_st_execute_array(): Not an array reference.");
 	}
@@ -3523,7 +3520,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 		OCIHandleFree_log_stat(row_errhp, OCI_HTYPE_ERROR,  status);
 
 		/* Do a commit here if autocommit is set, since Oracle
-		   doesn't do that for us when some rows are in error. */
+			doesn't do that for us when some rows are in error. */
 		if(autocommit) {
 			OCITransCommit_log_stat(imp_sth->svchp, imp_sth->errhp,
 									OCI_DEFAULT, status);
@@ -3940,9 +3937,9 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 static sql_fbh_t
 ora2sql_type(imp_fbh_t* fbh) {
 	sql_fbh_t sql_fbh;
-	sql_fbh.dbtype = fbh->dbtype;
-	sql_fbh.prec   = fbh->prec;
-	sql_fbh.scale  = fbh->scale;
+	sql_fbh.dbtype	= fbh->dbtype;
+	sql_fbh.prec	= fbh->prec;
+	sql_fbh.scale	= fbh->scale;
 
 	switch(fbh->dbtype) { /* oracle Internal (not external) types */
 	case SQLT_NUM:
@@ -3971,9 +3968,9 @@ ora2sql_type(imp_fbh_t* fbh) {
 	case SQLT_BFLOAT:
 	case SQLT_IBDOUBLE:
 	case SQLT_IBFLOAT:
-			   sql_fbh.dbtype = SQL_DOUBLE;
-			   sql_fbh.prec   = 126;
-			   break;
+			sql_fbh.dbtype = SQL_DOUBLE;
+			sql_fbh.prec   = 126;
+			break;
 #endif
 	case SQLT_CHR:  sql_fbh.dbtype = SQL_VARCHAR;	   break;
 	case SQLT_LNG:  sql_fbh.dbtype = SQL_LONGVARCHAR;   break; /* long */

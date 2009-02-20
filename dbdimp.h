@@ -76,7 +76,7 @@ struct imp_sth_st {
 	int				clbk_lob;	/*use dblink for lobs only for 10g Release 2. or later*/
 	int				piece_lob;	/*use piece fetch for lobs*/
 	ub4				piece_size;	/*used in callback to set the size of the piece to get*/
-	int  			has_lobs;	/*Statement has bound LOBS */
+	int				has_lobs;	/*Statement has bound LOBS */
     int				ret_lobs;	/*Statement returns LOBS */
 	lob_refetch_t	*lob_refetch;
 	int				nested_cursor;	/* cursors fetched from SELECTs */
@@ -90,12 +90,12 @@ struct imp_sth_st {
 	int				ora_pad_empty;	/* convert ""->" " when binding	*/
 
 	/* Select Column Output Details	*/
-	int				done_desc;  	/* have we described this sth yet ?	*/
+	int				done_desc;		/* have we described this sth yet ?	*/
 	imp_fbh_t		*fbh;			/* array of imp_fbh_t structs	*/
-	char			*fbh_cbuf;  	/* memory for all field names	   */
+	char			*fbh_cbuf;		/* memory for all field names	   */
 	int				t_dbsize;	 	/* raw data width of a row		*/
 	UV				long_readlen; 	/* local copy to handle oraperl	*/
-	HV				*fbh_tdo_hv;  	 /* hash of row #(0 based) and tdo object name from ora_oci_type_names hash */
+	HV				*fbh_tdo_hv;	/* hash of row #(0 based) and tdo object name from ora_oci_type_names hash */
 	 /* Select Row Cache Details */
 	sb4				cache_rows;
 	int				in_cache;
@@ -146,10 +146,10 @@ struct fbh_obj_st {  /* embedded object or table will work recursively*/
 	OCITypeCode 	typecode;			/*object's OOCI_ATTR_TYPECODE */
 	OCITypeCode 	col_typecode;		/*if collection this is its OCI_ATTR_COLLECTION_TYPECODE */
 	OCITypeCode 	element_typecode;	/*if collection this is its element's OCI_ATTR_TYPECODE*/
-	OCIRef	  		*obj_ref;			/*if an embeded object this is ref handle to its TDO*/
+	OCIRef			*obj_ref;			/*if an embeded object this is ref handle to its TDO*/
 	OCIInd			*obj_ind;			/*Null indictator for object */
  	OCIComplexObject *obj_value;		/*the actual value from the DB*/
- 	OCIType	  		*obj_type;		 	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
+ 	OCIType			*obj_type;		 	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
 	fbh_obj_t		*fields;			/*one object for each field/property*/
 	int				field_count;		/*The number of fields Not really needed but nice to have*/
 	fbh_obj_t		*next_subtype;		/*There is strored information about subtypes for inteherited objects*/
@@ -163,39 +163,37 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
 	int field_num;	/* 0..n-1		*/
 
 	/* Oracle's description of the field	*/
-	OCIParam		*parmdp;
-	OCIDefine		*defnp;
-	void 			*desc_h;	/* descriptor if needed (LOBs etc)	*/
-	ub4  			desc_t;	/* OCI type of descriptor		*/
-	ub4 			define_mode; /*the normal case for a define*/
-	int  			(*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
-	void 			(*fetch_cleanup) _((SV *sth, imp_fbh_t *fbh));
-	ub2  			dbtype;	/* actual type of field (see ftype)	*/
-	ub2  			dbsize;
-	ub2  			prec;		/* XXX docs say ub1 but ub2 is needed	*/
-	sb1  			scale;
-	ub1  			nullok;
-	char 			*name;
-	SV				*name_sv;	/* only set for OCI8			*/
+	OCIParam	*parmdp;
+	OCIDefine	*defnp;
+	void 		*desc_h;	/* descriptor if needed (LOBs etc)	*/
+	ub4			desc_t;	/* OCI type of descriptor		*/
+	ub4 		define_mode; /*the normal case for a define*/
+	int			(*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
+	void 		(*fetch_cleanup) _((SV *sth, imp_fbh_t *fbh));
+	ub2			dbtype;	/* actual type of field (see ftype)	*/
+	ub2			dbsize;
+	ub2			prec;		/* XXX docs say ub1 but ub2 is needed	*/
+	sb1			scale;
+	ub1			nullok;
+	char 		*name;
+	SV			*name_sv;	/* only set for OCI8			*/
 	/* OCI docs say OCI_ATTR_CHAR_USED is ub4, they're wrong	*/
-	ub1				len_char_used;	/* OCI_ATTR_CHAR_USED			*/
-	ub2				len_char_size;	/* OCI_ATTR_CHAR_SIZE			*/
-	ub2				csid;		/* OCI_ATTR_CHARSET_ID			*/
-	ub1				csform;	/* OCI_ATTR_CHARSET_FORM		*/
-
-	ub4				disize;	/* max display/buffer size		*/
-	ub4				piece_size; /*used in callback to set the size of the piece to get*/
-
-	char			*bless;	/* for Oracle::OCI style handle data	*/
-	void			*special;	/* hook for special purposes (LOBs etc)	*/
-	int				pers_lob;   /*for persistant lobs 10g Release 2. or later*/
-	int				clbk_lob;   /*for persistant lobs 10g Release 2. or later*/
-	int			 piece_lob;  /*use piecewise fetch for lobs*/
+	ub1			len_char_used;	/* OCI_ATTR_CHAR_USED			*/
+	ub2			len_char_size;	/* OCI_ATTR_CHAR_SIZE			*/
+	ub2			csid;		/* OCI_ATTR_CHARSET_ID			*/
+	ub1			csform;	/* OCI_ATTR_CHARSET_FORM		*/
+	ub4			disize;	/* max display/buffer size		*/
+	ub4			piece_size; /*used in callback to set the size of the piece to get*/
+	char		*bless;	/* for Oracle::OCI style handle data	*/
+	void		*special;	/* hook for special purposes (LOBs etc)	*/
+	int			pers_lob;   /*for persistant lobs 10g Release 2. or later*/
+	int			clbk_lob;   /*for persistant lobs 10g Release 2. or later*/
+	int			piece_lob;  /*use piecewise fetch for lobs*/
 	/* Our storage space for the field data as it's fetched	*/
-	sword			ftype;	/* external datatype we wish to get	*/
-	fb_ary_t		*fb_ary ;	/* field buffer array			*/
+	sword		ftype;	/* external datatype we wish to get	*/
+	fb_ary_t	*fb_ary ;	/* field buffer array			*/
 	/* if this is an embedded object we use this */
-	fbh_obj_t		*obj;
+	fbh_obj_t	*obj;
 
 
  };
@@ -206,8 +204,8 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
 
 typedef struct phs_st phs_t;	/* scalar placeholder   */
 
-struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
-	imp_sth_t		*imp_sth; /* 'parent' statement  			*/
+struct phs_st {	/* scalar placeholder EXPERIMENTAL	*/
+	imp_sth_t		*imp_sth; /* 'parent' statement			*/
 	sword 			ftype;	/* external OCI field type		*/
 
 	SV				*sv;		/* the scalar holding the value		*/
@@ -218,7 +216,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 	ub4 			maxdata_size;	/* set OCI_ATTR_MAXDATA_SIZE if >0	*/
 	bool			is_inout;
 
-	IV  			maxlen;		/* max possible len (=allocated buffer)	*/
+	IV				maxlen;		/* max possible len (=allocated buffer)	*/
 					/* Note: for array bind = buffer for each entry */
 	OCIBind			*bndhp;
 	void			*desc_h;	/* descriptor if needed (LOBs etc)	*/
