@@ -296,7 +296,7 @@ fb_ary_cb_alloc(ub4 piece_size, ub4 max_len, int size)
 	Newz(42, fb_ary->cb_abuf,	size * max_len, ub1);
 	Newz(42, fb_ary->aindp,(unsigned)size,sb2);
 	Newz(42, fb_ary->arlen,(unsigned)size,ub2);
-	Newz(42, fb_ary->arcode(unsigned)size,ub2);
+	Newz(42, fb_ary->arcode,(unsigned)size,ub2);
 	fb_ary->bufl = piece_size;
 	fb_ary->cb_bufl = max_len;
 	return fb_ary;
