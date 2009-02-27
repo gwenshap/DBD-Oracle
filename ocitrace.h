@@ -50,8 +50,8 @@
 	stat =OCIStmtGetPieceInfo(stmhp,errhp,hdlptr,hdltyp,in_out,iter,idx,piece);\
 	(DBD_OCI_TRACEON) \
 			? PerlIO_printf(DBD_OCI_TRACEFP,\
- 				 "%sOCIStmtGetPieceInfo_log_stat(%p,%p,%u)=%s\n",\
- 				 OciTp, (void*)errhp,fbh,(unsigned int)piece,oci_status_name(stat)),stat \
+				"%sOCIStmtGetPieceInfo_log_stat(%p,%p,%u)=%s\n",\
+				OciTp, (void*)errhp,fbh,*piece,oci_status_name(stat)),stat \
 	: stat
 
 
@@ -464,9 +464,9 @@
 	stat=OCIServerAttach( imp_dbh->srvhp, imp_dbh->errhp,		\
 		(text*)dbname, (sb4)strlen(dbname), md);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-		"%sServerAttach(%p, %p, \"%s\", %d, mode=%s,%lu)=%s\n",			\
+		"%sServerAttach(%p, %p, \"%s\", %lu, mode=%s,%lu)=%s\n",			\
 		OciTp, (void*)imp_dbh->srvhp,(void*)imp_dbh->errhp, dbname,	\
-		strlen(dbname), oci_mode(md),ul_t(md),oci_status_name(stat)),stat : stat
+		ul_t(strlen(dbname)), oci_mode(md),ul_t(md),oci_status_name(stat)),stat : stat
 
 #define OCIStmtExecute_log_stat(sv,st,eh,i,ro,si,so,md,stat)			\
 	stat=OCIStmtExecute(sv,st,eh,i,ro,si,so,md);			\

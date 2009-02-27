@@ -3751,7 +3751,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		phs_t *phs;
 		SV **phs_svp = hv_fetch(imp_sth->all_params_hv, fbh->name,strlen(fbh->name), 0);
 		if (!phs_svp)
-			croak("panic: LOB refetch for '%s' param (%ld) - name not found",fbh->name,i+1);
+			croak("panic: LOB refetch for '%s' param (%d) - name not found",fbh->name,i+1);
 		phs = (phs_t*)(void*)SvPVX(*phs_svp);
 		fbh->special = phs;
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )

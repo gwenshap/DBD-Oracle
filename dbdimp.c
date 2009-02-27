@@ -1079,7 +1079,7 @@ len = SvLEN(source);
 bufp = SvPV(source, len);
 
 	if (DBIS->debug >=3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, " creating xml from string that is %d long\n",len);
+		PerlIO_printf(DBILOGFP, " creating xml from string that is %lu long\n",len);
 
 	if(len > MAX_OCISTRING_LEN) {
 		src_type = OCI_XMLTYPE_CREATE_CLOB;
@@ -1568,16 +1568,16 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 			phs->array_lengths[i]=itemlen+1; /* Zero byte */
 			if (trace_level >= 3 || dbd_verbose >= 3 ){
 			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): "
-				"Copying length=%d array[%d]='%s'.\n",
-				itemlen,i,str);
+				"Copying length=%lu array[%d]='%s'.\n",
+				(unsigned long)itemlen,i,str);
 			}
 		}else{
 			/* Mark NULL */
 			phs->array_indicators[i]=1;
 			if (trace_level >= 3 || dbd_verbose >= 3 ){
 			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): "
-				"Copying length=%d array[%d]=NULL (length==0 or ! str) .\n",
-				itemlen,i);
+				"Copying length=%lu array[%d]=NULL (length==0 or ! str) .\n",
+				(unsigned long)itemlen,i);
 			}
 		}
 		}else{
@@ -1608,10 +1608,10 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	return 0;
 	}
 	OCIBindArrayOfStruct_log_stat(phs->bndhp, imp_sth->errhp,
-		(unsigned)phs->maxlen,  /* Skip parameter for the next data value */
-		sizeof (OCIInd),		/* Skip parameter for the next indicator value */
-		sizeof(unsigned short), /* Skip parameter for the next actual length value */
-		0,					  /* Skip parameter for the next column-level error code */
+		(unsigned)phs->maxlen,			/* Skip parameter for the next data value */
+		(unsigned)sizeof (OCIInd),		/* Skip parameter for the next indicator value */
+		(unsigned)sizeof(unsigned short), /* Skip parameter for the next actual length value */
+		0,					  			/* Skip parameter for the next column-level error code */
 		status);
 	if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCIBindArrayOfStruct");
@@ -2017,10 +2017,10 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	return 0;
 	}
 	OCIBindArrayOfStruct_log_stat(phs->bndhp, imp_sth->errhp,
-		(unsigned)phs->maxlen,  /* Skip parameter for the next data value */
-		sizeof (OCIInd),		/* Skip parameter for the next indicator value */
-		sizeof(unsigned short), /* Skip parameter for the next actual length value */
-		0,					  /* Skip parameter for the next column-level error code */
+		(unsigned)phs->maxlen,			/* Skip parameter for the next data value */
+		(unsigned)sizeof(OCIInd),		/* Skip parameter for the next indicator value */
+		(unsigned)sizeof(unsigned short), /* Skip parameter for the next actual length value */
+		0,								/* Skip parameter for the next column-level error code */
 		status);
 	if (status != OCI_SUCCESS) {
 	oci_error(sth, imp_sth->errhp, status, "OCIBindArrayOfStruct");
