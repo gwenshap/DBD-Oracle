@@ -373,7 +373,6 @@ ora_lob_append(dbh, locator, data)
 	ST(0) = &sv_undef;
 		return;
 	}
-	PerlIO_printf(DBILOGFP, " csform=%d\n",csform);
 #ifdef OCI_ATTR_CHARSET_ID
 	/* Effectively only used so AL32UTF8 works properly */
 	OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );

@@ -1,4 +1,6 @@
 =head1 Changes in DBD-Oracle 1.23(svn rev #####)
+  Fix from rt.cpan.org ticket #=44788 bool in_lite should be char in_literal 
+  Fix for UTF8 and blobs by John Scoles with Milo van der Leij
   Fix for some warnings and one bug in ocitrace.h from Charles Jardine
   Fix in case there may be a bug in 11 where the OCI_ATTR_DATA_SIZE my return 0 which should never happen, John Scoles
   Fix on the Makefile.PL for a possible sql bug in IC from Martin Evans

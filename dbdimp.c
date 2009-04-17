@@ -1153,7 +1153,7 @@ dbd_preparse(imp_sth_t *imp_sth, char *statement)
 {
 dTHX;
 D_imp_dbh_from_sth;
-bool in_literal = '\0';
+char in_literal = '\0';
 char in_comment = '\0';
 char *src, *start, *dest;
 phs_t phs_tpl;
