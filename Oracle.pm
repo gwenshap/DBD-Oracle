@@ -7,7 +7,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.22';
+$DBD::Oracle::VERSION = '1.23';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -17,9 +17,11 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     use DBI ();
     use DynaLoader ();
     use Exporter ();
+    use DBD::Oracle::Object();
+
     @ISA = qw(DynaLoader Exporter);
     %EXPORT_TAGS = (
-	ora_types => [ qw(
+      ora_types => [ qw(
 	    ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
 	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_XMLTYPE
 	    ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
@@ -78,8 +80,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
  	DBD::Oracle::st->install_method("ora_fetch_scroll");
  	DBD::Oracle::st->install_method("ora_scroll_position");
  	DBD::Oracle::st->install_method("ora_ping");
+ 	DBD::Oracle::st->install_method("ora_stmt_type_name");
+ 	DBD::Oracle::st->install_method("ora_stmt_type");
  	
-	$drh;
+ 	$drh;
     }
 
 
@@ -317,6 +321,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_ncharset		=> undef,
                  ora_session_mode	=> undef,
                  ora_verbose		=> undef,
+                 ora_oci_success_warn	=> undef,
+                 ora_objects	=> undef
                  };
     }
    
@@ -990,7 +996,7 @@ If you are still stuck with an older version of Oracle or its client you might w
   +---------------------+----+-------------+---------+------+--------+
   |      1.20           | N  |      N      |    N    |  Y   |    Y   |
   +---------------------+----+-------------+---------+------+--------+
-  |      1.21           | N  |      N      |    N    |  Y   |    Y   |
+  |      1.21           | N  |      N      |    N    |  N   |    Y   |
   +---------------------+----+-------------+---------+------+--------+
   |      1.22           | N  |      N      |    N    |  N   |    Y   |
   +---------------------+----+-------------+---------+------+--------+
@@ -1505,11 +1511,34 @@ either set the ora_verbose attribute on the connect() method to the trace level 
 
 or set it directly on the DB handle like this;
 
-  $dbh->{ora_verbose} =6';
+  $dbh->{ora_verbose} =6;
 
 In both cases the DBD::Oracle trace level to 6, which is this level that will trace most of the calls to OCI. 
 
-=head2 Database Handle Attributes
+
+=item ora_oci_success_warn
+
+Use this value to print silent OCI warnings that may happen when an execute or fetch returns "Success With Info".
+
+  $dbh->{ora_oci_success_warn} =1;
+
+=item ora_objects 
+
+Use this value to enable extended embedded oracle objects mode. In extended:
+
+=over 8
+
+=item 1
+
+Embedded objects are returned as <DBD::Oracle::Object> instance (including type-name etc.) instead of simple ARRAY. 
+
+=item 2
+
+Determine object type for each instance. All object attributes are returned (not only super-type's attributes). 
+
+=back 
+
+  $dbh->{ora_objects} = 1;
 
 =item ora_ph_type
 
@@ -1659,6 +1688,10 @@ See L</Prefetching Rows> for more details.
 =item ora_verbose
 
 Use this value to enable DBD::Oracle only tracing.  Simply set the attribute to the trace level you desire.
+
+=item ora_oci_success_warn
+
+Use this value to print silent OCI warnings that may happen when a fetch returns "Success With Info".
 
 =back
 
@@ -1953,7 +1986,7 @@ NLS_LANG to the database character set.
 The NLS_NCHAR environment variable can be used to define a different
 character set for 'national' (NCHAR) character types.
 
-Both UTF8 and AL32UTF32 can be used in NLS_LANG and NLS_NCHAR.
+Both UTF8 and AL32UTF8 can be used in NLS_LANG and NLS_NCHAR.
 For example:
 
    NLS_LANG=AMERICAN_AMERICA.UTF8
@@ -2054,6 +2087,15 @@ or
 
    $dbh->{ora_ph_csform} = SQLCS_NCHAR; # default for all future placeholders
 
+Binding with bind_param_array and execute_array is also UTF-8 compatible in the same way.  If you attempt to 
+insert UTF-8 data into a non UTF-8 Oracle instance or with an non UTF-8 NCHAR or NVARCHAR the insert
+will still happen but a error code of 0 will be returned with the following warning; 
+  
+  DBD Oracle Warning: You have mixed utf8 and non-utf8 in an array bind in parameter#1. This may result in corrupt data. 
+  The Query charset id=1, name=US7ASCII
+
+The warning will report the parameter number and the NCHAR setting that the query is running.
+  
 B<Sending Data using SQL>
 
 Oracle assumes the SQL statement is in the default client character
@@ -2495,8 +2537,9 @@ returns a null value rather than an exception.
 
 =head1 Private database handle functions
 
-These functions are called through the method func()
-which is described in the DBI documentation.
+Some of these functions are called through the method func()
+which is described in the DBI documentation. Any function that begins with ora_
+can be called directly.
 
 =head2 plsql_errstr
 
@@ -2567,7 +2610,6 @@ Example 2:
   # retrieve the string
   $date_string = $dbh->func( 'dbms_output_get' );
 
-
 =over 4
 
 =item dbms_output_enable ( [ buffer_size ] )
@@ -2632,6 +2674,16 @@ $refresh parameter to it.
 2 = Database character set is a Unicode encoding.
 
 3 = Both character sets are Unicode encodings.
+
+=head1 Private statement handle functions
+
+=item ora_stmt_type
+
+Returns the OCI Statement Type number for the SQL of a statement handle.
+
+=item ora_stmt_type_name
+
+Returns the OCI Statement Type name for the SQL of a statement handle.
 
 =back
 
@@ -3549,7 +3601,9 @@ than could be stored in memory at a given time.
 
    my $chunk_size = 1034;   # Arbitrary chunk size, for example
    my $offset = 1;   # Offsets start at 1, not 0
-   while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) ) {
+   while(1) {
+      my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size );
+      last unless length $data;
       print STDOUT $data;
       $offset += $chunk_size;
    }
@@ -3559,6 +3613,18 @@ Notice that the select statement does not contain the phrase
 Locator returned, and not modifying the LOB it refers to,
 the select statement does not require the "FOR UPDATE"
 clause.
+
+A word of catution when using the data retruned from an ora_lob_read in a condtional statement. 
+for example if the code below;
+
+   while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) ) {
+        print STDOUT $data;
+        $offset += $chunk_size;
+   }
+   
+was used with a chunk size of 4096 against a blob that requires more than 1 chunk to return 
+the data and the last chunk is one byte long and contains a zero (ASCII 48) you will miss this last byte
+as $data will contain 0 which PERL will see as false and not print it out.
 
 =head3 Example: Truncating existing large data
 
@@ -3792,7 +3858,7 @@ or later, you can make use of table (or pipelined) functions.
 
 For example, assume you have the existing PL/SQL Package :
 
-CREATE OR REPLACE PACKAGE Array_Example AS
+  CREATE OR REPLACE PACKAGE Array_Example AS
     --
     TYPE tRec IS RECORD (
         Col1    NUMBER,
@@ -3803,25 +3869,25 @@ CREATE OR REPLACE PACKAGE Array_Example AS
     --
     FUNCTION Array_Func RETURN taRec ;
     --
-END Array_Example ;
+  END Array_Example ;
 
-CREATE OR REPLACE PACKAGE BODY Array_Example AS
---
-FUNCTION Array_Func RETURN taRec AS
---
+  CREATE OR REPLACE PACKAGE BODY Array_Example AS
+  --
+  FUNCTION Array_Func RETURN taRec AS
+  --
     l_Ret       taRec ;
---
-BEGIN
+  --
+  BEGIN
     FOR i IN 1 .. 5 LOOP
         l_Ret (i).Col1 := i ;
         l_Ret (i).Col2 := 'Row : ' || i ;
         l_Ret (i).Col3 := TRUNC (SYSDATE) + i ;
     END LOOP ;
     RETURN l_Ret ;
-END ;
---
-END Array_Example ;
-/
+  END ;
+  --
+  END Array_Example ;
+  /
 
 Currently, there is no way to directly call the function
 Array_Example.Array_Func from DBI.  However, by making the following relatively
@@ -3924,10 +3990,11 @@ and REF--an object that uses the REF retrieval mechanism.
 
 DBD::Oracle supports only the 'selection' of embedded objects of the following types OBJECT, VARRAY
 and TABLE in any combination. Support is seamless and recursive, meaning you 
-need only supply a simple SQL statement to get all the values in an embedded object 
-as an array of scalars. 
+need only supply a simple SQL statement to get all the values in an embedded object.
+You can either get the values as an array of scalars or they can be returned into a DBD::Oracle::Object.
 
-For example, given this type and table;
+
+Array example, given this type and table;
 
   CREATE OR REPLACE TYPE  "PHONE_NUMBERS" as varray(10) of varchar(30);
   
@@ -3993,6 +4060,51 @@ The following code will access all of the embedded data;
       print "\n";
    }
 
+Object example, given this object and table;
+
+   CREATE OR REPLACE TYPE Person AS OBJECT (
+     name    VARCHAR2(20),
+     age     INTEGER)
+   ) NOT FINAL;
+
+   CREATE TYPE Employee UNDER Person (
+     salary  NUMERIC(8,2)
+   );
+
+   CREATE TABLE people (id INTEGER, obj Person);
+   
+   INSERT INTO people VALUES (1, Person('Black', 25));
+   INSERT INTO people VALUES (2, Employee('Smith', 44, 5000));
+
+The following code will access the data;
+
+   $dbh{'ora_objects'} =>1;
+   
+   $sth = $dbh->prepare("select * from people order by id");
+   $sth->execute();
+   
+   # object are fetched as instance of DBD::Oracle::Object
+   my ($id1, $obj1) = $sth->fetchrow();
+   my ($id2, $obj2) = $sth->fetchrow();
+   
+   # get full type-name of object
+   print $obj1->type_name."44\n";     # 'TEST.PERSON' is printed
+   print $obj2->type_name."4\n";      # 'TEST.EMPLOYEE' is printed
+   
+   # get attribute NAME from object 
+   print $obj1->attr('NAME')."3\n";   # 'Black' is printed
+   print $obj2->attr('NAME')."3\n";   # 'Smith' is printed
+   
+   # get all atributes as hash reference
+   my $h1 = $obj1->attr;        # returns {'NAME' => 'Black', 'AGE' => 25}
+   my $h2 = $obj2->attr;        # returns {'NAME' => 'Smith', 'AGE' => 44,
+                                #          'SALARY' => 5000 }
+   
+   # get all attributes (names and values) as array
+   my @a1 = $obj1->attributes;  # returns ('NAME', 'Black', 'AGE', 25)
+   my @a2 = $obj2->attributes;  # returns ('NAME', 'Smith', 'AGE', 44,
+                                #          'SALARY', 5000 )
+   
 So far DBD::Oracle has been tested on a table with 20 embedded Objects, Varrays and Tables 
 nested to 10 levels.
 

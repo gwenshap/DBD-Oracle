@@ -1,4 +1,30 @@
-=head1 Changes in DBD-Oracle 1.22(svn rev 11618)  2008 
+=head1 Changes in DBD-Oracle 1.23(svn rev 12724)
+  Fix from rt.cpan.org ticket #=44788 bool in_lite should be char in_literal 
+  Fix for UTF8 and blobs by John Scoles with Milo van der Leij
+  Fix for some warnings and one bug in ocitrace.h from Charles Jardine
+  Fix in case there may be a bug in 11 where the OCI_ATTR_DATA_SIZE my return 0 which should never happen, John Scoles
+  Fix on the Makefile.PL for a possible sql bug in IC from Martin Evans
+  Added a change from a suggestion from Martin Evans for making ref cursors faster.
+  Added rt.cpan.org Ticket #=42328 ora_objects attribute for extended embedded objects support from Tomas Pokorny
+  Fix for rt.cpan.org Ticket #=42328 user defined types from different schema in describe_obj from Tomas Pokorny 
+  Added a README for sun suggested by Jim McCullars
+  Clean up of white space and formatting to 4 tabs  from John Scoles
+  Fix for GCC 4.3 warnings from Eric Simon
+  Standardized the dbd_verbose levels so they are all 3 and over.  from John Scoles
+  Added private statement functions ora_stmt_type_name and ora_stmt_type from John Scoles
+  Update to POD from Chris Underhill
+  Added README.win64.txt with content from Alex Buttery
+  Fix for rt.cpan.org Ticket #=21920 Bug with Oracle DBD for Mac OS X Instant Client From boingolover
+  Added a few more constants to get rid of magic numbers from John Scoles
+  Fix for rt.cpan.org Ticket #=38267 Inserts/Updates to BLOB's via synonyms fails from John Scoles
+  Fix for rt.cpan.org Ticket #=39603 build problem and fix missing functions in oci.def from Zoltán Sebestyén
+  Fix for rt.cpan.org Ticket #=39374 Makefile.PL: error when reducing echo messages from make from Tippa
+  Fix for rt.cpan.org Ticket #=39232 binding large XMLTYPE fails on 64-bit perl from Jeff Klein 
+  Fix for rt.cpan.org Ticket #=38749 Warning of a NULL column in an aggregate function also added ora_oci_success_warn to display silent OCI warnings from John Scoles
+  Patch for UTF8 check on execute_array from David Mansfield and a little by John Scoles
+  
+  
+=head1 Changes in DBD-Oracle 1.22(svn rev 11618)  1st Aug 2008 
   Patch to remove compiler warnings from H.Merijn Brand
   Patch to Makfile for 64bit boxes from Alex Laslavic
   Added OCILobGetLength to lob functions from Milo van der Leij
