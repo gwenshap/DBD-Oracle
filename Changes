@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.23(svn rev #####)
+=head1 Changes in DBD-Oracle 1.23(svn rev 12708)
   Fix from rt.cpan.org ticket #=44788 bool in_lite should be char in_literal 
   Fix for UTF8 and blobs by John Scoles with Milo van der Leij
   Fix for some warnings and one bug in ocitrace.h from Charles Jardine
