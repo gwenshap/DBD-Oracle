@@ -5,7 +5,7 @@ use DBD::Oracle qw(ORA_RSET SQLCS_NCHAR);
 use strict;
 use Data::Dumper;
 
-use Test::More tests => 34;
+use Test::More tests => 35;
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
 
@@ -35,6 +35,12 @@ cmp_ok($dbh->{ora_objects}, 'eq', '0', 'ora_objects flag is set to 0');
 
 # check that our db handle is good
 isa_ok($dbh, "DBI::db");
+
+
+ok(my $schema = $dbh->selectrow_array(
+  "select sys_context('userenv', 'current_schema') from dual"
+), 'Fetch current schema name');
+ 
 
 my $obj_prefix = "dbd_test_";
 my $super_type = "${obj_prefix}_type_A";
