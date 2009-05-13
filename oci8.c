@@ -3675,25 +3675,29 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 						"Need bind_param(..., { ora_field=>... }) attribute to identify table LOB field names");
 					}
 				}
-				matched = 1;
-				sprintf(sql_field, "%s%s \"%s\"",
-				(SvCUR(sql_select)>7)?", ":"", p, &phs->name[1]);
-				sv_catpv(sql_select, sql_field);
-				if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-					PerlIO_printf(DBILOGFP,
-					"		lob refetch %s param: otype %d, matched field '%s' %s(%s)\n",
-				phs->name, phs->ftype, p,
-				(phs->ora_field) ? "by name " : "by type ", sql_field);
-				(void)hv_delete(lob_cols_hv, p, i, G_DISCARD);
-				fbh = &lr->fbh_ary[lr->num_fields++];
-				fbh->name	= phs->name;
-				fbh->ftype  = phs->ftype;
-				fbh->dbtype = phs->ftype;
-				fbh->disize = 99;
-				fbh->desc_t = OCI_DTYPE_LOB;
-				OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
-				break;	/* we're done with this placeholder now	*/
 			}
+			
+			matched = 1;
+			sprintf(sql_field, "%s%s \"%s\"",
+			(SvCUR(sql_select)>7)?", ":"", p, &phs->name[1]);
+			sv_catpv(sql_select, sql_field);
+			
+			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+				PerlIO_printf(DBILOGFP,
+				"		lob refetch %s param: otype %d, matched field '%s' %s(%s)\n",
+					phs->name, phs->ftype, p,
+					(phs->ora_field) ? "by name " : "by type ", sql_field);
+					(void)hv_delete(lob_cols_hv, p, i, G_DISCARD);
+					fbh = &lr->fbh_ary[lr->num_fields++];
+					fbh->name	= phs->name;
+					fbh->ftype  = phs->ftype;
+					fbh->dbtype = phs->ftype;
+					fbh->disize = 99;
+					fbh->desc_t = OCI_DTYPE_LOB;
+					OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
+				
+			break;	/* we're done with this placeholder now	*/
+			
 		}
 		if (!matched) {
 			++unmatched_params;

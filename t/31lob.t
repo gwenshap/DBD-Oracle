@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
-use Test::More tests => 9;
+use Test::More tests => 11;
 use DBD::Oracle qw(:ora_types);
 use DBI;
 
@@ -37,6 +37,21 @@ $sth->bind_param(1, $id);
 $sth->execute;
 ($loc) = $sth->fetchrow;
 is (ref $loc, "OCILobLocatorPtr", "returned valid locator");
+
+## test inserting a large value
+
+$stmt = "INSERT INTO $table (id,data) VALUES (666, ?)";
+$sth = $dbh->prepare($stmt);
+my $content = join(q{}, map { chr } ( 32 .. 64 )) x 16384;
+$sth->bind_param(1, $content, { ora_type => ORA_BLOB, ora_field => 'data' });
+eval { $sth->execute($content) };
+is $@, '', 'inserted into BLOB successfully';
+{
+  local $dbh->{LongReadLen} = 1_000_000;
+  my ($fetched) = $dbh->selectrow_array("select data from $table where id = 666");
+  is $fetched, $content, 'got back what we put in';
+}
+
 
 ## test with insert empty blob returning blob to a var.
 ($id, $loc) = (2, undef);

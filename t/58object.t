@@ -37,7 +37,7 @@ cmp_ok($dbh->{ora_objects}, 'eq', '0', 'ora_objects flag is set to 0');
 isa_ok($dbh, "DBI::db");
 
 
-ok(my $schema = $dbh->selectrow_array(
+ok( $schema = $dbh->selectrow_array(
   "select sys_context('userenv', 'current_schema') from dual"
 ), 'Fetch current schema name');
  
