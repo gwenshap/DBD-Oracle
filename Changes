@@ -1,4 +1,5 @@
 =head1 Changes in DBD-Oracle 1.24(svn rev???)
+  Fix for rt.cpan.org Ticket #=46246 fetching from nested cursor (returned from procedure) leads to application crash (abort) from John Scoles
   Fix for rt.cpan.org Ticket #=46016  LOBs bound with ora_field broken from RKITOVER
   Fix for bug in 58object.t when test run as externally identified user from Charles Jardine
 

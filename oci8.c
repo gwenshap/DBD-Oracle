@@ -2292,10 +2292,12 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	else if (SvOK(imp_drh->ora_cache)){
 		imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
 	}
-
-	if (imp_sth->is_child  && imp_sth->ret_lobs){ /*ref cursors and sp only one row is allowed*/
-		cache_rows  =1;
-		cache_mem  =0;
+	
+	
+	if (imp_sth->is_child  || imp_sth->ret_lobs){ /*ref cursors and sp only one row is allowed*/
+	
+	       cache_rows  =1;
+		   cache_mem  =0;
 
 	} else if (imp_dbh->RowCacheSize || imp_sth->prefetch_memory){
 	/*user set values */
@@ -2878,7 +2880,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 			case	ORA_CLOB:				/* CLOB	& NCLOB	*/
 			case	ORA_BLOB:				/* BLOB		*/
 			case	114:				/* BFILE	*/
-				fbh->ftype  = fbh->dbtype;
+				fbh->ftype  	  = fbh->dbtype;
 				imp_sth->ret_lobs = 1;
 				/* do we need some addition size logic here? (lab) */
 
