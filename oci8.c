@@ -3401,7 +3401,7 @@ find_ident_after(char *src, char *after, STRLEN *len, int copy)
 	char *orig = src;
 	char *p;
 	while(*src){
-		if (*src == '\'' || *src == '"') {
+		if (*src == '\'') {
 			char delim = *src;
 			while(*src && *src != delim) ++src;
 		}
