@@ -424,22 +424,36 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 int
 oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 {
+
 	dTHX;
 	D_imp_xxh(h);
 	sb4 errcode;
-	SV *errstr = sv_newmortal();
-	errcode = oci_error_get(errhp, status, what, errstr, DBIS->debug);
+	SV *errstr_sv = sv_newmortal();
+	SV *errcode_sv = sv_newmortal();
+	errcode = oci_error_get(errhp, status, what, errstr_sv, DBIS->debug);
+	if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT)) {
+	#ifdef sv_utf8_decode
+	PerlIO_printf(DBILOGFP, "codition  1\n");
+	sv_utf8_decode(errstr_sv);
+	#else
+	PerlIO_printf(DBILOGFP, "codition  2\n");
+	SvUTF8_on(errstr_sv);
+	#endif
+	}
 
-	/* DBIc_ERR *must* be SvTRUE (for RaiseError etc), some	*/
-	/* errors, like OCI_INVALID_HANDLE, don't set errcode.	*/
+	/* DBIc_ERR *must* be SvTRUE (for RaiseError etc), some */
+	/* errors, like OCI_INVALID_HANDLE, don't set errcode. */
 	if (force_err)
 	errcode = force_err;
 	if (status == OCI_SUCCESS_WITH_INFO)
-	errcode = 0;	/* record as a "warning" for DBI>=1.43 */
+	errcode = 0; /* record as a "warning" for DBI>=1.43 */
 	else if (errcode == 0)
 	errcode = (status != 0) ? status : -10000;
-	DBIh_SET_ERR_CHAR(h, imp_xxh, Nullch, errcode, SvPV_nolen(errstr), Nullch, Nullch);
-	return 0;	/* always returns 0 */
+
+	sv_setiv(errcode_sv, errcode);
+	DBIh_SET_ERR_SV(h, imp_xxh, errcode_sv, errstr_sv, Nullsv, Nullsv);
+	return 0; /* always returns 0 */
+
 }
 
 
@@ -2294,10 +2308,10 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	else if (SvOK(imp_drh->ora_cache)){
 		imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
 	}
-	
-	
+
+
 	if (imp_sth->is_child  || imp_sth->ret_lobs){ /*ref cursors and sp only one row is allowed*/
-	
+
 	       cache_rows  =1;
 		   cache_mem  =0;
 
