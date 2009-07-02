@@ -1776,7 +1776,7 @@ SV* new_ora_object (AV* list, OCITypeCode typecode) {
 /*gets the properties of an object from a fetch by using the attributes saved in the describe */
 
 int
-get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObject *value){
+get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObject *value, OCIType *instance_tdo){
 
 	dTHX;
 	sword 		status;
@@ -1785,13 +1785,14 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 	boolean		eoc;
 	ub2	 		pos;
 	dvoid 		*attr_null_struct;
-	OCIInd 		attr_null_status;
-	OCIInd 		*element_null;
+	OCIInd		attr_null_status;
+	OCIInd		*element_null;
 	OCIType 	*attr_tdo;
-	OCIIter	*itr;
+	OCIIter		*itr;
 	fbh_obj_t	*fld;
 	OCIInd		*obj_ind;
 	fbh_obj_t	*obj = base_obj;
+	 OCIType	*tdo = instance_tdo ? instance_tdo : obj->tdo;
 
 	if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
 		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%s\n",obj->type_name,oci_typecode_name(obj->typecode));
@@ -1805,29 +1806,30 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 
 				OCIRef	*type_ref=0;
 				sword	status;
-				OCIType *tdo;
+				if (!instance_tdo) {
+					status = OCIObjectNew(fbh->imp_sth->envhp, fbh->imp_sth->errhp, fbh->imp_sth->svchp,
+											OCI_TYPECODE_REF, (OCIType *)0,
+											(dvoid *)0, OCI_DURATION_DEFAULT, TRUE,
+											(dvoid **) &type_ref);
+					if (status != OCI_SUCCESS) {
+						oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectNew");
+						return 0;
+					}
 
-				status = OCIObjectNew(fbh->imp_sth->envhp, fbh->imp_sth->errhp, fbh->imp_sth->svchp,
-													OCI_TYPECODE_REF, (OCIType *)0,
-													(dvoid *)0, OCI_DURATION_DEFAULT, TRUE,
-													(dvoid **) &type_ref);
-				if (status != OCI_SUCCESS) {
-					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectNew");
-					return 0;
+					status=OCIObjectGetTypeRef(fbh->imp_sth->envhp,fbh->imp_sth->errhp, (dvoid*)value, type_ref);
+					if (status != OCI_SUCCESS) {
+						oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetTypeRef");
+						return 0;
+					}
+
+					OCITypeByRef_log_stat(fbh->imp_sth->envhp,fbh->imp_sth->errhp,type_ref,&tdo,status);
+
+					if (status != OCI_SUCCESS) {
+						oci_error(sth, fbh->imp_sth->errhp, status, "OCITypeByRef");
+						return 0;
+					}
 				}
 
-				status=OCIObjectGetTypeRef(fbh->imp_sth->envhp,fbh->imp_sth->errhp, (dvoid*)fbh->obj->obj_value, type_ref);
-				if (status != OCI_SUCCESS) {
-					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetTypeRef");
-					return 0;
-				}
-
-				OCITypeByRef_log_stat(fbh->imp_sth->envhp,fbh->imp_sth->errhp,type_ref,&tdo,status);
-
-				if (status != OCI_SUCCESS) {
-					oci_error(sth, fbh->imp_sth->errhp, status, "OCITypeByRef");
-					return 0;
-				}
 
 				if (tdo != obj->tdo) {
 					/* this is subtype -> search for subtype obj */
@@ -1837,7 +1839,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 					if (tdo != obj->tdo) {
 						/* new subtyped -> get obj description */
 						if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
-							PerlIO_printf(DBILOGFP, " describe subtype of object type %s\n",base_obj->type_name);
+							PerlIO_printf(DBILOGFP, " describe subtype (tdo=%x) of object type %s (tdo=%x)\n",(int)tdo,base_obj->type_name,(int)base_obj->tdo);
 						}
 
 						Newz(1, obj->next_subtype, 1, fbh_obj_t);
@@ -1907,7 +1909,7 @@ id only shows you examples with the C struct built in and only a single record. 
 				}
 
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
-										obj_ind, obj->tdo,
+										obj_ind, tdo,
 										(CONST oratext**)&fld->type_name, &fld->type_namel, 1,
 										(ub4 *)0, 0, &attr_null_status, &attr_null_struct,
 										&attr_value, &attr_tdo);
@@ -1926,7 +1928,7 @@ id only shows you examples with the C struct built in and only a single record. 
 						if (fld->typecode != OCI_TYPECODE_OBJECT)
 							attr_value = *(dvoid **)attr_value;
 
-						get_object (sth,fld->fields[0].value, fbh, &fld->fields[0],attr_value);
+						get_object (sth,fld->fields[0].value, fbh, &fld->fields[0],attr_value, attr_tdo);
 						av_push(list, new_ora_object(fld->fields[0].value, fld->typecode));
 
 					} else{  /* else, display the scaler type attribute */
@@ -1967,7 +1969,7 @@ id only shows you examples with the C struct built in and only a single record. 
 						} else {
 							if (obj->element_typecode == OCI_TYPECODE_OBJECT || obj->element_typecode == OCI_TYPECODE_VARRAY || obj->element_typecode== OCI_TYPECODE_TABLE || obj->element_typecode== OCI_TYPECODE_NAMEDCOLLECTION){
 								fld->value = newAV();
-								get_object (sth,fld->value, fbh, fld,element);
+								get_object (sth,fld->value, fbh, fld,element,0);
 								av_push(list, new_ora_object(fld->value, obj->element_typecode));
 							} else{  /* else, display the scaler type attribute */
 								get_attr_val(sth,list, fbh, obj->type_name, obj->element_typecode, element);
@@ -2018,7 +2020,7 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	fbh->obj->value=newAV();
 
 	/*will return referance to an array of scalars*/
-	if (!get_object(sth,fbh->obj->value,fbh,fbh->obj,fbh->obj->obj_value)){
+	if (!get_object(sth,fbh->obj->value,fbh,fbh->obj,fbh->obj->obj_value,0)){
 		return 0;
 	} else {
 		sv_setsv(dest_sv, sv_2mortal(new_ora_object(fbh->obj->value, fbh->obj->typecode)));
@@ -2739,7 +2741,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		/*	the simple types	*/
 			case	ORA_VARCHAR2:				/* VARCHAR2	*/
 
-				if (fbh->dbsize == 0){  
+				if (fbh->dbsize == 0){
 					fbh->dbsize=4000;
 				}
 				avg_width = fbh->dbsize / 2;
@@ -3678,12 +3680,12 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 					}
 				}
 			}
-			
+
 			matched = 1;
 			sprintf(sql_field, "%s%s \"%s\"",
 			(SvCUR(sql_select)>7)?", ":"", p, &phs->name[1]);
 			sv_catpv(sql_select, sql_field);
-			
+
 			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
 				PerlIO_printf(DBILOGFP,
 				"		lob refetch %s param: otype %d, matched field '%s' %s(%s)\n",
@@ -3697,9 +3699,9 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 					fbh->disize = 99;
 					fbh->desc_t = OCI_DTYPE_LOB;
 					OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
-				
+
 			break;	/* we're done with this placeholder now	*/
-			
+
 		}
 		if (!matched) {
 			++unmatched_params;
