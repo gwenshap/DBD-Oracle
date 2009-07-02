@@ -3430,7 +3430,7 @@ find_ident_after(char *src, char *after, STRLEN *len, int copy)
 		else if (isALPHA(*src)) {
 			if (seen_key) {
 				char *start = src;
-				while(*src && (isALNUM(*src) || *src=='.' || *src=='$'))
+				while(*src && (isALNUM(*src) || *src=='.' || *src=='$' || *src=='"'))
 					++src;
 				*len = src - start;
 				if (copy) {
