@@ -433,10 +433,8 @@ oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 	errcode = oci_error_get(errhp, status, what, errstr_sv, DBIS->debug);
 	if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT)) {
 	#ifdef sv_utf8_decode
-	PerlIO_printf(DBILOGFP, "codition  1\n");
 	sv_utf8_decode(errstr_sv);
 	#else
-	PerlIO_printf(DBILOGFP, "codition  2\n");
 	SvUTF8_on(errstr_sv);
 	#endif
 	}
@@ -3484,7 +3482,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	ub2 numcols = 0;
 	imp_fbh_t *fbh;
 	int unmatched_params;
-	I32 i;
+	I32 i,j;
 	char *p;
 	lob_refetch_t *lr = NULL;
 	STRLEN tablename_len;
@@ -3664,7 +3662,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
 		hv_iterinit(lob_cols_hv);
 
-		while( (sv = hv_iternextsv(lob_cols_hv, &p, &i)) != NULL ) {
+		while( (sv = hv_iternextsv(lob_cols_hv, &p, &j)) != NULL ) {
 			char sql_field[200];
 			if (phs->ora_field) {	/* must match this phs by field name	*/
 				char *ora_field_name = SvPV(phs->ora_field,na);
