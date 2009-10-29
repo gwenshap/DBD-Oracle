@@ -1,7 +1,8 @@
 =head1 Changes in DBD-Oracle 1.24(svn rev???)
+  Fix for rt.cpan.org Ticket #=49331 Bad code example in POD from John Scoles
   Added support for looking up OCI_DTYPE_PARAM Attributes
   Added support for looking up csform values 
-  Fix for rt.cpan.org Ticke  #=46763,46998 enhancement -Rowcache size is now being properly implimented with row fetch buffer from John Scoles 
+  Fix for rt.cpan.org Ticket #=46763,46998 enhancement -Rowcache size is now being properly implimented with row fetch buffer from John Scoles 
   Fix for rt.cpan.org Ticket #=46448 enhancement -Errors returned by procedures are now unicode strings from Martin Evans, John Scoles and Tim Bunce
   Fix for rt.cpan.org Ticket #=47503 bugfix - using more than 1 LOB in insert broken from APLA
   Fix for rt.cpan.org Ticket #=46613 bugfix - sig-abort on nested objects with ora_objects=1 from TomasP

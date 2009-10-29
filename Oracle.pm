@@ -2212,20 +2212,25 @@ and B<SYS.DBMS_SQL.NUMBER_TABLE> data types. The simple example is here:
 
     my $sth=$dbh->prepare( $statement );
 
-    my @arr=( "abc" );
+    my @arr=( "abc","efg","hij" );
 
-    $sth->bind_param_inout(":mytable", \@arr, 10, {
+    $sth->bind_param_inout(":mytable", \\@arr, 10, {
             ora_type => ORA_VARCHAR2_TABLE,
             ora_maxarray_numentries => 100
-    } ) );
-    $sth->bind_param_inout(":cc", \$cc, 100 ) );
+    } ) ;
+    $sth->bind_param_inout(":cc", \$cc, 100  );
     $sth->execute();
     print	"Result: cc=",$cc,"\n",
     	"\tarr=",Data::Dumper::Dumper(\@arr),"\n";
 
+N.B. 
+
+   Take careful note that we use '\\@arr' here because  the 'bind_param_inout'
+   will only take a reference to a scalar. 
+ 
 =over
 
-=item OCI_VARCHAR2_TABLE
+=item ORA_VARCHAR2_TABLE
 
 SYS.DBMS_SQL.VARCHAR2_TABLE object is always bound to array reference.
 ( in bind_param() and bind_param_inout() ). When you bind array, you need
@@ -2245,7 +2250,7 @@ If you set I<ora_maxarray_numentries> to zero, current (at bind time) bound
 array length is used as maximum. If 0 < I<ora_maxarray_numentries> < scalar(@array),
 not all array entries are bound.
 
-=item OCI_NUMBER_TABLE
+=item ORA_NUMBER_TABLE
 
 SYS.DBMS_SQL.NUMBER_TABLE object handling is much alike ORA_VARCHAR2_TABLE.
 The main difference is internal data representation. Currently 2 types of
@@ -2285,7 +2290,7 @@ The usage example is here:
     @arr=( 1,"2E0","3.5" );
     
     # note, that ora_internal_type defaults to SQLT_FLT for ORA_NUMBER_TABLE .
-    if( not $sth->bind_param_inout(":mytable", \@arr, 10, {
+    if( not $sth->bind_param_inout(":mytable", \\@arr, 10, {
                     ora_type => ORA_NUMBER_TABLE,
                     ora_maxarray_numentries => (scalar(@arr)+2),
                     ora_internal_type => SQLT_FLT
