@@ -41,7 +41,8 @@ struct imp_dbh_st {
 	OCISession	*authp;
 	int proc_handles;		   /* If true, srvhp, svchp, and authp handles
 								   are owned by ProC and must not be freed. */
-	int RowCacheSize;
+	int RowCacheSize; /* both of these are defined by DBI spec*/
+	int RowsInCache;	/* this vaue is RO and cannot be set*/
 	int ph_type;		/* default oratype for placeholders */
 	ub1 ph_csform;		/* default charset for placeholders */
 	int parse_error_offset;	/* position in statement of last error */
@@ -78,7 +79,7 @@ struct imp_sth_st {
 	ub4				piece_size;	/*used in callback to set the size of the piece to get*/
 	int				has_lobs;	/*Statement has bound LOBS */
     int				ret_lobs;	/*Statement returns LOBS */
-	lob_refetch_t	*lob_refetch;
+ 	lob_refetch_t	*lob_refetch;
 	int				nested_cursor;	/* cursors fetched from SELECTs */
 	AV				*bind_tuples;	/* Bind tuples in array execute, or NULL */
 	int				rowwise;		/* If true, bind_tuples is list of */
@@ -111,13 +112,15 @@ struct imp_sth_st {
 	int 			fetch_orient;
 	int				fetch_offset;
 	int				fetch_position;
-	int 			prefetch_memory;   /* OCI_PREFETCH_MEMORY*/
+	int 			prefetch_memory;	/* OCI_PREFETCH_MEMORY*/
+	int				prefetch_rows;		/* OCI_PREFETCH_ROWS
 	/* array fetch: state variables */
-	bool			rs_array_on;		   /* if array to be used */
-	int				rs_array_size;		 /* array size */
-	int				rs_array_num_rows;	 /* num rows in last fetch */
-	int				rs_array_idx;		  /* index of current row */
-	sword			rs_array_status;	   /* status of last fetch */
+	int				row_cache_off;
+	int 			rs_fetch_count;		/*fetch count*/
+	int				rs_array_size;		/*array size local value for RowCacheSize as I do not want to change RowCacheSize */
+	int				rs_array_num_rows;	/* num rows in last fetch */
+	int				rs_array_idx;		/* index of current row */
+	sword			rs_array_status;	/* status of last fetch */
 };
 #define IMP_STH_EXECUTING	0x0001
 
@@ -306,8 +309,10 @@ char *oci_mode _((ub4  mode));
 char *oci_bind_options _((ub4 options));
 char *oci_define_options _((ub4 options));
 char *oci_hdtype_name _((ub4 hdtype));
+char *oci_attr_name _((ub4 attr));
 char *oci_exe_mode _((ub4 mode));
 char *oci_col_return_codes _((int rc));
+char *oci_csform_name _((ub4 attr));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 int dbd_rebind_ph_nty _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
@@ -342,7 +347,7 @@ int dbd_rebind_ph_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 void * oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags);
 void * oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags);
 void fb_ary_free(fb_ary_t *fb_ary);
-
+void rs_array_init(imp_sth_t *imp_sth);
 
 
 

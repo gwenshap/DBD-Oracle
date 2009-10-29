@@ -322,7 +322,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_session_mode	=> undef,
                  ora_verbose		=> undef,
                  ora_oci_success_warn	=> undef,
-                 ora_objects	=> undef
+                 ora_objects		=> undef,
                  };
     }
    
@@ -930,20 +930,23 @@ SQL
     }
 
     sub private_attribute_info {
-        return { ora_lengths 		=> undef,
-                 ora_types   		=> undef,
-                 ora_rowid		=> undef,
-                 ora_est_row_width	=> undef,
-                 ora_type               => undef,
-                 ora_field              => undef,
-                 ora_csform		=> undef,
-                 ora_maxdata_size	=> undef,
-                 ora_parse_lang		=> undef,
-                 ora_placeholders	=> undef,
-                 ora_auto_lob		=> undef,
-                 ora_check_sql		=> undef
-                };
-    }
+	return {ora_lengths		=> undef,
+		ora_types		=> undef,
+		ora_rowid		=> undef,
+		ora_est_row_width	=> undef,
+		ora_type		=> undef,
+		ora_field		=> undef,
+		ora_csform		=> undef,
+		ora_maxdata_size	=> undef,
+		ora_parse_lang		=> undef,
+		ora_placeholders	=> undef,
+		ora_auto_lob		=> undef,
+		ora_check_sql		=> undef,
+		ora_row_cache_off	=> undef,
+		ora_prefetch_rows	=> undef,
+		ora_prefetch_memory	=> undef,
+		};
+   }
    
 }
 
@@ -1329,7 +1332,7 @@ If it generates any errors which look relevant then please talk to your
 Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
 
-=head2 Constants
+=head1 Constants
 
 =over 4
 
@@ -1392,6 +1395,9 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 =item :ora_exe_modes
 
   OCI_STMT_SCROLLABLE_READONLY 
+
+
+=head1 Attributes
 
 =head2 Connect Attributes
 
@@ -1675,15 +1681,26 @@ This will set the execute mode of the current statement. Presently only one mode
 
 See L</Scrollable Cursors> for more details.
 
+=item ora_prefetch_rows
+
+Sets the number of rows to be prefetched. If it is not set, then the default value is 1.
+See L</Prefetching Rows> for more details.
+
 =item ora_prefetch_memory
 
-Sets the memory level for top level rows to be prefetched. Rows up to the specified top level row 
-count C<RowCacheSize> are fetched if it occupies no more than the specified memory usage limit. The default value is 0, 
-which means that memory size is not included in computing the number of rows to prefetch. If
-the C<RowCacheSize> value is set to 0 or a negative number when using this value then only 
-the memory value entered is used to compute the number of rows to prefetch.
-
+Sets the memory level for rows to be prefetched. The application then fetches as many rows as will fit into that much memory.
 See L</Prefetching Rows> for more details.
+
+=item ora_row_cache_off
+
+By default DBD::Oracle will use a row cache when fetching to cut down the number of round 
+trips to the server. If you do not want to use an array fetch set this value to any value other than 0;
+See L</Prefetching Rows> for more details.
+
+=item 
+
+You can customize the value of the row cache with this value.  By default it will normlly be set to the 
+RowCacheSize or one cles to it.
 
 =item ora_verbose
 
@@ -1767,8 +1784,76 @@ TABLE OF ... .
 Specify internal data representation. Currently is supported only for
 ORA_NUMBER_TABLE.
 
+=head1 Optimizing Results
+
+=head2 Prepare postponed till execute
+
+The DBD::Oracle module can avoid an explicit 'describe' operation
+prior to the execution of the statement unless the application requests
+information about the results (such as $sth->{NAME}). This reduces
+communication with the server and increases performance (reducing the
+number of PARSE_CALLS inside the server).
+
+However, it also means that SQL errors are not detected until
+C<execute()> (or $sth->{NAME} etc) is called instead of when
+C<prepare()> is called. Note that if the describe is triggered by the
+use of $sth->{NAME} or a similar attribute and the describe fails then
+I<an exception is thrown> even if C<RaiseError> is false!
+
+Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
+
+=head1 Prefetching & Row Caching 
+
+DBD::Oracle now supports both Server pre-fetch and Client side row caching. By defualt both 
+are trurned on to give optimum performance. Most of the time one can just let DBD::Oracle
+figure out the best optimization. 
+
+=head2 Row Caching
+
+Row caching occures on the client side and the object of it is to cut down the number of round 
+trips made to the server when fetching rows. At each fetch a set number of rows will be retreived
+from the server and stored locally. Further calls the server are made only when the end of the 
+local buffer(cache) is reached.
+
+Rows up to the specified top level row 
+count C<RowCacheSize> are fetched if it occupies no more than the specified memory usage limit. 
+The default value is 0, which means that memory size is not included in computing the number of rows to prefetch. If
+the C<RowCacheSize> value is set to a negative number then the positive value of RowCacheSize is used 
+to compute the number of rows to prefetch.
+
+By default C<RowCacheSize> is automaticaly set. If you want to totaly turn off prefetching set this to 1.
+
+
+
+=head2 Row Prefetching
+
+Row prefetching occurs on the server side and uses the DBI database handle attribute C<RowCacheSize> and or the 
+Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improved performance. 
+
+   $dbh->{RowCacheSize} = 100;
+   $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>10000});
+   
+In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle® Call Interface Programmer's Guide,
+suggests a good row cache value for a scrollable cursor is about 20% of expected size of the record set. 
+
+The prefetch settings tell the DBD::Oracle to grab x rows (or x-bytes) when it needs to get new rows. This happens on the first 
+fetch that sets the current_positon to any value other than 0. In the above example if we do a OCI_FETCH_FIRST the first 10 rows are
+loaded into the buffer and DBD::Oracle will not have to go back to the server for more rows. When record 11 is fetched DBD::Oracle
+fetches and returns this row and the next 9 rows are loaded into the buffer. In this case if you fetch backwards from 10 to 1 
+no server round trips are made.
+
+With large record sets it is best not to attempt to go to the last record as this may take some time, A large buffer size might even slow down
+the fetch. If you must get the number of rows in a large record set you might try using an few large OCI_FETCH_ABSOLUTEs and then an OCI_FETCH_LAST,
+this might save some time. So if you had a record set of 10000 rows and you set the buffer to 5000 and did a OCI_FETCH_LAST one would fetch the first 5000 rows into the buffer then the next 5000 rows.  
+If one requires only the first few rows there is no need to set a large prefetch value.  
+
+If the ora_prefetch_memory less than 1 or not present then memory size is not included in computing the 
+number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
+is not included in the computing of the prefetch rows.  
 
 =back
+
+=head1 Spaces & Padding
 
 =head2 Trailing Spaces
 
@@ -2687,23 +2772,6 @@ Returns the OCI Statement Type name for the SQL of a statement handle.
 
 =back
 
-=head1 Prepare postponed till execute
-
-The DBD::Oracle module can avoid an explicit 'describe' operation
-prior to the execution of the statement unless the application requests
-information about the results (such as $sth->{NAME}). This reduces
-communication with the server and increases performance (reducing the
-number of PARSE_CALLS inside the server).
-
-However, it also means that SQL errors are not detected until
-C<execute()> (or $sth->{NAME} etc) is called instead of when
-C<prepare()> is called. Note that if the describe is triggered by the
-use of $sth->{NAME} or a similar attribute and the describe fails then
-I<an exception is thrown> even if C<RaiseError> is false!
-
-Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
-
-
 =head1 Scrollable Cursors
 
 Oracle supports the concept of a 'Scrollable Cursor' which is defined as a 'Result Set' where
@@ -2917,33 +2985,6 @@ The current_positon attribute will be 6 after this snippet.
 
 When using scrollable cursors it is required that you use the $sth->finish() method when you are done with the cursor as this type of
 cursor has to be explicitly canceled on the server. If you do not do this you may cause resource problems on your database.  
-
-=head2 Prefetching Rows
-
-One can override the DBD::Oracle's default pre-fetch values by using the DBI database handle attribute C<RowCacheSize> and or the 
-Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improved performance. 
-
-   $dbh->{RowCacheSize} = 10;
-   $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>10000});
-   
-In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle® Call Interface Programmer's Guide,
-suggests a good row cache value for a scrollable cursor is about 20% of expected size of the record set. 
-
-The prefetch settings tell the DBD::Oracle to grab x rows (or x-bytes) when it needs to get new rows. This happens on the first 
-fetch that sets the current_positon to any value other than 0. In the above example if we do a OCI_FETCH_FIRST the first 10 rows are
-loaded into the buffer and DBD::Oracle will not have to go back to the server for more rows. When record 11 is fetched DBD::Oracle
-fetches and returns this row and the next 9 rows are loaded into the buffer. In this case if you fetch backwards from 10 to 1 
-no server round trips are made.
-
-With large record sets it is best not to attempt to go to the last record as this may take some time, A large buffer size might even slow down
-the fetch. If you must get the number of rows in a large record set you might try using an few large OCI_FETCH_ABSOLUTEs and then an OCI_FETCH_LAST,
-this might save some time. So if you had a record set of 10000 rows and you set the buffer to 5000 and did a OCI_FETCH_LAST one would fetch the first 5000 rows into the buffer then the next 5000 rows.  
-If one requires only the first few rows there is no need to set a large prefetch value.  
-
-If the ora_prefetch_memory less than 1 or not present then memory size is not included in computing the 
-number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
-is not included in the computing of the prefetch rows.  
-
 
 =head1 LOBs and LONGs
 

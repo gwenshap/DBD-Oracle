@@ -379,6 +379,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		DBD_ATTRIB_GET_IV(  attr, "dbd_verbose",  11, svp, dbd_verbose);
 	if (DBD_ATTRIB_TRUE(attr,"ora_verbose",11,svp))
 		DBD_ATTRIB_GET_IV(  attr, "ora_verbose",  11, svp, dbd_verbose);
+
+
 	if (DBD_ATTRIB_TRUE(attr,"ora_oci_success_warn",20,svp))
 		DBD_ATTRIB_GET_IV(  attr, "ora_oci_success_warn",  20, svp, oci_warn);
 	if (DBD_ATTRIB_TRUE(attr,"ora_objects",11,svp))
@@ -1024,6 +1026,9 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 	else if (kl==12 && strEQ(key, "RowCacheSize")) {
 		retsv = newSViv(imp_dbh->RowCacheSize);
 	}
+	else if (kl==11 && strEQ(key, "RowsInCache")) {
+			retsv = newSViv(imp_dbh->RowsInCache);
+	}
 	else if (kl==22 && strEQ(key, "ora_max_nested_cursors")) {
 		retsv = newSViv(imp_dbh->max_nested_cursors);
 	}
@@ -1642,12 +1647,12 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 	if (trace_level >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): bind %s <== %s "
-			"(%s, %s, csid %d->%d->%d, ftype %d, csform %d->%d, maxlen %lu, maxdata_size %lu)\n",
+			"(%s, %s, csid %d->%d->%d, ftype %d, csform %d (%s)->%d (%s), maxlen %lu, maxdata_size %lu)\n",
 			phs->name, neatsvpv(phs->sv,0),
 			(phs->is_inout) ? "inout" : "in",
 			flag_data_is_utf8 ? "is-utf8" : "not-utf8",
 			phs->csid_orig, phs->csid, csid,
-			phs->ftype, phs->csform, csform,
+			phs->ftype, phs->csform,oci_csform_name(phs->csform), csform,oci_csform_name(csform),
 			(unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
 
 
@@ -2445,7 +2450,6 @@ dTHX;
 
 	 /* force stmt_type since OCIAttrGet(OCI_ATTR_STMT_TYPE) doesn't work! */
 		imp_sth_csr->stmt_type = OCI_STMT_SELECT;
-		imp_sth_csr->rs_array_on=1;	/* turn on array fetch for ref cursors */
  		DBIc_IMPSET_on(imp_sth_csr);
 
 	 /* set ACTIVE so dbd_describe doesn't do explicit OCI describe */
@@ -2542,9 +2546,9 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	ub2 csid;
 
 	if (trace_level >= 5 || dbd_verbose >= 5 )
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph() (1): rebinding %s as %s (%s, ftype %d (%s), csid %d, csform %d, inout %d)\n",
+		PerlIO_printf(DBILOGFP, "dbd_rebind_ph() (1): rebinding %s as %s (%s, ftype %d (%s), csid %d, csform %d(%s), inout %d)\n",
 		phs->name, (SvPOK(phs->sv) ? neatsvpv(phs->sv,10) : "NULL"),(SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
-		phs->ftype,sql_typecode_name(phs->ftype),phs->csid, phs->csform, phs->is_inout);
+		phs->ftype,sql_typecode_name(phs->ftype),phs->csid, phs->csform,oci_csform_name(phs->csform), phs->is_inout);
 
 	switch (phs->ftype) {
 		case ORA_VARCHAR2_TABLE:
@@ -2653,12 +2657,12 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 	if (trace_level >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(DBILOGFP, "dbd_rebind_ph(): bind %s <== %s "
-		"(%s, %s, csid %d->%d->%d, ftype %d (%s), csform %d->%d, maxlen %lu, maxdata_size %lu)\n",
+		"(%s, %s, csid %d->%d->%d, ftype %d (%s), csform %d(%s)->%d(%s), maxlen %lu, maxdata_size %lu)\n",
 		  phs->name, neatsvpv(phs->sv,10),
 		  (phs->is_inout) ? "inout" : "in",
 		  (SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
 		  phs->csid_orig, phs->csid, csid,
-		  phs->ftype,sql_typecode_name(phs->ftype), phs->csform, csform,
+		  phs->ftype,sql_typecode_name(phs->ftype), phs->csform, oci_csform_name(phs->csform), csform, oci_csform_name(csform),
 		  (unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
 
 
@@ -3040,9 +3044,8 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 		if (debug >= 2 || dbd_verbose >= 3 )
 			PerlIO_printf(DBILOGFP,"Statement Execute Mode is %d (%s)\n",imp_sth->exe_mode,oci_exe_mode(imp_sth->exe_mode));
 
-
 		OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
-					(ub4)(is_select ? 0 : 1),
+					(ub4)(is_select ? 0: 1),
 					0, 0, 0,(ub4)imp_sth->exe_mode,status);
 
 
@@ -3058,6 +3061,9 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 		DBIc_ACTIVE_on(imp_sth);
 		DBIc_ROW_COUNT(imp_sth) = 0; /* reset (possibly re-exec'ing) */
 		row_count = 0;
+		/*reinit the rs_array as well
+		  as we may have more thatn one exe on a prepare*/
+		rs_array_init(imp_sth);
 	}
 	else {
 		OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
@@ -3224,12 +3230,12 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 
 	if (trace_level >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(DBILOGFP, "do_bind_array_exec(): bind %s <== [array of values] "
-			"(%s, %s, csid %d->%d->%d, ftype %d (%s), csform %d->%d, maxlen %lu, maxdata_size %lu)\n",
+			"(%s, %s, csid %d->%d->%d, ftype %d (%s), csform %d (%s)->%d (%s), maxlen %lu, maxdata_size %lu)\n",
 			phs->name,
 			(phs->is_inout) ? "inout" : "in",
 			(utf8 ? "is-utf8" : "not-utf8"),
 			phs->csid_orig, phs->csid, csid,
-			phs->ftype,sql_typecode_name(phs->ftype), phs->csform, csform,
+			phs->ftype,sql_typecode_name(phs->ftype), phs->csform,oci_csform_name(phs->csform), csform,oci_csform_name(csform),
 			(unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
 
 
