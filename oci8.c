@@ -384,17 +384,17 @@ oci_dtype_attr_name(ub4 attr)
 	case OCI_ATTR_PRECISION:			return "OCI_ATTR_PRECISION"; /* precision if number type */
 	case OCI_ATTR_SCALE:				return "OCI_ATTR_SCALE"; /* scale if number type */
 	case OCI_ATTR_IS_NULL:				return "OCI_ATTR_IS_NULL"; /* is it null ? */
-	case OCI_ATTR_TYPE_NAME: 			return "OCI_ATTR_TYPE_NAME"; 
+	case OCI_ATTR_TYPE_NAME: 			return "OCI_ATTR_TYPE_NAME";
   /* name of the named data type or a package name for package private types */
 	case OCI_ATTR_SCHEMA_NAME: 			return "OCI_ATTR_SCHEMA_NAME";  /* the schema name */
 	case OCI_ATTR_SUB_NAME: 			return "OCI_ATTR_SUB_NAME";  /* type name if package private type */
-	case OCI_ATTR_POSITION:				return "OCI_ATTR_POSITION"; 
+	case OCI_ATTR_POSITION:				return "OCI_ATTR_POSITION";
 	case OCI_ATTR_CHAR_USED:            return "OCI_ATTR_CHAR_USED";      /* char length semantics */
 	case OCI_ATTR_CHAR_SIZE:             return "OCI_ATTR_CHAR_SIZE";                /* char length */
 	case OCI_ATTR_CHARSET_ID:			return "OCI_ATTR_CHARSET_ID";                           /* Character Set ID */
 	case OCI_ATTR_CHARSET_FORM:			return "OCI_ATTR_CHARSET_FORM";                       /* Character Set Form */
 	}
-	
+
 	sv = sv_2mortal(newSViv((IV)attr));
 	return SvPV(sv,na);
 
@@ -410,7 +410,7 @@ oci_attr_name(ub4 attr)
 	switch (attr) {
 	/*=============================Attribute Types===============================*/
 
-	
+
 	case OCI_ATTR_FNCODE:				return "OCI_ATTR_FNCODE";                       /* the OCI function code */
 	case OCI_ATTR_OBJECT:				return "OCI_ATTR_OBJECT"; /* is the environment initialized in object mode */
 	case OCI_ATTR_NONBLOCKING_MODE:		return "OCI_ATTR_NONBLOCKING_MODE";                   /* non blocking mode */
@@ -3405,9 +3405,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 			case	182:				  /* INTERVAL YEAR TO MONTH */
 			case	183:				  /* INTERVAL DAY TO SECOND */
-			case	190:				  /* INTERVAL DAY TO SECOND */
+			case	185:				  /* TIME (ocidfn.h) */
+			case	186:				  /* TIME WITH TIME ZONE (ocidfn.h) */
 			case	187:				  /* TIMESTAMP */
 			case	188: 				/* TIMESTAMP WITH TIME ZONE	*/
+			case	189:				  /* INTERVAL YEAR TO MONTH (ocidfn.h) */
+ 			case	190:				  /* INTERVAL DAY TO SECOND */
 			case	232:				  /* TIMESTAMP WITH LOCAL TIME ZONE */
 				/* actually dependent on NLS default date format*/
 					fbh->disize = 75;		/* XXX */
@@ -3468,7 +3471,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		/* add space for STRING null term, or VAR len prefix */
 		sb4 define_len = (ftype==94||ftype==95) ? fbh->disize+4 : fbh->disize;
 		fb_ary_t  *fb_ary;
-		
+
 		if (fbh->clbk_lob || fbh->piece_lob  ){/*init the cb_abuf with this call*/
 			fbh->fb_ary = fb_ary_cb_alloc(imp_sth->piece_size,define_len, imp_sth->rs_array_size);
 

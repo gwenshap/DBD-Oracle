@@ -1,4 +1,7 @@
 =head1 Changes in DBD-Oracle 1.24(svn rev???)
+  Fix for rt.cpan.org Ticket #=49741 Oracle.h has commented out params in OCIXMLTypeCreateFromSrc from Kartik Thakore 
+  Added from rt.cpan.org Ticket #=49436 Patch to add support for a few Oracle data types to type_info_all from David Hull 
+  Added from rt.cpan.org Ticket #=49435 Patch to add support for a few Oracle data types to dbd_describe from David Hull 
   Fix for rt.cpan.org Ticket #=49331 Bad code example in POD from John Scoles
   Added support for looking up OCI_DTYPE_PARAM Attributes
   Added support for looking up csform values 

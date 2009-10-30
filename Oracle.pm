@@ -728,7 +728,70 @@ SQL
 	    [ "CLOB",            SQL_LONGVARCHAR,   2147483647,"'",  "'",
 		undef,            1,1,0,undef,0,undef,
 		"CLOB",            undef,undef,SQL_LONGVARCHAR,  undef,undef,undef, ],
+		
 	    if $version >= 8;
+		push @$type_info_all,
+		["TIMESTAMP WITH TIME ZONE",	# type name
+			SQL_TYPE_TIMESTAMP_WITH_TIMEZONE,	# data type
+			40,		# column size
+			"TIMESTAMP'",	# literal prefix
+			"'",		# literal suffix
+			"precision",	# create params	
+			1,		# nullable
+			0,		# case sensitive
+			3,		# searchable
+			undef,		# unsigned attribute
+			0,		# fixed prec scale
+			0,		# auto unique value
+			undef,		# local type name
+			0,		# minimum scale	
+			6,		# maximum scale
+			SQL_TIMESTAMP,	# sql data type	
+			5,		# sql datetime sub
+			undef,		# num prec radix
+			undef,		# interval precision
+		],
+		[ "INTERVAL DAY TO SECOND",	# type name	
+			SQL_INTERVAL_DAY_TO_SECOND,	# data type
+			22,				# column size	'+00 11:12:10.222222200'
+			"INTERVAL'",	# literal prefix
+			"'",		# literal suffix
+			"precision",	# create params
+			1,		# nullable
+			0,		# case sensitive
+			3,		# searchable
+			undef,		# unsigned attribute
+			0,		# fixed prec scale
+			0,		# auto unique value
+			undef,		# local type name
+			0,		# minimum scale	
+			9,		# maximum scale	
+			SQL_INTERVAL,	# sql data type	
+			10,		# sql datetime sub
+			undef,		# num prec radix
+			undef,		# interval precision
+		],
+		[ "INTERVAL YEAR TO MONTH",	# type name	
+			SQL_INTERVAL_YEAR_TO_MONTH,	# data type
+			13,		# column size 	'+012345678-01'
+			"INTERVAL'",	# literal prefix
+			"'",		# literal suffix
+			"precision",	# create params
+			1,		# nullable
+			0,		# case sensitive
+			3,		# searchable
+			undef,		# unsigned attribute
+			0,		# fixed prec scale
+			0,		# auto unique value
+			undef,		# local type name
+			0,		# minimum scale	
+			9,		# maximum scale	
+			SQL_INTERVAL,	# sql data type	
+			7,		# sql datetime sub
+			undef,		# num prec radix
+			undef,		# interval precision
+		],
+		if $version >= 10;
 	return $type_info_all;
     }
 

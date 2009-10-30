@@ -126,9 +126,9 @@ They will be added when needed
 
 */
 
-sword  OCIXMLTypeCreateFromSrc(/*_ OCISvcCtx *svchp, OCIError *errhp,
+sword  OCIXMLTypeCreateFromSrc( OCISvcCtx *svchp, OCIError *errhp,
                      OCIDuration dur, ub1 src_type, dvoid *src_ptr,
-                     sb4 ind, OCIXMLType **retInstance _*/);
+                     sb4 ind, OCIXMLType **retInstance );
 
 
 /* end of Oracle.h */
