@@ -231,7 +231,7 @@
 	stat = OCIEnvNlsCreate(envp, mode, ctxp, f1, f2, f3, sz, usremepp ,chset, nchset ); \
 	(DBD_OCI_TRACEON) \
 	?	PerlIO_printf(DBD_OCI_TRACEFP,\
-		 "%sNlsEnvCreate(%p,%s,%d,%d,%p,%p,%p,%d,%p,%d,%d)=%s\n", \
+		 "%sEnvNlsEnvCreate(%p,%s,%d,%d,%p,%p,%p,%d,%p,%d,%d)=%s\n", \
 		 OciTp, (void*)envp, oci_mode(mode),mode, ctxp, (void*)f1, (void*)f2, (void*)f3, sz, (void*)usremepp ,chset, nchset, oci_status_name(stat)),stat \
 	: stat
 

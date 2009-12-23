@@ -943,6 +943,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		DBD_ATTRIB_GET_IV(  attribs, "ora_verbose",  11, svp, dbd_verbose);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_oci_success_warn",  20, svp, oci_warn);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_objects",  11, svp, ora_objects);
+		DBD_ATTRIB_GET_IV(  attribs, "ora_ncs_buff_mtpl",  17, svp,ora_ncs_buff_mtpl);
 
 		if (!dbd_verbose)
 			DBD_ATTRIB_GET_IV(  attribs, "dbd_verbose",  11, svp, dbd_verbose);
@@ -1574,7 +1575,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 		sv_set_undef(dest_sv);	/* signal error */
 		return 0;
 	}
-	if (ftype != 112) {
+	if (ftype != ORA_CLOB) {
 		oci_error(sth, imp_sth->errhp, OCI_ERROR,
 			"blob_read not currently supported for non-CLOB types with OCI 8 "
 			"(but with OCI 8 you can set $dbh->{LongReadLen} to the length you need,"
@@ -1644,7 +1645,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 	SvCUR_set(dest_sv, byte_destoffset+amtp);
 	*SvEND(dest_sv) = '\0'; /* consistent with perl sv_setpvn etc	*/
 	SvPOK_on(dest_sv);
-	if (ftype == 112 && CSFORM_IMPLIES_UTF8(csform))
+	if (ftype == ORA_CLOB && CSFORM_IMPLIES_UTF8(csform))
 		SvUTF8_on(dest_sv);
 
 	return 1;
@@ -1665,11 +1666,11 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	sword status;
 	char *type_name;
 
-	if (ftype == 112)
+	if (ftype == ORA_CLOB)
 		type_name = "CLOB";
-	else if (ftype == 113)
+	else if (ftype == ORA_BLOB)
 		type_name = "BLOB";
-	else if (ftype == 114)
+	else if (ftype == ORA_BFILE)
 		type_name = "BFILE";
 	else {
 		oci_error(sth, imp_sth->errhp, OCI_ERROR,
@@ -1693,7 +1694,7 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 		sv_set_undef(dest_sv);	/* signal error */
 		return 0;
 	}
-	if (ftype == 112 && csform == SQLCS_NCHAR)
+	if (ftype == ORA_CLOB && csform == SQLCS_NCHAR)
 		type_name = "NCLOB";
 
 	/*
@@ -1708,12 +1709,14 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	Output FW	 bytes	  characters	(FW=Fixed Width charset, VW=Variable)
 	Output VW	 bytes	  characters(in), bytes returned (afterwards)
 	*/
+
 	amtp = (loblen > len) ? len : loblen;
 
 	/* buflen: length of buffer in bytes */
 	/* so for CLOBs that'll be returned as UTF8 we need more bytes that chars */
 	/* XXX the x4 here isn't perfect - really the code should be changed to loop */
-	if (ftype == 112 && CSFORM_IMPLIES_UTF8(csform)) {
+
+	if (ftype == ORA_CLOB && CSFORM_IMPLIES_UTF8(csform)) {
 		buflen = amtp * 4;
 	/* XXX destoffset would be counting chars here as well */
 		SvGROW(dest_sv, (destoffset*4) + buflen + 1);
@@ -1753,7 +1756,7 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 			sv_set_undef(dest_sv);	/* signal error */
 			return 0;
 		}
-		if (ftype == 112 && CSFORM_IMPLIES_UTF8(csform))
+		if (ftype == ORA_CLOB && CSFORM_IMPLIES_UTF8(csform))
 			SvUTF8_on(dest_sv);
 	}
 	else {
@@ -1782,10 +1785,9 @@ static int
 fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *dest_sv, char *name)
 {
 	dTHX;
-	ub4 loblen = 0;
-	ub4 buflen;
-	ub4 amtp = 0;
-	int loblen_is_chars;
+	ub4 loblen	= 0;
+	ub4 buflen	= 0;
+	ub4 amtp 	= 0;
 	sword status;
 
 	if (!name)
@@ -1794,13 +1796,12 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 	/* this function is not called for NULL lobs */
 
 	/* The length is expressed in terms of bytes for BLOBs and BFILEs,	*/
-	/* and in terms of characters for CLOBs				*/
+	/* and in terms of characters for CLOBs	and NCLOBS			*/
 	OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc, &loblen, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCILobGetLength fetch_lob");
- 		return 0;
+		return 0;
 	}
-	loblen_is_chars = (ftype == 112);
 
 	if (loblen > imp_sth->long_readlen) {	/* LOB will be truncated */
 		int oraperl = DBIc_COMPAT(imp_sth);
@@ -1828,7 +1829,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 	else
 		amtp = loblen;
 
-		(void)SvUPGRADE(dest_sv, SVt_PV);
+	(void)SvUPGRADE(dest_sv, SVt_PV);
 
 	/* XXXX I've hacked on this and left it probably broken
 	because I didn't have time to research which args to OCI funcs need
@@ -1841,70 +1842,96 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 	ora_lob_*() methods when handling CLOBs.
 	*/
 
-	/* set char vs bytes and get right semantics for OCILobRead */
-		if (loblen_is_chars) {
-			buflen = amtp * 4;  /* XXX bit of a hack, efective but wasteful */
+	/* Yep you did bust it good and bad.  Seem that when the charset of
+	the client and the DB are comptiable the buflen and amtp are both in chars
+	no matter how many bytes make up the chars. If it is the case were the Client's
+	NLS_LANG or NLS_NCHAR is not a subset of the Server's the server will try to traslate
+	the data to the Client's wishes and that is wen it uses will send the ampt value will be in bytes*/
+
+
+	buflen = amtp*ora_ncs_buff_mtpl;
+
+	SvGROW(dest_sv, buflen+1);
+
+	if (loblen > 0) {
+		ub1  csform = 0;
+		OCILobCharSetForm_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &csform, status );
+		if (status != OCI_SUCCESS) {
+			oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
+			sv_set_undef(dest_sv);
+			return 0;
 		}
-		else buflen = amtp;
 
-		SvGROW(dest_sv, buflen+1);
-
-		if (loblen > 0) {
-			ub1  csform = 0;
-			OCILobCharSetForm_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &csform, status );
-			if (status != OCI_SUCCESS) {
-				oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
-				sv_set_undef(dest_sv);
-				return 0;
-			}
-
-		if (ftype == 114) {
-			OCILobFileOpen_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
-					(ub1)OCI_FILE_READONLY, status);
-			if (status != OCI_SUCCESS) {
+	if (ftype == ORA_BFILE) {
+		OCILobFileOpen_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
+				(ub1)OCI_FILE_READONLY, status);
+		if (status != OCI_SUCCESS) {
 			oci_error(sth, imp_sth->errhp, status, "OCILobFileOpen");
 			sv_set_undef(dest_sv);
 			return 0;
-			}
 		}
+	}
 
-		OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
-			&amtp, (ub4)1, SvPVX(dest_sv), buflen,
-			0, 0, (ub2)0, csform, status);
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,
-			"		OCILobRead %s %s: csform %d (%s), LOBlen %luc, LongReadLen %luc, BufLen %lub, Got %luc\n",
+	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
+		&amtp, (ub4)1, SvPVX(dest_sv), buflen,
+		0, 0, (ub2)0, csform, status);
+
+	if (status != OCI_SUCCESS ) {
+
+		if (status == OCI_NEED_DATA ){
+			char buf[300];
+			sprintf(buf,"fetching %s. LOB and the read bufer is only  %lubytes, and the ora_ncs_buff_mtpl is %d, which is too small. Try setting ora_ncs_buff_mtpl to %d",
+				name, buflen, ora_ncs_buff_mtpl,ora_ncs_buff_mtpl+1);
+
+			oci_error_err(sth, NULL, OCI_ERROR, buf, OCI_NEED_DATA); /* appropriate ORA error number */
+			croak("DBD::Oracle has returned a %s status when doing a LobRead!! \n",oci_status_name(status));
+
+		/*why a croak here well if it goes on it will result in a
+		  	ORA-03127: no new operations allowed until the active operation ends
+		  This will result in a crash if there are any other fetchst*/
+		}
+		oci_error(sth, imp_sth->errhp, status, "OCILobRead");
+				sv_set_undef(dest_sv);
+		return 0;
+	}
+
+
+
+	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		PerlIO_printf(DBILOGFP,
+		"		OCILobRead %s %s: csform %d (%s), LOBlen %luc, LongReadLen %luc, BufLen %lub, Got %luc\n",
 				name, oci_status_name(status), csform,oci_csform_name(csform), ul_t(loblen),
 				ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
 
-		if (ftype == 114) {
-			OCILobFileClose_log_stat(imp_sth->svchp, imp_sth->errhp,
-			lobloc, status);
-		}
-		if (status != OCI_SUCCESS) {
-			oci_error(sth, imp_sth->errhp, status, "OCILobRead");
-			sv_set_undef(dest_sv);
-			return 0;
-		}
+	if (ftype == ORA_BFILE) {
+		OCILobFileClose_log_stat(imp_sth->svchp, imp_sth->errhp,
+		lobloc, status);
+	}
+
+	if (status != OCI_SUCCESS) {
+		oci_error(sth, imp_sth->errhp, status, "OCILobFileClose");
+		sv_set_undef(dest_sv);
+		return 0;
+	}
 
 	/* tell perl what we've put in its dest_sv */
+	SvCUR(dest_sv) = amtp;
+	*SvEND(dest_sv) = '\0';
+	if (ftype == ORA_CLOB && CSFORM_IMPLIES_UTF8(csform)) /* Don't set UTF8 on BLOBs */
+ 		SvUTF8_on(dest_sv);
+		ora_free_templob(sth, imp_sth, lobloc);
+	}
+	else {			/* LOB length is 0 */
+		assert(amtp == 0);
+		/* tell perl what we've put in its dest_sv */
 		SvCUR(dest_sv) = amtp;
 		*SvEND(dest_sv) = '\0';
-		if (ftype == 112 && CSFORM_IMPLIES_UTF8(csform)) /* Don't set UTF8 on BLOBs */
- 			SvUTF8_on(dest_sv);
-			ora_free_templob(sth, imp_sth, lobloc);
-		}
-		else {			/* LOB length is 0 */
-			assert(amtp == 0);
-			/* tell perl what we've put in its dest_sv */
-			SvCUR(dest_sv) = amtp;
-			*SvEND(dest_sv) = '\0';
-			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP,
-				"		OCILobRead %s %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
-					name, "SKIPPED", ul_t(loblen),
- 			ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
-		}
+		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+			PerlIO_printf(DBILOGFP,
+			"		OCILobRead %s %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
+				name, "SKIPPED", ul_t(loblen),
+ 				ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
+	}
 
 	SvPOK_on(dest_sv);
 
@@ -1976,7 +2003,7 @@ calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs,ub4
 		/* Using 10 means any 'runt' packets will have less impact.	*/
 		/* orginally set up as above but playing around with newer versions*/
 		/* I found that 500 was much faster*/
-		int txfr_size  = 500 * 1460;	/* desired transfer/cache size	*/
+		int txfr_size  = 10 * 1460;	/* desired transfer/cache size	*/
 
 		cache_rows = txfr_size / est_width;		  /* (maybe 1 or 0)	*/
 
@@ -1991,6 +2018,7 @@ calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs,ub4
 	}
 	if (cache_rows > 10000000)	/* keep within Oracle's limits  */
 		cache_rows = 10000000;	/* seems it was ub2 at one time now ub4 this number is arbitary on my part*/
+
 
 	return cache_rows;
 }
@@ -2695,7 +2723,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	   so RowCacheSize is for a local cache to cut down on round trips
 
 	   The OCI doc state that both OCI_ATTR_PREFETCH_ROWS OCI_ATTR_PREFETCH_MEMORY
-	   sets up a cleint side cache but in earluer version that 1.24 we only selected
+	   sets up a cleint side cache but in earlier version than 1.24 we only selected
 	   one record at a time from the fetch this means a round trip (at least to the local cache)
 	   at each fetch.
 
@@ -2779,13 +2807,13 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	}
 
 
-/*	if (imp_sth->row_cache_off){/*set the size of the Rows in Cache value
+	if (imp_sth->row_cache_off){/*set the size of the Rows in Cache value*/
 		imp_dbh->RowsInCache =1;
 	}
 	 else {
 		imp_dbh->RowsInCache=imp_sth->rs_array_size;
 	}
-*/
+
 
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 || oci_warn) /*will also display if oci_warn is on*/
@@ -3214,20 +3242,21 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				break;
 
 			case	ORA_LONG:				/* LONG		*/
-
+				imp_sth->row_cache_off	= 1;
+				has_longs++;
 				if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
 
-					fbh->clbk_lob	  = 1;
+					fbh->clbk_lob		= 1;
 					fbh->define_mode	= OCI_DYNAMIC_FETCH; /* piecwise fetch*/
 					fbh->disize 		= imp_sth->long_readlen; /*user set max value for the fetch*/
 					fbh->piece_size		= imp_sth->piece_size; /*the size for each piece*/
-					fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+					fbh->fetch_cleanup	= fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
 
 					if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
 					}
 
-					fbh->ftype = SQLT_CHR;
+					fbh->ftype		= SQLT_CHR;
 					fbh->fetch_func = fetch_clbk_lob;
 
 				}
@@ -3237,7 +3266,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 					fbh->define_mode	= OCI_DYNAMIC_FETCH; /* piecwise fetch*/
 					fbh->disize 		= imp_sth->long_readlen; /*user set max value for the fetch*/
 					fbh->piece_size		= imp_sth->piece_size; /*the size for each piece*/
-					fbh->fetch_cleanup 	= fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+					fbh->fetch_cleanup	= fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
 
 					if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
@@ -3256,18 +3285,18 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 					fbh->dbsize = (fbh->disize>65535) ? 65535 : fbh->disize;
 					fbh->ftype  = 94; /* VAR form */
 					fbh->fetch_func = fetch_func_varfield;
-					++has_longs;
 
 				}
 				break;
 			case	ORA_LONGRAW:				/* LONG RAW	*/
+				has_longs++;
 			 	if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
 
-					fbh->clbk_lob	  = 1;
+					fbh->clbk_lob		= 1;
 					fbh->define_mode	= OCI_DYNAMIC_FETCH; /* piecwise fetch*/
 					fbh->disize 		= imp_sth->long_readlen; /*user set max value for the fetch*/
 					fbh->piece_size		= imp_sth->piece_size; /*the size for each piece*/
-					fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+					fbh->fetch_cleanup	= fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
 
 					if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
@@ -3279,11 +3308,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				}
 				else if (imp_sth->piece_lob){ /*get by peice with polling slowest*/
 
-					fbh->piece_lob	  = 1;
+					fbh->piece_lob		= 1;
 					fbh->define_mode	= OCI_DYNAMIC_FETCH; /* piecwise fetch*/
 					fbh->disize 		= imp_sth->long_readlen; /*user set max value for the fetch*/
 					fbh->piece_size		= imp_sth->piece_size; /*the size for each piece*/
-					fbh->fetch_cleanup = fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
+					fbh->fetch_cleanup	= fetch_cleanup_pres_lobs; /* clean up buffer before each fetch*/
 
 					if (!imp_sth->piece_size){ /*if not set use max value*/
 						imp_sth->piece_size=imp_sth->long_readlen;
@@ -3296,7 +3325,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 					fbh->dbsize = (fbh->disize>65535) ? 65535 : fbh->disize;
 					fbh->ftype  = 95; /* VAR form */
 					fbh->fetch_func = fetch_func_varfield;
-					++has_longs;
 				}
 				break;
 
@@ -3306,6 +3334,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				fbh->prec	= fbh->disize;
 				break;
 			case	108:				 /* some sort of embedded object */
+				imp_sth->row_cache_off	= 1;/* cant fetch more thatn one at a time */
 				fbh->ftype  = fbh->dbtype;  /*varray or alike */
 				fbh->fetch_func = fetch_func_oci_object; /* need a new fetch function for it */
 				fbh->fetch_cleanup = fetch_cleanup_oci_object; /* clean up any AV  from the fetch*/
@@ -3320,24 +3349,30 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				break;
 			case	ORA_CLOB:			/* CLOB	& NCLOB	*/
 			case	ORA_BLOB:			/* BLOB		*/
-			case	114:				/* BFILE	*/
-				fbh->ftype  	  = fbh->dbtype;
-				imp_sth->ret_lobs = 1;
-				/* do we need some addition size logic here? (lab) */
+			case	ORA_BFILE:			/* BFILE	*/
+				has_longs++;
+				fbh->ftype  	  		= fbh->dbtype;
+				imp_sth->ret_lobs 		= 1;
+				imp_sth->row_cache_off	= 1; /* Cannot use mulit fetch for a lob*/
+											 /* Unless they are just getting the locator */
 
-				if (imp_sth->pers_lob){  /*get as one peice fasted but limited to how big you can get.*/
+				if (imp_sth->pers_lob){  /*get as one peice fasted but limited to 64k big you can get.*/
+
 					fbh->pers_lob	= 1;
-					if (long_readlen){
-						fbh->disize 	= fbh->disize*10; /*default size*/
+
+				    if (long_readlen){
+						fbh->disize 	=long_readlen;/*user set max value for the fetch*/
 					}
 					else {
-						fbh->disize 	= long_readlen;/*user set max value for the fetch*/
+						fbh->disize 	= fbh->dbsize*10; /*default size*/
 					}
+
+
 					if (fbh->dbtype == ORA_CLOB){
-						fbh->ftype  = SQLT_CHR;
+						fbh->ftype  = SQLT_CHR;/*SQLT_LNG*/
 					}
 					else {
-						fbh->ftype = SQLT_LVB; /*Binary form seems this is the only value where we cna get the length correctly*/
+						fbh->ftype = SQLT_LVB; /*Binary form seems this is the only value where we can get the length correctly*/
 					}
 				}
 				else if (imp_sth->clbk_lob){ /*get by peice with callback a slow*/
@@ -3355,7 +3390,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 						fbh->ftype = SQLT_BIN; /*other Binary*/
 					}
 					fbh->fetch_func = fetch_clbk_lob;
-					imp_sth->row_cache_off=1;
+
 				}
 				else if (imp_sth->piece_lob){ /*get by peice with polling slowest*/
 					fbh->piece_lob		= 1;
@@ -3373,20 +3408,24 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 						fbh->ftype = SQLT_BIN; /*other Binary */
 					}
 					fbh->fetch_func = fetch_get_piece;
-					imp_sth->row_cache_off=1;
+
 				}
 				else { /*auto lob fetch with locator by far the fastest*/
-					fbh->disize = fbh->dbsize *10 ;	/* XXX! */
-					fbh->fetch_func = (imp_sth->auto_lob) ? fetch_func_autolob : fetch_func_getrefpv;
+					fbh->disize =  sizeof(OCILobLocator*);/* Size of the lob locator ar we do not really get the lob! */
+					if (imp_sth->auto_lob) {
+						fbh->fetch_func = fetch_func_autolob;
+					}
+					else {
+						 fbh->fetch_func = fetch_func_getrefpv;
+					}
+
 					fbh->bless  = "OCILobLocatorPtr";
 					fbh->desc_t = OCI_DTYPE_LOB;
 					OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
-					imp_sth->row_cache_off=1;
+
+
 				}
 
-				if (fbh->csform == SQLCS_NCHAR){
-					imp_sth->row_cache_off=1;
-				}
 				break;
 
 #ifdef OCI_DTYPE_REF
@@ -3628,8 +3667,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			}
 			else {  /*Array Fetch the New Noraml Super speedy and very nice*/
 
-/* 			PerlIO_printf(DBILOGFP, "	dbd_st_fetch fields...a\n");*/
-				imp_dbh->RowsInCache--;
+
+ 				imp_dbh->RowsInCache--;
 				imp_sth->rs_array_idx++;
 					/*PerlIO_printf(DBILOGFP," \n imp_sth->rs_array_idx=%d,rs_array_num_rows=%d\n",imp_sth->rs_array_idx,imp_sth->rs_array_num_rows);
 */
@@ -3731,6 +3770,11 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			else {
 				int datalen = fb_ary->arlen[imp_sth->rs_array_idx];
 				char *p = (char*)row_data;
+                if (rc == 1406 ){
+			        datalen= fbh->disize;
+				}
+
+
 				if (fbh->ftype == SQLT_LVB){
 					/* very special case for binary lobs that are directly fetched.
 						Seems I have to use SQLT_LVB to get the length all other will fail*/

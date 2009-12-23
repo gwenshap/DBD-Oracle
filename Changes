@@ -1,4 +1,6 @@
 =head1 Changes in DBD-Oracle 1.24(svn rev???)
+  Added ora_ncs_buff_mtpl and enviornment var ORA_DBD_NCS_BUFFER so we can control the size of the buffer when doing nclob reads
+  Fix for bug in for  changes to row fetch buffer mostly lobs and object fetches
   Fix for rt.cpan.org Ticket #=49741 Oracle.h has commented out params in OCIXMLTypeCreateFromSrc from Kartik Thakore 
   Added from rt.cpan.org Ticket #=49436 Patch to add support for a few Oracle data types to type_info_all from David Hull 
   Added from rt.cpan.org Ticket #=49435 Patch to add support for a few Oracle data types to dbd_describe from David Hull 

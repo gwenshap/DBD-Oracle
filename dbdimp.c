@@ -40,10 +40,11 @@
 DBISTATE_DECLARE;
 
 int ora_fetchtest;	/* intrnal test only, not thread safe */
-int is_extproc	= 0;
-int dbd_verbose	= 0; /* DBD only debugging*/
-int oci_warn	= 0; /* show oci warnings */
-int ora_objects	= 0; /* get oracle embedded objects as instance of DBD::Oracle::Object */
+int is_extproc	  	  = 0;
+int dbd_verbose		  = 0; /* DBD only debugging*/
+int oci_warn		  = 0; /* show oci warnings */
+int ora_objects		  = 0; /* get oracle embedded objects as instance of DBD::Oracle::Object */
+int ora_ncs_buff_mtpl = 1; /* a mulitplyer for ncs clob buffers */
 
 /* bitflag constants for figuring out how to handle utf8 for array binds */
 #define ARRAY_BIND_NATIVE 0x01
@@ -57,6 +58,7 @@ ub2 us7ascii_csid	= 1;
 ub2 utf8_csid		= 871;
 ub2 al32utf8_csid	= 873;
 ub2 al16utf16_csid	= 2000;
+
 
 typedef struct sql_fbh_st sql_fbh_t;
 struct sql_fbh_st {
@@ -193,6 +195,7 @@ ora_cygwin_set_env(char *name, char *value)
 	SetEnvironmentVariable(name, value);
 }
 #endif /* __CYGWIN32__ */
+
 
 void
 dbd_init(dbistate_t *dbistate)
@@ -951,9 +954,10 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 	int on = SvTRUE(valuesv);
 	int cacheit = 1;
 
-
-
-	if (kl==20 && strEQ(key, "ora_oci_success_warn") ) {
+	if (kl==17 && strEQ(key, "ora_ncs_buff_mtpl") ) {
+		ora_ncs_buff_mtpl = SvIV (valuesv);
+	}
+	else if (kl==20 && strEQ(key, "ora_oci_success_warn") ) {
 		oci_warn = SvIV (valuesv);
 	}
 	else if (kl==11 && strEQ(key, "ora_objects")) {
@@ -1011,7 +1015,10 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 
 	/* AutoCommit FETCH via DBI */
 
-	if (kl==20 && strEQ(key, "ora_oci_success_warn")) {
+	if (kl==18 && strEQ(key, "ora_ncs_buff_mtpl") ) {
+		retsv = newSViv (ora_ncs_buff_mtpl);
+	}
+	else if (kl==20 && strEQ(key, "ora_oci_success_warn")) {
 		retsv = newSViv (oci_warn);
 	}
 	else if (kl==11 && strEQ(key, "ora_objects")) {

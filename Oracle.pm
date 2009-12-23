@@ -34,7 +34,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     	ora_exe_modes     => [ qw(OCI_STMT_SCROLLABLE_READONLY)],
     );
     @EXPORT_OK = qw(OCI_FETCH_NEXT OCI_FETCH_CURRENT OCI_FETCH_FIRST OCI_FETCH_LAST OCI_FETCH_PRIOR
-    		    OCI_FETCH_ABSOLUTE 	OCI_FETCH_RELATIVE ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var ora_cygwin_set_env);
+    		    OCI_FETCH_ABSOLUTE 	OCI_FETCH_RELATIVE ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var ora_cygwin_set_env );
     #unshift @EXPORT_OK, 'ora_cygwin_set_env' if $^O eq 'cygwin';
     Exporter::export_ok_tags(qw(ora_types ora_session_modes ora_fetch_orient ora_exe_modes));
 
@@ -68,7 +68,6 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    });
 	DBD::Oracle::dr::init_oci($drh) ;
 	$drh->STORE('ShowErrorStatement', 1);
-
         DBD::Oracle::db->install_method("ora_lob_read");
         DBD::Oracle::db->install_method("ora_lob_write");
         DBD::Oracle::db->install_method("ora_lob_append");
@@ -82,8 +81,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
  	DBD::Oracle::st->install_method("ora_ping");
  	DBD::Oracle::st->install_method("ora_stmt_type_name");
  	DBD::Oracle::st->install_method("ora_stmt_type");
- 	
  	$drh;
+ 	
     }
 
 
@@ -177,6 +176,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub connect {
 	my ($drh, $dbname, $user, $auth, $attr)= @_;
 
+
+        
 	if ($dbname =~ /;/) {
 	    my ($n,$v);
 	    $dbname =~ s/^\s+//;
@@ -250,8 +251,11 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    # these two are just for backwards compatibility
 	    $dbh_inner->{USER} = $dbh_inner->{CURRENT_USER} = uc $user_only;
 	}
-
+	if ($ENV{ORA_DBD_NCS_BUFFER}){
+	    $dbh->{'ora_ncs_buff_mtpl'}= $ENV{ORA_DBD_NCS_BUFFER};
+	}
 	$dbh;
+	
     }
     
      sub private_attribute_info {
@@ -264,7 +268,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 {   package DBD::Oracle::db; # ====== DATABASE ======
     use strict;
     use DBI qw(:sql_types);
-
+	
     sub prepare {
 	my($dbh, $statement, @attribs)= @_;
 
@@ -284,6 +288,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     }
 
 #Ah! I see you have the machine that goes PING!!
+#Yes!! We leased it from the company that made it
+#then the cost came out of the operating budget
+#not the capital ...
+
     sub ping { 
 	my($dbh) = @_;
 	my $ok = 0;

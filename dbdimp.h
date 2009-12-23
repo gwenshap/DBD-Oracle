@@ -256,6 +256,7 @@ extern int ora_fetchtest;
 extern int dbd_verbose;
 extern int oci_warn;
 extern int ora_objects;
+extern int ora_ncs_buff_mtpl;
 
 extern ub2 charsetid;
 extern ub2 ncharsetid;
@@ -333,6 +334,7 @@ char *ora_env_var(char *name, char *buf, unsigned long size);
 
 #ifdef __CYGWIN32__
 void ora_cygwin_set_env(char *name, char *value);
+
 #endif /* __CYGWIN32__ */
 
 sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
