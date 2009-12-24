@@ -874,6 +874,50 @@ dbd_db_rollback(SV *dbh, imp_dbh_t *imp_dbh)
 	return 1;
 }
 
+int dbd_st_bind_col(SV *sth, imp_sth_t *imp_sth, SV *col, SV *ref, IV type, SV *attribs) {
+	dTHX;
+	int field;
+
+	if (!SvIOK(col)) {
+		croak ("Invalid column number") ;
+	}
+
+	field = SvIV(col);
+
+	if ((field < 1) || (field > DBIc_NUM_FIELDS(imp_sth))) {
+		croak("cannot bind to non-existent field %d", field);
+	}
+
+	imp_sth->fbh[field-1].req_type = type;
+	imp_sth->fbh[field-1].bind_flags = 0; /* default to none */
+
+#if DBIXS_REVISION >= 13590
+	/* DBIXS 13590 added StrictlyTyped and DiscardString attributes */
+	if (attribs) {
+		HV *attr_hash;
+		SV **attr;
+
+		if (!SvROK(attribs)) {
+			croak ("attributes is not a reference");
+		} 
+		else if (SvTYPE(SvRV(attribs)) != SVt_PVHV) {
+			croak ("attributes not a hash reference");
+		}
+		attr_hash = (HV *)SvRV(attribs);
+
+		attr = hv_fetch(attr_hash, "StrictlyTyped", (U32)13, 0);
+		if (attr && SvTRUE(*attr)) {
+			imp_sth->fbh[field-1].bind_flags |= DBIstcf_STRICT;
+		}
+
+		attr = hv_fetch(attr_hash, "DiscardString", (U32)13, 0);
+		if (attr && SvTRUE(*attr)) {
+			imp_sth->fbh[field-1].bind_flags |= DBIstcf_DISCARD_STRING;
+		}
+	}
+#endif  /* DBIXS_REVISION >= 13590 */
+	return 1;
+}
 
 int
 dbd_db_disconnect(SV *dbh, imp_dbh_t *imp_dbh)
@@ -3932,6 +3976,12 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 		retsv = newRV(sv_2mortal((SV*)av));
 		while(--i >= 0)
 			av_store(av, i, boolSV(imp_sth->fbh[i].nullok));
+	} 
+	else if (kl==13 && strEQ(key, "len_char_size")) {
+		AV *av = newAV();
+		retsv = newRV(sv_2mortal((SV*)av));
+		while(--i >= 0)
+			av_store(av, i, newSViv(imp_sth->fbh[i].len_char_size));
 	}
 	else {
 		return Nullsv;

@@ -1,4 +1,6 @@
 =head1 Changes in DBD-Oracle 1.24(svn rev???)
+  Added extened nvarchar support from Jan Mach
+  Added support for the TYPE attribute on bind_col and the new DBI bind_col attributes StrictlyTyped and DiscardString from Martin J. Evans 
   Added ora_ncs_buff_mtpl and enviornment var ORA_DBD_NCS_BUFFER so we can control the size of the buffer when doing nclob reads
   Fix for bug in for  changes to row fetch buffer mostly lobs and object fetches
   Fix for rt.cpan.org Ticket #=49741 Oracle.h has commented out params in OCIXMLTypeCreateFromSrc from Kartik Thakore 

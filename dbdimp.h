@@ -113,7 +113,7 @@ struct imp_sth_st {
 	int				fetch_offset;
 	int				fetch_position;
 	int 			prefetch_memory;	/* OCI_PREFETCH_MEMORY*/
-	int				prefetch_rows;		/* OCI_PREFETCH_ROWS
+	int				prefetch_rows;		/* OCI_PREFETCH_ROWS */
 	/* array fetch: state variables */
 	int				row_cache_off;
 	int 			rs_fetch_count;		/*fetch count*/
@@ -184,16 +184,20 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
 	ub1			len_char_used;	/* OCI_ATTR_CHAR_USED			*/
 	ub2			len_char_size;	/* OCI_ATTR_CHAR_SIZE			*/
 	ub2			csid;		/* OCI_ATTR_CHARSET_ID			*/
-	ub1			csform;	/* OCI_ATTR_CHARSET_FORM		*/
-	ub4			disize;	/* max display/buffer size		*/
+	ub1			csform;		/* OCI_ATTR_CHARSET_FORM		*/
+	ub4			disize;		/* max display/buffer size		*/
 	ub4			piece_size; /*used in callback to set the size of the piece to get*/
-	char		*bless;	/* for Oracle::OCI style handle data	*/
+	char		*bless;		/* for Oracle::OCI style handle data	*/
 	void		*special;	/* hook for special purposes (LOBs etc)	*/
 	int			pers_lob;   /*for persistant lobs 10g Release 2. or later*/
 	int			clbk_lob;   /*for persistant lobs 10g Release 2. or later*/
 	int			piece_lob;  /*use piecewise fetch for lobs*/
+
 	/* Our storage space for the field data as it's fetched	*/
-	sword		ftype;	/* external datatype we wish to get	*/
+
+	sword		ftype;		/* external datatype we wish to get	*/
+	IV			req_type;	/* type passed to bind_col */
+	UV			bind_flags;	/* flags passed to bind_col */
 	fb_ary_t	*fb_ary ;	/* field buffer array			*/
 	/* if this is an embedded object we use this */
 	fbh_obj_t	*obj;
@@ -378,6 +382,7 @@ void rs_array_init(imp_sth_t *imp_sth);
 #define dbd_st_FETCH_attrib	ora_st_FETCH_attrib
 #define dbd_describe		ora_describe
 #define dbd_bind_ph			ora_bind_ph
+#define dbd_st_bind_col		ora_st_bind_col
 #include "ocitrace.h"
 
 /* end */

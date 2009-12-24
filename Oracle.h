@@ -67,6 +67,7 @@ int	 dbd_db_login  _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, cha
 int	 dbd_db_do _((SV *sv, char *statement));
 int	 dbd_db_commit     _((SV *dbh, imp_dbh_t *imp_dbh));
 int	 dbd_db_rollback   _((SV *dbh, imp_dbh_t *imp_dbh));
+int dbd_st_bind_col(SV *sth, imp_sth_t *imp_sth, SV *col, SV *ref, IV type, SV *attribs);
 int	 dbd_db_disconnect _((SV *dbh, imp_dbh_t *imp_dbh));
 void dbd_db_destroy    _((SV *dbh, imp_dbh_t *imp_dbh));
 int	 dbd_db_STORE_attrib _((SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv));

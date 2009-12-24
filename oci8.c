@@ -427,8 +427,8 @@ oci_attr_name(ub4 attr)
 	case OCI_ATTR_NESTED_PREFETCH_MEMORY:return "OCI_ATTR_NESTED_PREFETCH_MEMORY";   /* memory limit for nested rows */
 	case OCI_ATTR_CHAR_COUNT:			return "OCI_ATTR_CHAR_COUNT";
 	                    /* this specifies the bind and define size in characters */
-	case OCI_ATTR_PDSCL:				return "OCI_ATTR_PDSCL";                          /* packed decimal scale
-	case OCI_ATTR_FSPRECISION OCI_ATTR_PDSCL:return "";*/
+	case OCI_ATTR_PDSCL:				return "OCI_ATTR_PDSCL";                          /* packed decimal scale/*
+	/*case OCI_ATTR_FSPRECISION OCI_ATTR_PDSCL:return "";*/
 	                                          /* fs prec for datetime data types */
 	case OCI_ATTR_PDPRC:				return "OCI_ATTR_PDPRC";                         /* packed decimal format
 	case OCI_ATTR_LFPRECISION OCI_ATTR_PDPRC: return "";
@@ -993,9 +993,11 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		if (!dbd_describe(sth, imp_sth))
 			return 0;
 	}
-	else {
-		/* set initial cache size by memory */
-		 /* [I'm not now sure why this is here - from a patch sometime ago - Tim]*/
+/*	else {
+		/* set initial cache size by memory 
+		    [I'm not now sure why this is here - from a patch sometime ago - Tim]
+		    you are right Tim thre is no need to have this here so out it goes
+		    a very useless call to the server 
 		ub4 cache_mem;
 		IV cache_mem_iv;
 		D_imp_dbh_from_sth ;
@@ -1014,7 +1016,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 			return 0;
 		}
 	}
-
+*/
 	return 1;
 }
 
@@ -2696,7 +2698,7 @@ void rs_array_init(imp_sth_t *imp_sth)
 
 
 
-/*static int			/* --- Setup the row cache for this sth --- */
+static int			/* --- Setup the row cache for this sth --- */
 sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields, int has_longs)
 {
 	dTHX;
@@ -3787,8 +3789,38 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 							--datalen;
 					}
 					sv_setpvn(sv, p, (STRLEN)datalen);
-					if (CSFORM_IMPLIES_UTF8(fbh->csform) ){
-						SvUTF8_on(sv);
+	#if DBISTATE_VERSION > 94
+		/* DBIXS_REVISION > 13590 */
+		/* If a bind type was specified we use DBI's sql_type_cast
+			to cast it - currently only number types are handled */
+					if (fbh->req_type != 0) {
+						int sts;
+						D_imp_xxh(sth);
+						char errstr[256];
+					
+						sts = DBIc_DBISTATE(imp_sth)->sql_type_cast_svpv(
+						aTHX_ sv, fbh->req_type, fbh->bind_flags, NULL);
+						if (sts == 0) {
+							sprintf(errstr,
+								"over/under flow converting column %d to type %ld",
+								i+1, fbh->req_type);
+							oci_error(sth, imp_sth->errhp, OCI_ERROR, errstr);
+							return Nullav;
+						
+						} 
+						else if (sts == -2) {
+							sprintf(errstr,
+								"unsupported bind type %ld for column %d",
+								fbh->req_type, i+1);
+							return Nullav;
+						}
+					}
+					else 
+	#endif /* DBISTATE_VERSION > 94 */
+					{
+						if (CSFORM_IMPLIES_UTF8(fbh->csform) ){
+							SvUTF8_on(sv);
+						}
 					}
 				}
 			}
