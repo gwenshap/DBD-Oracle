@@ -331,6 +331,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_verbose		=> undef,
                  ora_oci_success_warn	=> undef,
                  ora_objects		=> undef,
+                 ora_ncs_buff_mtpl      => undef,
                  };
     }
    
@@ -1474,6 +1475,17 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 
 =over 4
 
+=item ora_ncs_buff_mtpl
+
+You can now customize the size of the buffer when selecting a LOBs with the build in AUTO Lob
+The default value is 1 which should be fine for most situations if you are converting between
+a NCS on the DB and one on the Client they you might want to set this to 2.  The orginal value
+was 4 which was excessive.  For convieance I have added support for a 'ORA_DBD_NCS_BUFFER' enviornemnt
+varaible that you can use at the OS level to set this value.  If used it will take the value at the
+connect stage.
+
+See more details in the LOB section of the POD
+
 =item ora_session_mode
 
 The ora_session_mode attribute can be used to connect with SYSDBA
@@ -1894,7 +1906,8 @@ to compute the number of rows to prefetch.
 
 By default C<RowCacheSize> is automaticaly set. If you want to totaly turn off prefetching set this to 1.
 
-
+For any SQL statment that contains a LOB, Long or Object Type Row Caching will be turned off. However server side 
+caching still works.  If you are only selecting a LOB Locator then Row Caching will still work.
 
 =head2 Row Prefetching
 
@@ -3123,11 +3136,32 @@ used, normally one can get an entire LOB is a single round trip.
 
 =head3 Simple Fetch for LONGs and LONG RAWs
 
-As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LONG datatypes as a single large piece. 
+As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LONG data types as a single large piece. 
 There are no special settings, simply set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LONG or LONG RAW.
 If the size of the LONG or LONG RAW exceeds  the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
 The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on.  You have most likely reached this limit if you run into
 an 'ORA-01062: unable to allocate memory for define buffer' error.  One solution is to set the size of 'LongReadLen' to a lower value. 
+
+When getting CLOBs and NCLOBs in or out of Oracle ,the Server will translate from the Server's NCharSet to the
+Client's. If they happen to be the same or at least compatable then all of these actions are a 1 char to 1 char bases. Thus if you set your LongReadLen 
+buffer to 10_000_000 you will get up to 10_000_000 char. 
+
+However if the Server has to translate from one NCharSet to another it will use bytes for conversion. In versions 
+earlier than 1.24 this buffer was always 4 * LONG_READ_LEN which was very wasteful so you might of asking for only 
+10_000_000 bytes but you were actually using 40_000_000 bytes under the hood.  You would still get 10_000_000 bytes (maybe less characters though) but 
+you are using allot more memory that you need.
+
+You can now customize the size of the buffer by setting the 'ora_ncs_buff_mtpl' either on the connection or statement handle. You can
+also set this as 'ORA_DBD_NCS_BUFFER' OS environment variable so you will have to go back and change all your code if you are getting into trouble.
+Most of the time the Client and the Server use the same NCharSet so the default value has been set to  1. DBD Oracle will now die with a
+message warning you that your buffer is too small for the desired number of characters. The error that is trapped is a
+
+  ORA-03127: no new operations allowed until the active operation ends
+  
+which is one of the more obscure ORA errors (have some fun and report it to Meta-Link they will scratch their heads for hours).
+If you get this, simply increment the ora_ncs_buff_mtpl by one until it goes away.
+
+This should greatly increase your ability to select very large CLOBs or NCLOBs, by freeing up a large block of menory.
 
 
 For example give this table;
@@ -3159,6 +3193,11 @@ To use this interface for CLOBs and LOBs datatypes set the 'ora_pers_lob' attrib
 set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LOB. If the size of the LOB exceeds 
 the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
 The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on in the same way that LONGs and LONG RAWs are. 
+
+For CLOBs and NCLOBs the limit is 64k chars if there is no truncation, this is an internal OCI limit complain to them if you want it changed.  However if you CLOB is longer than this
+and also larger than the 'LongReadLen' than the 'LongReadLen' in chars is returned.
+
+It seems with BLOBs you are not limited by the 64k.
 
 For example give this table;
 
