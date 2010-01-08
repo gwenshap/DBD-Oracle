@@ -121,6 +121,9 @@ struct imp_sth_st {
 	int				rs_array_num_rows;	/* num rows in last fetch */
 	int				rs_array_idx;		/* index of current row */
 	sword			rs_array_status;	/* status of last fetch */
+	int 			RowCacheSize; 		/* both of these are defined by DBI spec*/
+	int 			RowsInCache;		/* this vaue is RO and cannot be set*/
+
 };
 #define IMP_STH_EXECUTING	0x0001
 

@@ -377,22 +377,22 @@ oci_dtype_attr_name(ub4 attr)
 	SV *sv;
 	switch (attr) {
 /*=======================Describe Handle Parameter Attributes ===============*/
-	case OCI_ATTR_DATA_SIZE:			return "OCI_ATTR_DATA_SIZE";               /* maximum size of the data */
-	case OCI_ATTR_DATA_TYPE:			return "OCI_ATTR_DATA_TYPE"; /* the SQL type of the column/argument */
-	case OCI_ATTR_DISP_SIZE:			return "OCI_ATTR_DISP_SIZE"; /* the display size */
-	case OCI_ATTR_NAME:					return "OCI_ATTR_NAME"; /* the name of the column/argument */
-	case OCI_ATTR_PRECISION:			return "OCI_ATTR_PRECISION"; /* precision if number type */
-	case OCI_ATTR_SCALE:				return "OCI_ATTR_SCALE"; /* scale if number type */
-	case OCI_ATTR_IS_NULL:				return "OCI_ATTR_IS_NULL"; /* is it null ? */
+	case OCI_ATTR_DATA_SIZE:			return "OCI_ATTR_DATA_SIZE";	/* maximum size of the data */
+	case OCI_ATTR_DATA_TYPE:			return "OCI_ATTR_DATA_TYPE";	/* the SQL type of the column/argument */
+	case OCI_ATTR_DISP_SIZE:			return "OCI_ATTR_DISP_SIZE";	/* the display size */
+	case OCI_ATTR_NAME:					return "OCI_ATTR_NAME";			/* the name of the column/argument */
+	case OCI_ATTR_PRECISION:			return "OCI_ATTR_PRECISION";	/* precision if number type */
+	case OCI_ATTR_SCALE:				return "OCI_ATTR_SCALE"; 		/* scale if number type */
+	case OCI_ATTR_IS_NULL:				return "OCI_ATTR_IS_NULL";		/* is it null ? */
 	case OCI_ATTR_TYPE_NAME: 			return "OCI_ATTR_TYPE_NAME";
   /* name of the named data type or a package name for package private types */
-	case OCI_ATTR_SCHEMA_NAME: 			return "OCI_ATTR_SCHEMA_NAME";  /* the schema name */
-	case OCI_ATTR_SUB_NAME: 			return "OCI_ATTR_SUB_NAME";  /* type name if package private type */
+	case OCI_ATTR_SCHEMA_NAME: 			return "OCI_ATTR_SCHEMA_NAME";	/* the schema name */
+	case OCI_ATTR_SUB_NAME: 			return "OCI_ATTR_SUB_NAME";		/* type name if package private type */
 	case OCI_ATTR_POSITION:				return "OCI_ATTR_POSITION";
-	case OCI_ATTR_CHAR_USED:            return "OCI_ATTR_CHAR_USED";      /* char length semantics */
-	case OCI_ATTR_CHAR_SIZE:             return "OCI_ATTR_CHAR_SIZE";                /* char length */
-	case OCI_ATTR_CHARSET_ID:			return "OCI_ATTR_CHARSET_ID";                           /* Character Set ID */
-	case OCI_ATTR_CHARSET_FORM:			return "OCI_ATTR_CHARSET_FORM";                       /* Character Set Form */
+	case OCI_ATTR_CHAR_USED:            return "OCI_ATTR_CHAR_USED";	/* char length semantics */
+	case OCI_ATTR_CHAR_SIZE:             return "OCI_ATTR_CHAR_SIZE";	/* char length */
+	case OCI_ATTR_CHARSET_ID:			return "OCI_ATTR_CHARSET_ID";	/* Character Set ID */
+	case OCI_ATTR_CHARSET_FORM:			return "OCI_ATTR_CHARSET_FORM";	/* Character Set Form */
 	}
 
 	sv = sv_2mortal(newSViv((IV)attr));
@@ -411,231 +411,219 @@ oci_attr_name(ub4 attr)
 	/*=============================Attribute Types===============================*/
 
 
-	case OCI_ATTR_FNCODE:				return "OCI_ATTR_FNCODE";                       /* the OCI function code */
+	case OCI_ATTR_FNCODE:				return "OCI_ATTR_FNCODE";		/* the OCI function code */
 	case OCI_ATTR_OBJECT:				return "OCI_ATTR_OBJECT"; /* is the environment initialized in object mode */
-	case OCI_ATTR_NONBLOCKING_MODE:		return "OCI_ATTR_NONBLOCKING_MODE";                   /* non blocking mode */
-	case OCI_ATTR_SQLCODE:				return "OCI_ATTR_SQLCODE";                                  /* the SQL verb */
-	case OCI_ATTR_ENV:					return "OCI_ATTR_ENV";                            /* the environment handle */
-	case OCI_ATTR_SERVER:				return "OCI_ATTR_SERVER";                               /* the server handle*/
-	case OCI_ATTR_SESSION:				return "OCI_ATTR_SESSION";                        /* the user session handle*/
-	case OCI_ATTR_TRANS:				return "OCI_ATTR_TRANS";                         /* the transaction handle */
-	case OCI_ATTR_ROW_COUNT:			return "OCI_ATTR_ROW_COUNT";                  /* the rows processed so far */
-	case OCI_ATTR_SQLFNCODE:			return "OCI_ATTR_SQLFNCODE";               /* the SQL verb of the statement */
-	case OCI_ATTR_PREFETCH_ROWS:		return "OCI_ATTR_PREFETCH_ROWS";    /* sets the number of rows to prefetch */
+	case OCI_ATTR_NONBLOCKING_MODE:		return "OCI_ATTR_NONBLOCKING_MODE";		/* non blocking mode */
+	case OCI_ATTR_SQLCODE:				return "OCI_ATTR_SQLCODE";				/* the SQL verb */
+	case OCI_ATTR_ENV:					return "OCI_ATTR_ENV";				/* the environment handle */
+	case OCI_ATTR_SERVER:				return "OCI_ATTR_SERVER";			/* the server handle*/
+	case OCI_ATTR_SESSION:				return "OCI_ATTR_SESSION";			/* the user session handle*/
+	case OCI_ATTR_TRANS:				return "OCI_ATTR_TRANS";			/* the transaction handle */
+	case OCI_ATTR_ROW_COUNT:			return "OCI_ATTR_ROW_COUNT";		/* the rows processed so far */
+	case OCI_ATTR_SQLFNCODE:			return "OCI_ATTR_SQLFNCODE";		/* the SQL verb of the statement */
+	case OCI_ATTR_PREFETCH_ROWS:		return "OCI_ATTR_PREFETCH_ROWS";	/* sets the number of rows to prefetch */
 	case OCI_ATTR_NESTED_PREFETCH_ROWS:	return "OCI_ATTR_NESTED_PREFETCH_ROWS"; /* the prefetch rows of nested table*/
-	case OCI_ATTR_PREFETCH_MEMORY:		return "OCI_ATTR_PREFETCH_MEMORY";         /* memory limit for rows fetched */
-	case OCI_ATTR_NESTED_PREFETCH_MEMORY:return "OCI_ATTR_NESTED_PREFETCH_MEMORY";   /* memory limit for nested rows */
-	case OCI_ATTR_CHAR_COUNT:			return "OCI_ATTR_CHAR_COUNT";
-	                    /* this specifies the bind and define size in characters */
-	case OCI_ATTR_PDSCL:				return "OCI_ATTR_PDSCL";                          /* packed decimal scale/*
-	/*case OCI_ATTR_FSPRECISION OCI_ATTR_PDSCL:return "";*/
-	                                          /* fs prec for datetime data types */
-	case OCI_ATTR_PDPRC:				return "OCI_ATTR_PDPRC";                         /* packed decimal format
-	case OCI_ATTR_LFPRECISION OCI_ATTR_PDPRC: return "";
-	                                          /* fs prec for datetime data types */
-	case OCI_ATTR_PARAM_COUNT:			return "OCI_ATTR_PARAM_COUNT";       /* number of column in the select list */
-	case OCI_ATTR_ROWID:				return "OCI_ATTR_ROWID";                                     /* the rowid */
-	case OCI_ATTR_CHARSET:				return "OCI_ATTR_CHARSET";                     /* the character set value */
-	case OCI_ATTR_NCHAR:				return "OCI_ATTR_NCHAR"; /* NCHAR type */
-	case OCI_ATTR_USERNAME:				return "OCI_ATTR_USERNAME"; /* username attribute */
-	case OCI_ATTR_PASSWORD:				return "OCI_ATTR_PASSWORD";                           /* password attribute */
-	case OCI_ATTR_STMT_TYPE:			return "OCI_ATTR_STMT_TYPE";                           /* statement type */
-	case OCI_ATTR_INTERNAL_NAME:		return "OCI_ATTR_INTERNAL_NAME";             /* user friendly global name */
-	case OCI_ATTR_EXTERNAL_NAME:		return "OCI_ATTR_EXTERNAL_NAME";      /* the internal name for global txn */
-	case OCI_ATTR_XID:					return "OCI_ATTR_XID";           /* XOPEN defined global transaction id */
-	case OCI_ATTR_TRANS_LOCK:			return "OCI_ATTR_TRANS_LOCK";                                            /* */
-	case OCI_ATTR_TRANS_NAME:			return "OCI_ATTR_TRANS_NAME";    /* string to identify a global transaction */
-	case OCI_ATTR_HEAPALLOC:			return "OCI_ATTR_HEAPALLOC";                /* memory allocated on the heap */
-	case OCI_ATTR_CHARSET_FORM:			return "OCI_ATTR_CHARSET_FORM";                       /* Character Set Form */
-	case OCI_ATTR_MAXDATA_SIZE:			return "OCI_ATTR_MAXDATA_SIZE";       /* Maximumsize of data on the server  */
-	case OCI_ATTR_CACHE_OPT_SIZE:		return "OCI_ATTR_CACHE_OPT_SIZE";              /* object cache optimal size */
-	case OCI_ATTR_CACHE_MAX_SIZE:		return "OCI_ATTR_CACHE_MAX_SIZE";   /* object cache maximum size percentage */
-	case OCI_ATTR_PINOPTION:			return "OCI_ATTR_PINOPTION";             /* object cache default pin option */
-	case OCI_ATTR_ALLOC_DURATION:		return "OCI_ATTR_ALLOC_DURATION";
-	                                 /* object cache default allocation duration */
-	case OCI_ATTR_PIN_DURATION:				return "OCI_ATTR_PIN_DURATION";        /* object cache default pin duration */
-	case OCI_ATTR_FDO:					return "OCI_ATTR_FDO";       /* Format Descriptor object attribute */
-	case OCI_ATTR_POSTPROCESSING_CALLBACK:		return "OCI_ATTR_POSTPROCESSING_CALLBACK";
-	                                         /* Callback to process outbind data */
-	case OCI_ATTR_POSTPROCESSING_CONTEXT:		return "OCI_ATTR_POSTPROCESSING_CONTEXT";
-	                                 /* Callback context to process outbind data */
-	case OCI_ATTR_ROWS_RETURNED:		return "OCI_ATTR_ROWS_RETURNED";
-	               /* Number of rows returned in current iter - for Bind handles */
-	case OCI_ATTR_FOCBK:				return "OCI_ATTR_FOCBK";              /* Failover Callback attribute */
-	case OCI_ATTR_IN_V8_MODE:			return "OCI_ATTR_IN_V8_MODE"; /* is the server/service context in V8 mode */
-	case OCI_ATTR_LOBEMPTY:				return "OCI_ATTR_LOBEMPTY";                              /* empty lob ? */
-	case OCI_ATTR_SESSLANG:				return "OCI_ATTR_SESSLANG";                  /* session language handle */
+	case OCI_ATTR_PREFETCH_MEMORY:		return "OCI_ATTR_PREFETCH_MEMORY";		/* memory limit for rows fetched */
+	case OCI_ATTR_NESTED_PREFETCH_MEMORY:return "OCI_ATTR_NESTED_PREFETCH_MEMORY";	/* memory limit for nested rows */
+	case OCI_ATTR_CHAR_COUNT:			return "OCI_ATTR_CHAR_COUNT";			 /* this specifies the bind and define size in characters */
+	case OCI_ATTR_PDSCL:				return "OCI_ATTR_PDSCL";			/* packed decimal scale*/
+	/*case OCI_ATTR_FSPRECISION OCI_ATTR_PDSCL:return "";					 fs prec for datetime data types */
+	case OCI_ATTR_PDPRC:				return "OCI_ATTR_PDPRC";			/* packed decimal format*/
+	/*case OCI_ATTR_LFPRECISION OCI_ATTR_PDPRC: return "";					fs prec for datetime data types */
+	case OCI_ATTR_PARAM_COUNT:			return "OCI_ATTR_PARAM_COUNT";		/* number of column in the select list */
+	case OCI_ATTR_ROWID:				return "OCI_ATTR_ROWID";			/* the rowid */
+	case OCI_ATTR_CHARSET:				return "OCI_ATTR_CHARSET";			/* the character set value */
+	case OCI_ATTR_NCHAR:				return "OCI_ATTR_NCHAR";			/* NCHAR type */
+	case OCI_ATTR_USERNAME:				return "OCI_ATTR_USERNAME";			/* username attribute */
+	case OCI_ATTR_PASSWORD:				return "OCI_ATTR_PASSWORD";			/* password attribute */
+	case OCI_ATTR_STMT_TYPE:			return "OCI_ATTR_STMT_TYPE";		/* statement type */
+	case OCI_ATTR_INTERNAL_NAME:		return "OCI_ATTR_INTERNAL_NAME";	/* user friendly global name */
+	case OCI_ATTR_EXTERNAL_NAME:		return "OCI_ATTR_EXTERNAL_NAME";	/* the internal name for global txn */
+	case OCI_ATTR_XID:					return "OCI_ATTR_XID";				/* XOPEN defined global transaction id */
+	case OCI_ATTR_TRANS_LOCK:			return "OCI_ATTR_TRANS_LOCK";		/* */
+	case OCI_ATTR_TRANS_NAME:			return "OCI_ATTR_TRANS_NAME";		/* string to identify a global transaction */
+	case OCI_ATTR_HEAPALLOC:			return "OCI_ATTR_HEAPALLOC";		/* memory allocated on the heap */
+	case OCI_ATTR_CHARSET_FORM:			return "OCI_ATTR_CHARSET_FORM";		/* Character Set Form */
+	case OCI_ATTR_MAXDATA_SIZE:			return "OCI_ATTR_MAXDATA_SIZE";		/* Maximumsize of data on the server  */
+	case OCI_ATTR_CACHE_OPT_SIZE:		return "OCI_ATTR_CACHE_OPT_SIZE";	/* object cache optimal size */
+	case OCI_ATTR_CACHE_MAX_SIZE:		return "OCI_ATTR_CACHE_MAX_SIZE";	/* object cache maximum size percentage */
+	case OCI_ATTR_PINOPTION:			return "OCI_ATTR_PINOPTION";		/* object cache default pin option */
+	case OCI_ATTR_ALLOC_DURATION:		return "OCI_ATTR_ALLOC_DURATION";	/* object cache default allocation duration */
+	case OCI_ATTR_PIN_DURATION:			return "OCI_ATTR_PIN_DURATION";		/* object cache default pin duration */
+	case OCI_ATTR_FDO:					return "OCI_ATTR_FDO";		/* Format Descriptor object attribute */
+	case OCI_ATTR_POSTPROCESSING_CALLBACK:		return "OCI_ATTR_POSTPROCESSING_CALLBACK"; /* Callback to process outbind data */
+	case OCI_ATTR_POSTPROCESSING_CONTEXT:		return "OCI_ATTR_POSTPROCESSING_CONTEXT";  /* Callback context to process outbind data */
+	case OCI_ATTR_ROWS_RETURNED:		return "OCI_ATTR_ROWS_RETURNED"; 	/* Number of rows returned in current iter - for Bind handles */
+	case OCI_ATTR_FOCBK:				return "OCI_ATTR_FOCBK";			/* Failover Callback attribute */
+	case OCI_ATTR_IN_V8_MODE:			return "OCI_ATTR_IN_V8_MODE";		/* is the server/service context in V8 mode */
+	case OCI_ATTR_LOBEMPTY:				return "OCI_ATTR_LOBEMPTY";			/* empty lob ? */
+	case OCI_ATTR_SESSLANG:				return "OCI_ATTR_SESSLANG";			/* session language handle */
+	case OCI_ATTR_VISIBILITY:			return "OCI_ATTR_VISIBILITY";		/* visibility */
+	case OCI_ATTR_RELATIVE_MSGID:		return "OCI_ATTR_RELATIVE_MSGID";	/* relative message id */
+	case OCI_ATTR_SEQUENCE_DEVIATION:	return "OCI_ATTR_SEQUENCE_DEVIATION";	/* sequence deviation */
 
-	case OCI_ATTR_VISIBILITY:			return "OCI_ATTR_VISIBILITY";                     /* visibility */
-	case OCI_ATTR_RELATIVE_MSGID:		return "OCI_ATTR_RELATIVE_MSGID";            /* relative message id */
-	case OCI_ATTR_SEQUENCE_DEVIATION:	return "OCI_ATTR_SEQUENCE_DEVIATION";             /* sequence deviation */
+	case OCI_ATTR_CONSUMER_NAME:		return "OCI_ATTR_CONSUMER_NAME";	/* consumer name */
+	case OCI_ATTR_DEQ_MODE:				return "OCI_ATTR_DEQ_MODE";			/* dequeue mode */
+	case OCI_ATTR_NAVIGATION:			return "OCI_ATTR_NAVIGATION";		/* navigation */
+	case OCI_ATTR_WAIT:					return "OCI_ATTR_WAIT";				/* wait */
+	case OCI_ATTR_DEQ_MSGID:			return "OCI_ATTR_DEQ_MSGID";		/* dequeue message id */
 
-	case OCI_ATTR_CONSUMER_NAME:		return "OCI_ATTR_CONSUMER_NAME";                  /* consumer name */
-	case OCI_ATTR_DEQ_MODE:				return "OCI_ATTR_DEQ_MODE";                   /* dequeue mode */
-	case OCI_ATTR_NAVIGATION:			return "OCI_ATTR_NAVIGATION";                     /* navigation */
-	case OCI_ATTR_WAIT:					return "OCI_ATTR_WAIT";                           /* wait */
-	case OCI_ATTR_DEQ_MSGID:			return "OCI_ATTR_DEQ_MSGID";             /* dequeue message id */
+	case OCI_ATTR_PRIORITY:				return "OCI_ATTR_PRIORITY";			/* priority */
+	case OCI_ATTR_DELAY:				return "OCI_ATTR_DELAY";			/* delay */
+	case OCI_ATTR_EXPIRATION:			return "OCI_ATTR_EXPIRATION";		/* expiration */
+	case OCI_ATTR_CORRELATION:			return "OCI_ATTR_CORRELATION";		/* correlation id */
+	case OCI_ATTR_ATTEMPTS:				return "OCI_ATTR_ATTEMPTS";			/* # of attempts */
+	case OCI_ATTR_RECIPIENT_LIST:		return "OCI_ATTR_RECIPIENT_LIST";	/* recipient list */
+	case OCI_ATTR_EXCEPTION_QUEUE:		return "OCI_ATTR_EXCEPTION_QUEUE";	/* exception queue name */
+	case OCI_ATTR_ENQ_TIME:				return "OCI_ATTR_ENQ_TIME";			/* enqueue time (only OCIAttrGet) */
+	case OCI_ATTR_MSG_STATE:			return "OCI_ATTR_MSG_STATE";		/* message state (only OCIAttrGet) */
+																			/* NOTE: 64-66 used below */
+	case OCI_ATTR_AGENT_NAME:			return "OCI_ATTR_AGENT_NAME";		/* agent name */
+	case OCI_ATTR_AGENT_ADDRESS:		return "OCI_ATTR_AGENT_ADDRESS";	/* agent address */
+	case OCI_ATTR_AGENT_PROTOCOL:		return "OCI_ATTR_AGENT_PROTOCOL";	/* agent protocol */
 
-	case OCI_ATTR_PRIORITY:				return "OCI_ATTR_PRIORITY";                       /* priority */
-	case OCI_ATTR_DELAY:				return "OCI_ATTR_DELAY";                          /* delay */
-	case OCI_ATTR_EXPIRATION:			return "OCI_ATTR_EXPIRATION";                     /* expiration */
-	case OCI_ATTR_CORRELATION:			return "OCI_ATTR_CORRELATION";                 /* correlation id */
-	case OCI_ATTR_ATTEMPTS:				return "OCI_ATTR_ATTEMPTS";                 /* # of attempts */
-	case OCI_ATTR_RECIPIENT_LIST:		return "OCI_ATTR_RECIPIENT_LIST";                 /* recipient list */
-	case OCI_ATTR_EXCEPTION_QUEUE:		return "OCI_ATTR_EXCEPTION_QUEUE";           /* exception queue name */
-	case OCI_ATTR_ENQ_TIME:				return "OCI_ATTR_ENQ_TIME";/* enqueue time (only OCIAttrGet) */
-	case OCI_ATTR_MSG_STATE:			return "OCI_ATTR_MSG_STATE";/* message state (only OCIAttrGet) */
-	                                                   /* NOTE: 64-66 used below */
-	case OCI_ATTR_AGENT_NAME:			return "OCI_ATTR_AGENT_NAME";                 /* agent name */
-	case OCI_ATTR_AGENT_ADDRESS:		return "OCI_ATTR_AGENT_ADDRESS";                  /* agent address */
-	case OCI_ATTR_AGENT_PROTOCOL:		return "OCI_ATTR_AGENT_PROTOCOL";                /* agent protocol */
+	case OCI_ATTR_SENDER_ID:			return "OCI_ATTR_SENDER_ID";		/* sender id */
+	case OCI_ATTR_ORIGINAL_MSGID:		return "OCI_ATTR_ORIGINAL_MSGID";	/* original message id */
 
-	case OCI_ATTR_SENDER_ID:			return "OCI_ATTR_SENDER_ID";                      /* sender id */
-	case OCI_ATTR_ORIGINAL_MSGID:		return "OCI_ATTR_ORIGINAL_MSGID";           /* original message id */
+	case OCI_ATTR_QUEUE_NAME:			return "OCI_ATTR_QUEUE_NAME";		/* queue name */
+	case OCI_ATTR_NFY_MSGID:			return "OCI_ATTR_NFY_MSGID";		/* message id */
+	case OCI_ATTR_MSG_PROP:				return "OCI_ATTR_MSG_PROP";			/* message properties */
 
-	case OCI_ATTR_QUEUE_NAME:			return "OCI_ATTR_QUEUE_NAME";                     /* queue name */
-	case OCI_ATTR_NFY_MSGID:			return "OCI_ATTR_NFY_MSGID";                     /* message id */
-	case OCI_ATTR_MSG_PROP:				return "OCI_ATTR_MSG_PROP";            /* message properties */
+	case OCI_ATTR_NUM_DML_ERRORS:		return "OCI_ATTR_NUM_DML_ERRORS";	/* num of errs in array DML */
+	case OCI_ATTR_DML_ROW_OFFSET:		return "OCI_ATTR_DML_ROW_OFFSET";	/* row offset in the array */
 
-	case OCI_ATTR_NUM_DML_ERRORS:		return "OCI_ATTR_NUM_DML_ERRORS";       /* num of errs in array DML */
-	case OCI_ATTR_DML_ROW_OFFSET:		return "OCI_ATTR_DML_ROW_OFFSET";       /* row offset in the array */
+	case OCI_ATTR_DATEFORMAT:			return "OCI_ATTR_DATEFORMAT";		/* default date format string */
+	case OCI_ATTR_BUF_ADDR:				return "OCI_ATTR_BUF_ADDR";			/* buffer address */
+	case OCI_ATTR_BUF_SIZE:				return "OCI_ATTR_BUF_SIZE";			/* buffer size */
+	case OCI_ATTR_DIRPATH_MODE:			return "OCI_ATTR_DIRPATH_MODE";		/* mode of direct path operation */
+	case OCI_ATTR_DIRPATH_NOLOG:		return "OCI_ATTR_DIRPATH_NOLOG";	/* nologging option */
+	case OCI_ATTR_DIRPATH_PARALLEL:		return "OCI_ATTR_DIRPATH_PARALLEL";	/* parallel (temp seg) option */
+	case OCI_ATTR_NUM_ROWS:				return "OCI_ATTR_NUM_ROWS"; 		/* number of rows in column array */
+																			/* NOTE that OCI_ATTR_NUM_COLS is a column*/
+																			/* array attribute too.*/
+	case OCI_ATTR_COL_COUNT:			return "OCI_ATTR_COL_COUNT";        /* columns of column array*/
+																			/*processed so far.       */
+	case OCI_ATTR_STREAM_OFFSET:		return "OCI_ATTR_STREAM_OFFSET";	/* str off of last row processed*/
+/*	case OCI_ATTR_SHARED_HEAPALLO:		return "";							Shared Heap Allocation Size */
 
-	case OCI_ATTR_DATEFORMAT:			return "OCI_ATTR_DATEFORMAT";     /* default date format string */
-	case OCI_ATTR_BUF_ADDR:				return "OCI_ATTR_BUF_ADDR";                 /* buffer address */
-	case OCI_ATTR_BUF_SIZE:				return "OCI_ATTR_BUF_SIZE";                   /* buffer size */
-	case OCI_ATTR_DIRPATH_MODE:			return "OCI_ATTR_DIRPATH_MODE";  /* mode of direct path operation */
-	case OCI_ATTR_DIRPATH_NOLOG:		return "OCI_ATTR_DIRPATH_NOLOG";               /* nologging option */
-	case OCI_ATTR_DIRPATH_PARALLEL:		return "OCI_ATTR_DIRPATH_PARALLEL";    /* parallel (temp seg) option */
-	case OCI_ATTR_NUM_ROWS:				return "OCI_ATTR_NUM_ROWS"; /* number of rows in column array */
-	                                  /* NOTE that OCI_ATTR_NUM_COLS is a column
-	                                   * array attribute too.
-	                                   */
-	case OCI_ATTR_COL_COUNT:			return "OCI_ATTR_COL_COUNT";        /* columns of column array
-	                                                     processed so far.       */
-	case OCI_ATTR_STREAM_OFFSET:		return "OCI_ATTR_STREAM_OFFSET";  /* str off of last row processed
-	case OCI_ATTR_SHARED_HEAPALLO:				return "";    /* Shared Heap Allocation Size */
+	case OCI_ATTR_SERVER_GROUP:			return "OCI_ATTR_SERVER_GROUP";		/* server group name */
 
-	case OCI_ATTR_SERVER_GROUP:			return "OCI_ATTR_SERVER_GROUP";    /* server group name */
+	case OCI_ATTR_MIGSESSION:			return "OCI_ATTR_MIGSESSION"; 		/* migratable session attribute */
 
-	case OCI_ATTR_MIGSESSION:			return "OCI_ATTR_MIGSESSION";  /* migratable session attribute */
+	case OCI_ATTR_NOCACHE:				return "OCI_ATTR_NOCACHE";			/* Temporary LOBs */
 
-	case OCI_ATTR_NOCACHE:				return "OCI_ATTR_NOCACHE";                /* Temporary LOBs */
+	case OCI_ATTR_MEMPOOL_SIZE:			return "OCI_ATTR_MEMPOOL_SIZE";		/* Pool Size */
+	case OCI_ATTR_MEMPOOL_INSTNAME:		return "OCI_ATTR_MEMPOOL_INSTNAME";	/* Instance name */
+	case OCI_ATTR_MEMPOOL_APPNAME:		return "OCI_ATTR_MEMPOOL_APPNAME";	/* Application name */
+	case OCI_ATTR_MEMPOOL_HOMENAME:		return "OCI_ATTR_MEMPOOL_HOMENAME";	/* Home Directory name */
+	case OCI_ATTR_MEMPOOL_MODEL:		return "OCI_ATTR_MEMPOOL_MODEL";	/* Pool Model (proc,thrd,both)*/
+	case OCI_ATTR_MODES:				return "OCI_ATTR_MODES";			/* Modes */
 
-	case OCI_ATTR_MEMPOOL_SIZE:			return "OCI_ATTR_MEMPOOL_SIZE";                      /* Pool Size */
-	case OCI_ATTR_MEMPOOL_INSTNAME:		return "OCI_ATTR_MEMPOOL_INSTNAME";                /* Instance name */
-	case OCI_ATTR_MEMPOOL_APPNAME:		return "OCI_ATTR_MEMPOOL_APPNAME";               /* Application name */
-	case OCI_ATTR_MEMPOOL_HOMENAME:		return "OCI_ATTR_MEMPOOL_HOMENAME";            /* Home Directory name */
-	case OCI_ATTR_MEMPOOL_MODEL:		return "OCI_ATTR_MEMPOOL_MODEL";     /* Pool Model (proc,thrd,both)*/
-	case OCI_ATTR_MODES:				return "OCI_ATTR_MODES";                          /* Modes */
+	case OCI_ATTR_SUBSCR_NAME:			return "OCI_ATTR_SUBSCR_NAME";		/* name of subscription */
+	case OCI_ATTR_SUBSCR_CALLBACK:		return "OCI_ATTR_SUBSCR_CALLBACK";	/* associated callback */
+	case OCI_ATTR_SUBSCR_CTX:			return "OCI_ATTR_SUBSCR_CTX";		/* associated callback context */
+	case OCI_ATTR_SUBSCR_PAYLOAD:		return "OCI_ATTR_SUBSCR_PAYLOAD";	/* associated payload */
+	case OCI_ATTR_SUBSCR_NAMESPACE:		return "OCI_ATTR_SUBSCR_NAMESPACE"; /* associated namespace */
 
-	case OCI_ATTR_SUBSCR_NAME:			return "OCI_ATTR_SUBSCR_NAME";           /* name of subscription */
-	case OCI_ATTR_SUBSCR_CALLBACK:		return "OCI_ATTR_SUBSCR_CALLBACK";            /* associated callback */
-	case OCI_ATTR_SUBSCR_CTX:			return "OCI_ATTR_SUBSCR_CTX";   /* associated callback context */
-	case OCI_ATTR_SUBSCR_PAYLOAD:		return "OCI_ATTR_SUBSCR_PAYLOAD";             /* associated payload */
-	case OCI_ATTR_SUBSCR_NAMESPACE:		return "OCI_ATTR_SUBSCR_NAMESPACE";          /* associated namespace */
+	case OCI_ATTR_PROXY_CREDENTIALS:	return "OCI_ATTR_PROXY_CREDENTIALS";	/* Proxy user credentials */
+	case OCI_ATTR_INITIAL_CLIENT_ROLES:	return "OCI_ATTR_INITIAL_CLIENT_ROLES";	/* Initial client role list */
 
-	case OCI_ATTR_PROXY_CREDENTIALS:	return "OCI_ATTR_PROXY_CREDENTIALS";         /* Proxy user credentials */
-	case OCI_ATTR_INITIAL_CLIENT_ROLES:	return "OCI_ATTR_INITIAL_CLIENT_ROLES";      /* Initial client role list */
-
-	case OCI_ATTR_UNK:					return "OCI_ATTR_UNK";                  /* unknown attribute */
-	case OCI_ATTR_NUM_COLS:				return "OCI_ATTR_NUM_COLS";                  /* number of columns */
-	case OCI_ATTR_LIST_COLUMNS:			return "OCI_ATTR_LIST_COLUMNS";       /* parameter of the column list */
-	case OCI_ATTR_RDBA:					return "OCI_ATTR_RDBA";           /* DBA of the segment header */
-	case OCI_ATTR_CLUSTERED:			return "OCI_ATTR_CLUSTERED";      /* whether the table is clustered */
-	case OCI_ATTR_PARTITIONED:			return "OCI_ATTR_PARTITIONED";    /* whether the table is partitioned */
-	case OCI_ATTR_INDEX_ONLY:			return "OCI_ATTR_INDEX_ONLY";     /* whether the table is index only */
-	case OCI_ATTR_LIST_ARGUMENTS:		return "OCI_ATTR_LIST_ARGUMENTS";      /* parameter of the argument list */
-	case OCI_ATTR_LIST_SUBPROGRAMS:		return "OCI_ATTR_LIST_SUBPROGRAMS";    /* parameter of the subprogram list */
-	case OCI_ATTR_REF_TDO:				return "OCI_ATTR_REF_TDO";          /* REF to the type descriptor */
-	case OCI_ATTR_LINK:					return "OCI_ATTR_LINK";              /* the database link name */
-	case OCI_ATTR_MIN:					return "OCI_ATTR_MIN";                       /* minimum value */
-	case OCI_ATTR_MAX:					return "OCI_ATTR_MAX";                       /* maximum value */
-	case OCI_ATTR_INCR:					return "OCI_ATTR_INCR";                     /* increment value */
-	case OCI_ATTR_CACHE:				return "OCI_ATTR_CACHE";   /* number of sequence numbers cached */
-	case OCI_ATTR_ORDER:				return "OCI_ATTR_ORDER";     /* whether the sequence is ordered */
-	case OCI_ATTR_HW_MARK:				return "OCI_ATTR_HW_MARK";                     /* high-water mark */
-	case OCI_ATTR_TYPE_SCHEMA:			return "OCI_ATTR_TYPE_SCHEMA";                  /* type's schema name */
-	case OCI_ATTR_TIMESTAMP:			return "OCI_ATTR_TIMESTAMP";             /* timestamp of the object */
-	case OCI_ATTR_NUM_ATTRS:			return "OCI_ATTR_NUM_ATTRS";                /* number of sttributes */
-	case OCI_ATTR_NUM_PARAMS:			return "OCI_ATTR_NUM_PARAMS";                /* number of parameters */
-	case OCI_ATTR_OBJID:				return "OCI_ATTR_OBJID";       /* object id for a table or view */
-	case OCI_ATTR_PTYPE:				return "OCI_ATTR_PTYPE";           /* type of info described by */
-	case OCI_ATTR_PARAM:				return "OCI_ATTR_PARAM";                /* parameter descriptor */
-	case OCI_ATTR_OVERLOAD_ID:			return "OCI_ATTR_OVERLOAD_ID";     /* overload ID for funcs and procs */
-	case OCI_ATTR_TABLESPACE:			return "OCI_ATTR_TABLESPACE";                    /* table name space */
-	case OCI_ATTR_TDO:					return "OCI_ATTR_TDO";                       /* TDO of a type */
-	case OCI_ATTR_LTYPE:				return "OCI_ATTR_LTYPE";                           /* list type */
-	case OCI_ATTR_PARSE_ERROR_OFFSET:	return "OCI_ATTR_PARSE_ERROR_OFFSET";               /* Parse Error offset */
-	case OCI_ATTR_IS_TEMPORARY:			return "OCI_ATTR_IS_TEMPORARY";          /* whether table is temporary */
-	case OCI_ATTR_IS_TYPED:				return "OCI_ATTR_IS_TYPED";              /* whether table is typed */
-	case OCI_ATTR_DURATION:				return "OCI_ATTR_DURATION";         /* duration of temporary table */
-	case OCI_ATTR_IS_INVOKER_RIGHTS:	return "OCI_ATTR_IS_INVOKER_RIGHTS";                 /* is invoker rights */
-	case OCI_ATTR_OBJ_NAME:				return "OCI_ATTR_OBJ_NAME";           /* top level schema obj name */
-	case OCI_ATTR_OBJ_SCHEMA:			return "OCI_ATTR_OBJ_SCHEMA";                         /* schema name */
-	case OCI_ATTR_OBJ_ID:				return "OCI_ATTR_OBJ_ID";          /* top level schema object id */
+	case OCI_ATTR_UNK:					return "OCI_ATTR_UNK";				/* unknown attribute */
+	case OCI_ATTR_NUM_COLS:				return "OCI_ATTR_NUM_COLS";			/* number of columns */
+	case OCI_ATTR_LIST_COLUMNS:			return "OCI_ATTR_LIST_COLUMNS";		/* parameter of the column list */
+	case OCI_ATTR_RDBA:					return "OCI_ATTR_RDBA";				/* DBA of the segment header */
+	case OCI_ATTR_CLUSTERED:			return "OCI_ATTR_CLUSTERED";		/* whether the table is clustered */
+	case OCI_ATTR_PARTITIONED:			return "OCI_ATTR_PARTITIONED";		/* whether the table is partitioned */
+	case OCI_ATTR_INDEX_ONLY:			return "OCI_ATTR_INDEX_ONLY";		/* whether the table is index only */
+	case OCI_ATTR_LIST_ARGUMENTS:		return "OCI_ATTR_LIST_ARGUMENTS";	/* parameter of the argument list */
+	case OCI_ATTR_LIST_SUBPROGRAMS:		return "OCI_ATTR_LIST_SUBPROGRAMS";	/* parameter of the subprogram list */
+	case OCI_ATTR_REF_TDO:				return "OCI_ATTR_REF_TDO";			/* REF to the type descriptor */
+	case OCI_ATTR_LINK:					return "OCI_ATTR_LINK";				/* the database link name */
+	case OCI_ATTR_MIN:					return "OCI_ATTR_MIN";				/* minimum value */
+	case OCI_ATTR_MAX:					return "OCI_ATTR_MAX";				/* maximum value */
+	case OCI_ATTR_INCR:					return "OCI_ATTR_INCR";				/* increment value */
+	case OCI_ATTR_CACHE:				return "OCI_ATTR_CACHE";			/* number of sequence numbers cached */
+	case OCI_ATTR_ORDER:				return "OCI_ATTR_ORDER";			/* whether the sequence is ordered */
+	case OCI_ATTR_HW_MARK:				return "OCI_ATTR_HW_MARK";			/* high-water mark */
+	case OCI_ATTR_TYPE_SCHEMA:			return "OCI_ATTR_TYPE_SCHEMA";		/* type's schema name */
+	case OCI_ATTR_TIMESTAMP:			return "OCI_ATTR_TIMESTAMP";		/* timestamp of the object */
+	case OCI_ATTR_NUM_ATTRS:			return "OCI_ATTR_NUM_ATTRS";		/* number of sttributes */
+	case OCI_ATTR_NUM_PARAMS:			return "OCI_ATTR_NUM_PARAMS";		/* number of parameters */
+	case OCI_ATTR_OBJID:				return "OCI_ATTR_OBJID";			/* object id for a table or view */
+	case OCI_ATTR_PTYPE:				return "OCI_ATTR_PTYPE";			/* type of info described by */
+	case OCI_ATTR_PARAM:				return "OCI_ATTR_PARAM";			/* parameter descriptor */
+	case OCI_ATTR_OVERLOAD_ID:			return "OCI_ATTR_OVERLOAD_ID";		/* overload ID for funcs and procs */
+	case OCI_ATTR_TABLESPACE:			return "OCI_ATTR_TABLESPACE";		/* table name space */
+	case OCI_ATTR_TDO:					return "OCI_ATTR_TDO";				/* TDO of a type */
+	case OCI_ATTR_LTYPE:				return "OCI_ATTR_LTYPE";			/* list type */
+	case OCI_ATTR_PARSE_ERROR_OFFSET:	return "OCI_ATTR_PARSE_ERROR_OFFSET";/* Parse Error offset */
+	case OCI_ATTR_IS_TEMPORARY:			return "OCI_ATTR_IS_TEMPORARY";		/* whether table is temporary */
+	case OCI_ATTR_IS_TYPED:				return "OCI_ATTR_IS_TYPED";			/* whether table is typed */
+	case OCI_ATTR_DURATION:				return "OCI_ATTR_DURATION";			/* duration of temporary table */
+	case OCI_ATTR_IS_INVOKER_RIGHTS:	return "OCI_ATTR_IS_INVOKER_RIGHTS";/* is invoker rights */
+	case OCI_ATTR_OBJ_NAME:				return "OCI_ATTR_OBJ_NAME";			/* top level schema obj name */
+	case OCI_ATTR_OBJ_SCHEMA:			return "OCI_ATTR_OBJ_SCHEMA";		/* schema name */
+	case OCI_ATTR_OBJ_ID:				return "OCI_ATTR_OBJ_ID";			/* top level schema object id */
 
 	case OCI_ATTR_DIRPATH_SORTED_INDEX:	return "OCI_ATTR_DIRPATH_SORTED_INDEX";/* index that data is sorted on */
+																			   /* direct path index maint method (see oci8dp.h) */
+	case OCI_ATTR_DIRPATH_INDEX_MAINT_METHOD:	return "OCI_ATTR_DIRPATH_INDEX_MAINT_METHOD";/* parallel load: db file, initial and next extent sizes */
 
-	            /* direct path index maint method (see oci8dp.h) */
-	case OCI_ATTR_DIRPATH_INDEX_MAINT_METHOD:	return "OCI_ATTR_DIRPATH_INDEX_MAINT_METHOD";
-
-	    /* parallel load: db file, initial and next extent sizes */
-
-	case OCI_ATTR_DIRPATH_FILE:			return "OCI_ATTR_DIRPATH_FILE";     /* DB file to load into */
-	case OCI_ATTR_DIRPATH_STORAGE_INITIAL:		return "OCI_ATTR_DIRPATH_STORAGE_INITIAL";       /* initial extent size */
-	case OCI_ATTR_DIRPATH_STORAGE_NEXT:	return "OCI_ATTR_DIRPATH_STORAGE_NEXT";          /* next extent size */
+	case OCI_ATTR_DIRPATH_FILE:			return "OCI_ATTR_DIRPATH_FILE";		/* DB file to load into */
+	case OCI_ATTR_DIRPATH_STORAGE_INITIAL:		return "OCI_ATTR_DIRPATH_STORAGE_INITIAL";	/* initial extent size */
+	case OCI_ATTR_DIRPATH_STORAGE_NEXT:	return "OCI_ATTR_DIRPATH_STORAGE_NEXT";	/* next extent size */
 
 
-	case OCI_ATTR_TRANS_TIMEOUT:		return "OCI_ATTR_TRANS_TIMEOUT";      /* transaction timeout */
-	case OCI_ATTR_SERVER_STATUS:		return "OCI_ATTR_SERVER_STATUS";/* state of the server handle */
-	case OCI_ATTR_STATEMENT:			return "OCI_ATTR_STATEMENT"; /* statement txt in stmt hdl */
-	                                /* statement should not be executed in cache
-	case OCI_ATTR_NO_CACHE:				return "";*/
-	case OCI_ATTR_DEQCOND:				return "OCI_ATTR_DEQCOND";         /* dequeue condition */
-	case OCI_ATTR_RESERVED_2:			return "OCI_ATTR_RESERVED_2";                  /* reserved */
+	case OCI_ATTR_TRANS_TIMEOUT:		return "OCI_ATTR_TRANS_TIMEOUT";	/* transaction timeout */
+	case OCI_ATTR_SERVER_STATUS:		return "OCI_ATTR_SERVER_STATUS";	/* state of the server handle */
+	case OCI_ATTR_STATEMENT:			return "OCI_ATTR_STATEMENT"; 		/* statement txt in stmt hdl */
+																			/* statement should not be executed in cache*/
+	/*case OCI_ATTR_NO_CACHE:			return "";*/
+	case OCI_ATTR_DEQCOND:				return "OCI_ATTR_DEQCOND";			/* dequeue condition */
+	case OCI_ATTR_RESERVED_2:			return "OCI_ATTR_RESERVED_2";		/* reserved */
 
 
-	case OCI_ATTR_SUBSCR_RECPT:			return "OCI_ATTR_SUBSCR_RECPT";/* recepient of subscription */
-	case OCI_ATTR_SUBSCR_RECPTPROTO:	return "OCI_ATTR_SUBSCR_RECPTPROTO";    /* protocol for recepient */
+	case OCI_ATTR_SUBSCR_RECPT:			return "OCI_ATTR_SUBSCR_RECPT";		/* recepient of subscription */
+	case OCI_ATTR_SUBSCR_RECPTPROTO:	return "OCI_ATTR_SUBSCR_RECPTPROTO";/* protocol for recepient */
 
-	    /* 8.2 dpapi support of ADTs */
-	case OCI_ATTR_DIRPATH_EXPR_TYPE:	return "OCI_ATTR_DIRPATH_EXPR_TYPE";       /* expr type of OCI_ATTR_NAME */
+	/* 8.2 dpapi support of ADTs */
+	case OCI_ATTR_DIRPATH_EXPR_TYPE:	return "OCI_ATTR_DIRPATH_EXPR_TYPE";	/* expr type of OCI_ATTR_NAME */
 
-	case OCI_ATTR_DIRPATH_INPUT:		return "OCI_ATTR_DIRPATH_INPUT";    /* input in text or stream format
-	case OCI_DIRPATH_INPUT_TEXT:				return "";
+	case OCI_ATTR_DIRPATH_INPUT:		return "OCI_ATTR_DIRPATH_INPUT";	/* input in text or stream format*/
+/*	case OCI_DIRPATH_INPUT_TEXT:				return "";
 	case OCI_DIRPATH_INPUT_STREAM:				return "";
 	case OCI_DIRPATH_INPUT_UNKNOWN:				return "";	*/
-	case OCI_ATTR_LDAP_HOST:			return "OCI_ATTR_LDAP_HOST";             /* LDAP host to connect to */
-	case OCI_ATTR_LDAP_PORT:			return "OCI_ATTR_LDAP_PORT";              /* LDAP port to connect to */
-	case OCI_ATTR_BIND_DN:				return "OCI_ATTR_BIND_DN";                              /* bind DN */
-	case OCI_ATTR_LDAP_CRED:			return "OCI_ATTR_LDAP_CRED";       /* credentials to connect to LDAP */
-	case OCI_ATTR_WALL_LOC:				return "OCI_ATTR_WALL_LOC";               /* client wallet location */
-	case OCI_ATTR_LDAP_AUTH:			return "OCI_ATTR_LDAP_AUTH";           /* LDAP authentication method */
-	case OCI_ATTR_LDAP_CTX:				return "OCI_ATTR_LDAP_CTX";        /* LDAP adminstration context DN */
-	case OCI_ATTR_SERVER_DNS:			return "OCI_ATTR_SERVER_DNS";      /* list of registration server DNs */
+	case OCI_ATTR_LDAP_HOST:			return "OCI_ATTR_LDAP_HOST";		/* LDAP host to connect to */
+	case OCI_ATTR_LDAP_PORT:			return "OCI_ATTR_LDAP_PORT";		/* LDAP port to connect to */
+	case OCI_ATTR_BIND_DN:				return "OCI_ATTR_BIND_DN";			/* bind DN */
+	case OCI_ATTR_LDAP_CRED:			return "OCI_ATTR_LDAP_CRED";		/* credentials to connect to LDAP */
+	case OCI_ATTR_WALL_LOC:				return "OCI_ATTR_WALL_LOC";			/* client wallet location */
+	case OCI_ATTR_LDAP_AUTH:			return "OCI_ATTR_LDAP_AUTH";		/* LDAP authentication method */
+	case OCI_ATTR_LDAP_CTX:				return "OCI_ATTR_LDAP_CTX";			/* LDAP adminstration context DN */
+	case OCI_ATTR_SERVER_DNS:			return "OCI_ATTR_SERVER_DNS";		/* list of registration server DNs */
 
-	case OCI_ATTR_DN_COUNT:				return "OCI_ATTR_DN_COUNT";             /* the number of server DNs */
-	case OCI_ATTR_SERVER_DN:			return "OCI_ATTR_SERVER_DN";                 /* server DN attribute */
+	case OCI_ATTR_DN_COUNT:				return "OCI_ATTR_DN_COUNT";			/* the number of server DNs */
+	case OCI_ATTR_SERVER_DN:			return "OCI_ATTR_SERVER_DN";		/* server DN attribute */
 
-	case OCI_ATTR_MAXCHAR_SIZE:			return "OCI_ATTR_MAXCHAR_SIZE";    /* max char size of data */
+	case OCI_ATTR_MAXCHAR_SIZE:			return "OCI_ATTR_MAXCHAR_SIZE";		/* max char size of data */
 
 	case OCI_ATTR_CURRENT_POSITION:		return "OCI_ATTR_CURRENT_POSITION"; /* for scrollable result sets*/
 
 	/* Added to get attributes for ref cursor to statement handle */
-	case OCI_ATTR_RESERVED_3:			return "OCI_ATTR_RESERVED_3";                  /* reserved */
-	case OCI_ATTR_RESERVED_4:			return "OCI_ATTR_RESERVED_4";                  /* reserved */
-	case OCI_ATTR_DIRPATH_FN_CTX:		return "";  /* fn ctx ADT attrs or args */
-	case OCI_ATTR_DIGEST_ALGO:			return "OCI_ATTR_DIRPATH_FN_CTX";         /* digest algorithm */
-	case OCI_ATTR_CERTIFICATE:			return "OCI_ATTR_CERTIFICATE";               /* certificate */
-	case OCI_ATTR_SIGNATURE_ALGO:		return "OCI_ATTR_SIGNATURE_ALGO";       /* signature algorithm */
-	case OCI_ATTR_CANONICAL_ALGO:		return "OCI_ATTR_CANONICAL_ALGO";    /* canonicalization algo. */
-	case OCI_ATTR_PRIVATE_KEY:			return "OCI_ATTR_PRIVATE_KEY";               /* private key */
-	case OCI_ATTR_DIGEST_VALUE:			return "OCI_ATTR_DIGEST_VALUE";             /* digest value */
-	case OCI_ATTR_SIGNATURE_VAL:		return "OCI_ATTR_SIGNATURE_VAL";           /* signature value */
-	case OCI_ATTR_SIGNATURE:			return "OCI_ATTR_SIGNATURE";                 /* signature */
+	case OCI_ATTR_RESERVED_3:			return "OCI_ATTR_RESERVED_3";		/* reserved */
+	case OCI_ATTR_RESERVED_4:			return "OCI_ATTR_RESERVED_4";		/* reserved */
+	case OCI_ATTR_DIRPATH_FN_CTX:		return "";							/* fn ctx ADT attrs or args */
+	case OCI_ATTR_DIGEST_ALGO:			return "OCI_ATTR_DIRPATH_FN_CTX";	/* digest algorithm */
+	case OCI_ATTR_CERTIFICATE:			return "OCI_ATTR_CERTIFICATE";		/* certificate */
+	case OCI_ATTR_SIGNATURE_ALGO:		return "OCI_ATTR_SIGNATURE_ALGO";	/* signature algorithm */
+	case OCI_ATTR_CANONICAL_ALGO:		return "OCI_ATTR_CANONICAL_ALGO";	/* canonicalization algo. */
+	case OCI_ATTR_PRIVATE_KEY:			return "OCI_ATTR_PRIVATE_KEY";		/* private key */
+	case OCI_ATTR_DIGEST_VALUE:			return "OCI_ATTR_DIGEST_VALUE";		/* digest value */
+	case OCI_ATTR_SIGNATURE_VAL:		return "OCI_ATTR_SIGNATURE_VAL";	/* signature value */
+	case OCI_ATTR_SIGNATURE:			return "OCI_ATTR_SIGNATURE";		/* signature */
 
 	/* attributes for setting OCI stmt caching specifics in svchp */
-	case OCI_ATTR_STMTCACHESIZE :		return "OCI_ATTR_STMTCACHESIZE";     /* size of the stm cache */
+	case OCI_ATTR_STMTCACHESIZE :		return "OCI_ATTR_STMTCACHESIZE";	/* size of the stm cache */
 
 	/* --------------------------- Connection Pool Attributes ------------------ */
 	case OCI_ATTR_CONN_NOWAIT:			return "OCI_ATTR_CONN_NOWAIT";
@@ -647,54 +635,54 @@ oci_attr_name(ub4 attr)
 	case OCI_ATTR_CONN_MAX:				return "OCI_ATTR_CONN_MAX";
 	case OCI_ATTR_CONN_INCR:			return "OCI_ATTR_CONN_INCR";
 
-	case OCI_ATTR_DIRPATH_OID:			return "OCI_ATTR_DIRPATH_OID";   /* loading into an OID col */
+	case OCI_ATTR_DIRPATH_OID:			return "OCI_ATTR_DIRPATH_OID";		/* loading into an OID col */
 
-	case OCI_ATTR_NUM_OPEN_STMTS:		return "OCI_ATTR_NUM_OPEN_STMTS";    /* open stmts in session */
-	case OCI_ATTR_DESCRIBE_NATIVE:		return "OCI_ATTR_DESCRIBE_NATIVE"; /* get native info via desc */
+	case OCI_ATTR_NUM_OPEN_STMTS:		return "OCI_ATTR_NUM_OPEN_STMTS";	/* open stmts in session */
+	case OCI_ATTR_DESCRIBE_NATIVE:		return "OCI_ATTR_DESCRIBE_NATIVE";	/* get native info via desc */
 
-	case OCI_ATTR_BIND_COUNT:			return "OCI_ATTR_BIND_COUNT";   /* number of bind postions */
-	case OCI_ATTR_HANDLE_POSITION:		return "OCI_ATTR_HANDLE_POSITION";/* pos of bind/define handle */
-	case OCI_ATTR_RESERVED_5:			return "OCI_ATTR_RESERVED_5";                 /* reserverd */
-	case OCI_ATTR_SERVER_BUSY:			return "OCI_ATTR_SERVER_BUSY"; /* call in progress on server*/
+	case OCI_ATTR_BIND_COUNT:			return "OCI_ATTR_BIND_COUNT";		/* number of bind postions */
+	case OCI_ATTR_HANDLE_POSITION:		return "OCI_ATTR_HANDLE_POSITION";	/* pos of bind/define handle */
+	case OCI_ATTR_RESERVED_5:			return "OCI_ATTR_RESERVED_5";		/* reserverd */
+	case OCI_ATTR_SERVER_BUSY:			return "OCI_ATTR_SERVER_BUSY";		/* call in progress on server*/
 
-	case OCI_ATTR_DIRPATH_SID:			return "OCI_ATTR_DIRPATH_SID";   /* loading into an SID col */
+	case OCI_ATTR_DIRPATH_SID:			return "OCI_ATTR_DIRPATH_SID";		/* loading into an SID col */
 	/* notification presentation for recipient */
 	case OCI_ATTR_SUBSCR_RECPTPRES:		return "OCI_ATTR_SUBSCR_RECPTPRES";
-	case OCI_ATTR_TRANSFORMATION:		return "OCI_ATTR_TRANSFORMATION"; /* AQ message transformation */
+	case OCI_ATTR_TRANSFORMATION:		return "OCI_ATTR_TRANSFORMATION"; 	/* AQ message transformation */
 
-	case OCI_ATTR_ROWS_FETCHED:			return "OCI_ATTR_ROWS_FETCHED"; /* rows fetched in last call */
+	case OCI_ATTR_ROWS_FETCHED:			return "OCI_ATTR_ROWS_FETCHED";		/* rows fetched in last call */
 
 	/* --------------------------- Snapshot attributes ------------------------- */
-	case OCI_ATTR_SCN_BASE:				return "OCI_ATTR_SCN_BASE";          /* snapshot base */
-	case OCI_ATTR_SCN_WRAP:				return "OCI_ATTR_SCN_WRAP";            /* snapshot wrap */
+	case OCI_ATTR_SCN_BASE:				return "OCI_ATTR_SCN_BASE";			/* snapshot base */
+	case OCI_ATTR_SCN_WRAP:				return "OCI_ATTR_SCN_WRAP";			/* snapshot wrap */
 
 	/* --------------------------- Miscellanous attributes --------------------- */
-	case OCI_ATTR_RESERVED_6:			return "OCI_ATTR_RESERVED_6";                 /* reserved */
-	case OCI_ATTR_READONLY_TXN:			return "OCI_ATTR_READONLY_TXN";          /* txn is readonly */
-	case OCI_ATTR_RESERVED_7:			return "OCI_ATTR_RESERVED_7";                  /* reserved */
+	case OCI_ATTR_RESERVED_6:			return "OCI_ATTR_RESERVED_6";		/* reserved */
+	case OCI_ATTR_READONLY_TXN:			return "OCI_ATTR_READONLY_TXN";		/* txn is readonly */
+	case OCI_ATTR_RESERVED_7:			return "OCI_ATTR_RESERVED_7";		/* reserved */
 	case OCI_ATTR_ERRONEOUS_COLUMN:		return "OCI_ATTR_ERRONEOUS_COLUMN"; /* position of erroneous col */
-	case OCI_ATTR_RESERVED_8:			return "OCI_ATTR_RESERVED_8";                  /* reserved */
+	case OCI_ATTR_RESERVED_8:			return "OCI_ATTR_RESERVED_8";		/* reserved */
 
 	/* -------------------- 8.2 dpapi support of ADTs continued ---------------- */
 	case OCI_ATTR_DIRPATH_OBJ_CONSTR:	return "OCI_ATTR_DIRPATH_OBJ_CONSTR"; /* obj type of subst obj tbl */
 
 	/************************FREE attribute     207      *************************/
 	/************************FREE attribute     208      *************************/
-	case OCI_ATTR_ENV_UTF16:			return "OCI_ATTR_ENV_UTF16";     /* is env in utf16 mode? */
-	case OCI_ATTR_RESERVED_9:			return "OCI_ATTR_RESERVED_9";          /* reserved for TMZ */
-	case OCI_ATTR_RESERVED_10:			return "OCI_ATTR_RESERVED_10";                 /* reserved */
+	case OCI_ATTR_ENV_UTF16:			return "OCI_ATTR_ENV_UTF16";		/* is env in utf16 mode? */
+	case OCI_ATTR_RESERVED_9:			return "OCI_ATTR_RESERVED_9";		/* reserved for TMZ */
+	case OCI_ATTR_RESERVED_10:			return "OCI_ATTR_RESERVED_10";		/* reserved */
 
 	/* Attr to allow setting of the stream version PRIOR to calling Prepare */
-	case OCI_ATTR_DIRPATH_STREAM_VERSION:	return "OCI_ATTR_DIRPATH_STREAM_VERSION";      /* version of the stream
-	case OCI_ATTR_RESERVED_11:				return "OCI_ATTR_RESERVED_11";                 /* reserved */
+	case OCI_ATTR_DIRPATH_STREAM_VERSION:	return "OCI_ATTR_DIRPATH_STREAM_VERSION";	/* version of the stream*/
+/*	case OCI_ATTR_RESERVED_11:				return "OCI_ATTR_RESERVED_11";	reserved */
 
-	case OCI_ATTR_RESERVED_12:			return "OCI_ATTR_RESERVED_12";                 /* reserved */
-	case OCI_ATTR_RESERVED_13:			return "OCI_ATTR_RESERVED_13";                 /* reserved */
+	case OCI_ATTR_RESERVED_12:			return "OCI_ATTR_RESERVED_12";		/* reserved */
+	case OCI_ATTR_RESERVED_13:			return "OCI_ATTR_RESERVED_13";		/* reserved */
 
 	/* OCI_ATTR_RESERVED_14 */
 
-	case OCI_ATTR_RESERVED_15:			return "OCI_ATTR_RESERVED_15";                /* reserved */
-	case OCI_ATTR_RESERVED_16:			return "OCI_ATTR_RESERVED_16";                /* reserved */
+	case OCI_ATTR_RESERVED_15:			return "OCI_ATTR_RESERVED_15";		/* reserved */
+	case OCI_ATTR_RESERVED_16:			return "OCI_ATTR_RESERVED_16";		/* reserved */
 
 	}
 	sv = sv_2mortal(newSViv((IV)attr));
@@ -786,11 +774,11 @@ oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 	SV *errcode_sv = sv_newmortal();
 	errcode = oci_error_get(errhp, status, what, errstr_sv, DBIS->debug);
 	if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT)) {
-	#ifdef sv_utf8_decode
+#ifdef sv_utf8_decode
 	sv_utf8_decode(errstr_sv);
-	#else
+#else
 	SvUTF8_on(errstr_sv);
-	#endif
+#endif
 	}
 
 	/* DBIc_ERR *must* be SvTRUE (for RaiseError etc), some */
@@ -803,7 +791,7 @@ oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 	errcode = (status != 0) ? status : -10000;
 
 	sv_setiv(errcode_sv, errcode);
-	DBIh_SET_ERR_SV(h, imp_xxh, errcode_sv, errstr_sv, Nullsv, Nullsv);
+	DBIh_SET_ERR_SV(h, imp_xxh, errcode_sv, errstr_sv, &sv_undef, &sv_undef);
 	return 0; /* always returns 0 */
 
 }
@@ -944,6 +932,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		DBD_ATTRIB_GET_IV(  attribs, "ora_oci_success_warn",  20, svp, oci_warn);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_objects",  11, svp, ora_objects);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_ncs_buff_mtpl",  17, svp,ora_ncs_buff_mtpl);
+        DBD_ATTRIB_GET_IV(  attribs, "RowCacheSize",12,svp, imp_sth->RowCacheSize);
 
 		if (!dbd_verbose)
 			DBD_ATTRIB_GET_IV(  attribs, "dbd_verbose",  11, svp, dbd_verbose);
@@ -2710,12 +2699,20 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	sb4 cache_rows		= 0;/* set high so memory is the limit */
 	sword status;
 
-	if (imp_dbh->RowCacheSize){
-	  cache_rows=imp_dbh->RowCacheSize;
+    
+
+	if (imp_sth->RowCacheSize ) { /*Statment value will crump the handle value */
+		cache_rows=imp_sth->RowCacheSize;
+	}
+	else if (imp_dbh->RowCacheSize){
+		cache_rows=imp_dbh->RowCacheSize;
+		
 	}
 
 	/* seems that RowCacheSize was incorrectly used in the past
 	   in the DBI Spect  RowCacheSize is to be used for a local row cache
+	   and can be set on both the handle and the statement and the statement will take
+	   precideace
 
 	   From DBI POD
 	      A hint to the driver indicating the size of the local
@@ -2744,9 +2741,6 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 		imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
 	}
 
-	if (imp_dbh->RowCacheSize){ /* defalut value*/
-	  cache_rows=imp_dbh->RowCacheSize;
-	}
 
 	prefetch_rows	=imp_sth->prefetch_rows;
 	prefetch_mem	=imp_sth->prefetch_memory;
@@ -2797,11 +2791,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 		++num_errors;
 	}
 
-/*    if (imp_sth->ret_lobs){
-		cache_rows=30;
 
-	}
-*/
 	imp_sth->rs_array_size=cache_rows;
 
     if (max_cache_rows){/* limited by a cursor or something else*/
@@ -2811,17 +2801,19 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 
 	if (imp_sth->row_cache_off){/*set the size of the Rows in Cache value*/
 		imp_dbh->RowsInCache =1;
+		imp_sth->RowsInCache =1;
 	}
 	 else {
 		imp_dbh->RowsInCache=imp_sth->rs_array_size;
+		imp_sth->RowsInCache=imp_sth->rs_array_size;
 	}
 
 
-
+		
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 || oci_warn) /*will also display if oci_warn is on*/
 		PerlIO_printf(DBILOGFP,
-			"	cache settings RowCacheSize=%d, OCI_ATTR_PREFETCH_ROWS=%lu, OCI_ATTR_PREFETCH_MEMORY=%lu, Rows per Fetch=%d, Multiple Row Fetch=%s\n",
-			imp_dbh->RowCacheSize,(unsigned long) (prefetch_rows), (unsigned long) (prefetch_mem),cache_rows,(imp_sth->row_cache_off)?"Off":"On");
+			"	cache settings DB Handle RowCacheSize=%d,Statement Handle RowCacheSize=%d, OCI_ATTR_PREFETCH_ROWS=%lu, OCI_ATTR_PREFETCH_MEMORY=%lu, Rows per Fetch=%d, Multiple Row Fetch=%s\n",
+			imp_dbh->RowCacheSize,imp_sth->RowCacheSize,(unsigned long) (prefetch_rows), (unsigned long) (prefetch_mem),cache_rows,(imp_sth->row_cache_off)?"Off":"On");
 
 
 
@@ -3670,14 +3662,12 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			else {  /*Array Fetch the New Noraml Super speedy and very nice*/
 
 
- 				imp_dbh->RowsInCache--;
-				imp_sth->rs_array_idx++;
-					/*PerlIO_printf(DBILOGFP," \n imp_sth->rs_array_idx=%d,rs_array_num_rows=%d\n",imp_sth->rs_array_idx,imp_sth->rs_array_num_rows);
-*/
+ 				imp_sth->rs_array_idx++;
 				if (imp_sth->rs_array_num_rows<=imp_sth->rs_array_idx && (imp_sth->rs_array_status==OCI_SUCCESS || imp_sth->rs_array_status==OCI_SUCCESS_WITH_INFO)) {
 /* 			PerlIO_printf(DBILOGFP, "	dbd_st_fetch fields...b\n");*/
 
 					OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
+					
 					imp_sth->rs_array_status=status;
 					imp_sth->rs_fetch_count++;
 					if (oci_warn &&  (imp_sth->rs_array_status == OCI_SUCCESS_WITH_INFO)) {
@@ -3686,10 +3676,17 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 					OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->rs_array_num_rows,0,OCI_ATTR_ROWS_FETCHED, status);
 					imp_sth->rs_array_idx=0;
 					imp_dbh->RowsInCache =imp_sth->rs_array_size;
+					imp_sth->RowsInCache =imp_sth->rs_array_size;
+				
 					if (DBIS->debug >= 4 || dbd_verbose >= 4 || oci_warn)
 						PerlIO_printf(DBILOGFP,"...Fetched %d rows\n",imp_sth->rs_array_num_rows);
 
 				}
+				imp_dbh->RowsInCache--;
+			    imp_sth->RowsInCache--;
+			    
+			    
+               
 
 				if (imp_sth->rs_array_num_rows>imp_sth->rs_array_idx)	/* set status to success if rows in cache */
 					status=OCI_SUCCESS;
@@ -3789,7 +3786,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 							--datalen;
 					}
 					sv_setpvn(sv, p, (STRLEN)datalen);
-	#if DBISTATE_VERSION > 94
+#if DBISTATE_VERSION > 94
 		/* DBIXS_REVISION > 13590 */
 		/* If a bind type was specified we use DBI's sql_type_cast
 			to cast it - currently only number types are handled */
@@ -3816,7 +3813,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						}
 					}
 					else 
-	#endif /* DBISTATE_VERSION > 94 */
+#endif /* DBISTATE_VERSION > 94 */
 					{
 						if (CSFORM_IMPLIES_UTF8(fbh->csform) ){
 							SvUTF8_on(sv);

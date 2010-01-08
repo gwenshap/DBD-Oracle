@@ -3971,6 +3971,14 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 		retsv = newSViv(imp_sth->est_width);
 		cacheit = TRUE;
 	}
+	else if (kl==11 && strEQ(key, "RowsInCache")) {
+		retsv = newSViv(imp_sth->RowsInCache);
+		cacheit = FALSE;
+			  
+	}else if (kl==12 && strEQ(key, "RowCacheSize")) {
+		retsv = newSViv(imp_sth->RowCacheSize);
+		cacheit = FALSE;
+	}
 	else if (kl==8 && strEQ(key, "NULLABLE")) {
 		AV *av = newAV();
 		retsv = newRV(sv_2mortal((SV*)av));
