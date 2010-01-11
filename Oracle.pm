@@ -1477,12 +1477,14 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 
 =item ora_ncs_buff_mtpl
 
-You can now customize the size of the buffer when selecting a LOBs with the build in AUTO Lob
-The default value is 1 which should be fine for most situations if you are converting between
-a NCS on the DB and one on the Client they you might want to set this to 2.  The orginal value
-was 4 which was excessive.  For convieance I have added support for a 'ORA_DBD_NCS_BUFFER' enviornemnt
-varaible that you can use at the OS level to set this value.  If used it will take the value at the
-connect stage.
+You can now customize the size of the buffer when selecting LOBs with
+the built in AUTO Lob.  The default value is 1 which should be fine
+for most situations. If you are converting between a NCS on the DB and
+one on the Client then you might want to set this to 2.  The orignal
+value (prior to version 1.24) of 4 was found to be excessive.  For
+convenience I have added support for a 'ORA_DBD_NCS_BUFFER'
+environment variable that you can use at the OS level to set this
+value.  If used it will take the value at the connect stage.
 
 See more details in the LOB section of the POD
 

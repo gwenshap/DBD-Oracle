@@ -267,7 +267,7 @@
 	stat=OCIAttrSet(th,ht,ah,s1,a,eh);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
 		"%sAttrSet(%p,%s, %p,%lu,Attr=%s,%p)=%s\n",			\
-		OciTp, (void*)th,oci_hdtype_name(ht),sl_t(ah),ul_t(s1),oci_attr_name(a),(void*)eh,	\
+		OciTp, (void*)th,oci_hdtype_name(ht),(void *)ah,ul_t(s1),oci_attr_name(a),(void*)eh,	\
 		oci_status_name(stat)),stat : stat
 
 #define OCIBindByName_log_stat(sh,bp,eh,p1,pl,v,vs,dt,in,al,rc,mx,cu,md,stat)	\
