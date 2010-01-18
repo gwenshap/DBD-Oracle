@@ -1609,7 +1609,8 @@ In both cases the DBD::Oracle trace level to 6, which is this level that will tr
 
 =item ora_oci_success_warn
 
-Use this value to print silent OCI warnings that may happen when an execute or fetch returns "Success With Info".
+Use this value to print silent OCI warnings that may happen when an execute or fetch returns "Success With Info" or when
+you want to tune RowCaching and LOB Reads
 
   $dbh->{ora_oci_success_warn} =1;
 
@@ -3155,16 +3156,26 @@ you are using allot more memory that you need.
 
 You can now customize the size of the buffer by setting the 'ora_ncs_buff_mtpl' either on the connection or statement handle. You can
 also set this as 'ORA_DBD_NCS_BUFFER' OS environment variable so you will have to go back and change all your code if you are getting into trouble.
-Most of the time the Client and the Server use the same NCharSet so the default value has been set to  1. DBD Oracle will now die with a
-message warning you that your buffer is too small for the desired number of characters. The error that is trapped is a
+
+The default value is set to 4 for backward compatiblty. You can lower this value and thus increase the amount of data you can retreive. If the
+ora_ncs_buff_mtpl is too small DBD::Oracle will thow and error telling you to increase this buffer by one.
+
+If the error is not captured then you may get 
 
   ORA-03127: no new operations allowed until the active operation ends
   
-which is one of the more obscure ORA errors (have some fun and report it to Meta-Link they will scratch their heads for hours).
+which is one of the more obscure ORA errors (have some fun and report it to Meta-Link they will scratch their heads for hours) at some random point later on,
+usually at a finish() or disconnect() or even a fetch().
+
 If you get this, simply increment the ora_ncs_buff_mtpl by one until it goes away.
 
 This should greatly increase your ability to select very large CLOBs or NCLOBs, by freeing up a large block of menory.
 
+You can tune this value by setting ora_oci_success_warn which will display the following
+
+  OCILobRead field 2 of 3 SUCCESS: csform 1 (SQLCS_IMPLICIT), LOBlen 10240(characters), LongReadLen 20(characters), BufLen 80(characters), Got 28(characters)
+
+In the case above we Got 28 characters (well really only 20 characters of 28 bytes) so we could use ora_ncs_buff_mtpl=>2 (20*2=40) thus saving 40bytes of memory.
 
 For example give this table;
 

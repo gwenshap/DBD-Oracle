@@ -154,8 +154,9 @@ struct fbh_obj_st {  /* embedded object or table will work recursively*/
 	OCITypeCode 	element_typecode;	/*if collection this is its element's OCI_ATTR_TYPECODE*/
 	OCIRef			*obj_ref;			/*if an embeded object this is ref handle to its TDO*/
 	OCIInd			*obj_ind;			/*Null indictator for object */
- 	OCIComplexObject *obj_value;		/*the actual value from the DB*/
- 	OCIType			*obj_type;		 	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
+	OCIComplexObject *obj_value;		/*the actual value from the DB*/
+	OCIType			*obj_type;		 	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
+	ub1				is_final_type;		/*object's OCI_ATTR_IS_FINAL_TYPE*/
 	fbh_obj_t		*fields;			/*one object for each field/property*/
 	int				field_count;		/*The number of fields Not really needed but nice to have*/
 	fbh_obj_t		*next_subtype;		/*There is strored information about subtypes for inteherited objects*/

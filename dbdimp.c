@@ -44,7 +44,7 @@ int is_extproc	  	  = 0;
 int dbd_verbose		  = 0; /* DBD only debugging*/
 int oci_warn		  = 0; /* show oci warnings */
 int ora_objects		  = 0; /* get oracle embedded objects as instance of DBD::Oracle::Object */
-int ora_ncs_buff_mtpl = 1; /* a mulitplyer for ncs clob buffers */
+int ora_ncs_buff_mtpl = 4; /* a mulitplyer for ncs clob buffers */
 
 /* bitflag constants for figuring out how to handle utf8 for array binds */
 #define ARRAY_BIND_NATIVE 0x01
@@ -543,14 +543,14 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 #ifdef NEW_OCI_INIT	/* XXX needs merging into use_proc_connection branch */
 
 			/* Get CLIENT char and nchar charset id values */
-			OCINlsEnvironmentVariableGet_log_stat( &charsetid, 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
+			OCINlsEnvironmentVariableGet_log_stat( &charsetid,(size_t) 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, NULL, status,
 					"OCINlsEnvironmentVariableGet(OCI_NLS_CHARSET_ID) Check NLS settings etc.");
 				return 0;
 			}
 
-			OCINlsEnvironmentVariableGet_log_stat( &ncharsetid, 0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
+			OCINlsEnvironmentVariableGet_log_stat( &ncharsetid,(size_t)  0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, NULL, status,
 					"OCINlsEnvironmentVariableGet(OCI_NLS_NCHARSET_ID) Check NLS settings etc.");
@@ -899,7 +899,7 @@ int dbd_st_bind_col(SV *sth, imp_sth_t *imp_sth, SV *col, SV *ref, IV type, SV *
 
 		if (!SvROK(attribs)) {
 			croak ("attributes is not a reference");
-		} 
+		}
 		else if (SvTYPE(SvRV(attribs)) != SVt_PVHV) {
 			croak ("attributes not a hash reference");
 		}
@@ -3974,7 +3974,7 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 	else if (kl==11 && strEQ(key, "RowsInCache")) {
 		retsv = newSViv(imp_sth->RowsInCache);
 		cacheit = FALSE;
-			  
+
 	}else if (kl==12 && strEQ(key, "RowCacheSize")) {
 		retsv = newSViv(imp_sth->RowCacheSize);
 		cacheit = FALSE;
@@ -3984,7 +3984,7 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 		retsv = newRV(sv_2mortal((SV*)av));
 		while(--i >= 0)
 			av_store(av, i, boolSV(imp_sth->fbh[i].nullok));
-	} 
+	}
 	else if (kl==13 && strEQ(key, "len_char_size")) {
 		AV *av = newAV();
 		retsv = newRV(sv_2mortal((SV*)av));

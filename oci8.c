@@ -983,10 +983,10 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 			return 0;
 	}
 /*	else {
-		/* set initial cache size by memory 
+		/* set initial cache size by memory
 		    [I'm not now sure why this is here - from a patch sometime ago - Tim]
 		    you are right Tim thre is no need to have this here so out it goes
-		    a very useless call to the server 
+		    a very useless call to the server
 		ub4 cache_mem;
 		IV cache_mem_iv;
 		D_imp_dbh_from_sth ;
@@ -1781,6 +1781,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 	ub4 amtp 	= 0;
 	sword status;
 
+
 	if (!name)
 		name = "an unknown field";
 
@@ -1839,8 +1840,10 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 	NLS_LANG or NLS_NCHAR is not a subset of the Server's the server will try to traslate
 	the data to the Client's wishes and that is wen it uses will send the ampt value will be in bytes*/
 
+    buflen = amtp;
+    if (ftype == ORA_CLOB)
+		buflen = buflen*ora_ncs_buff_mtpl;
 
-	buflen = amtp*ora_ncs_buff_mtpl;
 
 	SvGROW(dest_sv, buflen+1);
 
@@ -1872,28 +1875,38 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 		if (status == OCI_NEED_DATA ){
 			char buf[300];
 			sprintf(buf,"fetching %s. LOB and the read bufer is only  %lubytes, and the ora_ncs_buff_mtpl is %d, which is too small. Try setting ora_ncs_buff_mtpl to %d",
-				name, buflen, ora_ncs_buff_mtpl,ora_ncs_buff_mtpl+1);
+				name,  (unsigned long)buflen, ora_ncs_buff_mtpl,ora_ncs_buff_mtpl+1);
 
 			oci_error_err(sth, NULL, OCI_ERROR, buf, OCI_NEED_DATA); /* appropriate ORA error number */
-			croak("DBD::Oracle has returned a %s status when doing a LobRead!! \n",oci_status_name(status));
+			/*croak("DBD::Oracle has returned a %s status when doing a LobRead!! \n",oci_status_name(status));*/
 
 		/*why a croak here well if it goes on it will result in a
 		  	ORA-03127: no new operations allowed until the active operation ends
 		  This will result in a crash if there are any other fetchst*/
 		}
-		oci_error(sth, imp_sth->errhp, status, "OCILobRead");
+		else {
+			oci_error(sth, imp_sth->errhp, status, "OCILobRead");
 				sv_set_undef(dest_sv);
+
+		}
 		return 0;
 	}
 
 
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP,
-		"		OCILobRead %s %s: csform %d (%s), LOBlen %luc, LongReadLen %luc, BufLen %lub, Got %luc\n",
-				name, oci_status_name(status), csform,oci_csform_name(csform), ul_t(loblen),
-				ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
+	if (DBIS->debug >= 3 || dbd_verbose >= 3 || oci_warn){
+		char buf[10];
+		sprintf(buf,"bytes");
 
+		if (ftype == ORA_CLOB)
+           sprintf(buf,"characters");
+
+		PerlIO_printf(DBILOGFP,
+		"		OCILobRead %s %s: csform %d (%s), LOBlen %lu(%s), LongReadLen %lu(%s), BufLen %lu(%s), Got %lu(%s)\n",
+				name, oci_status_name(status), csform,oci_csform_name(csform), ul_t(loblen),buf ,
+				ul_t(imp_sth->long_readlen),buf, ul_t(buflen),buf, ul_t(amtp),buf);
+
+    }
 	if (ftype == ORA_BFILE) {
 		OCILobFileClose_log_stat(imp_sth->svchp, imp_sth->errhp,
 		lobloc, status);
@@ -2205,9 +2218,10 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 		case OCI_TYPECODE_OPAQUE: /*doesn't do anything though*/
 			if (ora_objects){
 
-				OCIRef	*type_ref=0;
+
 				sword	status;
-				if (!instance_tdo) {
+				if (!instance_tdo && !obj->is_final_type) {
+					OCIRef	*type_ref=0;
 					status = OCIObjectNew(fbh->imp_sth->envhp, fbh->imp_sth->errhp, fbh->imp_sth->svchp,
 											OCI_TYPECODE_REF, (OCIType *)0,
 											(dvoid *)0, OCI_DURATION_DEFAULT, TRUE,
@@ -2229,6 +2243,14 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCITypeByRef");
 						return 0;
 					}
+
+					status = OCIObjectFree(fbh->imp_sth->envhp, fbh->imp_sth->errhp, type_ref, (ub2)0);
+
+					if (status != OCI_SUCCESS) {
+						oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectFree");
+						return 0;
+					}
+
 				}
 
 
@@ -2240,7 +2262,7 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 					if (tdo != obj->tdo) {
 						/* new subtyped -> get obj description */
 						if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
-							PerlIO_printf(DBILOGFP, " describe subtype (tdo=%x) of object type %s (tdo=%x)\n",(int)tdo,base_obj->type_name,(int)base_obj->tdo);
+							PerlIO_printf(DBILOGFP, " describe subtype (tdo=%p) of object type %s (tdo=%p)\n",(void*)tdo,base_obj->type_name,(void*)base_obj->tdo);
 						}
 
 						Newz(1, obj->next_subtype, 1, fbh_obj_t);
@@ -2699,14 +2721,14 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	sb4 cache_rows		= 0;/* set high so memory is the limit */
 	sword status;
 
-    
+
 
 	if (imp_sth->RowCacheSize ) { /*Statment value will crump the handle value */
 		cache_rows=imp_sth->RowCacheSize;
 	}
 	else if (imp_dbh->RowCacheSize){
 		cache_rows=imp_dbh->RowCacheSize;
-		
+
 	}
 
 	/* seems that RowCacheSize was incorrectly used in the past
@@ -2809,7 +2831,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 	}
 
 
-		
+
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 || oci_warn) /*will also display if oci_warn is on*/
 		PerlIO_printf(DBILOGFP,
 			"	cache settings DB Handle RowCacheSize=%d,Statement Handle RowCacheSize=%d, OCI_ATTR_PREFETCH_ROWS=%lu, OCI_ATTR_PREFETCH_MEMORY=%lu, Rows per Fetch=%d, Multiple Row Fetch=%s\n",
@@ -2933,6 +2955,12 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level ) {
 			return 0;
 		}
 
+		OCIAttrGet_parmdp(imp_sth,  obj->parmdp, (dvoid *)&obj->is_final_type,(ub4 *) 0, OCI_ATTR_IS_FINAL_TYPE, status);
+
+		if (status != OCI_SUCCESS) {
+			oci_error(sth,imp_sth->errhp, status, "OCIAttrGet");
+			return 0;
+		}
 		OCIAttrGet_parmdp(imp_sth,  obj->parmdp, (dvoid *)&obj->field_count,(ub4 *) 0, OCI_ATTR_NUM_TYPE_ATTRS, status);
 
 		if (status != OCI_SUCCESS) {
@@ -3051,6 +3079,7 @@ dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level){
 	PerlIO_printf(DBILOGFP, "	obj_ref = %p\n",obj->obj_ref);
 	PerlIO_printf(DBILOGFP, "	obj_value = %p\n",obj->obj_value);
 	PerlIO_printf(DBILOGFP, "	obj_type = %p\n",obj->obj_type);
+	PerlIO_printf(DBILOGFP, "	is_final_type = %u\n",obj->is_final_type);
 	PerlIO_printf(DBILOGFP, "	field_count = %d\n",obj->field_count);
 	PerlIO_printf(DBILOGFP, "	fields = %p\n",obj->fields);
 
@@ -3079,7 +3108,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	ub4 num_fields;
 	int num_errors	= 0;
 	int has_longs	= 0;
-	int has_lobs	= 0;
 	int est_width	= 0;		/* estimated avg row width (for cache)	*/
 	int nested_cursors = 0;
 	ub4 i = 0;
@@ -3667,7 +3695,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 /* 			PerlIO_printf(DBILOGFP, "	dbd_st_fetch fields...b\n");*/
 
 					OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
-					
+
 					imp_sth->rs_array_status=status;
 					imp_sth->rs_fetch_count++;
 					if (oci_warn &&  (imp_sth->rs_array_status == OCI_SUCCESS_WITH_INFO)) {
@@ -3677,16 +3705,16 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 					imp_sth->rs_array_idx=0;
 					imp_dbh->RowsInCache =imp_sth->rs_array_size;
 					imp_sth->RowsInCache =imp_sth->rs_array_size;
-				
+
 					if (DBIS->debug >= 4 || dbd_verbose >= 4 || oci_warn)
 						PerlIO_printf(DBILOGFP,"...Fetched %d rows\n",imp_sth->rs_array_num_rows);
 
 				}
 				imp_dbh->RowsInCache--;
 			    imp_sth->RowsInCache--;
-			    
-			    
-               
+
+
+
 
 				if (imp_sth->rs_array_num_rows>imp_sth->rs_array_idx)	/* set status to success if rows in cache */
 					status=OCI_SUCCESS;
@@ -3794,7 +3822,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						int sts;
 						D_imp_xxh(sth);
 						char errstr[256];
-					
+
 						sts = DBIc_DBISTATE(imp_sth)->sql_type_cast_svpv(
 						aTHX_ sv, fbh->req_type, fbh->bind_flags, NULL);
 						if (sts == 0) {
@@ -3803,8 +3831,8 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 								i+1, fbh->req_type);
 							oci_error(sth, imp_sth->errhp, OCI_ERROR, errstr);
 							return Nullav;
-						
-						} 
+
+						}
 						else if (sts == -2) {
 							sprintf(errstr,
 								"unsupported bind type %ld for column %d",
@@ -3812,7 +3840,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 							return Nullav;
 						}
 					}
-					else 
+					else
 #endif /* DBISTATE_VERSION > 94 */
 					{
 						if (CSFORM_IMPLIES_UTF8(fbh->csform) ){
