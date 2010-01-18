@@ -2190,7 +2190,7 @@ SV* new_ora_object (AV* list, OCITypeCode typecode) {
 /*gets the properties of an object from a fetch by using the attributes saved in the describe */
 
 int
-get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObject *value, OCIType *instance_tdo){
+get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObject *value, OCIType *instance_tdo, dvoid *obj_ind){
 
 	dTHX;
 	sword 		status;
@@ -2204,8 +2204,8 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 	OCIType 	*attr_tdo;
 	OCIIter		*itr;
 	fbh_obj_t	*fld;
-	OCIInd		*obj_ind;
 	fbh_obj_t	*obj = base_obj;
+
 	 OCIType	*tdo = instance_tdo ? instance_tdo : obj->tdo;
 
 	if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
@@ -2287,17 +2287,6 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 			}
 
 
-			if (obj->obj_ind) {
-				obj_ind = obj->obj_ind;
-			} else {
-
-				status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,(dvoid**)&obj_ind);
-
-				if (status != OCI_SUCCESS) {
-					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetInd");
-					return 0;
-				}
-			}
 
 			for (pos = 0; pos < obj->field_count; pos++){
 
@@ -2308,7 +2297,6 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 					av_push(list, newSVpv((char*)fld->type_name, fld->type_namel));
 				}
 
-				status=OCIObjectGetInd(fbh->imp_sth->envhp,fbh->imp_sth->errhp,value,(dvoid**)&obj->obj_ind);
 /*
 the little bastard above took me ages to find out
 seems Oracle does not like people to know that it can do this
@@ -2326,10 +2314,6 @@ The thing to remember is that OCI and C have no way of representing a DB NULLs s
 if the object or any of its properties are NULL, This is one little line in a 20 chapter book and even then
 id only shows you examples with the C struct built in and only a single record. Nowhere does it say you can do it this way.
 */
-				if (status != OCI_SUCCESS) {
-					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetInd");
-					return 0;
-				}
 
 				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
 										obj_ind, tdo,
@@ -2351,7 +2335,8 @@ id only shows you examples with the C struct built in and only a single record. 
 						if (fld->typecode != OCI_TYPECODE_OBJECT)
 							attr_value = *(dvoid **)attr_value;
 
-						get_object (sth,fld->fields[0].value, fbh, &fld->fields[0],attr_value, attr_tdo);
+						if (!get_object (sth,fld->fields[0].value, fbh, &fld->fields[0],attr_value, attr_tdo, attr_null_struct))
+							return 0;
 						av_push(list, new_ora_object(fld->fields[0].value, fld->typecode));
 
 					} else{  /* else, display the scaler type attribute */
@@ -2392,7 +2377,8 @@ id only shows you examples with the C struct built in and only a single record. 
 						} else {
 							if (obj->element_typecode == OCI_TYPECODE_OBJECT || obj->element_typecode == OCI_TYPECODE_VARRAY || obj->element_typecode== OCI_TYPECODE_TABLE || obj->element_typecode== OCI_TYPECODE_NAMEDCOLLECTION){
 								fld->value = newAV();
-								get_object (sth,fld->value, fbh, fld,element,0);
+								if(!get_object (sth,fld->value, fbh, fld,element,0,element_null))
+									return 0;
 								av_push(list, new_ora_object(fld->value, obj->element_typecode));
 							} else{  /* else, display the scaler type attribute */
 								get_attr_val(sth,list, fbh, obj->type_name, obj->element_typecode, element);
@@ -2443,8 +2429,8 @@ fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	fbh->obj->value=newAV();
 
 	/*will return referance to an array of scalars*/
-	if (!get_object(sth,fbh->obj->value,fbh,fbh->obj,fbh->obj->obj_value,0)){
-		return 0;
+	if (!get_object(sth,fbh->obj->value,fbh,fbh->obj,fbh->obj->obj_value,0,fbh->obj->obj_ind)){
+ 		return 0;
 	} else {
 		sv_setsv(dest_sv, sv_2mortal(new_ora_object(fbh->obj->value, fbh->obj->typecode)));
 		return 1;
