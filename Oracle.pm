@@ -1478,11 +1478,12 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 =item ora_ncs_buff_mtpl
 
 You can now customize the size of the buffer when selecting LOBs with
-the built in AUTO Lob.  The default value is 1 which should be fine
-for most situations. If you are converting between a NCS on the DB and
-one on the Client then you might want to set this to 2.  The orignal
-value (prior to version 1.24) of 4 was found to be excessive.  For
-convenience I have added support for a 'ORA_DBD_NCS_BUFFER'
+the built in AUTO Lob.  The default value is 4 which should is actully exessive 
+for most situations but is needed for backward compatibilty. 
+If you not converting between a NCS on the DB and the Client then you might 
+want to set this to 1 to free up memory.  
+
+For convenience I have added support for a 'ORA_DBD_NCS_BUFFER'
 environment variable that you can use at the OS level to set this
 value.  If used it will take the value at the connect stage.
 
@@ -3145,38 +3146,6 @@ If the size of the LONG or LONG RAW exceeds  the 'LongReadLen' DBD::Oracle will 
 The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on.  You have most likely reached this limit if you run into
 an 'ORA-01062: unable to allocate memory for define buffer' error.  One solution is to set the size of 'LongReadLen' to a lower value. 
 
-When getting CLOBs and NCLOBs in or out of Oracle ,the Server will translate from the Server's NCharSet to the
-Client's. If they happen to be the same or at least compatable then all of these actions are a 1 char to 1 char bases. Thus if you set your LongReadLen 
-buffer to 10_000_000 you will get up to 10_000_000 char. 
-
-However if the Server has to translate from one NCharSet to another it will use bytes for conversion. In versions 
-earlier than 1.24 this buffer was always 4 * LONG_READ_LEN which was very wasteful so you might of asking for only 
-10_000_000 bytes but you were actually using 40_000_000 bytes under the hood.  You would still get 10_000_000 bytes (maybe less characters though) but 
-you are using allot more memory that you need.
-
-You can now customize the size of the buffer by setting the 'ora_ncs_buff_mtpl' either on the connection or statement handle. You can
-also set this as 'ORA_DBD_NCS_BUFFER' OS environment variable so you will have to go back and change all your code if you are getting into trouble.
-
-The default value is set to 4 for backward compatiblty. You can lower this value and thus increase the amount of data you can retreive. If the
-ora_ncs_buff_mtpl is too small DBD::Oracle will thow and error telling you to increase this buffer by one.
-
-If the error is not captured then you may get 
-
-  ORA-03127: no new operations allowed until the active operation ends
-  
-which is one of the more obscure ORA errors (have some fun and report it to Meta-Link they will scratch their heads for hours) at some random point later on,
-usually at a finish() or disconnect() or even a fetch().
-
-If you get this, simply increment the ora_ncs_buff_mtpl by one until it goes away.
-
-This should greatly increase your ability to select very large CLOBs or NCLOBs, by freeing up a large block of menory.
-
-You can tune this value by setting ora_oci_success_warn which will display the following
-
-  OCILobRead field 2 of 3 SUCCESS: csform 1 (SQLCS_IMPLICIT), LOBlen 10240(characters), LongReadLen 20(characters), BufLen 80(characters), Got 28(characters)
-
-In the case above we Got 28 characters (well really only 20 characters of 28 bytes) so we could use ora_ncs_buff_mtpl=>2 (20*2=40) thus saving 40bytes of memory.
-
 For example give this table;
 
   CREATE TABLE test_long (
@@ -3199,6 +3168,40 @@ Will select out all of the long1 fields in the table as long as they are all und
   $dbh->{LongTruncOk}=1;
   
 before the execute will return all the long1 fields but they will be truncated at 2MBs. 
+
+=head3 Using ora_ncs_buff_mtpl
+
+When getting CLOBs and NCLOBs in or out of Oracle, the Server will translate from the Server's NCharSet to the
+Client's. If they happen to be the same or at least compatable then all of these actions are a 1 char to 1 char bases. 
+Thus if you set your LongReadLen buffer to 10_000_000 you will get up to 10_000_000 char. 
+
+However if the Server has to translate from one NCharSet to another it will use bytes for conversion. The buffer 
+value is set to 4 * LONG_READ_LEN which was very wasteful as you might only be asking for 10_000_000 bytes 
+but you were actually using 40_000_000 bytes of buffer under the hood.  You would still get 10_000_000 bytes
+(maybe less characters though) but you are using allot more memory that you need.
+
+You can now customize the size of the buffer by setting the 'ora_ncs_buff_mtpl' either on the connection or statement handle. You can
+also set this as 'ORA_DBD_NCS_BUFFER' OS environment variable so you will have to go back and change all your code if you are getting into trouble.
+
+The default value is still set to 4 for backward compatiblty. You can lower this value and thus increase the amount of data you can retreive. If the
+ora_ncs_buff_mtpl is too small DBD::Oracle will thow and error telling you to increase this buffer by one.
+
+If the error is not captured then you may get at some random point later on, usually at a finish() or disconnect() or even a fetch() this error;
+
+  ORA-03127: no new operations allowed until the active operation ends
+  
+This is one of the more obscure ORA errors (have some fun and report it to Meta-Link they will scratch their heads for hours) 
+
+If you get this, simply increment the ora_ncs_buff_mtpl by one until it goes away.
+
+This should greatly increase your ability to select very large CLOBs or NCLOBs, by freeing up a large block of menory.
+
+You can tune this value by setting ora_oci_success_warn which will display the following
+
+  OCILobRead field 2 of 3 SUCCESS: csform 1 (SQLCS_IMPLICIT), LOBlen 10240(characters), LongReadLen 20(characters), BufLen 80(characters), Got 28(characters)
+
+In the case above the query Got 28 characters (well really only 20 characters of 28 bytes) so we could use ora_ncs_buff_mtpl=>2 (20*2=40) thus saving 40bytes of memory.
+
 
 =head3 Simple Fetch for CLOBs and BLOBs
 
