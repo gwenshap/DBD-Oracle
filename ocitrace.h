@@ -222,8 +222,8 @@
 	stat = OCINlsEnvironmentVariableGet(	valp, size, item, charset, rsizep ); \
 	(DBD_OCI_TRACEON) \
 	?	PerlIO_printf(DBD_OCI_TRACEFP,\
-		 "%sNlsEnvironmentVariableGet(%d,%llu,%d,%d,%llu)=%s\n",\
-		 OciTp, *valp, (unsigned long long)size, item, charset, (unsigned long long)*rsizep, oci_status_name(stat)),stat \
+		 "%sNlsEnvironmentVariableGet(%d,%lu,%d,%d,%lu)=%s\n",\
+		 OciTp, *valp, (unsigned long)size, item, charset, (unsigned long)*rsizep, oci_status_name(stat)),stat \
 	: stat
 
 /* added by lab */
