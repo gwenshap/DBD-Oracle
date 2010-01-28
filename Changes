@@ -1,4 +1,5 @@
 =head1 Changes in DBD-Oracle 1.24(svn rev???)
+  Extened support of Oracle Embedded objects from Charles Jardine
   Added support for RowsInCache as RO and RowCacheSize as a setable value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans 
   Added extended support for 64 bit clients in Makefile.PL from Ralph Doncaster
   Added extended nvarchar support from Jan Mach
