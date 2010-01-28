@@ -983,7 +983,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 			return 0;
 	}
 /*	else {
-		/* set initial cache size by memory
+		 set initial cache size by memory
 		    [I'm not now sure why this is here - from a patch sometime ago - Tim]
 		    you are right Tim thre is no need to have this here so out it goes
 		    a very useless call to the server
@@ -1895,11 +1895,10 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 || oci_warn){
-		char buf[10];
-		sprintf(buf,"bytes");
-
+		char buf[11];
+		strcpy(buf,"bytes");
 		if (ftype == ORA_CLOB)
-           sprintf(buf,"characters");
+			strcpy(buf,"characters");
 
 		PerlIO_printf(DBILOGFP,
 		"		OCILobRead %s %s: csform %d (%s), LOBlen %lu(%s), LongReadLen %lu(%s), BufLen %lu(%s), Got %lu(%s)\n",
@@ -3806,7 +3805,6 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			to cast it - currently only number types are handled */
 					if (fbh->req_type != 0) {
 						int sts;
-						D_imp_xxh(sth);
 						char errstr[256];
 
 						sts = DBIc_DBISTATE(imp_sth)->sql_type_cast_svpv(
@@ -4321,7 +4319,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		phs_t *phs;
 		SV **phs_svp = hv_fetch(imp_sth->all_params_hv, fbh->name,strlen(fbh->name), 0);
 		if (!phs_svp)
-			croak("panic: LOB refetch for '%s' param (%d) - name not found",fbh->name,i+1);
+			croak("panic: LOB refetch for '%s' param (%ld) - name not found",fbh->name,(unsigned long)i+1);
 		phs = (phs_t*)(void*)SvPVX(*phs_svp);
 		fbh->special = phs;
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )

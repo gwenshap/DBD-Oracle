@@ -1135,8 +1135,7 @@ len = SvLEN(source);
 bufp = SvPV(source, len);
 
 	if (DBIS->debug >=3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, " creating xml from string that is %lu long\n",len);
-
+        PerlIO_printf(DBILOGFP, " creating xml from string that is %lu long\n",(unsigned long)len);
 	if(len > MAX_OCISTRING_LEN) {
 		src_type = OCI_XMLTYPE_CREATE_CLOB;
 
