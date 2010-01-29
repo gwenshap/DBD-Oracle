@@ -133,7 +133,7 @@
 	: stat
 
 #define OCIDateTimeToText_log_stat(envhp,errhp,d,sl,sb,stat)\
-	stat = OCIDateTimeToText(envhp,errhp, *(OCIDateTime**)d,(CONST text*) 0,(ub1) 0,0, (CONST text*) 0, (ub4) 0,(ub4 *)sl,sb );\
+	stat = OCIDateTimeToText(envhp,errhp, *(OCIDateTime**)d,(CONST text*) 0,(ub1) 0,6, (CONST text*) 0, (ub4) 0,(ub4 *)sl,sb );\
 	(DBD_OCI_TRACEON) \
 			?	PerlIO_printf(DBD_OCI_TRACEFP,\
 				 "%sOCIDateTimeToText(%p,%p,%p,%s)=%s\n",\
