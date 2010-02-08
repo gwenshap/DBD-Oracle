@@ -133,7 +133,7 @@
 	: stat
 
 #define OCIDateTimeToText_log_stat(envhp,errhp,d,sl,sb,stat)\
-	stat = OCIDateTimeToText(envhp,errhp, *(OCIDateTime**)d,(CONST text*) 0,(ub1) 0,0, (CONST text*) 0, (ub4) 0,(ub4 *)sl,sb );\
+	stat = OCIDateTimeToText(envhp,errhp, *(OCIDateTime**)d,(CONST text*) 0,(ub1) 0,6, (CONST text*) 0, (ub4) 0,(ub4 *)sl,sb );\
 	(DBD_OCI_TRACEON) \
 			?	PerlIO_printf(DBD_OCI_TRACEFP,\
 				 "%sOCIDateTimeToText(%p,%p,%p,%s)=%s\n",\
@@ -222,8 +222,8 @@
 	stat = OCINlsEnvironmentVariableGet(	valp, size, item, charset, rsizep ); \
 	(DBD_OCI_TRACEON) \
 	?	PerlIO_printf(DBD_OCI_TRACEFP,\
-		 "%sNlsEnvironmentVariableGet(%d,%d,%d,%d,%d)=%s\n",\
-		 OciTp, *valp, size, item, charset, *rsizep, oci_status_name(stat)),stat \
+		 "%sNlsEnvironmentVariableGet(%d,%lu,%d,%d,%lu)=%s\n",\
+		 OciTp, *valp, (unsigned long)size, item, charset, (unsigned long)*rsizep, oci_status_name(stat)),stat \
 	: stat
 
 /* added by lab */
@@ -231,7 +231,7 @@
 	stat = OCIEnvNlsCreate(envp, mode, ctxp, f1, f2, f3, sz, usremepp ,chset, nchset ); \
 	(DBD_OCI_TRACEON) \
 	?	PerlIO_printf(DBD_OCI_TRACEFP,\
-		 "%sNlsEnvCreate(%p,%s,%d,%d,%p,%p,%p,%d,%p,%d,%d)=%s\n", \
+		 "%sEnvNlsEnvCreate(%p,%s,%d,%d,%p,%p,%p,%d,%p,%d,%d)=%s\n", \
 		 OciTp, (void*)envp, oci_mode(mode),mode, ctxp, (void*)f1, (void*)f2, (void*)f3, sz, (void*)usremepp ,chset, nchset, oci_status_name(stat)),stat \
 	: stat
 
@@ -239,8 +239,15 @@
 #define OCIAttrGet_log_stat(th,ht,ah,sp,at,eh,stat)					\
 	stat = OCIAttrGet(th,ht,ah,sp,at,eh);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-		"%sAttrGet(%p,%s,%p,%p,%lu,%p)=%s\n",			\
-		OciTp, (void*)th,oci_hdtype_name(ht),(void*)ah,pul_t(sp),ul_t(at),(void*)eh,\
+		"%sAttrGet(%p,%s,%p,%p,%s,%p)=%s\n",			\
+		OciTp, (void*)th,oci_hdtype_name(ht),(void*)ah,pul_t(sp),oci_attr_name(at),(void*)eh,\
+		oci_status_name(stat)),stat : stat
+
+#define OCIAttrGet_d_log_stat(th,ht,ah,sp,at,eh,stat)					\
+	stat = OCIAttrGet(th,ht,ah,sp,at,eh);				\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
+		"%sAttrGet(%p,%s,%p,%p,%s,%p)=%s\n",			\
+		OciTp, (void*)th,oci_hdtype_name(ht),(void*)ah,pul_t(sp),oci_dtype_attr_name(at),(void*)eh,\
 		oci_status_name(stat)),stat : stat
 
  #define OCIAttrGet_parmap(imp_sth,dh, ht, p1, l, stat)				\
@@ -249,7 +256,7 @@
 
 
 #define OCIAttrGet_parmdp(imp_sth, parmdp, p1, l, a, stat)				\
-	OCIAttrGet_log_stat(parmdp, OCI_DTYPE_PARAM,			\
+	OCIAttrGet_d_log_stat(parmdp, OCI_DTYPE_PARAM,			\
 		(void*)(p1), (l), (a), imp_sth->errhp, stat)
 
 #define OCIAttrGet_stmhp_stat(imp_sth, p1, l, a, stat)					\
@@ -259,8 +266,8 @@
 #define OCIAttrSet_log_stat(th,ht,ah,s1,a,eh,stat)						\
 	stat=OCIAttrSet(th,ht,ah,s1,a,eh);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-		"%sAttrSet(%p,%s,%p,%lu,%lu,%p)=%s\n",			\
-		OciTp, (void*)th,oci_hdtype_name(ht),(void*)(ah),ul_t(s1),ul_t(a),(void*)eh,	\
+		"%sAttrSet(%p,%s, %p,%lu,Attr=%s,%p)=%s\n",			\
+		OciTp, (void*)th,oci_hdtype_name(ht),(void *)ah,ul_t(s1),oci_attr_name(a),(void*)eh,	\
 		oci_status_name(stat)),stat : stat
 
 #define OCIBindByName_log_stat(sh,bp,eh,p1,pl,v,vs,dt,in,al,rc,mx,cu,md,stat)	\
@@ -456,9 +463,9 @@
 #define OCIParamGet_log_stat(hp,ht,eh,pp,ps,stat)						\
 	stat=OCIParamGet(hp,ht,eh,pp,ps);				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-		"%sParamGet(%p,%lu,%p,%p,%lu)=%s\n",				\
+		"%sParamGet(%p,%lu,%p,%p,%lu,%s)=%s\n",				\
 		OciTp, (void*)hp,ul_t((ht)),(void*)eh,(void*)pp,ul_t(ps),	\
-		oci_status_name(stat)),stat : stat
+		oci_hdtype_name(ht),oci_status_name(stat)),stat : stat
 
 #define OCIServerAttach_log_stat(imp_dbh, dbname,md,stat)				 \
 	stat=OCIServerAttach( imp_dbh->srvhp, imp_dbh->errhp,		\

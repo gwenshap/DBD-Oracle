@@ -116,6 +116,7 @@ sub db_connect
     $p->{ora_ncharset} = $ncharset if $ncharset;
 
     my $dbh = DBI->connect($dsn, $dbuser, '', $p);
+    $dbh->ora_nls_parameters ()->{NLS_CHARACTERSET} =~ m/US7ASCII/ and plan skip_all => "Database is set up as US7ASCII";
     return $dbh;
 }
 

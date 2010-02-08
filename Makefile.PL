@@ -1055,14 +1055,19 @@ sub find_mkfile {
 	'proc/lib/proc.mk',
 	'proc16/lib/proc16.mk',
     );
-    my @mk_oci = (
+    my @mk_oci32 = (
+	'rdbms/demo/demo_rdbms32.mk'
+    );
+    my @mk_oci64 = (
 	'rdbms/demo/demo_xe.mk',
 	'rdbms/lib/oracle.mk',
 	'rdbms/demo/oracle.mk',
 	'rdbms/demo/demo_rdbms.mk',
+	'rdbms/demo/demo_rdbms64.mk',
 	'rdbms/lib/ins_rdbms.mk' #Oracle 11 full client for 64 bit and maybe 32 bit??
  
     );
+    my @mk_oci = perl_is_64bit() ? @mk_oci64 : @mk_oci32;
     $client_version and push @mk_proc,        # Oracle Instant Client
         "/usr/share/oracle/$client_version/client/demo.mk",
         "/usr/share/oracle/$client_version/client64/demo.mk";

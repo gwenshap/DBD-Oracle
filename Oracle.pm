@@ -7,7 +7,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.23';
+$DBD::Oracle::VERSION = '1.24';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -34,7 +34,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     	ora_exe_modes     => [ qw(OCI_STMT_SCROLLABLE_READONLY)],
     );
     @EXPORT_OK = qw(OCI_FETCH_NEXT OCI_FETCH_CURRENT OCI_FETCH_FIRST OCI_FETCH_LAST OCI_FETCH_PRIOR
-    		    OCI_FETCH_ABSOLUTE 	OCI_FETCH_RELATIVE ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var ora_cygwin_set_env);
+    		    OCI_FETCH_ABSOLUTE 	OCI_FETCH_RELATIVE ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var ora_cygwin_set_env );
     #unshift @EXPORT_OK, 'ora_cygwin_set_env' if $^O eq 'cygwin';
     Exporter::export_ok_tags(qw(ora_types ora_session_modes ora_fetch_orient ora_exe_modes));
 
@@ -68,7 +68,6 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    });
 	DBD::Oracle::dr::init_oci($drh) ;
 	$drh->STORE('ShowErrorStatement', 1);
-
         DBD::Oracle::db->install_method("ora_lob_read");
         DBD::Oracle::db->install_method("ora_lob_write");
         DBD::Oracle::db->install_method("ora_lob_append");
@@ -82,8 +81,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
  	DBD::Oracle::st->install_method("ora_ping");
  	DBD::Oracle::st->install_method("ora_stmt_type_name");
  	DBD::Oracle::st->install_method("ora_stmt_type");
- 	
  	$drh;
+ 	
     }
 
 
@@ -177,6 +176,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub connect {
 	my ($drh, $dbname, $user, $auth, $attr)= @_;
 
+
+        
 	if ($dbname =~ /;/) {
 	    my ($n,$v);
 	    $dbname =~ s/^\s+//;
@@ -250,8 +251,11 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    # these two are just for backwards compatibility
 	    $dbh_inner->{USER} = $dbh_inner->{CURRENT_USER} = uc $user_only;
 	}
-
+	if ($ENV{ORA_DBD_NCS_BUFFER}){
+	    $dbh->{'ora_ncs_buff_mtpl'}= $ENV{ORA_DBD_NCS_BUFFER};
+	}
 	$dbh;
+	
     }
     
      sub private_attribute_info {
@@ -264,7 +268,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 {   package DBD::Oracle::db; # ====== DATABASE ======
     use strict;
     use DBI qw(:sql_types);
-
+	
     sub prepare {
 	my($dbh, $statement, @attribs)= @_;
 
@@ -284,6 +288,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     }
 
 #Ah! I see you have the machine that goes PING!!
+#Yes!! We leased it from the company that made it
+#then the cost came out of the operating budget
+#not the capital ...
+
     sub ping { 
 	my($dbh) = @_;
 	my $ok = 0;
@@ -322,7 +330,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_session_mode	=> undef,
                  ora_verbose		=> undef,
                  ora_oci_success_warn	=> undef,
-                 ora_objects	=> undef
+                 ora_objects		=> undef,
+                 ora_ncs_buff_mtpl      => undef,
                  };
     }
    
@@ -728,7 +737,70 @@ SQL
 	    [ "CLOB",            SQL_LONGVARCHAR,   2147483647,"'",  "'",
 		undef,            1,1,0,undef,0,undef,
 		"CLOB",            undef,undef,SQL_LONGVARCHAR,  undef,undef,undef, ],
+		
 	    if $version >= 8;
+		push @$type_info_all,
+		["TIMESTAMP WITH TIME ZONE",	# type name
+			SQL_TYPE_TIMESTAMP_WITH_TIMEZONE,	# data type
+			40,		# column size
+			"TIMESTAMP'",	# literal prefix
+			"'",		# literal suffix
+			"precision",	# create params	
+			1,		# nullable
+			0,		# case sensitive
+			3,		# searchable
+			undef,		# unsigned attribute
+			0,		# fixed prec scale
+			0,		# auto unique value
+			undef,		# local type name
+			0,		# minimum scale	
+			6,		# maximum scale
+			SQL_TIMESTAMP,	# sql data type	
+			5,		# sql datetime sub
+			undef,		# num prec radix
+			undef,		# interval precision
+		],
+		[ "INTERVAL DAY TO SECOND",	# type name	
+			SQL_INTERVAL_DAY_TO_SECOND,	# data type
+			22,				# column size	'+00 11:12:10.222222200'
+			"INTERVAL'",	# literal prefix
+			"'",		# literal suffix
+			"precision",	# create params
+			1,		# nullable
+			0,		# case sensitive
+			3,		# searchable
+			undef,		# unsigned attribute
+			0,		# fixed prec scale
+			0,		# auto unique value
+			undef,		# local type name
+			0,		# minimum scale	
+			9,		# maximum scale	
+			SQL_INTERVAL,	# sql data type	
+			10,		# sql datetime sub
+			undef,		# num prec radix
+			undef,		# interval precision
+		],
+		[ "INTERVAL YEAR TO MONTH",	# type name	
+			SQL_INTERVAL_YEAR_TO_MONTH,	# data type
+			13,		# column size 	'+012345678-01'
+			"INTERVAL'",	# literal prefix
+			"'",		# literal suffix
+			"precision",	# create params
+			1,		# nullable
+			0,		# case sensitive
+			3,		# searchable
+			undef,		# unsigned attribute
+			0,		# fixed prec scale
+			0,		# auto unique value
+			undef,		# local type name
+			0,		# minimum scale	
+			9,		# maximum scale	
+			SQL_INTERVAL,	# sql data type	
+			7,		# sql datetime sub
+			undef,		# num prec radix
+			undef,		# interval precision
+		],
+		if $version >= 10;
 	return $type_info_all;
     }
 
@@ -930,20 +1002,23 @@ SQL
     }
 
     sub private_attribute_info {
-        return { ora_lengths 		=> undef,
-                 ora_types   		=> undef,
-                 ora_rowid		=> undef,
-                 ora_est_row_width	=> undef,
-                 ora_type               => undef,
-                 ora_field              => undef,
-                 ora_csform		=> undef,
-                 ora_maxdata_size	=> undef,
-                 ora_parse_lang		=> undef,
-                 ora_placeholders	=> undef,
-                 ora_auto_lob		=> undef,
-                 ora_check_sql		=> undef
-                };
-    }
+	return {ora_lengths		=> undef,
+		ora_types		=> undef,
+		ora_rowid		=> undef,
+		ora_est_row_width	=> undef,
+		ora_type		=> undef,
+		ora_field		=> undef,
+		ora_csform		=> undef,
+		ora_maxdata_size	=> undef,
+		ora_parse_lang		=> undef,
+		ora_placeholders	=> undef,
+		ora_auto_lob		=> undef,
+		ora_check_sql		=> undef,
+		ora_row_cache_off	=> undef,
+		ora_prefetch_rows	=> undef,
+		ora_prefetch_memory	=> undef,
+		};
+   }
    
 }
 
@@ -1329,7 +1404,7 @@ If it generates any errors which look relevant then please talk to your
 Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
 
-=head2 Constants
+=head1 Constants
 
 =over 4
 
@@ -1393,9 +1468,26 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 
   OCI_STMT_SCROLLABLE_READONLY 
 
+
+=head1 Attributes
+
 =head2 Connect Attributes
 
 =over 4
+
+=item ora_ncs_buff_mtpl
+
+You can now customize the size of the buffer when selecting LOBs with
+the built in AUTO Lob.  The default value is 4 which should is actully exessive 
+for most situations but is needed for backward compatibilty. 
+If you not converting between a NCS on the DB and the Client then you might 
+want to set this to 1 to free up memory.  
+
+For convenience I have added support for a 'ORA_DBD_NCS_BUFFER'
+environment variable that you can use at the OS level to set this
+value.  If used it will take the value at the connect stage.
+
+See more details in the LOB section of the POD
 
 =item ora_session_mode
 
@@ -1518,7 +1610,8 @@ In both cases the DBD::Oracle trace level to 6, which is this level that will tr
 
 =item ora_oci_success_warn
 
-Use this value to print silent OCI warnings that may happen when an execute or fetch returns "Success With Info".
+Use this value to print silent OCI warnings that may happen when an execute or fetch returns "Success With Info" or when
+you want to tune RowCaching and LOB Reads
 
   $dbh->{ora_oci_success_warn} =1;
 
@@ -1675,15 +1768,26 @@ This will set the execute mode of the current statement. Presently only one mode
 
 See L</Scrollable Cursors> for more details.
 
+=item ora_prefetch_rows
+
+Sets the number of rows to be prefetched. If it is not set, then the default value is 1.
+See L</Prefetching Rows> for more details.
+
 =item ora_prefetch_memory
 
-Sets the memory level for top level rows to be prefetched. Rows up to the specified top level row 
-count C<RowCacheSize> are fetched if it occupies no more than the specified memory usage limit. The default value is 0, 
-which means that memory size is not included in computing the number of rows to prefetch. If
-the C<RowCacheSize> value is set to 0 or a negative number when using this value then only 
-the memory value entered is used to compute the number of rows to prefetch.
-
+Sets the memory level for rows to be prefetched. The application then fetches as many rows as will fit into that much memory.
 See L</Prefetching Rows> for more details.
+
+=item ora_row_cache_off
+
+By default DBD::Oracle will use a row cache when fetching to cut down the number of round 
+trips to the server. If you do not want to use an array fetch set this value to any value other than 0;
+See L</Prefetching Rows> for more details.
+
+=item 
+
+You can customize the value of the row cache with this value.  By default it will normlly be set to the 
+RowCacheSize or one cles to it.
 
 =item ora_verbose
 
@@ -1767,8 +1871,77 @@ TABLE OF ... .
 Specify internal data representation. Currently is supported only for
 ORA_NUMBER_TABLE.
 
+=head1 Optimizing Results
+
+=head2 Prepare postponed till execute
+
+The DBD::Oracle module can avoid an explicit 'describe' operation
+prior to the execution of the statement unless the application requests
+information about the results (such as $sth->{NAME}). This reduces
+communication with the server and increases performance (reducing the
+number of PARSE_CALLS inside the server).
+
+However, it also means that SQL errors are not detected until
+C<execute()> (or $sth->{NAME} etc) is called instead of when
+C<prepare()> is called. Note that if the describe is triggered by the
+use of $sth->{NAME} or a similar attribute and the describe fails then
+I<an exception is thrown> even if C<RaiseError> is false!
+
+Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
+
+=head1 Prefetching & Row Caching 
+
+DBD::Oracle now supports both Server pre-fetch and Client side row caching. By defualt both 
+are trurned on to give optimum performance. Most of the time one can just let DBD::Oracle
+figure out the best optimization. 
+
+=head2 Row Caching
+
+Row caching occures on the client side and the object of it is to cut down the number of round 
+trips made to the server when fetching rows. At each fetch a set number of rows will be retreived
+from the server and stored locally. Further calls the server are made only when the end of the 
+local buffer(cache) is reached.
+
+Rows up to the specified top level row 
+count C<RowCacheSize> are fetched if it occupies no more than the specified memory usage limit. 
+The default value is 0, which means that memory size is not included in computing the number of rows to prefetch. If
+the C<RowCacheSize> value is set to a negative number then the positive value of RowCacheSize is used 
+to compute the number of rows to prefetch.
+
+By default C<RowCacheSize> is automaticaly set. If you want to totaly turn off prefetching set this to 1.
+
+For any SQL statment that contains a LOB, Long or Object Type Row Caching will be turned off. However server side 
+caching still works.  If you are only selecting a LOB Locator then Row Caching will still work.
+
+=head2 Row Prefetching
+
+Row prefetching occurs on the server side and uses the DBI database handle attribute C<RowCacheSize> and or the 
+Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improved performance. 
+
+   $dbh->{RowCacheSize} = 100;
+   $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>10000});
+   
+In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle® Call Interface Programmer's Guide,
+suggests a good row cache value for a scrollable cursor is about 20% of expected size of the record set. 
+
+The prefetch settings tell the DBD::Oracle to grab x rows (or x-bytes) when it needs to get new rows. This happens on the first 
+fetch that sets the current_positon to any value other than 0. In the above example if we do a OCI_FETCH_FIRST the first 10 rows are
+loaded into the buffer and DBD::Oracle will not have to go back to the server for more rows. When record 11 is fetched DBD::Oracle
+fetches and returns this row and the next 9 rows are loaded into the buffer. In this case if you fetch backwards from 10 to 1 
+no server round trips are made.
+
+With large record sets it is best not to attempt to go to the last record as this may take some time, A large buffer size might even slow down
+the fetch. If you must get the number of rows in a large record set you might try using an few large OCI_FETCH_ABSOLUTEs and then an OCI_FETCH_LAST,
+this might save some time. So if you had a record set of 10000 rows and you set the buffer to 5000 and did a OCI_FETCH_LAST one would fetch the first 5000 rows into the buffer then the next 5000 rows.  
+If one requires only the first few rows there is no need to set a large prefetch value.  
+
+If the ora_prefetch_memory less than 1 or not present then memory size is not included in computing the 
+number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
+is not included in the computing of the prefetch rows.  
 
 =back
+
+=head1 Spaces & Padding
 
 =head2 Trailing Spaces
 
@@ -2127,20 +2300,25 @@ and B<SYS.DBMS_SQL.NUMBER_TABLE> data types. The simple example is here:
 
     my $sth=$dbh->prepare( $statement );
 
-    my @arr=( "abc" );
+    my @arr=( "abc","efg","hij" );
 
-    $sth->bind_param_inout(":mytable", \@arr, 10, {
+    $sth->bind_param_inout(":mytable", \\@arr, 10, {
             ora_type => ORA_VARCHAR2_TABLE,
             ora_maxarray_numentries => 100
-    } ) );
-    $sth->bind_param_inout(":cc", \$cc, 100 ) );
+    } ) ;
+    $sth->bind_param_inout(":cc", \$cc, 100  );
     $sth->execute();
     print	"Result: cc=",$cc,"\n",
     	"\tarr=",Data::Dumper::Dumper(\@arr),"\n";
 
+N.B. 
+
+   Take careful note that we use '\\@arr' here because  the 'bind_param_inout'
+   will only take a reference to a scalar. 
+ 
 =over
 
-=item OCI_VARCHAR2_TABLE
+=item ORA_VARCHAR2_TABLE
 
 SYS.DBMS_SQL.VARCHAR2_TABLE object is always bound to array reference.
 ( in bind_param() and bind_param_inout() ). When you bind array, you need
@@ -2160,7 +2338,7 @@ If you set I<ora_maxarray_numentries> to zero, current (at bind time) bound
 array length is used as maximum. If 0 < I<ora_maxarray_numentries> < scalar(@array),
 not all array entries are bound.
 
-=item OCI_NUMBER_TABLE
+=item ORA_NUMBER_TABLE
 
 SYS.DBMS_SQL.NUMBER_TABLE object handling is much alike ORA_VARCHAR2_TABLE.
 The main difference is internal data representation. Currently 2 types of
@@ -2200,7 +2378,7 @@ The usage example is here:
     @arr=( 1,"2E0","3.5" );
     
     # note, that ora_internal_type defaults to SQLT_FLT for ORA_NUMBER_TABLE .
-    if( not $sth->bind_param_inout(":mytable", \@arr, 10, {
+    if( not $sth->bind_param_inout(":mytable", \\@arr, 10, {
                     ora_type => ORA_NUMBER_TABLE,
                     ora_maxarray_numentries => (scalar(@arr)+2),
                     ora_internal_type => SQLT_FLT
@@ -2687,23 +2865,6 @@ Returns the OCI Statement Type name for the SQL of a statement handle.
 
 =back
 
-=head1 Prepare postponed till execute
-
-The DBD::Oracle module can avoid an explicit 'describe' operation
-prior to the execution of the statement unless the application requests
-information about the results (such as $sth->{NAME}). This reduces
-communication with the server and increases performance (reducing the
-number of PARSE_CALLS inside the server).
-
-However, it also means that SQL errors are not detected until
-C<execute()> (or $sth->{NAME} etc) is called instead of when
-C<prepare()> is called. Note that if the describe is triggered by the
-use of $sth->{NAME} or a similar attribute and the describe fails then
-I<an exception is thrown> even if C<RaiseError> is false!
-
-Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
-
-
 =head1 Scrollable Cursors
 
 Oracle supports the concept of a 'Scrollable Cursor' which is defined as a 'Result Set' where
@@ -2918,33 +3079,6 @@ The current_positon attribute will be 6 after this snippet.
 When using scrollable cursors it is required that you use the $sth->finish() method when you are done with the cursor as this type of
 cursor has to be explicitly canceled on the server. If you do not do this you may cause resource problems on your database.  
 
-=head2 Prefetching Rows
-
-One can override the DBD::Oracle's default pre-fetch values by using the DBI database handle attribute C<RowCacheSize> and or the 
-Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improved performance. 
-
-   $dbh->{RowCacheSize} = 10;
-   $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>10000});
-   
-In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle® Call Interface Programmer's Guide,
-suggests a good row cache value for a scrollable cursor is about 20% of expected size of the record set. 
-
-The prefetch settings tell the DBD::Oracle to grab x rows (or x-bytes) when it needs to get new rows. This happens on the first 
-fetch that sets the current_positon to any value other than 0. In the above example if we do a OCI_FETCH_FIRST the first 10 rows are
-loaded into the buffer and DBD::Oracle will not have to go back to the server for more rows. When record 11 is fetched DBD::Oracle
-fetches and returns this row and the next 9 rows are loaded into the buffer. In this case if you fetch backwards from 10 to 1 
-no server round trips are made.
-
-With large record sets it is best not to attempt to go to the last record as this may take some time, A large buffer size might even slow down
-the fetch. If you must get the number of rows in a large record set you might try using an few large OCI_FETCH_ABSOLUTEs and then an OCI_FETCH_LAST,
-this might save some time. So if you had a record set of 10000 rows and you set the buffer to 5000 and did a OCI_FETCH_LAST one would fetch the first 5000 rows into the buffer then the next 5000 rows.  
-If one requires only the first few rows there is no need to set a large prefetch value.  
-
-If the ora_prefetch_memory less than 1 or not present then memory size is not included in computing the 
-number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
-is not included in the computing of the prefetch rows.  
-
-
 =head1 LOBs and LONGs
 
 The key to working with LOBs (CLOB, BLOBs) is to remember the value of an Oracle LOB column is not the content of the LOB. It's a
@@ -3006,12 +3140,11 @@ used, normally one can get an entire LOB is a single round trip.
 
 =head3 Simple Fetch for LONGs and LONG RAWs
 
-As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LONG datatypes as a single large piece. 
+As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LONG data types as a single large piece. 
 There are no special settings, simply set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LONG or LONG RAW.
 If the size of the LONG or LONG RAW exceeds  the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
 The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on.  You have most likely reached this limit if you run into
 an 'ORA-01062: unable to allocate memory for define buffer' error.  One solution is to set the size of 'LongReadLen' to a lower value. 
-
 
 For example give this table;
 
@@ -3036,12 +3169,51 @@ Will select out all of the long1 fields in the table as long as they are all und
   
 before the execute will return all the long1 fields but they will be truncated at 2MBs. 
 
+=head3 Using ora_ncs_buff_mtpl
+
+When getting CLOBs and NCLOBs in or out of Oracle, the Server will translate from the Server's NCharSet to the
+Client's. If they happen to be the same or at least compatable then all of these actions are a 1 char to 1 char bases. 
+Thus if you set your LongReadLen buffer to 10_000_000 you will get up to 10_000_000 char. 
+
+However if the Server has to translate from one NCharSet to another it will use bytes for conversion. The buffer 
+value is set to 4 * LONG_READ_LEN which was very wasteful as you might only be asking for 10_000_000 bytes 
+but you were actually using 40_000_000 bytes of buffer under the hood.  You would still get 10_000_000 bytes
+(maybe less characters though) but you are using allot more memory that you need.
+
+You can now customize the size of the buffer by setting the 'ora_ncs_buff_mtpl' either on the connection or statement handle. You can
+also set this as 'ORA_DBD_NCS_BUFFER' OS environment variable so you will have to go back and change all your code if you are getting into trouble.
+
+The default value is still set to 4 for backward compatiblty. You can lower this value and thus increase the amount of data you can retreive. If the
+ora_ncs_buff_mtpl is too small DBD::Oracle will thow and error telling you to increase this buffer by one.
+
+If the error is not captured then you may get at some random point later on, usually at a finish() or disconnect() or even a fetch() this error;
+
+  ORA-03127: no new operations allowed until the active operation ends
+  
+This is one of the more obscure ORA errors (have some fun and report it to Meta-Link they will scratch their heads for hours) 
+
+If you get this, simply increment the ora_ncs_buff_mtpl by one until it goes away.
+
+This should greatly increase your ability to select very large CLOBs or NCLOBs, by freeing up a large block of menory.
+
+You can tune this value by setting ora_oci_success_warn which will display the following
+
+  OCILobRead field 2 of 3 SUCCESS: csform 1 (SQLCS_IMPLICIT), LOBlen 10240(characters), LongReadLen 20(characters), BufLen 80(characters), Got 28(characters)
+
+In the case above the query Got 28 characters (well really only 20 characters of 28 bytes) so we could use ora_ncs_buff_mtpl=>2 (20*2=40) thus saving 40bytes of memory.
+
+
 =head3 Simple Fetch for CLOBs and BLOBs
 
 To use this interface for CLOBs and LOBs datatypes set the 'ora_pers_lob' attribute of the statement handle to '1' with the prepare method, as well
 set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LOB. If the size of the LOB exceeds 
 the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
 The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on in the same way that LONGs and LONG RAWs are. 
+
+For CLOBs and NCLOBs the limit is 64k chars if there is no truncation, this is an internal OCI limit complain to them if you want it changed.  However if you CLOB is longer than this
+and also larger than the 'LongReadLen' than the 'LongReadLen' in chars is returned.
+
+It seems with BLOBs you are not limited by the 64k.
 
 For example give this table;
 

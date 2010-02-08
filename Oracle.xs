@@ -96,6 +96,7 @@ INCLUDE: Oracle.xsi
 
 MODULE = DBD::Oracle	PACKAGE = DBD::Oracle::st
 
+
 void ora_stmt_type(sth)
  SV *	sth
 	PREINIT:
