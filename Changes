@@ -1,7 +1,7 @@
-=head1 Changes in DBD-Oracle 1.24(svn rev 13790)
-  Extened precision for OCIDateTimeToText to 6 instead of 0 for embedded types from John Scoles
-  Extened support of Oracle Embedded objects from Charles Jardine
-  Added support for RowsInCache as RO and RowCacheSize as a setable value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans 
+=head1 Changes in DBD-Oracle 1.24(svn rev 13793)
+  Extended precision for OCIDateTimeToText to 6 instead of 0 for embedded types from John Scoles
+  Extended support of Oracle Embedded objects from Charles Jardine
+  Added support for RowsInCache as RO and RowCacheSize as a set-able value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans 
   Added extended support for 64 bit clients in Makefile.PL from Ralph Doncaster
   Added extended nvarchar support from Jan Mach
   Added support for the TYPE attribute on bind_col and the new DBI bind_col attributes StrictlyTyped and DiscardString from Martin J. Evans 
