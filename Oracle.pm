@@ -836,8 +836,13 @@ SQL
 	my $sth = $dbh->prepare_cached("begin dbms_output.get_line(:l, :s); end;")
 		or return;
 	my ($line, $status, @lines);
+	my $version = join ".", @{ ora_server_version($dbh) }[0..1];
+	my $len =  32767;
+	if ($version < 10.2){
+	    $len = 400; 
+	}
 	# line can be greater that 255 (e.g. 7 byte date is expanded on output)
-	$sth->bind_param_inout(':l', \$line,  400, { ora_type => 1 });
+	$sth->bind_param_inout(':l', \$line, $len, { ora_type => 1 });
 	$sth->bind_param_inout(':s', \$status, 20, { ora_type => 1 });
 	if (!wantarray) {
 	    $sth->execute or return undef;

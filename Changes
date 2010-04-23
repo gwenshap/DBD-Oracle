@@ -1,5 +1,6 @@
 =head1 Changes in DBD-Oracle 1.25(svn rev #####)
-
+  
+  Patch for PL/SQL: numeric or value error: character string buffer too small from Scott T. Hildreth
   Fix for rt.cpan.org Ticket #=51594 type_info and type_info_all miss vital information from John Scoles
   Added ora_lob_is_init function by John Scoles
   Fix for rt.cpan.org Ticket #=55031 Ubuntu Server  Building with Oracle XE under 32-bit from Brian Candler 
