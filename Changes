@@ -1,4 +1,10 @@
+=head1 Changes in DBD-Oracle 1.25(svn rev #####)
+
+  Fix for rt.cpan.org Ticket #=56810 bug with multiple nested cursor from John Scoles 
+  Fix for Patch bug found only on Big-Endian hardware reported by Timothy Everett and others from Charles Jardine 
+
 =head1 Changes in DBD-Oracle 1.24(svn rev 13793)
+
   Extended precision for OCIDateTimeToText to 6 instead of 0 for embedded types from John Scoles
   Extended support of Oracle Embedded objects from Charles Jardine
   Added support for RowsInCache as RO and RowCacheSize as a set-able value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans 
@@ -22,6 +28,7 @@
   Fix for bug in 58object.t when test run as externally identified user from Charles Jardine
 
 =head1 Changes in DBD-Oracle 1.23(svn rev 12724)
+
   Fix from rt.cpan.org ticket #=44788 bool in_lite should be char in_literal 
   Fix for UTF8 and blobs by John Scoles with Milo van der Leij
   Fix for some warnings and one bug in ocitrace.h from Charles Jardine
@@ -48,6 +55,7 @@
   
   
 =head1 Changes in DBD-Oracle 1.22(svn rev 11618)  1st Aug 2008 
+
   Patch to remove compiler warnings from H.Merijn Brand
   Patch to Makfile for 64bit boxes from Alex Laslavic
   Added OCILobGetLength to lob functions from Milo van der Leij

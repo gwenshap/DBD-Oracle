@@ -2661,37 +2661,15 @@ fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 void rs_array_init(imp_sth_t *imp_sth)
 {
 	dTHX;
-/*	if (imp_sth->rs_array_on!=1		||
-		imp_sth->rs_array_size<1	||
-		imp_sth->rs_array_size>128){
 
-		imp_sth->rs_array_on=0;
-		imp_sth->rs_array_size=1;
-
-	}*/
 	imp_sth->rs_array_num_rows	=0;
 	imp_sth->rs_array_idx		=0;
 	imp_sth->rs_fetch_count		=0;
-	/*imp_sth->prefetch_rows		=0;
-	imp_sth->prefetch_memory	=0;*/
 	imp_sth->rs_array_status	=OCI_SUCCESS;
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(DBILOGFP, "	rs_array_init:imp_sth->rs_array_size=%d, rs_array_idx=%d, prefetch_rows=%d, rs_array_status=%s\n",imp_sth->rs_array_size,imp_sth->rs_array_idx,imp_sth->prefetch_rows,oci_status_name(imp_sth->rs_array_status));
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 static int			/* --- Setup the row cache for this sth --- */
@@ -2801,8 +2779,8 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 
 	imp_sth->rs_array_size=cache_rows;
 
-    if (max_cache_rows){/* limited by a cursor or something else*/
-		imp_sth->rs_array_size=max_cache_rows;
+    if (max_cache_rows){/* limited to 1 by a cursor or something else*/
+		imp_sth->rs_array_size=1;
 	}
 
 
