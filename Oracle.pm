@@ -74,6 +74,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
         DBD::Oracle::db->install_method("ora_lob_trim");
         DBD::Oracle::db->install_method("ora_lob_length");
         DBD::Oracle::db->install_method("ora_lob_chunk_size");
+        DBD::Oracle::db->install_method("ora_lob_is_init");
         DBD::Oracle::db->install_method("ora_nls_parameters");
         DBD::Oracle::db->install_method("ora_can_unicode");
  	DBD::Oracle::st->install_method("ora_fetch_scroll");
@@ -3604,6 +3605,15 @@ Uses the Oracle OCILobTrim function.
 
 Returns the length of the LOB.
 Uses the Oracle OCILobGetLength function.
+
+
+=item ora_lob_is_init
+
+  $is_init = $dbh->ora_lob_is_init($lob_locator);
+
+Returns true(1) if the Lob Locator is initialized false(0) if it is not, or 'undef' 
+if there is an error.
+Uses the Oracle OCILobLocatorIsInit function.
 
 =item ora_lob_chunk_size
 

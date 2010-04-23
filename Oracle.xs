@@ -469,6 +469,24 @@ ora_lob_trim(dbh, locator, length)
 	}
 
 void
+ora_lob_is_init(dbh, locator)
+	SV *dbh
+	OCILobLocator   *locator
+	PREINIT:
+	D_imp_dbh(dbh);
+	sword status;
+	boolean is_init = 0;
+	CODE:
+	OCILobLocatorIsInit_log_stat(imp_dbh->envhp,imp_dbh->errhp,locator,&is_init,status);
+	if (status != OCI_SUCCESS) {
+		oci_error(dbh, imp_dbh->errhp, status, "OCILobLocatorIsInit ora_lob_is_init");
+	    ST(0) = &sv_undef;
+	}
+	else {
+	    ST(0) = sv_2mortal(newSVuv(is_init));
+	}
+
+void
 ora_lob_length(dbh, locator)
 	SV *dbh
 	OCILobLocator   *locator
@@ -479,7 +497,7 @@ ora_lob_length(dbh, locator)
 	CODE:
 	OCILobGetLength_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &len, status);
 	if (status != OCI_SUCCESS) {
-		oci_error(dbh, imp_dbh->errhp, status, "OCILobGetLength");
+		oci_error(dbh, imp_dbh->errhp, status, "OCILobGetLength ora_lob_length");
 	ST(0) = &sv_undef;
 	}
 	else {

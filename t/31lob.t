@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
-use Test::More tests => 11;
+use Test::More tests => 12;
 use DBD::Oracle qw(:ora_types);
 use DBI;
 
@@ -102,6 +102,9 @@ sub have_v_session {
     ($loc) = $sth->fetchrow;
 
     is( ref $loc, "OCILobLocatorPtr", "returned valid locator" );
+
+    is( $dbh->ora_lob_is_init($loc), 1, "returned initialized locator" );
+  
 
     # write string > 32k
     $large_value = 'ABCD' x 10_000;
