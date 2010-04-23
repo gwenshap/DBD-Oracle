@@ -1,5 +1,7 @@
 =head1 Changes in DBD-Oracle 1.25(svn rev #####)
 
+  Added ora_lob_is_init function by John Scoles
+  Fix for rt.cpan.org Ticket #=55031 Ubuntu Server  Building with Oracle XE under 32-bit from Brian Candler 
   Fix for rt.cpan.org Ticket #=56810 bug with multiple nested cursor from John Scoles 
   Fix for Patch bug found only on Big-Endian hardware reported by Timothy Everett and others from Charles Jardine 
 

@@ -1056,6 +1056,7 @@ sub find_mkfile {
 	'proc16/lib/proc16.mk',
     );
     my @mk_oci32 = (
+    	'rdbms/demo/demo_xe.mk',
 	'rdbms/demo/demo_rdbms32.mk'
     );
     my @mk_oci64 = (
