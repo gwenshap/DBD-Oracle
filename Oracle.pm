@@ -702,6 +702,7 @@ SQL
 		SQL_DATETIME_SUB   => 16,
 		NUM_PREC_RADIX     => 17,
 		INTERVAL_PRECISION => 18,
+		
 	    },
 	    [ "LONG RAW",        SQL_LONGVARBINARY, 2147483647,"'",  "'",
 		undef,            1,0,0,undef,0,undef,
@@ -727,21 +728,16 @@ SQL
 	    [ "VARCHAR2",        SQL_VARCHAR,       $vc2len,   "'",  "'",
 		"max length",     1,1,3,undef,0,0,
 		"VARCHAR2",        undef,undef,SQL_VARCHAR,      undef,undef,undef, ],
-	];
-	push @$type_info_all,
-	    [ "BLOB",            SQL_LONGVARBINARY, 2147483647,"'",  "'",
+	    [ "BLOB",            SQL_BLOB, 2147483647,"'",  "'",
 		 undef,            1,1,0,undef,0,undef,
 		"BLOB",            undef,undef,SQL_LONGVARBINARY,undef,undef,undef, ],
-	    [ "BFILE",           SQL_LONGVARBINARY, 2147483647,"'",  "'",
+	    [ "BFILE",           -9114, 2147483647,"'",  "'",
 		undef,            1,1,0,undef,0,undef,
 		"BFILE",           undef,undef,SQL_LONGVARBINARY,undef,undef,undef, ],
-	    [ "CLOB",            SQL_LONGVARCHAR,   2147483647,"'",  "'",
+	    [ "CLOB",            SQL_CLOB,   2147483647,"'",  "'",
 		undef,            1,1,0,undef,0,undef,
 		"CLOB",            undef,undef,SQL_LONGVARCHAR,  undef,undef,undef, ],
-		
-	    if $version >= 8;
-		push @$type_info_all,
-		["TIMESTAMP WITH TIME ZONE",	# type name
+	    ["TIMESTAMP WITH TIME ZONE",	# type name
 			SQL_TYPE_TIMESTAMP_WITH_TIMEZONE,	# data type
 			40,		# column size
 			"TIMESTAMP'",	# literal prefix
@@ -760,8 +756,8 @@ SQL
 			5,		# sql datetime sub
 			undef,		# num prec radix
 			undef,		# interval precision
-		],
-		[ "INTERVAL DAY TO SECOND",	# type name	
+            ],
+	    [ "INTERVAL DAY TO SECOND",	# type name	
 			SQL_INTERVAL_DAY_TO_SECOND,	# data type
 			22,				# column size	'+00 11:12:10.222222200'
 			"INTERVAL'",	# literal prefix
@@ -800,9 +796,10 @@ SQL
 			7,		# sql datetime sub
 			undef,		# num prec radix
 			undef,		# interval precision
-		],
-		if $version >= 10;
-	return $type_info_all;
+		]
+	  ];
+	  
+	  return $type_info_all;
     }
 
     sub plsql_errstr {
