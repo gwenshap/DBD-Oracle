@@ -1,11 +1,14 @@
-=head1 Changes in DBD-Oracle 1.25(svn rev #####)
-  
+=head1 Changes in DBD-Oracle 1.25(svn rev )
+
   Patch for PL/SQL: numeric or value error: character string buffer too small from Scott T. Hildreth
   Fix for rt.cpan.org Ticket #=51594 type_info and type_info_all miss vital information from John Scoles
   Added ora_lob_is_init function by John Scoles
   Fix for rt.cpan.org Ticket #=55031 Ubuntu Server  Building with Oracle XE under 32-bit from Brian Candler 
   Fix for rt.cpan.org Ticket #=56810 bug with multiple nested cursor from John Scoles 
-  Fix for Patch bug found only on Big-Endian hardware reported by Timothy Everett and others from Charles Jardine 
+  Fix for bug found only on Big-Endian hardware reported by Timothy Everett and others from Charles Jardine 
+  Fix for memory leak when using prepared_cached and lobs reported by Mark Bobak and Martin Evans found and fixed by John Scoles
+
+  Added more entries to the Readmes from John Scoles
 
 =head1 Changes in DBD-Oracle 1.24(svn rev 13793)
 

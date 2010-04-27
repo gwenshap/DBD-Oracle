@@ -1439,7 +1439,9 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	D_imp_dbh_from_sth ;
 	sword status;
 	ub4 lobEmpty = 0;
-
+    if (phs->desc_h && phs->desc_t == OCI_DTYPE_LOB)
+		ora_free_templob(sth, imp_sth, (OCILobLocator*)phs->desc_h);
+		
 	if (!phs->desc_h) {
 		++imp_sth->has_lobs;
 		phs->desc_t = OCI_DTYPE_LOB;
