@@ -1,5 +1,6 @@
 =head1 Changes in DBD-Oracle 1.25(svn rev )
 
+  Fix for rt.cpan.org Ticket #=55445: get_info(28) SQL_IDENTIFIER_CASE seems to return the wrong value from Martin J Evans and a bunch of re jigging from John Scoles
   Patch for PL/SQL: numeric or value error: character string buffer too small from Scott T. Hildreth
   Fix for rt.cpan.org Ticket #=51594 type_info and type_info_all miss vital information from John Scoles
   Added ora_lob_is_init function by John Scoles
