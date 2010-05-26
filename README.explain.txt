@@ -7,9 +7,7 @@ DISCLAIMER & COPYRIGHT
 Copyright (c) 1998 Alan Burlison
 
 You may distribute under the terms of either the GNU General Public License
-or the Artistic License, as specified in the Perl README file, with the
-exception that it cannot be placed on a CD-ROM or similar media for commercial
-distribution without the prior approval of the author.
+or the Artistic License, as specified in the Perl README file.
 
 This code is provided with no warranty of any kind, and is used entirely at
 your own risk.
