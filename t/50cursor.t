@@ -1,0 +1,88 @@
+#!perl -w
+# From: Jeffrey Horn <horn@cs.wisc.edu>
+use Test::More;
+use DBI;
+use DBD::Oracle qw(ORA_RSET);
+use strict;
+
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
+
+$| = 1;
+
+my ($limit, $tests);
+
+my $dsn = oracle_test_dsn();
+my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
+my $dbh = DBI->connect($dsn, $dbuser, '', { PrintError => 0 });
+
+if ($dbh) {
+    # ORA-00900: invalid SQL statement
+    # ORA-06553: PLS-213: package STANDARD not accessible
+    my $tst = $dbh->prepare(
+        q{declare foo char(50); begin RAISE INVALID_NUMBER; end;});
+    if ($dbh->err && ($dbh->err==900 || $dbh->err==6553 || $dbh->err==600)) {
+        warn "Your Oracle server doesn't support PL/SQL" if $dbh->err== 900;
+        warn "Your Oracle PL/SQL is not properly installed"
+            if $dbh->err==6553||$dbh->err==600;
+        plan skip_all => 'server does not support pl/sql or not installed';
+    }
+
+    $limit = $dbh->selectrow_array(
+        q{SELECT value-2 FROM v$parameter WHERE name = 'open_cursors'});
+    # allow for our open and close cursor 'cursors'
+    $limit -= 2 if $limit && $limit >= 2;
+    unless (defined $limit) { # v$parameter open_cursors could be 0 :)
+        warn("Can't determine open_cursors from v\$parameter, so using default\n");
+        $limit = 1;
+    }
+    $limit = 100 if $limit > 100; # lets not be greedy or upset DBA's
+    $tests = 2 + 10 * $limit;
+
+    plan tests => $tests;
+
+    diag("Max cursors: $limit\n");
+} else {
+    plan skip_all => "Unable to connect to Oracle as $dbuser ($DBI::errstr)\n";
+}
+
+my @cursors;
+my @row;
+
+diag("opening cursors\n");
+my $open_cursor = $dbh->prepare( qq{
+	BEGIN OPEN :kursor FOR
+		SELECT * FROM all_objects WHERE rownum < 5;
+	END;
+} );
+ok($open_cursor, 'open cursor' );
+
+foreach ( 1 .. $limit ) {
+	diag("opening cursor $_\n");
+	ok( $open_cursor->bind_param_inout( ":kursor", \my $cursor, 0, { ora_type => ORA_RSET } ), 'open cursor bind param inout' );
+	ok( $open_cursor->execute, 'open cursor execute' );
+	ok(!$open_cursor->{Active}, 'open cursor Active');
+
+	ok($cursor->{Active}, 'cursor Active' );
+	ok($cursor->fetchrow_arrayref, 'cursor fetcharray');
+	ok($cursor->fetchrow_arrayref, 'cursor fetcharray');
+	ok($cursor->finish, 'cursor finish' );	# finish early
+	ok(!$cursor->{Active}, 'cursor not Active');
+
+	push @cursors, $cursor;
+}
+
+diag("closing cursors\n");
+my $close_cursor = $dbh->prepare( qq{ BEGIN CLOSE :kursor; END; } );
+ok($close_cursor, 'close cursor');
+foreach ( 1 .. @cursors ) {
+	print "closing cursor $_\n";
+	my $cursor = $cursors[$_-1];
+	ok($close_cursor->bind_param( ":kursor", $cursor, { ora_type => ORA_RSET }), 'close cursor bind param');
+	ok($close_cursor->execute, 'close cursor execute');
+}
+
+$dbh->disconnect;
+
+exit 0;
+
