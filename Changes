@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.24_01(svn rev 13790)
+=head1 Changes in DBD-Oracle 1.24_01(svn rev 14060)
 
   This release has been prepared specifivally for the 'Debian' http://www.debian.org project.  It contains no changes
   to functionality or usage.  The following has been changed
