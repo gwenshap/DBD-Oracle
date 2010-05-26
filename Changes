@@ -10,11 +10,18 @@
   Fix for memory leak when using prepared_cached and lobs reported by Mark Bobak and Martin Evans found and fixed by John Scoles
   Added more entries to the Readmes from John Scoles
   
-    The Copyright terms for ora_explain have changed and now read as follows:
-    You may distribute under the terms of either the GNU General Public
-    License or the Artistic License, as specified in the Perl README file.
+=head1 Changes in DBD-Oracle 1.24_01(svn rev 14060)
 
-
+  This release has been prepared specifically for the 'Debian' http://www.debian.org project.  It contains no changes
+  to functionality or usage.  The following has been changed
+  
+  Fixed some formatting and typos in Pod from Julián Patiño
+  
+  The Copyright terms for ora_explain have changed and now read as follows:
+  
+  You may distribute under the terms of either the GNU General Public
+  License or the Artistic License, as specified in the Perl README file.
+  
 =head1 Changes in DBD-Oracle 1.24(svn rev 13793)
 
   Extended precision for OCIDateTimeToText to 6 instead of 0 for embedded types from John Scoles

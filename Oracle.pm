@@ -702,7 +702,6 @@ SQL
 		SQL_DATETIME_SUB   => 16,
 		NUM_PREC_RADIX     => 17,
 		INTERVAL_PRECISION => 18,
-		
 	    },
 	    [ "LONG RAW",        SQL_LONGVARBINARY, 2147483647,"'",  "'",
 		undef,            1,0,0,undef,0,undef,
@@ -737,7 +736,7 @@ SQL
 	    [ "CLOB",            SQL_CLOB,   2147483647,"'",  "'",
 		undef,            1,1,0,undef,0,undef,
 		"CLOB",            undef,undef,SQL_LONGVARCHAR,  undef,undef,undef, ],
-	    ["TIMESTAMP WITH TIME ZONE",	# type name
+		["TIMESTAMP WITH TIME ZONE",	# type name
 			SQL_TYPE_TIMESTAMP_WITH_TIMEZONE,	# data type
 			40,		# column size
 			"TIMESTAMP'",	# literal prefix
@@ -756,8 +755,8 @@ SQL
 			5,		# sql datetime sub
 			undef,		# num prec radix
 			undef,		# interval precision
-            ],
-	    [ "INTERVAL DAY TO SECOND",	# type name	
+		],
+		[ "INTERVAL DAY TO SECOND",	# type name	
 			SQL_INTERVAL_DAY_TO_SECOND,	# data type
 			22,				# column size	'+00 11:12:10.222222200'
 			"INTERVAL'",	# literal prefix
@@ -799,7 +798,7 @@ SQL
 		]
 	  ];
 	  
-	  return $type_info_all;
+	return $type_info_all;
     }
 
     sub plsql_errstr {
@@ -1470,7 +1469,8 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 =item :ora_exe_modes
 
   OCI_STMT_SCROLLABLE_READONLY 
-
+  
+=back
 
 =head1 Attributes
 
@@ -1482,7 +1482,7 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 
 You can now customize the size of the buffer when selecting LOBs with
 the built in AUTO Lob.  The default value is 4 which should is actully exessive 
-for most situations but is needed for backward compatibilty. 
+for most situations but is needed for backward compatibility. 
 If you not converting between a NCS on the DB and the Client then you might 
 want to set this to 1 to free up memory.  
 
@@ -1874,6 +1874,8 @@ TABLE OF ... .
 Specify internal data representation. Currently is supported only for
 ORA_NUMBER_TABLE.
 
+=back
+
 =head1 Optimizing Results
 
 =head2 Prepare postponed till execute
@@ -1911,7 +1913,7 @@ The default value is 0, which means that memory size is not included in computin
 the C<RowCacheSize> value is set to a negative number then the positive value of RowCacheSize is used 
 to compute the number of rows to prefetch.
 
-By default C<RowCacheSize> is automaticaly set. If you want to totaly turn off prefetching set this to 1.
+By default C<RowCacheSize> is automatically set. If you want to totaly turn off prefetching set this to 1.
 
 For any SQL statment that contains a LOB, Long or Object Type Row Caching will be turned off. However server side 
 caching still works.  If you are only selecting a LOB Locator then Row Caching will still work.
@@ -1941,8 +1943,6 @@ If one requires only the first few rows there is no need to set a large prefetch
 If the ora_prefetch_memory less than 1 or not present then memory size is not included in computing the 
 number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
 is not included in the computing of the prefetch rows.  
-
-=back
 
 =head1 Spaces & Padding
 
@@ -2856,7 +2856,11 @@ $refresh parameter to it.
 
 3 = Both character sets are Unicode encodings.
 
+=back
+
 =head1 Private statement handle functions
+
+=over
 
 =item ora_stmt_type
 
@@ -2906,6 +2910,8 @@ non-scrolling cursor. As well scrollable cursors are compatible with any applica
 =head2 Scrollable Cursor Methods
 
 The following driver-specific methods are used with scrollable cursors.
+
+=over
 
 =item ora_scroll_position
 
@@ -2968,6 +2974,8 @@ The effects of the differing orientation constants on the first fetch (current_p
   OCI_FETCH_RELATIVE, and a fetch offset value that is less than 1 is equivalent to a OCI_FETCH_CURRENT.
   OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, is equivalent to a OCI_FETCH_CURRENT.
 
+=back
+
 =head2 Scrollable Cursor Usage
 
 Given a simple code like this:
@@ -2985,6 +2993,8 @@ Given a simple code like this:
 
 and one assumes that the number of rows returned from the query is 20, the code snippets below will illustrate the use of ora_fetch_scroll
 method;
+
+=over
 
 =item Fetching the Last Row
 
@@ -3082,6 +3092,8 @@ The current_positon attribute will be 6 after this snippet.
 When using scrollable cursors it is required that you use the $sth->finish() method when you are done with the cursor as this type of
 cursor has to be explicitly canceled on the server. If you do not do this you may cause resource problems on your database.  
 
+=back
+
 =head1 LOBs and LONGs
 
 The key to working with LOBs (CLOB, BLOBs) is to remember the value of an Oracle LOB column is not the content of the LOB. It's a
@@ -3090,6 +3102,8 @@ which are presently deprecated by Oracle but are still in use.  These LONG types
 functionality than CLOB or BLOB fields. 
 
 DBD::Oracle now offers three interfaces to LOB and LONG data, 
+
+=over
 
 =item L</Data Interface for Persistent LOBs>
 
@@ -3106,10 +3120,12 @@ This allows the user direct access to the LOB Locator methods, so you have to ta
 
 =back 
 
-Generally speaking the interface that you will chose will be dependant on what end you are trying to achieve. All have their benefits and 
+Generally speaking the interface that you will chose will be dependent on what end you are trying to achieve. All have their benefits and 
 drawbacks.
 
 One point to remember when working with LOBs (CLOBs, BLOBs) is if your LOB column can be in one of three states;
+
+=over
 
 =item NULL
 
@@ -3134,6 +3150,8 @@ A LOB instance with a locator exists in the cell, but it has no value. The lengt
 
 A LOB instance with a locator and a value exists in the cell. You actually get the LOB value.
 
+=back
+
 =head2 Data Interface for Persistent LOBs
 
 This is the original interface for LONG and LONG RAW datatypes and from Oracle 9iR1 and later the OCI API was extended to work directly with the other LOB datatypes. 
@@ -3146,7 +3164,7 @@ used, normally one can get an entire LOB is a single round trip.
 As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LONG data types as a single large piece. 
 There are no special settings, simply set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LONG or LONG RAW.
 If the size of the LONG or LONG RAW exceeds  the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
-The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on.  You have most likely reached this limit if you run into
+The maximum value of 'LongReadLen' seems to be dependent on the physical memory limits of the box that Oracle is running on.  You have most likely reached this limit if you run into
 an 'ORA-01062: unable to allocate memory for define buffer' error.  One solution is to set the size of 'LongReadLen' to a lower value. 
 
 For example give this table;
@@ -3175,7 +3193,7 @@ before the execute will return all the long1 fields but they will be truncated a
 =head3 Using ora_ncs_buff_mtpl
 
 When getting CLOBs and NCLOBs in or out of Oracle, the Server will translate from the Server's NCharSet to the
-Client's. If they happen to be the same or at least compatable then all of these actions are a 1 char to 1 char bases. 
+Client's. If they happen to be the same or at least compatible then all of these actions are a 1 char to 1 char bases. 
 Thus if you set your LongReadLen buffer to 10_000_000 you will get up to 10_000_000 char. 
 
 However if the Server has to translate from one NCharSet to another it will use bytes for conversion. The buffer 
@@ -3211,7 +3229,7 @@ In the case above the query Got 28 characters (well really only 20 characters of
 To use this interface for CLOBs and LOBs datatypes set the 'ora_pers_lob' attribute of the statement handle to '1' with the prepare method, as well
 set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LOB. If the size of the LOB exceeds 
 the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
-The maximum value of 'LongReadLen' seems to be dependant on the physical memory limits of the box that Oracle is running on in the same way that LONGs and LONG RAWs are. 
+The maximum value of 'LongReadLen' seems to be dependent on the physical memory limits of the box that Oracle is running on in the same way that LONGs and LONG RAWs are. 
 
 For CLOBs and NCLOBs the limit is 64k chars if there is no truncation, this is an internal OCI limit complain to them if you want it changed.  However if you CLOB is longer than this
 and also larger than the 'LongReadLen' than the 'LongReadLen' in chars is returned.
@@ -3254,7 +3272,7 @@ you want to return on the callback. Finally set the database handle's 'LongReadL
 size of the LOB. Like the L</Simple Fetch for LONGs and LONG RAWs> and L</Simple Fetch for CLOBs and BLOBs> the if the size of the LOB exceeds the is 'LongReadLen' you can use the 'LongTruncOk' attribute to truncate the LOB 
 or set the 'LongReadLen' to a higher value.  With this interface the value of 'ora_piece_size' seems to be constrained by the same memory limit as found on 
 the Simple Fetch interface. If you encounter an 'ORA-01062' error try setting the value of 'ora_piece_size' to a smaller value.   The value for 'LongReadLen' is 
-dependant on the version and settings of the Oracle DB you are using. In theory it ranges from 8GBs
+dependent on the version and settings of the Oracle DB you are using. In theory it ranges from 8GBs
 in 9iR1 up to 128 terabytes with 11g but you will also be limited by the physical memory of your PERL instance.
 
 Using the table from the last example this code;
@@ -3435,9 +3453,8 @@ so the following returns an error:
 
 =head3 Simple Usage
 
-When fetching LOBs with this interface a 'LOB Locator' is created then used to get the lob up dependant on the settings of
-LongReadLen and LongTruncOk attributes.  The value for 'LongReadLen' is 
-dependant on the version and settings of the Oracle DB you are using. In theory it ranges from 8GBs
+When fetching LOBs with this interface a 'LOB Locator' is created then used to get the lob with the LongReadLen and LongTruncOk attributes.  
+The value for 'LongReadLen' is dependent on the version and settings of the Oracle DB you are using. In theory it ranges from 8GBs
 in 9iR1 up to 128 terabytes with 11g but you will also be limited by the physical memory of your PERL instance.
 
 When inserting or updating LOBs some I<major> magic has to be performed
