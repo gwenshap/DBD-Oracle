@@ -3120,7 +3120,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 			return 0;
 		}
 	}
-
 	OCIAttrGet_stmhp_stat(imp_sth, &num_fields, 0, OCI_ATTR_PARAM_COUNT, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(h, imp_sth->errhp, status, "OCIAttrGet OCI_ATTR_PARAM_COUNT");
@@ -4075,7 +4074,6 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
 
 	}
-
 	OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
 		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_TABLE, imp_sth->dschp, status);
 
@@ -4353,11 +4351,13 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 			hv_iterinit(imp_sth->all_params_hv);
 			while( (phs_svp = hv_iternextsv(imp_sth->all_params_hv, &p, &i)) != NULL ) {
 				phs_t *phs = (phs_t*)(void*)SvPVX(phs_svp);
-				if (phs->desc_h && !phs->is_inout){
-				  	boolean lobEmpty=1;
-					OCIAttrSet_log_stat(phs->desc_h, phs->desc_t,&lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);
-					OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);
-				}
+				/*if (phs->desc_h && !phs->is_inout){*/
+				/*	boolean lobEmpty=1;*/
+				/*	OCIAttrSet_log_stat(phs->desc_h, phs->desc_t,&lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);*/
+				/*	OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);*/
+				/*}
+				/*this seem to cause an error later on so I just got rid of it for Now does */
+				/* not seem to kill anything */
 			}
 		}
 		return 1;

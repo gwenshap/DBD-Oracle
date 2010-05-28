@@ -3495,12 +3495,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 			}
 			/* Do OCI bind calls on last iteration. */
 			if( ((unsigned int) j ) == exe_count - 1 ) {
-
-				if(!do_bind_array_exec(sth, imp_sth, phs[i], utf8_flgs[i],i,tuples_utf8_av,tuples_status_av)) {
-					Safefree(phs);
-					Safefree(utf8_flgs);
-					/*Safefree(tuples_utf8_av);*/
-				}
+				do_bind_array_exec(sth, imp_sth, phs[i], utf8_flgs[i],i,tuples_utf8_av,tuples_status_av);
 			}
 		}
 	}
