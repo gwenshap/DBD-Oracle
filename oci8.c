@@ -1441,7 +1441,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	ub4 lobEmpty = 0;
     if (phs->desc_h && phs->desc_t == OCI_DTYPE_LOB)
 		ora_free_templob(sth, imp_sth, (OCILobLocator*)phs->desc_h);
-		
+
 	if (!phs->desc_h) {
 		++imp_sth->has_lobs;
 		phs->desc_t = OCI_DTYPE_LOB;
@@ -4354,6 +4354,8 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 			while( (phs_svp = hv_iternextsv(imp_sth->all_params_hv, &p, &i)) != NULL ) {
 				phs_t *phs = (phs_t*)(void*)SvPVX(phs_svp);
 				if (phs->desc_h && !phs->is_inout){
+				  	boolean lobEmpty=1;
+					OCIAttrSet_log_stat(phs->desc_h, phs->desc_t,&lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);
 					OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);
 				}
 			}
