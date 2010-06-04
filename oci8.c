@@ -4351,11 +4351,17 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 			hv_iterinit(imp_sth->all_params_hv);
 			while( (phs_svp = hv_iternextsv(imp_sth->all_params_hv, &p, &i)) != NULL ) {
 				phs_t *phs = (phs_t*)(void*)SvPVX(phs_svp);
-				/*if (phs->desc_h && !phs->is_inout){*/
+
+
+
+				if (phs->desc_h && !phs->is_inout){
+						OCILobFreeTemporary_log_stat(imp_sth->svchp, imp_sth->errhp, phs->desc_h, status);
+
+
 				/*	boolean lobEmpty=1;*/
 				/*	OCIAttrSet_log_stat(phs->desc_h, phs->desc_t,&lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);*/
 				/*	OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);*/
-				/*}
+				}
 				/*this seem to cause an error later on so I just got rid of it for Now does */
 				/* not seem to kill anything */
 			}
