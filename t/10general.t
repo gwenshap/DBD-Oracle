@@ -20,7 +20,10 @@ diag('Test preparsing, Active, NLS_NUMERIC_CHARACTERS, err, ping and OCI version
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect($dsn, $dbuser, '');
+$dbh->{dbd_verbose}=15;
+warn ("ping=".$dbh->ping());
 
+exit;
 unless($dbh) {
     BAIL_OUT("Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n");
     exit 0;

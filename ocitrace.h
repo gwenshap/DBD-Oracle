@@ -36,13 +36,21 @@
 	If done well the log will read like a compilable program.
 */
 
-
+#if defined(ORA_OCI_102)
+#define OCIPing_log_stat(sc,errhp,stat)\
+	stat =OCIPing(sc,errhp,OCI_DEFAULT);\
+	(DBD_OCI_TRACEON) \
+			? PerlIO_printf(DBD_OCI_TRACEFP,\
+				 "%sOCIPing(%p)=%s\n",\
+				 OciTp, sc,oci_status_name(stat)),stat \
+	: stat
+#endif
 
 #define OCIServerVersion_log_stat(sc,errhp,b,bl,ht,stat)\
 	stat =OCIServerVersion(sc,errhp,b,bl,ht);\
 	(DBD_OCI_TRACEON) \
 			? PerlIO_printf(DBD_OCI_TRACEFP,\
-				 "%sCIServerVersion_log_stat(%p,%s)=%s\n",\
+				 "%sOCIServerVersion_log_stat(%p,%s)=%s\n",\
 				 OciTp, sc,b,oci_status_name(stat)),stat \
 	: stat
 

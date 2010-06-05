@@ -131,7 +131,7 @@ $OH =~ s:/$::;
 
 if (!$OH) {
   $OH = find_oracle_home() || die qq{
-      The $ORACLE_ENV environment variable is not set and I couldn't guess it.
+      The $ORACLE_ENV environment variable is not set and I couldn\'t guess it.
       It must be set to hold the path to an Oracle installation directory
       on this machine (or a machine with a compatible architecture).
       See the appropriate README file for your OS for more information.
@@ -162,8 +162,8 @@ print "Using Oracle in $OH\n";
 # $client_version => Major.Minor, $client_version_full => Major.Minor.X.Y.Z
 my ($client_version, $client_version_full) = get_client_version($::opt_V);
 
-die "DBD::Oracle no longer supports Oracle versions before 8.\n"
-    if $client_version < 8;
+die "DBD::Oracle no longer supports Oracle client versions before 9.\n Try any version before 1.20"
+    if $client_version < 9;
 
 
 # Check for symbol table problem in libclntsh.dylib.9.0 on MacOS X
@@ -671,9 +671,14 @@ $opts{DEFINE} .= ($os ne 'VMS')
 # use this if, for some reason the default handling for this function
 # doesn't work or you are building a binary release for distribution
 # to machines with older client libraries.
-$opts{DEFINE} .= " -DORA_OCI_8" if ($::opt_V && $client_version == 8.0)
-				or ($^O eq 'VMS' && $client_version < 9.0); # OCILobIsTemporary
 
+
+print "\nclient_version=$client_version\n\n";
+
+$opts{DEFINE} .= " -DORA_OCI_102" if ($::opt_V && $client_version == 10.2)
+				or ( $client_version >= 10.2); # OCILobIsTemporary
+
+print "\DEFINE=$opts{DEFINE}\n\n";
 # OCIStmntFetch2() is a feature of OCI 9.0.0
 $opts{DEFINE} .= " -DUSE_ORA_OCI_STMNT_FETCH " if ( $client_version < 9.0 );
  
@@ -1601,7 +1606,7 @@ sub get_client_version {
     if (!$client_version_full) {
 	$client_version_full = "8.0.0.0";
         print qq{
-WARNING: I could not determine Oracle client version so I'll just
+WARNING: I could not determine Oracle client version so I\'ll just
 default to version $client_version_full. Some features of DBD::Oracle may not work.
 Oracle version based logic in Makefile.PL may produce erroneous results.
 You can use "perl Makefile.PL -V X.Y.Z" to specify a your client version.\n
