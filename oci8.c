@@ -832,7 +832,7 @@ oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags)
 {
 	dTHX;
 	 switch(handle_type) {
-	 	case OCI_HTYPE_ENV:	return imp_dbh->envhp;
+	 	case OCI_HTYPE_ENV:		return imp_dbh->envhp;
 	 	case OCI_HTYPE_ERROR:	return imp_dbh->errhp;
 	 	case OCI_HTYPE_SERVER:	return imp_dbh->srvhp;
 	 	case OCI_HTYPE_SVCCTX:	return imp_dbh->svchp;

@@ -39,6 +39,7 @@ struct imp_dbh_st {
 	OCIServer 	*srvhp;
 	OCISvcCtx 	*svchp;
 	OCISession	*authp;
+	OCICPool    *poolhp;
 	int proc_handles;		   /* If true, srvhp, svchp, and authp handles
 								   are owned by ProC and must not be freed. */
 	int RowCacheSize; /* both of these are defined by DBI spec*/

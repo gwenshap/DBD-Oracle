@@ -21,9 +21,8 @@
 #include "Oracle.h"
 
 #if defined(CAN_USE_PRO_C)
-/* #include <sql2oci.h>	  for SQL_SINGLE_RCTX but causes clashes */
+#include <sql2oci.h>	  for SQL_SINGLE_RCTX but causes clashes */
 #if !defined(SQL_SINGLE_RCTX)
-/* http://download-west.oracle.com/docs/cd/B10501_01/appdev.920/a97269/pc_01int.htm#1174 */
 #define SQL_SINGLE_RCTX (dvoid *)0 /* from precomp/public/sqlcpr.h */
 #endif
 #endif
@@ -780,43 +779,53 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				ub4  cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
 				SV **sess_mode_type_sv;
 				ub4  sess_mode_type = OCI_DEFAULT;
+				 char poolname;			/* session pool name */
+									ub4 poolnamelen;	/* length of session pool name*/
+									char dbname ='xe';
+					ub4 dbname_len=2;
 				DBD_ATTRIB_GET_IV(attr, "ora_session_mode",16, sess_mode_type_sv, sess_mode_type);
-/*#ifdef ORA_OCI_112
+#ifdef ORA_OCI_112
 				if (sess_mode_type == OCI_DEFAULT) {
-					OCISPool drcp_pool;
-					OraText  *poolname;			/* session pool name
-					unsigned int poolnamelen;	/* length of session pool name
-					OraText dbname ='xe';
-					unsigned int *dbname_len=2;
-					OCISessionPoolCreate_log_stat(imp_dbh->envhp,imp_dbh->errhp,drcp_pool,&poolname,&poolnamelen,&dbname,&dbname_len,5,500,4,status);
-				    PerlIO_printf(DBILOGFP, "hi mom\n");
 
+					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->poolhp, OCI_HTYPE_CPOOL, status);
+
+					OCISessionPoolCreate_log_stat(imp_dbh->envhp,imp_dbh->errhp,imp_dbh->poolhp,&poolname,&poolnamelen,&dbname,&dbname_len,5,500,4,status);
+
+                    if (status != OCI_SUCCESS) {
+						oci_error(dbh, imp_dbh->errhp, status, "OCISessionPoolCreate");
+						OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
+						OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
+						OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+						OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+						OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+						return 0;
+					}
 				}
 				else {
-#endif*/
-				OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,cred_type, sess_mode_type, status);
-/*#ifdef ORA_OCI_112
+#endif
+					OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,cred_type, sess_mode_type, status);
+					if (status == OCI_SUCCESS_WITH_INFO) {
+						/* eg ORA-28011: the account will expire soon; change your password now */
+						oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
+						status = OCI_SUCCESS;
+					}
+					if (status != OCI_SUCCESS) {
+						oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
+						OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
+						OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
+						OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+						OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+						OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+						return 0;
+					}
+
+					OCIAttrSet_log_stat(imp_dbh->svchp, (ub4) OCI_HTYPE_SVCCTX,
+								imp_dbh->authp, (ub4) 0,(ub4) OCI_ATTR_SESSION, imp_dbh->errhp, status);
+#ifdef ORA_OCI_112
 				}
-#endif*/
-			}
-			if (status == OCI_SUCCESS_WITH_INFO) {
-			/* eg ORA-28011: the account will expire soon; change your password now */
-				oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
-				status = OCI_SUCCESS;
-			}
-			if (status != OCI_SUCCESS) {
-				oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
-				OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
-				OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
-				OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
-				OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
-				OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
-				return 0;
+#endif
 			}
 
-			OCIAttrSet_log_stat(imp_dbh->svchp, (ub4) OCI_HTYPE_SVCCTX,
-				imp_dbh->authp, (ub4) 0,
-				(ub4) OCI_ATTR_SESSION, imp_dbh->errhp, status);
 #if defined(CAN_USE_PRO_C)
 		} /* use_proc_connection */
 #endif
