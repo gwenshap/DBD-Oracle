@@ -269,7 +269,7 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
       Please install OCI or send comments back to dbi-users\@perl.org
       if you have an OCI directory other than $OCIDIR.  
 
-      Alternatively, if you're using ActiveState perl on Windows try
+      Alternatively, if you\'re using ActiveState perl on Windows try
         ppm install ftp://ftp.esoftmatic.com/outgoing/DBI/5.8.3/DBI.ppd
         ppm install ftp://ftp.esoftmatic.com/outgoing/DBI/5.8.3/DBD-Oracle.ppd
   
@@ -657,12 +657,19 @@ $opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{gccversion};
 
 $opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
 
-$opts{DEFINE} .= ' -DCAN_USE_PRO_C' if $::opt_ProC;
+if ($::opt_ProC) {
+	$opts{DEFINE} .= ' -DCAN_USE_PRO_C' ;
+	print "Seems you want to use ProC connections. Both the Instant Clients and Oracle XE client may not work!!\n\n";
+}
+
+	
+
+
 
 $opts{DEFINE} .= ' -DUTF8_SUPPORT' if ($] >= 5.006);
 
 # Use OCIEnvNlsCreate if available for best unicode behaviour
-$opts{DEFINE} .= ' -DNEW_OCI_INIT' if $client_version >= 9.2;
+#$opts{DEFINE} .= ' -DNEW_OCI_INIT' if $client_version >= 9.2;
 $opts{DEFINE} .= ($os ne 'VMS')
 	? " -DORA_OCI_VERSION=\\\"$client_version_full\\\""
 	: " -DORA_OCI_VERSION=\"$client_version_full\"";
@@ -676,7 +683,10 @@ $opts{DEFINE} .= ($os ne 'VMS')
 print "\nclient_version=$client_version\n\n";
 
 $opts{DEFINE} .= " -DORA_OCI_102" if ($::opt_V && $client_version == 10.2)
-				or ( $client_version >= 10.2); # OCILobIsTemporary
+				or ( $client_version >= 10.2); 
+
+$opts{DEFINE} .= " -DORA_OCI_112" if ($::opt_V && $client_version == 11.2)
+				or ( $client_version >= 11.2); 
 
 print "\DEFINE=$opts{DEFINE}\n\n";
 # OCIStmntFetch2() is a feature of OCI 9.0.0

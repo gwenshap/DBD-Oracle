@@ -366,17 +366,26 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	SV **svp;
 	shared_sv * shared_dbh_ssv = NULL ;
 	imp_dbh_t * shared_dbh	 = NULL ;
+    D_imp_drh_from_dbh;
+	ub2 new_charsetid = 0;
+	ub2 new_ncharsetid = 0;
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
 	SV **	shared_dbh_priv_svp ;
 	SV *	shared_dbh_priv_sv ;
 	STRLEN	shared_dbh_len  = 0 ;
 #endif
+#if defined(CAN_USE_PRO_C)
 	struct OCIExtProcContext *this_ctx;
 	ub4 use_proc_connection = 0;
 	SV **use_proc_connection_sv;
-	D_imp_drh_from_dbh;
-	ub2 new_charsetid = 0;
-	ub2 new_ncharsetid = 0;
+
+ /* Check if we should re-use a ProC connection and not connect ourselves. */
+	DBD_ATTRIB_GET_IV(attr, "ora_use_proc_connection", 23,
+			use_proc_connection_sv, use_proc_connection);
+#else /*CAN_USE_PRO_C*/
+    if (DBD_ATTRIB_TRUE(attr,"ora_use_proc_connection",23,svp))
+      	croak ("You can only use a ProC connection, if your DBD::Oracle was built with the -ProC on the Makefile.PL") ;
+#endif /*CAN_USE_PRO_C*/
 	/* check to see if DBD_verbose or ora_verbose is set*/
 	if (DBD_ATTRIB_TRUE(attr,"dbd_verbose",11,svp))
 		DBD_ATTRIB_GET_IV(  attr, "dbd_verbose",  11, svp, dbd_verbose);
@@ -384,10 +393,19 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		DBD_ATTRIB_GET_IV(  attr, "ora_verbose",  11, svp, dbd_verbose);
 
 
+	/* check to see if success_warn is set. This will */
+	/* warn after some sucessfull operations for tuning results */
 	if (DBD_ATTRIB_TRUE(attr,"ora_oci_success_warn",20,svp))
 		DBD_ATTRIB_GET_IV(  attr, "ora_oci_success_warn",  20, svp, oci_warn);
+
+	/* check to see if ora_objects set*/
+	/* with this set any embedded types will go into a DBD::Oracle::Object */
+	/* rather than just an ref array */
 	if (DBD_ATTRIB_TRUE(attr,"ora_objects",11,svp))
 		DBD_ATTRIB_GET_IV(  attr, "ora_objects",11, svp, ora_objects);
+
+	if (DBIS->debug >= 6 || dbd_verbose >= 6 )
+		dump_env_to_trace();
 
 	/* dbi_imp_data code adapted from DBD::mysql */
 	if (DBIc_has(imp_dbh, DBIcf_IMPSET)) {
@@ -404,6 +422,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			PerlIO_printf(DBILOGFP,
 				"dbd_db_login6 IMPSET but not ACTIVE so connect not skipped\n");
 	}
+
 	imp_dbh->envhp = imp_drh->envhp;	/* will be NULL on first connect */
 
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
@@ -446,20 +465,13 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	}
 #endif
 
-	/* Check if we should re-use a ProC connection and not connect ourselves. */
-
-	DBD_ATTRIB_GET_IV(attr, "ora_use_proc_connection", 23,
-			use_proc_connection_sv, use_proc_connection);
-
 	imp_dbh->get_oci_handle = oci_db_handle;
-
-	if (DBIS->debug >= 6 || dbd_verbose >= 6 )
-		dump_env_to_trace();
 
 	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_envhp", 9)) && SvOK(*svp)) {
 		if (!SvTRUE(*svp)) {
 			imp_dbh->envhp = NULL; /* force new environment */
 		}
+#if defined(CAN_USE_PRO_C)
 		else {
 			IV tmp;
 			if (!sv_isa(*svp, "ExtProc::OCIEnvHandle"))
@@ -467,8 +479,9 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			tmp = SvIV((SV*)SvRV(*svp));
 			imp_dbh->envhp = (struct OCIEnv *)tmp;
 		}
+#endif /*CAN_USE_PRO_C*/
 	}
-
+#if defined(CAN_USE_PRO_C)
 	/* "extproc" dbname is special if "ora_context" attribute also given */
 	if (strEQ(dbname,"extproc") && (svp=DBD_ATTRIB_GET_SVP(attr, "ora_context", 11))) {
 		IV tmp;
@@ -508,7 +521,11 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		goto dbd_db_login6_out;
 	}
 
-	if (!imp_dbh->envhp || is_extproc) {
+	if (!imp_dbh->envhp || is_extproc)
+#else /*CAN_USE_PRO_C*/
+    if (!imp_dbh->envhp )
+#endif
+    {
 		SV **init_mode_sv;
 		ub4 init_mode = OCI_OBJECT;	/* needed for LOBs (8.0.4)	*/
 		DBD_ATTRIB_GET_IV(attr, "ora_init_mode",13, init_mode_sv, init_mode);
@@ -517,6 +534,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		init_mode |= OCI_THREADED;
 #endif
 
+#if defined(CAN_USE_PRO_C)
 		if (use_proc_connection) {
 			char *err_hint = Nullch;
 #ifdef SQL_SINGLE_RCTX
@@ -535,13 +553,11 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				return 0;
 			}
 		}
-		else {		/* Normal connect. */
-
+		else 		/* Normal connect. */
+#endif /*CAN_USE_PRO_C*/
+			{
 			size_t rsize = 0;
 			imp_dbh->proc_handles = 0;
-
-#ifdef NEW_OCI_INIT	/* XXX needs merging into use_proc_connection branch */
-
 			/* Get CLIENT char and nchar charset id values */
 			OCINlsEnvironmentVariableGet_log_stat( &charsetid,(size_t) 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
 			if (status != OCI_SUCCESS) {
@@ -557,28 +573,29 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				return 0;
 			}
 
-		/*{
-		After using OCIEnvNlsCreate() to create the environment handle,
-		**the actual lengths and returned lengths of bind and define handles are
-		always in number of bytes**. This applies to the following calls:
+			/*{
+			After using OCIEnvNlsCreate() to create the environment handle,
+			**the actual lengths and returned lengths of bind and define handles are
+			always in number of bytes**. This applies to the following calls:
 
-		* OCIBindByName()   * OCIBindByPos()	  * OCIBindDynamic()
-		* OCIDefineByPos()  * OCIDefineDynamic()
+			* OCIBindByName()   * OCIBindByPos()	  * OCIBindDynamic()
+			* OCIDefineByPos()  * OCIDefineDynamic()
 
-		This function enables you to set charset and ncharset ids at
-		environment creation time. [...]
+			This function enables you to set charset and ncharset ids at
+			environment creation time. [...]
 
-		This function sets nonzero charset and ncharset as client side
-		database and national character sets, replacing the ones specified
-		by NLS_LANG and NLS_NCHAR. When charset and ncharset are 0, it
-		behaves exactly the same as OCIEnvCreate(). Specifically, charset
-		controls the encoding for metadata and data with implicit form
-		attribute and ncharset controls the encoding for data with SQLCS_NCHAR
-		form attribute.
-		}*/
+			This function sets nonzero charset and ncharset as client side
+			database and national character sets, replacing the ones specified
+			by NLS_LANG and NLS_NCHAR. When charset and ncharset are 0, it
+			behaves exactly the same as OCIEnvCreate(). Specifically, charset
+			controls the encoding for metadata and data with implicit form
+			attribute and ncharset controls the encoding for data with SQLCS_NCHAR
+			form attribute.
+			}*/
 
 			OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
-			charsetid, ncharsetid, status );
+				charsetid, ncharsetid, status );
+
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, NULL, status,
 					"OCIEnvNlsCreate. Check ORACLE_HOME (Linux) env var  or PATH (Windows) and or NLS settings, permissions, etc.");
@@ -625,34 +642,16 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			}
 
 			/* update the hard-coded csid constants for unicode charsets */
-			utf8_csid	  = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"UTF8");
+			utf8_csid	   = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"UTF8");
 			al32utf8_csid  = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"AL32UTF8");
 			al16utf16_csid = OCINlsCharSetNameToId(imp_dbh->envhp, (void*)"AL16UTF16");
-
-#else /* (the old init code) NEW_OCI_INIT */
-		/* this is now depricated and will be removed as we no longer support <9.2 oracle*/
-		/* XXX recent oracle docs recommend using OCIEnvCreate() instead of	*/
-		/* OCIInitialize + OCIEnvInit, we'd need ifdef's for pre-OCIEnvNlsCreate */
-			OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
-
-
-			if (status != OCI_SUCCESS) {
-				oci_error(dbh, NULL, status,
-				"OCIInitialize. Check Check ORACLE_HOME (Linux) env var  or PATH (Windows) and or NLS settings, permissions, etc");
-				return 0;
-			}
-
-			OCIEnvInit_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, 0, status);
-			if (status != OCI_SUCCESS) {
-				oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCIEnvInit");
-				return 0;
-			}
-#endif /* NEW_OCI_INIT */
 		}
+
 	}
 
 	if (shared_dbh_ssv) { /*is this a cached or shared handle from DBI*/
 		if (!imp_dbh->envhp) { /*no hande so create a new one*/
+#if defined(CAN_USE_PRO_C)
 			if (use_proc_connection) {
 				char *err_hint = Nullch;
 #ifdef SQL_SINGLE_RCTX
@@ -665,43 +664,47 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				if (status != SQL_SUCCESS) {
 					if (!err_hint)
 						err_hint = "SQLEnvGet failed to load ProC environment";
-					oci_error(dbh, (OCIError*)imp_dbh->envhp, status, err_hint);
-					return 0;
-				}
+						oci_error(dbh, (OCIError*)imp_dbh->envhp, status, err_hint);
+						return 0;
+					}
 			}
 			else {
+#endif
 				OCIEnvInit_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, 0, status);
 				imp_dbh->proc_handles = 0;
 				if (status != OCI_SUCCESS) {
 					oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCIEnvInit");
 					return 0;
 				}
+#if defined(CAN_USE_PRO_C)
 			}
+#endif
 		}
 	}
+
 	OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
-
-#ifndef NEW_OCI_INIT /* have to get charsetid & ncharsetid the old way this code should go as well as it is for <9.2 oracle*/
-
 	OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &charsetid, (ub4)0 ,
 			OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
+
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet OCI_ATTR_ENV_CHARSET_ID");
 		return 0;
 	}
+
 	OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &ncharsetid, (ub4)0 ,
 			OCI_ATTR_ENV_NCHARSET_ID, imp_dbh->errhp, status);
+
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet OCI_ATTR_ENV_NCHARSET_ID");
 		return 0;
 	}
-#endif
 
 	/* At this point we have charsetid & ncharsetid
 	*  note that it is possible for charsetid and ncharestid to
 	*  be distinct if NLS_LANG and NLS_NCHAR are both used.
 	*  BTW: NLS_NCHAR is set as follows: NSL_LANG=AL32UTF8
 	*/
+
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 ) {
 		oratext  charsetname[OCI_NLS_MAXBUFSZ];
 		oratext  ncharsetname[OCI_NLS_MAXBUFSZ];
@@ -710,10 +713,15 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		PerlIO_printf(DBILOGFP,"	   charset id=%d, name=%s, ncharset id=%d, name=%s"
 		" (csid: utf8=%d al32utf8=%d)\n",
 		 charsetid,charsetname, ncharsetid,ncharsetname, utf8_csid, al32utf8_csid);
+#if defined(CAN_USE_PRO_C)
+		if (imp_dbh->proc_handles)
+			PerlIO_printf(DBILOGFP," Useing a ProC Connection\n");
+#endif
 	}
 
 
 	if (!shared_dbh) {
+#if defined(CAN_USE_PRO_C)
 		if(use_proc_connection) {
 #ifdef SQL_SINGLE_RCTX
 
@@ -749,6 +757,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 #endif /* SQL_SINGLE_RCTX*/
 		}
 		else {			/* !use_proc_connection */
+#endif /*CAN_USE_PRO_C*/
+
 			imp_dbh->proc_handles = 0;
 
 			OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
@@ -771,9 +781,23 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				SV **sess_mode_type_sv;
 				ub4  sess_mode_type = OCI_DEFAULT;
 				DBD_ATTRIB_GET_IV(attr, "ora_session_mode",16, sess_mode_type_sv, sess_mode_type);
-				OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,
-					cred_type, sess_mode_type, status);
+/*#ifdef ORA_OCI_112
+				if (sess_mode_type == OCI_DEFAULT) {
+					OCISPool drcp_pool;
+					OraText  *poolname;			/* session pool name
+					unsigned int poolnamelen;	/* length of session pool name
+					OraText dbname ='xe';
+					unsigned int *dbname_len=2;
+					OCISessionPoolCreate_log_stat(imp_dbh->envhp,imp_dbh->errhp,drcp_pool,&poolname,&poolnamelen,&dbname,&dbname_len,5,500,4,status);
+				    PerlIO_printf(DBILOGFP, "hi mom\n");
 
+				}
+				else {
+#endif*/
+				OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,cred_type, sess_mode_type, status);
+/*#ifdef ORA_OCI_112
+				}
+#endif*/
 			}
 			if (status == OCI_SUCCESS_WITH_INFO) {
 			/* eg ORA-28011: the account will expire soon; change your password now */
@@ -793,8 +817,9 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			OCIAttrSet_log_stat(imp_dbh->svchp, (ub4) OCI_HTYPE_SVCCTX,
 				imp_dbh->authp, (ub4) 0,
 				(ub4) OCI_ATTR_SESSION, imp_dbh->errhp, status);
-
+#if defined(CAN_USE_PRO_C)
 		} /* use_proc_connection */
+#endif
 	}
 
 dbd_db_login6_out:

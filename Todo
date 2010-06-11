@@ -4,7 +4,7 @@ Seems this file has been neglected for quite a while so I will try to keep it up
 
 For release 1.23 or later
 
-Drop support for early 9 versions namely support for NEW_OCI_INIT (get rid of the old code in here)
+--> done 1.25 Drop support for early 9 versions namely support for NEW_OCI_INIT (get rid of the old code in here)
 
 For release 1.22 or later
 

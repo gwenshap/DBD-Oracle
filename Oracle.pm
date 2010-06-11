@@ -1054,7 +1054,7 @@ access to Oracle databases.
 
 =head1 Which version DBD::Oracle is for me?
 
-Since version 1.22 DBD::Oracle only supports Oracle clients 9 or greater. Sorry for this it was just getting to hard to 
+Since version 1.25 DBD::Oracle only supports Oracle clients 9.2 or greater. Sorry for this it was just getting to hard to 
 maintain even more so with the many new functions being introduced in 10g and 11g.
 If you are still stuck with an older version of Oracle or its client you might want to look at the table below.
 
@@ -1075,7 +1075,7 @@ If you are still stuck with an older version of Oracle or its client you might w
   +---------------------+----+-------------+---------+------+--------+
   |      1.21           | N  |      N      |    N    |  N   |    Y   |
   +---------------------+----+-------------+---------+------+--------+
-  |      1.22           | N  |      N      |    N    |  N   |    Y   |
+  |      1.22+          | N  |      N      |    N    |  N   |    Y   |
   +---------------------+----+-------------+---------+------+--------+
 
 As there are dozens and dozens of different versions of Oracle's clients I did not bother to list any of them, just the major release versions of Oracle that are out there.  
@@ -1546,6 +1546,10 @@ to a already shared scalar which is initialized to an empty string.
   our $orashr : shared = '' ;
 
   $dbh = DBI->connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
+  
+=item ora_context
+
+Use this attribute to send a pointer to a ProC conection when the your dbname is set to extproc. 
 
 =item ora_use_proc_connection
 

@@ -832,11 +832,11 @@ oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags)
 {
 	dTHX;
 	 switch(handle_type) {
-	 case OCI_HTYPE_ENV:	return imp_dbh->envhp;
-	 case OCI_HTYPE_ERROR:	return imp_dbh->errhp;
-	 case OCI_HTYPE_SERVER:	return imp_dbh->srvhp;
-	 case OCI_HTYPE_SVCCTX:	return imp_dbh->svchp;
-	 case OCI_HTYPE_SESSION:	return imp_dbh->authp;
+	 	case OCI_HTYPE_ENV:	return imp_dbh->envhp;
+	 	case OCI_HTYPE_ERROR:	return imp_dbh->errhp;
+	 	case OCI_HTYPE_SERVER:	return imp_dbh->srvhp;
+	 	case OCI_HTYPE_SVCCTX:	return imp_dbh->svchp;
+	 	case OCI_HTYPE_SESSION:	return imp_dbh->authp;
 	 }
 	 croak("Can't get OCI handle type %d from DBI database handle", handle_type);
 	 if( flags ) {/* For GCC not to warn on unused parameter */}
@@ -849,11 +849,11 @@ oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags)
 {
 	dTHX;
 	 switch(handle_type) {
-	 case OCI_HTYPE_ENV:	return imp_sth->envhp;
-	 case OCI_HTYPE_ERROR:	return imp_sth->errhp;
-	 case OCI_HTYPE_SERVER:	return imp_sth->srvhp;
-	 case OCI_HTYPE_SVCCTX:	return imp_sth->svchp;
-	 case OCI_HTYPE_STMT:	return imp_sth->stmhp;
+	 	case OCI_HTYPE_ENV:	return imp_sth->envhp;
+		case OCI_HTYPE_ERROR:	return imp_sth->errhp;
+	 	case OCI_HTYPE_SERVER:	return imp_sth->srvhp;
+	 	case OCI_HTYPE_SVCCTX:	return imp_sth->svchp;
+	 	case OCI_HTYPE_STMT:	return imp_sth->stmhp;
 	 }
 	 croak("Can't get OCI handle type %d from DBI statement handle", handle_type);
 	 if( flags ) {/* For GCC not to warn on unused parameter */}

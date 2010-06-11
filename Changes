@@ -1,5 +1,6 @@
 =head1 Changes in DBD-Oracle 1.25(svn rev )
 
+  Removed the NEW_OCI_INIT compie directive and the depricated OCIInitialize calls
   Fix for rt.cpan.org Ticket #=57256 :  Double free problem in dbdimp.c by John Scoles
   Fix for invalid format in trace of OCILobLocatorIsInit_log_stat reported by Martin Evans Fixed by John Scoles
   Fix for very odd UNKNOWN OCI STATUS 1041 (OCILobFreeTemporary) on disconnect reported by John Parker and Dob Mcgowan fixe by John Scoles 

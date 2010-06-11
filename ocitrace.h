@@ -36,6 +36,15 @@
 	If done well the log will read like a compilable program.
 */
 
+
+#define OCISessionPoolCreate_log_stat(envhp,errhp,ph,pn,pnl,cs,csl,min,max,incr,stat)\
+    stat =OCISessionPoolCreate(envhp,errhp,ph,pn,pnl,cs,csl,min,max,incr,(OraText *)0, (ub4)0, (OraText *)0,(ub4)0, OCI_DEFAULT)\
+    (DBD_OCI_TRACEON) \
+				? PerlIO_printf(DBD_OCI_TRACEFP,\
+					 "%OCISessionPoolCreate(%p,%p,%s,min=%d,max=%d,incr=%d)=%s\n",\
+					 OciTp, envhp,errhp,ph,pn,min,max,incr,oci_status_name(stat)),stat \
+	: stat
+
 #if defined(ORA_OCI_102)
 #define OCIPing_log_stat(sc,errhp,stat)\
 	stat =OCIPing(sc,errhp,OCI_DEFAULT);\
@@ -361,13 +370,6 @@
 	stat=OCIHandleFree(	(hp), (t));				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
 		"%sHandleFree(%p,%s)=%s\n",OciTp,(void*)hp,oci_hdtype_name(t),		\
-		oci_status_name(stat)),stat : stat
-
-#define OCIInitialize_log_stat(md,cp,mlf,rlf,mfp,stat)				 \
-	stat=OCIInitialize(md,cp,mlf,rlf,mfp);				\
-	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-		"%sInitialize(with mode =%s %lu,%p,%p,%p,%p)=%s\n",				\
-		OciTp, oci_mode(md),ul_t(md),(void*)cp,(void*)mlf,(void*)rlf,(void*)mfp,	\
 		oci_status_name(stat)),stat : stat
 
 #define OCILobGetLength_log_stat(sh,eh,lh,l,stat)						\
