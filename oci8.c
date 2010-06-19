@@ -335,6 +335,7 @@ oci_hdtype_name(ub4 hdtype)
 	case OCI_HTYPE_SESSION:			return "OCI_HTYPE_SESSION";
 	case OCI_HTYPE_CPOOL:   		return "OCI_HTYPE_CPOOL";
 	case OCI_HTYPE_SPOOL:   		return "OCI_HTYPE_SPOOL";
+	/*case OCI_HTYPE_AUTHINFO:        return "OCI_HTYPE_AUTHINFO";*/
 	/* Descriptors */
 	case OCI_DTYPE_LOB:				return "OCI_DTYPE_LOB";
 	case OCI_DTYPE_SNAP:			return "OCI_DTYPE_SNAP";
@@ -412,7 +413,7 @@ oci_attr_name(ub4 attr)
 	switch (attr) {
 	/*=============================Attribute Types===============================*/
 
-
+    case OCI_ATTR_PURITY:				return "OCI_ATTR_PURITY"; /* for DRCP session purity */
 	case OCI_ATTR_FNCODE:				return "OCI_ATTR_FNCODE";		/* the OCI function code */
 	case OCI_ATTR_OBJECT:				return "OCI_ATTR_OBJECT"; /* is the environment initialized in object mode */
 	case OCI_ATTR_NONBLOCKING_MODE:		return "OCI_ATTR_NONBLOCKING_MODE";		/* non blocking mode */
@@ -838,7 +839,8 @@ oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags)
 	 	case OCI_HTYPE_ERROR:	return imp_dbh->errhp;
 	 	case OCI_HTYPE_SERVER:	return imp_dbh->srvhp;
 	 	case OCI_HTYPE_SVCCTX:	return imp_dbh->svchp;
-	 	case OCI_HTYPE_SESSION:	return imp_dbh->authp;
+	 	case OCI_HTYPE_SESSION:	return imp_dbh->seshp;
+	 	/*case OCI_HTYPE_AUTHINFO:return imp_dbh->authp;*/
 	 }
 	 croak("Can't get OCI handle type %d from DBI database handle", handle_type);
 	 if( flags ) {/* For GCC not to warn on unused parameter */}
@@ -851,7 +853,7 @@ oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags)
 {
 	dTHX;
 	 switch(handle_type) {
-	 	case OCI_HTYPE_ENV:	return imp_sth->envhp;
+	 	case OCI_HTYPE_ENV:		return imp_sth->envhp;
 		case OCI_HTYPE_ERROR:	return imp_sth->errhp;
 	 	case OCI_HTYPE_SERVER:	return imp_sth->srvhp;
 	 	case OCI_HTYPE_SVCCTX:	return imp_sth->svchp;
@@ -3874,14 +3876,24 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 		return OCI_CRED_EXT;
 	}
 
-	OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
+    if (imp_dbh->using_drcp){
+		OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
 			*uidp, strlen(*uidp),
 			(ub4) OCI_ATTR_USERNAME, imp_dbh->errhp, status);
 
-	OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
+		OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
 			(strlen(*pwdp)) ? *pwdp : NULL, strlen(*pwdp),
 			(ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
+	}
+	else {
+		OCIAttrSet_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,
+				*uidp, strlen(*uidp),
+				(ub4) OCI_ATTR_USERNAME, imp_dbh->errhp, status);
 
+		OCIAttrSet_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,
+				(strlen(*pwdp)) ? *pwdp : NULL, strlen(*pwdp),
+			(ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
+	}
 	return OCI_CRED_RDBMS;
 }
 
@@ -3894,8 +3906,8 @@ ora_db_reauthenticate(SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd)
 	/* XXX should possibly create new session before ending the old so	*/
 	/* that if the new one can't be created, the old will still work.	*/
 	OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp,
-			imp_dbh->authp, OCI_DEFAULT, status); /* XXX check status here?*/
-	OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,
+			imp_dbh->seshp, OCI_DEFAULT, status); /* XXX check status here?*/
+	OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
 			 ora_parse_uid(imp_dbh, &uid, &pwd), (ub4) OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");

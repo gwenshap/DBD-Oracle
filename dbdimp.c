@@ -44,9 +44,7 @@ int dbd_verbose		  = 0; /* DBD only debugging*/
 int oci_warn		  = 0; /* show oci warnings */
 int ora_objects		  = 0; /* get oracle embedded objects as instance of DBD::Oracle::Object */
 int ora_ncs_buff_mtpl = 4; /* a mulitplyer for ncs clob buffers */
-#ifdef ORA_OCI_112
-int ora_drcp		  = 0; /* Use DRCP connection 11.2 and above only*/
-#endif
+
 /* bitflag constants for figuring out how to handle utf8 for array binds */
 #define ARRAY_BIND_NATIVE 0x01
 #define ARRAY_BIND_UTF8   0x02
@@ -391,7 +389,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 #ifdef ORA_OCI_112
 	/*check to see if the user is connecting with DRCP */
     if (DBD_ATTRIB_TRUE(attr,"ora_drcp",8,svp))
-		DBD_ATTRIB_GET_IV(  attr, "ora_drcp",  8, svp, ora_drcp);
+        imp_dbh->using_drcp = 1;
 #endif
 	/* check to see if DBD_verbose or ora_verbose is set*/
 	if (DBD_ATTRIB_TRUE(attr,"dbd_verbose",11,svp))
@@ -750,7 +748,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				return 0;
 			}
 
-			OCIAttrGet_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, &imp_dbh->authp, NULL,
+			OCIAttrGet_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, &imp_dbh->seshp, NULL,
 					OCI_ATTR_SESSION, imp_dbh->errhp, status);
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, imp_dbh->errhp, status,
@@ -769,23 +767,20 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			imp_dbh->proc_handles = 0;
 
 			OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
-			OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
-			OCIServerAttach_log_stat(imp_dbh, dbname,OCI_DEFAULT, status);
 
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, imp_dbh->errhp, status, "OCIServerAttach");
 				OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
-				OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 				OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 				return 0;
 			}
 			OCIAttrSet_log_stat( imp_dbh->svchp, OCI_HTYPE_SVCCTX, imp_dbh->srvhp,
 				(ub4) 0, OCI_ATTR_SERVER, imp_dbh->errhp, status);
-			OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->authp, OCI_HTYPE_SESSION, status);
 
 			{
 				SV **sess_mode_type_sv;
 				ub4  sess_mode_type = OCI_DEFAULT;
+				ub4  cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
 
 				DBD_ATTRIB_GET_IV(attr, "ora_session_mode",16, sess_mode_type_sv, sess_mode_type);
 
@@ -794,10 +789,10 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 #ifdef ORA_OCI_112
 
-PerlIO_printf(DBILOGFP,"ora_drcp=%d\n",ora_drcp);
-
-				if (ora_drcp) { /* connect uisng a DRCP */
-
+PerlIO_printf(DBILOGFP,"imp_dbh->using_drcp=%d\n",imp_dbh->using_drcp);
+dbd_verbose=15;
+				if (imp_dbh->using_drcp) { /* connect uisng a DRCP */
+					ub4   purity = OCI_ATTR_PURITY_SELF;
 					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->poolhp, OCI_HTYPE_SPOOL, status);
 PerlIO_printf(DBILOGFP,"OCIHandleAlloc_ok status=%s\n",oci_status_name(status));
 					OCISessionPoolCreate_log_stat(imp_dbh->envhp,
@@ -817,20 +812,38 @@ PerlIO_printf(DBILOGFP,"OCIHandleAlloc_ok status=%s\n",oci_status_name(status));
 							status);
 
 					if (status != OCI_SUCCESS) {
+
 						oci_error(dbh, imp_dbh->errhp, status, "OCISessionPoolCreate");
 						OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
-						OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
+						OCIHandleFree_log_stat(imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
 						OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 						OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
-						OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+						return 0;
+					}
+					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->authp, OCI_HTYPE_AUTHINFO, status);
+
+				    OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
+								&purity, (ub4) 0,(ub4) OCI_ATTR_PURITY, imp_dbh->errhp, status);
+
+					OCISessionGet_log_stat(imp_dbh->envhp, imp_dbh->errhp, &imp_dbh->svchp, imp_dbh->authp,
+								imp_dbh->pool_name, (ub4)strlen((char *)imp_dbh->pool_name), status);
+
+					if (status != OCI_SUCCESS) {
+
+						oci_error(dbh, imp_dbh->errhp, status, "OCISessionGet");
+						OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
+						OCIHandleFree_log_stat(imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
+						OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+						OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 						return 0;
 					}
 				}
 				else {
-					ub4  cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
-
 #endif
-					OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,cred_type, sess_mode_type, status);
+
+					OCIServerAttach_log_stat(imp_dbh, dbname,OCI_DEFAULT, status);
+					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->seshp, OCI_HTYPE_SESSION, status);
+					OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,cred_type, sess_mode_type, status);
 					if (status == OCI_SUCCESS_WITH_INFO) {
 						/* eg ORA-28011: the account will expire soon; change your password now */
 						oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
@@ -1003,7 +1016,7 @@ dbd_db_disconnect(SV *dbh, imp_dbh_t *imp_dbh)
 
 	if (refcnt == 1 && !imp_dbh->proc_handles) {
 		sword s_se, s_sd;
-	OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,
+	OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
 			  OCI_DEFAULT, s_se);
 	if (s_se) oci_error(dbh, imp_dbh->errhp, s_se, "OCISessionEnd");
 	OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, s_sd);
@@ -1064,7 +1077,7 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 	}
 #ifdef ORA_OCI_112
 	else if (kl==8 && strEQ(key, "ora_drcp") ) {
-		ora_drcp = SvIV (valuesv);
+		imp_dbh->using_drcp = 1;
 	}
 #endif
 	else if (kl==20 && strEQ(key, "ora_oci_success_warn") ) {

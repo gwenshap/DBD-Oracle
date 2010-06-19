@@ -38,11 +38,13 @@ struct imp_dbh_st {
 	OCIError 	*errhp;
 	OCIServer 	*srvhp;
 	OCISvcCtx 	*svchp;
-	OCISession	*authp;
+	OCISession	*seshp;
 #ifdef ORA_OCI_112
+	OCIAuthInfo *authp;
 	OCISPool    *poolhp;
 	text        *pool_name;
 	ub4			pool_namel;
+	bool		using_drcp;
 #endif
 	int proc_handles;		   /* If true, srvhp, svchp, and authp handles
 								   are owned by ProC and must not be freed. */
@@ -270,9 +272,6 @@ extern int dbd_verbose;
 extern int oci_warn;
 extern int ora_objects;
 extern int ora_ncs_buff_mtpl;
-#ifdef ORA_OCI_112
-extern int  ora_drcp;
-#endif
 extern ub2 charsetid;
 extern ub2 ncharsetid;
 extern ub2 us7ascii_csid;

@@ -36,11 +36,26 @@
 	If done well the log will read like a compilable program.
 */
 
+#define OCISessionPoolDestroy_log_stat(ph, errhp,stat )\
+	stat =OCISessionPoolDestroy(ph, errhp,OCI_DEFAULT);\
+    (DBD_OCI_TRACEON) \
+				? PerlIO_printf(DBD_OCI_TRACEFP,\
+					 "%sOCISessionPoolDestroy(ph=%p)=%s\n",\
+					 OciTp, ph,oci_status_name(stat)),stat \
+	: stat
+#define OCISessionGet_log_stat(envhp, errhp, sh, ah,pn,pnl,stat)\
+    stat =OCISessionGet(envhp, errhp, sh, ah,pn,pnl,NULL,0, NULL, NULL, NULL, OCI_SESSGET_SPOOL);\
+    (DBD_OCI_TRACEON) \
+				? PerlIO_printf(DBD_OCI_TRACEFP,\
+					 "%sOCISessionGet(envhp=%p,sh=%p,ah=%p,pn=%p,pnl=%d)=%s\n",\
+					 OciTp, envhp,sh,ah,pn,pnl,oci_status_name(stat)),stat \
+	: stat
+
 #define OCISessionPoolCreate_log_stat(envhp,errhp,ph,pn,pnl,dbn,dbl,sn,sm,si,un,unl,pw,pwl,stat)\
     stat =OCISessionPoolCreate(envhp,errhp,ph,pn,pnl,dbn,dbl,sn,sm,si,un,unl,pw,pwl,OCI_DEFAULT);\
-    (!DBD_OCI_TRACEON) \
+    (DBD_OCI_TRACEON) \
 				? PerlIO_printf(DBD_OCI_TRACEFP,\
-					 "%sOCISessionPoolCreate(envhp=%p,ph=%p,pn=%s,pnl=%d,min=%d,max=%d,incr=%d, un=%s,unl=%d,pw=%s,pwl=%d)=%s\n",\
+					 "%sOCISessionPoolCreate(envhp=%p,ph=%p,pn=%p,pnl=%p,min=%d,max=%d,incr=%d, un=%s,unl=%d,pw=%s,pwl=%d)=%s\n",\
 					 OciTp, envhp,ph,pn,pnl,sn,sm,si,un,unl,pw,pwl,oci_status_name(stat)),stat \
 	: stat
 
@@ -355,7 +370,7 @@
 
 #define OCIHandleAlloc_log_stat(ph,hp,t,xs,ump,stat)					\
 	stat=OCIHandleAlloc(ph,hp,t,xs,ump);				\
-	(!DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
 		"%sHandleAlloc(%p,%p,%s,%lu,%p)=%s\n",			\
 		OciTp, (void*)ph,(void*)hp,oci_hdtype_name(t),ul_t(xs),(void*)ump,	\
 		oci_status_name(stat)),stat : stat
