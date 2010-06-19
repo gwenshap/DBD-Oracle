@@ -333,6 +333,8 @@ oci_hdtype_name(ub4 hdtype)
 	case OCI_HTYPE_DESCRIBE:		return "OCI_HTYPE_DESCRIBE";
 	case OCI_HTYPE_SERVER:			return "OCI_HTYPE_SERVER";
 	case OCI_HTYPE_SESSION:			return "OCI_HTYPE_SESSION";
+	case OCI_HTYPE_CPOOL:   		return "OCI_HTYPE_CPOOL";
+	case OCI_HTYPE_SPOOL:   		return "OCI_HTYPE_SPOOL";
 	/* Descriptors */
 	case OCI_DTYPE_LOB:				return "OCI_DTYPE_LOB";
 	case OCI_DTYPE_SNAP:			return "OCI_DTYPE_SNAP";

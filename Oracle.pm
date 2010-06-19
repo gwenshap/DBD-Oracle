@@ -177,7 +177,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub connect {
 	my ($drh, $dbname, $user, $auth, $attr)= @_;
 
-
+use Data::Dumper;
         
 	if ($dbname =~ /;/) {
 	    my ($n,$v);
@@ -191,12 +191,17 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    } split /\s*;\s*/, $dbname;
 	    my %dbname = ( PROTOCOL => 'tcp', @dbname );
 
+            if ($dbname{SERVER} eq "POOLED") {
+               $attr->{ora_drcp}=1;
+	       warn(" I am pooled".$dbname{SERVER}."\n");
+	  
+	    }
 	    # extract main attributes for connect_data portion
-	    my @connect_data_attr = qw(SID INSTANCE_NAME SERVER SERVICE_NAME);
+	    my @connect_data_attr = qw(SID INSTANCE_NAME SERVER SERVICE_NAME );
 	    my %connect_data = map { ($_ => delete $dbname{$_}) }
 		grep { exists $dbname{$_} } @connect_data_attr;
+		
 	    my $connect_data = join "", map { "($_=$connect_data{$_})" } keys %connect_data;
-
 	    return $drh->DBI::set_err(-1,
 		"Can't connect using this syntax without specifying a HOST and one of @connect_data_attr")
 		unless $dbname{HOST} and %connect_data;
@@ -226,6 +231,12 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	$user = '' if not defined $user;
         (my $user_only = $user) =~ s:/.*::;
+        
+        if (substr($dbname,-7,7) eq ':POOLED'){
+           $dbname=substr($dbname,0,-7);
+           $attr->{ora_drcp} = 1;
+        }
+             
 	my ($dbh, $dbh_inner) = DBI::_new_dbh($drh, {
 	    'Name' => $dbname,
 	    'dbi_imp_data' => $attr->{dbi_imp_data},
@@ -235,6 +246,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	# Call Oracle OCI logon func in Oracle.xs file
 	# and populate internal handle data.
+	
 	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth, $attr)
 	    or return undef;
 

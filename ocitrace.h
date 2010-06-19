@@ -36,13 +36,12 @@
 	If done well the log will read like a compilable program.
 */
 
-
-#define OCISessionPoolCreate_log_stat(envhp,errhp,ph,pn,pnl,cs,csl,min,max,incr,stat)\
-    stat =OCISessionPoolCreate(envhp,errhp,ph,pn,pnl,cs,csl,min,max,incr,(OraText *)0, (ub4)0, (OraText *)0,(ub4)0, OCI_DEFAULT)\
-    (DBD_OCI_TRACEON) \
+#define OCISessionPoolCreate_log_stat(envhp,errhp,ph,pn,pnl,dbn,dbl,sn,sm,si,un,unl,pw,pwl,stat)\
+    stat =OCISessionPoolCreate(envhp,errhp,ph,pn,pnl,dbn,dbl,sn,sm,si,un,unl,pw,pwl,OCI_DEFAULT);\
+    (!DBD_OCI_TRACEON) \
 				? PerlIO_printf(DBD_OCI_TRACEFP,\
-					 "%OCISessionPoolCreate(%p,%p,%s,min=%d,max=%d,incr=%d)=%s\n",\
-					 OciTp, envhp,errhp,ph,pn,min,max,incr,oci_status_name(stat)),stat \
+					 "%sOCISessionPoolCreate(envhp=%p,ph=%p,pn=%s,pnl=%d,min=%d,max=%d,incr=%d, un=%s,unl=%d,pw=%s,pwl=%d)=%s\n",\
+					 OciTp, envhp,ph,pn,pnl,sn,sm,si,un,unl,pw,pwl,oci_status_name(stat)),stat \
 	: stat
 
 #if defined(ORA_OCI_102)
@@ -356,7 +355,7 @@
 
 #define OCIHandleAlloc_log_stat(ph,hp,t,xs,ump,stat)					\
 	stat=OCIHandleAlloc(ph,hp,t,xs,ump);				\
-	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
+	(!DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
 		"%sHandleAlloc(%p,%p,%s,%lu,%p)=%s\n",			\
 		OciTp, (void*)ph,(void*)hp,oci_hdtype_name(t),ul_t(xs),(void*)ump,	\
 		oci_status_name(stat)),stat : stat

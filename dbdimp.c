@@ -44,7 +44,9 @@ int dbd_verbose		  = 0; /* DBD only debugging*/
 int oci_warn		  = 0; /* show oci warnings */
 int ora_objects		  = 0; /* get oracle embedded objects as instance of DBD::Oracle::Object */
 int ora_ncs_buff_mtpl = 4; /* a mulitplyer for ncs clob buffers */
-
+#ifdef ORA_OCI_112
+int ora_drcp		  = 0; /* Use DRCP connection 11.2 and above only*/
+#endif
 /* bitflag constants for figuring out how to handle utf8 for array binds */
 #define ARRAY_BIND_NATIVE 0x01
 #define ARRAY_BIND_UTF8   0x02
@@ -385,6 +387,12 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     if (DBD_ATTRIB_TRUE(attr,"ora_use_proc_connection",23,svp))
       	croak ("You can only use a ProC connection, if your DBD::Oracle was built with the -ProC on the Makefile.PL") ;
 #endif /*CAN_USE_PRO_C*/
+
+#ifdef ORA_OCI_112
+	/*check to see if the user is connecting with DRCP */
+    if (DBD_ATTRIB_TRUE(attr,"ora_drcp",8,svp))
+		DBD_ATTRIB_GET_IV(  attr, "ora_drcp",  8, svp, ora_drcp);
+#endif
 	/* check to see if DBD_verbose or ora_verbose is set*/
 	if (DBD_ATTRIB_TRUE(attr,"dbd_verbose",11,svp))
 		DBD_ATTRIB_GET_IV(  attr, "dbd_verbose",  11, svp, dbd_verbose);
@@ -776,22 +784,39 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->authp, OCI_HTYPE_SESSION, status);
 
 			{
-				ub4  cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
 				SV **sess_mode_type_sv;
 				ub4  sess_mode_type = OCI_DEFAULT;
-				 char poolname;			/* session pool name */
-									ub4 poolnamelen;	/* length of session pool name*/
-									char dbname ='xe';
-					ub4 dbname_len=2;
+
 				DBD_ATTRIB_GET_IV(attr, "ora_session_mode",16, sess_mode_type_sv, sess_mode_type);
+
+				PerlIO_printf(DBILOGFP, "pwd=%s uid=%s dbname=%s\n",pwd,uid,dbname);
+
+
 #ifdef ORA_OCI_112
-				if (sess_mode_type == OCI_DEFAULT) {
 
-					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->poolhp, OCI_HTYPE_CPOOL, status);
+PerlIO_printf(DBILOGFP,"ora_drcp=%d\n",ora_drcp);
 
-					OCISessionPoolCreate_log_stat(imp_dbh->envhp,imp_dbh->errhp,imp_dbh->poolhp,&poolname,&poolnamelen,&dbname,&dbname_len,5,500,4,status);
+				if (ora_drcp) { /* connect uisng a DRCP */
 
-                    if (status != OCI_SUCCESS) {
+					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->poolhp, OCI_HTYPE_SPOOL, status);
+PerlIO_printf(DBILOGFP,"OCIHandleAlloc_ok status=%s\n",oci_status_name(status));
+					OCISessionPoolCreate_log_stat(imp_dbh->envhp,
+							imp_dbh->errhp,
+							imp_dbh->poolhp,
+							(OraText **) &imp_dbh->pool_name,
+							(ub4 *) &imp_dbh->pool_namel,
+							dbname,
+							strlen(dbname),
+							10,
+							100,
+							4,
+							uid,
+							strlen(uid),
+							pwd,
+							strlen(pwd),
+							status);
+
+					if (status != OCI_SUCCESS) {
 						oci_error(dbh, imp_dbh->errhp, status, "OCISessionPoolCreate");
 						OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
 						OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
@@ -802,6 +827,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 					}
 				}
 				else {
+					ub4  cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
+
 #endif
 					OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,cred_type, sess_mode_type, status);
 					if (status == OCI_SUCCESS_WITH_INFO) {
@@ -1035,6 +1062,11 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 	if (kl==17 && strEQ(key, "ora_ncs_buff_mtpl") ) {
 		ora_ncs_buff_mtpl = SvIV (valuesv);
 	}
+#ifdef ORA_OCI_112
+	else if (kl==8 && strEQ(key, "ora_drcp") ) {
+		ora_drcp = SvIV (valuesv);
+	}
+#endif
 	else if (kl==20 && strEQ(key, "ora_oci_success_warn") ) {
 		oci_warn = SvIV (valuesv);
 	}
