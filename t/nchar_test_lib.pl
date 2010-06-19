@@ -160,8 +160,11 @@ sub test_data
 sub oracle_test_dsn
 {
     my( $default, $dsn ) = ( 'dbi:Oracle:', $ENV{ORACLE_DSN} );
+    
+    
     $dsn ||= $ENV{DBI_DSN} if $ENV{DBI_DSN} && ($ENV{DBI_DSN} =~ /^$default/io);
     $dsn ||= $default;
+    
     return $dsn;
 }
 

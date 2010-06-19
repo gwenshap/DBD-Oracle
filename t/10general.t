@@ -19,6 +19,7 @@ diag('Test preparsing, Active, NLS_NUMERIC_CHARACTERS, err, ping and OCI version
 
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
+warn("dsn=$dsn, user=$dbuser\n");
 my $dbh = DBI->connect($dsn, $dbuser, '');
 
 unless($dbh) {

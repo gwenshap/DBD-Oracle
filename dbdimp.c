@@ -780,7 +780,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			{
 				SV **sess_mode_type_sv;
 				ub4  sess_mode_type = OCI_DEFAULT;
-				ub4  cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
+				ub4  cred_type;
+
 
 				DBD_ATTRIB_GET_IV(attr, "ora_session_mode",16, sess_mode_type_sv, sess_mode_type);
 
@@ -793,6 +794,8 @@ PerlIO_printf(DBILOGFP,"imp_dbh->using_drcp=%d\n",imp_dbh->using_drcp);
 dbd_verbose=15;
 				if (imp_dbh->using_drcp) { /* connect uisng a DRCP */
 					ub4   purity = OCI_ATTR_PURITY_SELF;
+
+
 					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->poolhp, OCI_HTYPE_SPOOL, status);
 PerlIO_printf(DBILOGFP,"OCIHandleAlloc_ok status=%s\n",oci_status_name(status));
 					OCISessionPoolCreate_log_stat(imp_dbh->envhp,
@@ -824,7 +827,7 @@ PerlIO_printf(DBILOGFP,"OCIHandleAlloc_ok status=%s\n",oci_status_name(status));
 
 				    OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
 								&purity, (ub4) 0,(ub4) OCI_ATTR_PURITY, imp_dbh->errhp, status);
-
+					cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
 					OCISessionGet_log_stat(imp_dbh->envhp, imp_dbh->errhp, &imp_dbh->svchp, imp_dbh->authp,
 								imp_dbh->pool_name, (ub4)strlen((char *)imp_dbh->pool_name), status);
 
@@ -841,8 +844,11 @@ PerlIO_printf(DBILOGFP,"OCIHandleAlloc_ok status=%s\n",oci_status_name(status));
 				else {
 #endif
 
+
+					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 					OCIServerAttach_log_stat(imp_dbh, dbname,OCI_DEFAULT, status);
 					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->seshp, OCI_HTYPE_SESSION, status);
+					cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
 					OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,cred_type, sess_mode_type, status);
 					if (status == OCI_SUCCESS_WITH_INFO) {
 						/* eg ORA-28011: the account will expire soon; change your password now */
