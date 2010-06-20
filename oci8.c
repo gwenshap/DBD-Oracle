@@ -412,8 +412,9 @@ oci_attr_name(ub4 attr)
 	SV *sv;
 	switch (attr) {
 	/*=============================Attribute Types===============================*/
-
+#ifdef ORA_OCI_112
     case OCI_ATTR_PURITY:				return "OCI_ATTR_PURITY"; /* for DRCP session purity */
+#endif
 	case OCI_ATTR_FNCODE:				return "OCI_ATTR_FNCODE";		/* the OCI function code */
 	case OCI_ATTR_OBJECT:				return "OCI_ATTR_OBJECT"; /* is the environment initialized in object mode */
 	case OCI_ATTR_NONBLOCKING_MODE:		return "OCI_ATTR_NONBLOCKING_MODE";		/* non blocking mode */
@@ -3875,7 +3876,7 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 	if (**uidp == '\0' && **pwdp == '\0') {
 		return OCI_CRED_EXT;
 	}
-
+#ifdef ORA_OCI_112
     if (imp_dbh->using_drcp){
 		OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
 			*uidp, strlen(*uidp),
@@ -3886,6 +3887,7 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 			(ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
 	}
 	else {
+#endif
 		OCIAttrSet_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,
 				*uidp, strlen(*uidp),
 				(ub4) OCI_ATTR_USERNAME, imp_dbh->errhp, status);
@@ -3893,7 +3895,9 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 		OCIAttrSet_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,
 				(strlen(*pwdp)) ? *pwdp : NULL, strlen(*pwdp),
 			(ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
+#ifdef ORA_OCI_112
 	}
+#endif
 	return OCI_CRED_RDBMS;
 }
 
