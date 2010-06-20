@@ -233,7 +233,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
            $dbname=substr($dbname,0,-7);
            $attr->{ora_drcp} = 1;
         }
-        else if ($ENV{ORA_DRCP}){ 
+        elsif ($ENV{ORA_DRCP}){ 
 	   $attr->{ora_drcp} = 1;
 	}
 	

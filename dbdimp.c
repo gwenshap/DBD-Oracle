@@ -821,11 +821,14 @@ PerlIO_printf(DBILOGFP,"OCIHandleAlloc_ok status=%s\n",oci_status_name(status));
 						OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 						return 0;
 					}
+
 					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->authp, OCI_HTYPE_AUTHINFO, status);
 
 				    OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
 								&purity, (ub4) 0,(ub4) OCI_ATTR_PURITY, imp_dbh->errhp, status);
+
 					cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
+
 					OCISessionGet_log_stat(imp_dbh->envhp, imp_dbh->errhp, &imp_dbh->svchp, imp_dbh->authp,
 								imp_dbh->pool_name, (ub4)strlen((char *)imp_dbh->pool_name), status);
 
@@ -1063,6 +1066,7 @@ dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 			sword status;
 #ifdef ORA_OCI_112
 			OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
+			OCIHandleFree_log_stat(imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
 #else
 			OCIHandleFree_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,status);
 #endif
