@@ -177,8 +177,6 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub connect {
 	my ($drh, $dbname, $user, $auth, $attr)= @_;
 
-use Data::Dumper;
-        
 	if ($dbname =~ /;/) {
 	    my ($n,$v);
 	    $dbname =~ s/^\s+//;
@@ -193,7 +191,6 @@ use Data::Dumper;
 
             if ($dbname{SERVER} eq "POOLED") {
                $attr->{ora_drcp}=1;
-	       warn(" I am pooled".$dbname{SERVER}."\n");
 	  
 	    }
 	    # extract main attributes for connect_data portion
@@ -236,7 +233,10 @@ use Data::Dumper;
            $dbname=substr($dbname,0,-7);
            $attr->{ora_drcp} = 1;
         }
-             
+        else if ($ENV{ORA_DRCP}){ 
+	   $attr->{ora_drcp} = 1;
+	}
+	
 	my ($dbh, $dbh_inner) = DBI::_new_dbh($drh, {
 	    'Name' => $dbname,
 	    'dbi_imp_data' => $attr->{dbi_imp_data},
@@ -1335,7 +1335,31 @@ TWO_TASK works the same way except it should override the value in ORACLE_SID so
   
 will work as well. Note this may not work for Windows.
 
+=head2 Oracle DRCP
 
+DBD::Oracle now supports DRCP (Database Resident Connection Pool) so if you have an 11.2 database and the DRCP is trurned on
+you can now direct all of your connections to it simply adding ':POOLED' to the SID or setting a connection atribure of ora_drcp, or 
+set the SERVER=POOLED when using a TNSENTRY style conenction or even by setting an enviornment variable ORA_DRCP. 
+All of which are demonstrated below;
+
+  $dbh = DBI->connect('dbi:Oracle:DB:POOLED','username','password')
+
+  $dbh = DBI->connect('dbi:Oracle:','username@DB:POOLED','password')
+  
+  $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1})
+
+  $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=ORCL;port=1521;SERVER=POOLED', 'scott/tiger', '')
+
+  $dbh = DBI->connect('dbi:Oracle:', q{scott/tiger@(DESCRIPTION=
+  (ADDRESS=(PROTOCOL=TCP)(HOST= foobar)(PORT=1521))
+  (CONNECT_DATA=(SID=ORCL)(SERVER=POOLED)))}, "")
+
+  if ORA_DRCP environemt var is set the just this
+  
+  $dbh = DBI->connect('dbi:Oracle:DB','username','password')
+ 
+ You can find a white paper on setting up DRCP and its advantages here http://www.oracle.com/technology/tech/oci/pdf/oracledrcp11g.pdf
+   
 =head2 Optimizing Oracle's listener
 
 [By Lane Sharman <lane@bienlogic.com>] I spent a LOT of time optimizing
@@ -1503,6 +1527,15 @@ environment variable that you can use at the OS level to set this
 value.  If used it will take the value at the connect stage.
 
 See more details in the LOB section of the POD
+
+=item ora_drcp
+
+If you have an 11.2 or greater database your can utilize the the DRCP by setting
+this attribute to 1 at connect time. 
+
+For convenience I have added support for a 'ORA_DRCP'
+environment variable that you can use at the OS level to set this
+value.  If used it will take the value at the connect stage.
 
 =item ora_session_mode
 

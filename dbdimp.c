@@ -923,8 +923,6 @@ dbd_db_commit(SV *dbh, imp_dbh_t *imp_dbh)
 }
 
 
-
-
 int
 dbd_st_cancel(SV *sth, imp_sth_t *imp_sth)
 {
@@ -1027,13 +1025,13 @@ dbd_db_disconnect(SV *dbh, imp_dbh_t *imp_dbh)
 
 	if (refcnt == 1 && !imp_dbh->proc_handles) {
 		sword s_se, s_sd;
-	OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
+		OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
 			  OCI_DEFAULT, s_se);
-	if (s_se) oci_error(dbh, imp_dbh->errhp, s_se, "OCISessionEnd");
-	OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, s_sd);
-	if (s_sd) oci_error(dbh, imp_dbh->errhp, s_sd, "OCIServerDetach");
-	if (s_se || s_sd)
-		return 0;
+		if (s_se) oci_error(dbh, imp_dbh->errhp, s_se, "OCISessionEnd");
+		OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, s_sd);
+		if (s_sd) oci_error(dbh, imp_dbh->errhp, s_sd, "OCIServerDetach");
+		if (s_se || s_sd)
+			return 0;
 	}
 	/* We don't free imp_dbh since a reference still exists	*/
 	/* The DESTROY method is the only one to 'free' memory.	*/
