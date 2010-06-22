@@ -722,8 +722,11 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		if (imp_dbh->proc_handles)
 			PerlIO_printf(DBILOGFP," Useing a ProC Connection\n");
 #endif
+#ifdef ORA_OCI_112
+		if (imp_dbh->using_drcp)
+			PerlIO_printf(DBILOGFP," Useing DRCP Connection\n ");
+#endif
 	}
-
 
 	if (!shared_dbh) {
 #if defined(CAN_USE_PRO_C)
@@ -779,23 +782,20 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				SV **sess_mode_type_sv;
 				ub4  sess_mode_type = OCI_DEFAULT;
 				ub4  cred_type;
-
-
 				DBD_ATTRIB_GET_IV(attr, "ora_session_mode",16, sess_mode_type_sv, sess_mode_type);
 
-				PerlIO_printf(DBILOGFP, "pwd=%s uid=%s dbname=%s\n",pwd,uid,dbname);
+
 
 
 #ifdef ORA_OCI_112
 
-PerlIO_printf(DBILOGFP,"imp_dbh->using_drcp=%d\n",imp_dbh->using_drcp);
-dbd_verbose=15;
+
 				if (imp_dbh->using_drcp) { /* connect uisng a DRCP */
 					ub4   purity = OCI_ATTR_PURITY_SELF;
 
 
 					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->poolhp, OCI_HTYPE_SPOOL, status);
-PerlIO_printf(DBILOGFP,"OCIHandleAlloc_ok status=%s\n",oci_status_name(status));
+
 					OCISessionPoolCreate_log_stat(imp_dbh->envhp,
 							imp_dbh->errhp,
 							imp_dbh->poolhp,
@@ -824,7 +824,7 @@ PerlIO_printf(DBILOGFP,"OCIHandleAlloc_ok status=%s\n",oci_status_name(status));
 
 					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->authp, OCI_HTYPE_AUTHINFO, status);
 
-				    OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
+					OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
 								&purity, (ub4) 0,(ub4) OCI_ATTR_PURITY, imp_dbh->errhp, status);
 
 					cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
@@ -836,9 +836,11 @@ PerlIO_printf(DBILOGFP,"OCIHandleAlloc_ok status=%s\n",oci_status_name(status));
 
 						oci_error(dbh, imp_dbh->errhp, status, "OCISessionGet");
 						OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
+						OCISessionPoolDestroy(imp_dbh->poolhp, imp_dbh->errhp,status);
 						OCIHandleFree_log_stat(imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
 						OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 						OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+
 						return 0;
 					}
 				}
@@ -1028,8 +1030,17 @@ dbd_db_disconnect(SV *dbh, imp_dbh_t *imp_dbh)
 
 	if (refcnt == 1 && !imp_dbh->proc_handles) {
 		sword s_se, s_sd;
-		OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
+#ifdef ORA_OCI_112
+		if (imp_dbh->using_drcp) {
+			OCISessionRelease_log_stat(imp_dbh->svchp, imp_dbh->errhp,s_se);
+		}
+		else {
+#endif
+			OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
 			  OCI_DEFAULT, s_se);
+#ifdef ORA_OCI_112
+		}
+#endif
 		if (s_se) oci_error(dbh, imp_dbh->errhp, s_se, "OCISessionEnd");
 		OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, s_sd);
 		if (s_sd) oci_error(dbh, imp_dbh->errhp, s_sd, "OCIServerDetach");
@@ -1065,13 +1076,20 @@ dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 		if (!imp_dbh->proc_handles)	{
 			sword status;
 #ifdef ORA_OCI_112
-			OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
-			OCIHandleFree_log_stat(imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
-#else
-			OCIHandleFree_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,status);
+			if (imp_dbh->using_drcp) {
+				OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
+				OCISessionPoolDestroy_log_stat(imp_dbh->poolhp, imp_dbh->errhp,status);
+				OCIHandleFree_log_stat(imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
+			}
+			else {
+#endif
+				OCIHandleFree_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,status);
+				OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+
+#ifdef ORA_OCI_112
+			}
 #endif
 			OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
-			OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 		}
 	}
 	OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
@@ -3892,7 +3910,7 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 
 
 	if (DBIc_DBISTATE(imp_sth)->debug >= 6 || dbd_verbose >= 6 )
-	PerlIO_printf(DBIc_LOGPIO(imp_sth), "	dbd_st_destroy %s\n",
+		PerlIO_printf(DBIc_LOGPIO(imp_sth), "	dbd_st_destroy %s\n",
 		(dirty) ? "(OCIHandleFree skipped during global destruction)" :
 		(imp_sth->nested_cursor) ?"(OCIHandleFree skipped for nested cursor)" : "");
 
@@ -3907,7 +3925,7 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 	/* Free off contents of imp_sth	*/
 
 	if (imp_sth->lob_refetch)
-	ora_free_lob_refetch(sth, imp_sth);
+		ora_free_lob_refetch(sth, imp_sth);
 
 	fields = DBIc_NUM_FIELDS(imp_sth);
 	imp_sth->in_cache  = 0;

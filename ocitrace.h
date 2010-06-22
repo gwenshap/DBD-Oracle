@@ -36,16 +36,24 @@
 	If done well the log will read like a compilable program.
 */
 
+
+#define OCISessionRelease_log_stat(svchp, errhp,stat)\
+	stat =OCISessionRelease(svchp, errhp, NULL, (ub4)0, OCI_DEFAULT);\
+	(DBD_OCI_TRACEON) \
+					? PerlIO_printf(DBD_OCI_TRACEFP,\
+						 "%sOCISessionRelease(svchp=%p)=%s\n",\
+						 OciTp, svchp,oci_status_name(stat)),stat \
+	: stat
 #define OCISessionPoolDestroy_log_stat(ph, errhp,stat )\
 	stat =OCISessionPoolDestroy(ph, errhp,OCI_DEFAULT);\
-    (DBD_OCI_TRACEON) \
+	(DBD_OCI_TRACEON) \
 				? PerlIO_printf(DBD_OCI_TRACEFP,\
 					 "%sOCISessionPoolDestroy(ph=%p)=%s\n",\
 					 OciTp, ph,oci_status_name(stat)),stat \
 	: stat
 #define OCISessionGet_log_stat(envhp, errhp, sh, ah,pn,pnl,stat)\
-    stat =OCISessionGet(envhp, errhp, sh, ah,pn,pnl,NULL,0, NULL, NULL, NULL, OCI_SESSGET_SPOOL);\
-    (DBD_OCI_TRACEON) \
+	stat =OCISessionGet(envhp, errhp, sh, ah,pn,pnl,NULL,0, NULL, NULL, NULL, OCI_SESSGET_SPOOL);\
+	(DBD_OCI_TRACEON) \
 				? PerlIO_printf(DBD_OCI_TRACEFP,\
 					 "%sOCISessionGet(envhp=%p,sh=%p,ah=%p,pn=%p,pnl=%d)=%s\n",\
 					 OciTp, envhp,sh,ah,pn,pnl,oci_status_name(stat)),stat \

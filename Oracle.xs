@@ -276,7 +276,7 @@ ora_ping(dbh)
 #if !defined(ORA_OCI_102)
 	OCIServerVersion_log_stat(imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
 #else
-    OCIPing_log_stat(imp_dbh->svchp,imp_dbh->errhp,status);
+    	OCIPing_log_stat(imp_dbh->svchp,imp_dbh->errhp,status);
 #endif
 	if (status != OCI_SUCCESS){
 		XSRETURN_IV(0);
