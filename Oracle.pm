@@ -295,6 +295,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
     sub ping { 
 	my($dbh) = @_;
+	local $@;
 	my $ok = 0;
 	eval {
 	    local $SIG{__DIE__};

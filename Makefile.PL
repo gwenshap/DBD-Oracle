@@ -57,6 +57,9 @@ my %opts = (
 	PREOP		=> '$(MAKE) -f Makefile.old distdir',
 	COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
     },
+    META_MERGE => {
+       configure_requires => { DBI => '1.51' }
+    },
 );
 if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
     $opts{AUTHOR} = 'Tim Bunce (dbi-users@perl.org)';
