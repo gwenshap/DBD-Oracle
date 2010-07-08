@@ -111,11 +111,12 @@ warn("\ntest4\n");
 
     # write string > 32k
     $large_value = 'ABCD' x 10_000;
-
+$dbh->{dbd_verbose}=15;
     $dbh->ora_lob_write( $loc, 1, $large_value );
     warn("\ntest5\n");
     is( $dbh->ora_lob_length($loc), length($large_value), "returned length" );
     warn("\ntest6\n");
+    
     is( $dbh->ora_lob_read( $loc, 1, length($large_value) ),
         $large_value, "returned written value" );
 warn("\ntest7\n");
@@ -123,7 +124,7 @@ warn("\ntest7\n");
   SKIP: {
     ## test calling PL/SQL with LOB placeholder
         my $plsql_testcount = 4;
-$dbh->{dbd_verbose}=15;
+
         $stmt = "BEGIN ? := DBMS_LOB.GETLENGTH( ? ); END;";
         $sth = $dbh->prepare( $stmt, { ora_auto_lob => 0 } );
         $sth->bind_param_inout( 1, \$len, 16 );
@@ -146,7 +147,7 @@ $dbh->{dbd_verbose}=15;
         }
 warn("\ntest8 $len=".length($large_value)." \n");
       #  is( $len, length($large_value), "returned length via PL/SQL" );
-
+exit;
 $dbh->{dbd_verbose}=0;        
         $stmt = "
   DECLARE

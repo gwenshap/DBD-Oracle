@@ -393,18 +393,19 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 	/* some connection pool atributes  */
 
-	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_pool_class", 14)) && SvOK(*svp)) {
+	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_drcp_class", 14)) && SvOK(*svp)) {
+		STRLEN  svp_len;
 		if (!SvPOK(*svp))
-			croak("ora_pool_class is not a string");
+			croak("ora_drcp_class is not a string");
 		imp_dbh->pool_class = (text *) SvPV (*svp, svp_len );
 		imp_dbh->pool_classl= (ub4) svp_len;
     }
-	if (DBD_ATTRIB_TRUE(attr,"ora_pool_min",12,svp))
-		DBD_ATTRIB_GET_IV( attr, "ora_pool_min",  12, svp, imp_dbh->pool_min);
-	if (DBD_ATTRIB_TRUE(attr,"ora_pool_max",12,svp))
-		DBD_ATTRIB_GET_IV( attr, "ora_pool_max",  12, svp, imp_dbh->pool_max);
-	if (DBD_ATTRIB_TRUE(attr,"ora_pool_incr",13,svp))
-		DBD_ATTRIB_GET_IV( attr, "ora_pool_incr",  13, svp, imp_dbh->pool_incr);
+	if (DBD_ATTRIB_TRUE(attr,"ora_drcp_min",12,svp))
+		DBD_ATTRIB_GET_IV( attr, "ora_drcp_min",  12, svp, imp_dbh->pool_min);
+	if (DBD_ATTRIB_TRUE(attr,"ora_drcp_max",12,svp))
+		DBD_ATTRIB_GET_IV( attr, "ora_drcp_max",  12, svp, imp_dbh->pool_max);
+	if (DBD_ATTRIB_TRUE(attr,"ora_drcp_incr",13,svp))
+		DBD_ATTRIB_GET_IV( attr, "ora_drcp_incr",  13, svp, imp_dbh->pool_incr);
 #endif /*ORA_OCI_112*/
 
 	/* check to see if DBD_verbose or ora_verbose is set*/
@@ -800,9 +801,6 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				ub4  cred_type;
 				DBD_ATTRIB_GET_IV(attr, "ora_session_mode",16, sess_mode_type_sv, sess_mode_type);
 
-
-
-
 #ifdef ORA_OCI_112
 
 				if (imp_dbh->using_drcp) { /* connect uisng a DRCP */
@@ -848,7 +846,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 					OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
 								&purity, (ub4) 0,(ub4) OCI_ATTR_PURITY, imp_dbh->errhp, status);
 
-					if (imp_dbh->pool_class) /*pool_class may ormay not be used */
+					if (imp_dbh->pool_class) /*pool_class may or may not be used */
 						OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
 								(OraText *) imp_dbh->pool_class, (ub4) imp_dbh->pool_classl,
 								(ub4) OCI_ATTR_CONNECTION_CLASS, imp_dbh->errhp, status);
@@ -869,6 +867,15 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 						return 0;
 					}
+
+					if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
+						PerlIO_printf(DBILOGFP,"Using DRCP with session settings min=%d, max=%d, and increment=%d\n",imp_dbh->pool_min,
+							imp_dbh->pool_max,
+							imp_dbh->pool_incr);
+						if (imp_dbh->pool_class)
+							PerlIO_printf(DBILOGFP,"with connection class=%s\n",imp_dbh->pool_class);
+					}
+
 				}
 				else {
 #endif
@@ -947,8 +954,8 @@ dbd_db_commit(SV *dbh, imp_dbh_t *imp_dbh)
 	sword status;
 	OCITransCommit_log_stat(imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS) {
-	oci_error(dbh, imp_dbh->errhp, status, "OCITransCommit");
-	return 0;
+		oci_error(dbh, imp_dbh->errhp, status, "OCITransCommit");
+		return 0;
 	}
 	return 1;
 }
@@ -1129,6 +1136,7 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 {
 	dTHX;
 	STRLEN kl;
+	STRLEN vl;
 	char *key = SvPV(keysv,kl);
 	int on = SvTRUE(valuesv);
 	int cacheit = 1;
@@ -1140,17 +1148,17 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 	else if (kl==8 && strEQ(key, "ora_drcp") ) {
 		imp_dbh->using_drcp = 1;
 	}
-	else if (kl==14 && strEQ(key, "ora_pool_class") ) {
+	else if (kl==14 && strEQ(key, "ora_drcp_class") ) {
 		imp_dbh->pool_class = (text *) SvPV (valuesv, vl );
 		imp_dbh->pool_classl= (ub4) vl;
 	}
-	else if (kl==12 && strEQ(key, "ora_pool_min") ) {
+	else if (kl==12 && strEQ(key, "ora_drcp_min") ) {
 		imp_dbh->pool_min = SvIV (valuesv);
 	}
-	else if (kl==12 && strEQ(key, "ora_pool_max") ) {
+	else if (kl==12 && strEQ(key, "ora_drcp_max") ) {
 		imp_dbh->pool_max = SvIV (valuesv);
 	}
-	else if (kl==13 && strEQ(key, "ora_pool_incr") ) {
+	else if (kl==13 && strEQ(key, "ora_drcp_incr") ) {
 		imp_dbh->pool_incr = SvIV (valuesv);
 	}
 #endif

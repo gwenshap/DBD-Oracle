@@ -414,6 +414,7 @@ oci_attr_name(ub4 attr)
 	/*=============================Attribute Types===============================*/
 #ifdef ORA_OCI_112
     case OCI_ATTR_PURITY:				return "OCI_ATTR_PURITY"; /* for DRCP session purity */
+    case OCI_ATTR_CONNECTION_CLASS		return "OCI_ATTR_CONNECTION_CLASS"; /* for DRCP connection class */
 #endif
 	case OCI_ATTR_FNCODE:				return "OCI_ATTR_FNCODE";		/* the OCI function code */
 	case OCI_ATTR_OBJECT:				return "OCI_ATTR_OBJECT"; /* is the environment initialized in object mode */
@@ -728,40 +729,43 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 	sword eg_status;
 
 	if (!SvOK(errstr))
-	sv_setpv(errstr,"");
+		sv_setpv(errstr,"");
+
 	if (!errhp) {
-	sv_catpv(errstr, oci_status_name(status));
-	if (what) {
-		sv_catpv(errstr, " ");
-		sv_catpv(errstr, what);
-	}
-	return status;
+		sv_catpv(errstr, oci_status_name(status));
+		if (what) {
+			sv_catpv(errstr, " ");
+			sv_catpv(errstr, what);
+		}
+		return status;
 	}
 
 	while( ++recno
-	&& OCIErrorGet_log_stat(errhp, recno, (text*)NULL, &eg_errcode, errbuf,
+		&& OCIErrorGet_log_stat(errhp, recno, (text*)NULL, &eg_errcode, errbuf,
 		(ub4)sizeof(errbuf), OCI_HTYPE_ERROR, eg_status) != OCI_NO_DATA
-	&& eg_status != OCI_INVALID_HANDLE
-	&& recno < 100
-	) {
-	if (debug >= 4 || recno>1/*XXX temp*/)
-		PerlIO_printf(DBILOGFP, "	OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
-		what ? what : "<NULL>", (long)recno,
+		&& eg_status != OCI_INVALID_HANDLE
+		&& recno < 100) {
+		if (debug >= 4 || recno>1/*XXX temp*/)
+			PerlIO_printf(DBILOGFP, "	OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
+			what ? what : "<NULL>", (long)recno,
 			(eg_status==OCI_SUCCESS) ? "ok" : oci_status_name(eg_status),
 			status, (long)eg_errcode, errbuf);
-	errcode = eg_errcode;
-	sv_catpv(errstr, (char*)errbuf);
-	if (*(SvEND(errstr)-1) == '\n')
-		--SvCUR(errstr);
+
+		errcode = eg_errcode;
+		sv_catpv(errstr, (char*)errbuf);
+
+		if (*(SvEND(errstr)-1) == '\n')
+			--SvCUR(errstr);
 	}
+
 	if (what || status != OCI_ERROR) {
-	sv_catpv(errstr, (debug<0) ? " (" : " (DBD ");
-	sv_catpv(errstr, oci_status_name(status));
-	if (what) {
-		sv_catpv(errstr, ": ");
-		sv_catpv(errstr, what);
-	}
-	sv_catpv(errstr, ")");
+		sv_catpv(errstr, (debug<0) ? " (" : " (DBD ");
+		sv_catpv(errstr, oci_status_name(status));
+		if (what) {
+			sv_catpv(errstr, ": ");
+			sv_catpv(errstr, what);
+		}
+		sv_catpv(errstr, ")");
 	}
 	return errcode;
 }
@@ -788,11 +792,11 @@ oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 	/* DBIc_ERR *must* be SvTRUE (for RaiseError etc), some */
 	/* errors, like OCI_INVALID_HANDLE, don't set errcode. */
 	if (force_err)
-	errcode = force_err;
+		errcode = force_err;
 	if (status == OCI_SUCCESS_WITH_INFO)
-	errcode = 0; /* record as a "warning" for DBI>=1.43 */
+		errcode = 0; /* record as a "warning" for DBI>=1.43 */
 	else if (errcode == 0)
-	errcode = (status != 0) ? status : -10000;
+		errcode = (status != 0) ? status : -10000;
 
 	sv_setiv(errcode_sv, errcode);
 	DBIh_SET_ERR_SV(h, imp_xxh, errcode_sv, errstr_sv, &sv_undef, &sv_undef);

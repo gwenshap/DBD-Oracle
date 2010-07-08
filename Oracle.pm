@@ -248,27 +248,27 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# and populate internal handle data.
 	
 	
-	if (exists $ENV{ORA_POOL_CLASS}) {
-	   $attr->{ora_pool_class} = $ENV{ORA_POOL_CLASS}
+	if (exists $ENV{ORA_DRCP_CLASS}) {
+	   $attr->{ora_drcp_class} = $ENV{ORA_DRCP_CLASS}
 	}
-	if($attr->{ora_pool_class}){
-	# if using ora_pool_class it cannot contain more than 1024 bytes 
+	if($attr->{ora_drcp_class}){
+	# if using ora_drcp_class it cannot contain more than 1024 bytes 
 	# and cannot contain a *
-	   if (index($attr->{ora_pool_class},'*') !=-1){
-		croak("ora_pool_class cannot contain a '*'!");
+	   if (index($attr->{ora_drcp_class},'*') !=-1){
+		Carp::croak("ora_drcp_class cannot contain a '*'!");
 	   }
-	   if (length($attr->{ora_pool_class}) > 1024){
-		croak("ora_pool_class mut be less than 1024 characters!");
+	   if (length($attr->{ora_drcp_class}) > 1024){
+		Carp::croak("ora_drcp_class must be less than 1024 characters!");
 	   }
 	}
-	if (exists $ENV{ORA_POOL_MIN}) {
-	   $attr->{ora_pool_min} = $ENV{ORA_POOL_MIN}
+	if (exists $ENV{ORA_DRCP_MIN}) {
+	   $attr->{ora_drcp_min} = $ENV{ORA_DRCP_MIN}
 	}
-	if (exists $ENV{ORA_POOL_MAX}) {
-	   $attr->{ora_pool_max} = $ENV{ORA_POOL_MAX}
+	if (exists $ENV{ORA_DRCP_MAX}) {
+	   $attr->{ora_drcp_max} = $ENV{ORA_DRCP_MAX}
 	}
-	if (exists $ENV{ORA_POOL_INCR}) {
-	   $attr->{ora_pool_incr} = $ENV{ORA_POOL_INCR}
+	if (exists $ENV{ORA_DRCP_INCR}) {
+	   $attr->{ora_drcp_incr} = $ENV{ORA_DRCP_INCR}
 	}
 	
 	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth, $attr)
@@ -1371,7 +1371,9 @@ All of which are demonstrated below;
   $dbh = DBI->connect('dbi:Oracle:','username@DB:POOLED','password')
   
   $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1})
-
+  
+  $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1, ora_drcp_class=>'my_app', ora_drcp_min=>10})
+ 
   $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=ORCL;port=1521;SERVER=POOLED', 'scott/tiger', '')
 
   $dbh = DBI->connect('dbi:Oracle:', q{scott/tiger@(DESCRIPTION=
@@ -1559,7 +1561,47 @@ this attribute to 1 at connect time.
 
 For convenience I have added support for a 'ORA_DRCP'
 environment variable that you can use at the OS level to set this
-value.  If used it will take the value at the connect stage.
+value. 
+
+=item ora_drcp_class
+
+If you are using DRCP, you can set a CONNECTION_CLASS for your pools as well.
+As sessions from a DRCP cannot be shared by users, you can use this 
+setting to identify the same user across different applications. OCI will ensure that
+session belonging to a 'class' are not shared ourside the class'.
+
+The values for ora_drcp_class cannot contain an '*' and must be les taht 1024 characters.
+
+This value can be set at the enviormnet level with 'ORA_DRCP_CLASS'.
+
+=item ora_drcp_min
+
+Is an optional value that specifies the minimum number of sessions that are initialy opened.
+New sessions are only opend after this value has been reached.
+
+The default value is '4' and  any value above '0' is valid.
+
+Generally, it should be set to the number of concurrent statements the application is planning 
+or expecting to run.
+
+This value can be set at the enviormnet level with 'ORA_DRCP_MIN'.
+
+=item ora_drcp_max
+
+Is an optional value that specifies the maximum number of sessions that can be open at one time.
+Once reached no more session can be opend until one becomes free. The default value 
+is '40' and any value above '1' is valid.  You should not set this value lower than ora_drcp_min as 
+that will just waste resources.
+
+This value can be set at the enviormnet level with 'ORA_DRCP_MAX'.
+
+=item ora_drcp_incr
+
+Is an optional value that specifies the next increment for sessions to be started if the current number of
+sessions are less than ora_drcp_max. The default value is '2' and  any value above '0' is valid as long
+as the value of ora_drcp_min + ora_drcp_incr is not greated than ora_drcp_max.
+
+This value can be set at the enviormnet level with 'ORA_DRCP_INCR'.
 
 =item ora_session_mode
 
