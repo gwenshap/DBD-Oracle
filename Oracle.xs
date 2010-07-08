@@ -263,7 +263,9 @@ ora_ping(dbh)
 	PREINIT:
 	D_imp_dbh(dbh);
 	sword status;
+#if !defined(ORA_OCI_102)
 	text buf[2];
+#endif
 	CODE:
 	/*simply does a call to OCIServerVersion which should make 1 round trip*/
 	/*later I will replace this with the actual OCIPing command*/
@@ -271,7 +273,11 @@ ora_ping(dbh)
 	/*If the listener goes down it is another case as the Listener is needed to establish the connection not maintain it*/
 	/*so we should stay connected but we cannot get nay new connections*/
 	{
+#if !defined(ORA_OCI_102)
 	OCIServerVersion_log_stat(imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
+#else
+    	OCIPing_log_stat(imp_dbh->svchp,imp_dbh->errhp,status);
+#endif
 	if (status != OCI_SUCCESS){
 		XSRETURN_IV(0);
 	} else {

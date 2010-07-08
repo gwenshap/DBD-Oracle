@@ -177,8 +177,6 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     sub connect {
 	my ($drh, $dbname, $user, $auth, $attr)= @_;
 
-
-        
 	if ($dbname =~ /;/) {
 	    my ($n,$v);
 	    $dbname =~ s/^\s+//;
@@ -191,12 +189,16 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    } split /\s*;\s*/, $dbname;
 	    my %dbname = ( PROTOCOL => 'tcp', @dbname );
 
+            if ($dbname{SERVER} eq "POOLED") {
+               $attr->{ora_drcp}=1;
+	  
+	    }
 	    # extract main attributes for connect_data portion
-	    my @connect_data_attr = qw(SID INSTANCE_NAME SERVER SERVICE_NAME);
+	    my @connect_data_attr = qw(SID INSTANCE_NAME SERVER SERVICE_NAME );
 	    my %connect_data = map { ($_ => delete $dbname{$_}) }
 		grep { exists $dbname{$_} } @connect_data_attr;
+		
 	    my $connect_data = join "", map { "($_=$connect_data{$_})" } keys %connect_data;
-
 	    return $drh->DBI::set_err(-1,
 		"Can't connect using this syntax without specifying a HOST and one of @connect_data_attr")
 		unless $dbname{HOST} and %connect_data;
@@ -226,6 +228,15 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	$user = '' if not defined $user;
         (my $user_only = $user) =~ s:/.*::;
+        
+        if (substr($dbname,-7,7) eq ':POOLED'){
+           $dbname=substr($dbname,0,-7);
+           $attr->{ora_drcp} = 1;
+        }
+        elsif ($ENV{ORA_DRCP}){ 
+	   $attr->{ora_drcp} = 1;
+	}
+	
 	my ($dbh, $dbh_inner) = DBI::_new_dbh($drh, {
 	    'Name' => $dbname,
 	    'dbi_imp_data' => $attr->{dbi_imp_data},
@@ -235,6 +246,31 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	# Call Oracle OCI logon func in Oracle.xs file
 	# and populate internal handle data.
+	
+	
+	if (exists $ENV{ORA_DRCP_CLASS}) {
+	   $attr->{ora_drcp_class} = $ENV{ORA_DRCP_CLASS}
+	}
+	if($attr->{ora_drcp_class}){
+	# if using ora_drcp_class it cannot contain more than 1024 bytes 
+	# and cannot contain a *
+	   if (index($attr->{ora_drcp_class},'*') !=-1){
+		Carp::croak("ora_drcp_class cannot contain a '*'!");
+	   }
+	   if (length($attr->{ora_drcp_class}) > 1024){
+		Carp::croak("ora_drcp_class must be less than 1024 characters!");
+	   }
+	}
+	if (exists $ENV{ORA_DRCP_MIN}) {
+	   $attr->{ora_drcp_min} = $ENV{ORA_DRCP_MIN}
+	}
+	if (exists $ENV{ORA_DRCP_MAX}) {
+	   $attr->{ora_drcp_max} = $ENV{ORA_DRCP_MAX}
+	}
+	if (exists $ENV{ORA_DRCP_INCR}) {
+	   $attr->{ora_drcp_incr} = $ENV{ORA_DRCP_INCR}
+	}
+	
 	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth, $attr)
 	    or return undef;
 
@@ -1055,29 +1091,32 @@ access to Oracle databases.
 
 =head1 Which version DBD::Oracle is for me?
 
-Since version 1.22 DBD::Oracle only supports Oracle clients 9 or greater. Sorry for this it was just getting to hard to 
-maintain even more so with the many new functions being introduced in 10g and 11g.
+From version 1.25 onwards DBD::Oracle will only support Oracle clients 9.2 or greater and it will
+be dropping support for ProC connections in 1.26. Sorry for this it was just getting to hard to 
+maintain the code base for an ever shrinking user base. This is especially so with the many new functions 
+being introduced in 10g and 11g.
+
 If you are still stuck with an older version of Oracle or its client you might want to look at the table below.
 
-  +---------------------+--------------------------------------------+
-  |                     |             Oracle Version                 | 
-  +---------------------+----+-------------+---------+------+--------+
-  | DBD::Oracle Version | <8 | 8.0.3~8.0.6 | 8iR1~R2 | 8iR3 | 9i~11g |
-  +---------------------+----+-------------+---------+------+--------+
-  |      0.1~16         | Y  |      Y      |    Y    |  Y   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+
-  |      1.17           | Y  |      Y      |    Y    |  Y   |    Y   |  
-  +---------------------+----+-------------+---------+------+--------+
-  |      1.18           | N  |      N      |    N    |  Y   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+
-  |      1.19           | N  |      N      |    N    |  Y   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+
-  |      1.20           | N  |      N      |    N    |  Y   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+
-  |      1.21           | N  |      N      |    N    |  N   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+
-  |      1.22           | N  |      N      |    N    |  N   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+
+  +---------------------+-----------------------------------------------------+
+  |                     |                   Oracle Version                    | 
+  +---------------------+----+-------------+---------+------+--------+--------+
+  | DBD::Oracle Version | <8 | 8.0.3~8.0.6 | 8iR1~R2 | 8iR3 |   9i   | 9.2~11 |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      0.1~16         | Y  |      Y      |    Y    |  Y   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.17           | Y  |      Y      |    Y    |  Y   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.18           | N  |      N      |    N    |  Y   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.19           | N  |      N      |    N    |  Y   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.20           | N  |      N      |    N    |  Y   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.21~1.24      | N  |      N      |    N    |  N   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.25+          | N  |      N      |    N    |  N   |    N   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
 
 As there are dozens and dozens of different versions of Oracle's clients I did not bother to list any of them, just the major release versions of Oracle that are out there.  
 
@@ -1089,10 +1128,14 @@ So to make a short story a little longer;
   2) If you have to use an Oracle 7 client then DBD::Oracle 1.17 should work
   3) Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might go with 1.18.
   4) For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your patch-set, If you run into trouble go with 1.19
-  5) After 9i you can use any version you want.
+  5) After 9.2 you can use any version you want.
   6) For you Luddites out there ORAPERL still works and is still included but not updated or supported anymore.
-  7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 and even get to 10. I am not sure what the 11g client can connect to.
-
+  7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 and even get to 10. 
+     I am not sure what the 11g client can connect to.
+  8) DBD::Oracle still has the code in place for ProC. But good luck trying to get it to work with any of the instance clients 
+     as Oracle no longer ships the correct .mk files.  I was unable to get it to work with Oracle 11+ as it ships with only 
+     part of the full ProC install.  You may have to get a full blown version of ProC from Oracle to get it to compile.
+     
 =head1 CONNECTING TO ORACLE
 
 This is a topic which often causes problems. Mainly due to Oracle's many
@@ -1249,7 +1292,7 @@ This is the case when you encounter a
 
  DBI connect('','system',...) failed: ERROR OCIEnvNlsCreate. 
  
-error in Lunix or in Windows when you get 
+error in Linux or in Windows when you get 
 
   OCI.DLL not found
   
@@ -1324,7 +1367,33 @@ TWO_TASK works the same way except it should override the value in ORACLE_SID so
   
 will work as well. Note this may not work for Windows.
 
+=head2 Oracle DRCP
 
+DBD::Oracle now supports DRCP (Database Resident Connection Pool) so if you have an 11.2 database and the DRCP is turned on
+you can now direct all of your connections to it simply adding ':POOLED' to the SID or setting a connection attribute of ora_drcp, or 
+set the SERVER=POOLED when using a TNSENTRY style connection or even by setting an environment variable ORA_DRCP. 
+All of which are demonstrated below;
+
+  $dbh = DBI->connect('dbi:Oracle:DB:POOLED','username','password')
+
+  $dbh = DBI->connect('dbi:Oracle:','username@DB:POOLED','password')
+  
+  $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1})
+  
+  $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1, ora_drcp_class=>'my_app', ora_drcp_min=>10})
+ 
+  $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=ORCL;port=1521;SERVER=POOLED', 'scott/tiger', '')
+
+  $dbh = DBI->connect('dbi:Oracle:', q{scott/tiger@(DESCRIPTION=
+  (ADDRESS=(PROTOCOL=TCP)(HOST= foobar)(PORT=1521))
+  (CONNECT_DATA=(SID=ORCL)(SERVER=POOLED)))}, "")
+
+  if ORA_DRCP environment var is set the just this
+  
+  $dbh = DBI->connect('dbi:Oracle:DB','username','password')
+ 
+ You can find a white paper on setting up DRCP and its advantages here http://www.oracle.com/technology/tech/oci/pdf/oracledrcp11g.pdf
+   
 =head2 Optimizing Oracle's listener
 
 [By Lane Sharman <lane@bienlogic.com>] I spent a LOT of time optimizing
@@ -1482,7 +1551,7 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 =item ora_ncs_buff_mtpl
 
 You can now customize the size of the buffer when selecting LOBs with
-the built in AUTO Lob.  The default value is 4 which should is actully exessive 
+the built in AUTO Lob.  The default value is 4 which should is actually excessive 
 for most situations but is needed for backward compatibility. 
 If you not converting between a NCS on the DB and the Client then you might 
 want to set this to 1 to free up memory.  
@@ -1492,6 +1561,55 @@ environment variable that you can use at the OS level to set this
 value.  If used it will take the value at the connect stage.
 
 See more details in the LOB section of the POD
+
+=item ora_drcp
+
+If you have an 11.2 or greater database your can utilize the DRCP by setting
+this attribute to 1 at connect time. 
+
+For convenience I have added support for a 'ORA_DRCP'
+environment variable that you can use at the OS level to set this
+value. 
+
+=item ora_drcp_class
+
+If you are using DRCP, you can set a CONNECTION_CLASS for your pools as well.
+As sessions from a DRCP cannot be shared by users, you can use this 
+setting to identify the same user across different applications. OCI will ensure that
+session belonging to a 'class' are not shared outside the class'.
+
+The values for ora_drcp_class cannot contain an '*' and must be less than 1024 characters.
+
+This value can be set at the environment level with 'ORA_DRCP_CLASS'.
+
+=item ora_drcp_min
+
+Is an optional value that specifies the minimum number of sessions that are initially opened.
+New sessions are only opened after this value has been reached.
+
+The default value is '4' and  any value above '0' is valid.
+
+Generally, it should be set to the number of concurrent statements the application is planning 
+or expecting to run.
+
+This value can be set at the environment level with 'ORA_DRCP_MIN'.
+
+=item ora_drcp_max
+
+Is an optional value that specifies the maximum number of sessions that can be open at one time.
+Once reached no more session can be opened until one becomes free. The default value 
+is '40' and any value above '1' is valid.  You should not set this value lower than ora_drcp_min as 
+that will just waste resources.
+
+This value can be set at the environment level with 'ORA_DRCP_MAX'.
+
+=item ora_drcp_incr
+
+Is an optional value that specifies the next increment for sessions to be started if the current number of
+sessions are less than ora_drcp_max. The default value is '2' and  any value above '0' is valid as long
+as the value of ora_drcp_min + ora_drcp_incr is not greater than ora_drcp_max.
+
+This value can be set at the environment level with 'ORA_DRCP_INCR'.
 
 =item ora_session_mode
 
@@ -1547,6 +1665,10 @@ to a already shared scalar which is initialized to an empty string.
   our $orashr : shared = '' ;
 
   $dbh = DBI->connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
+  
+=item ora_context
+
+Use this attribute to send a pointer to a ProC connection when the your dbname is set to extproc. 
 
 =item ora_use_proc_connection
 
@@ -1639,9 +1761,9 @@ Determine object type for each instance. All object attributes are returned (not
 
 =item ora_ph_type
 
-The default placeholder data type for the database session.
+The default placeholder datatype for the database session.
 The C<TYPE> or L</ora_type> attributes to L<DBI/bind_param> and
-L<DBI/bind_param_inout> override the data type for individual placeholders.
+L<DBI/bind_param_inout> override the datatype for individual placeholders.
 The most frequent reason for using this attribute is to permit trailing spaces
 in values passed by placeholders.
 
@@ -1790,8 +1912,8 @@ See L</Prefetching Rows> for more details.
 
 =item 
 
-You can customize the value of the row cache with this value.  By default it will normlly be set to the 
-RowCacheSize or one cles to it.
+You can customize the value of the row cache with this value.  By default it will normally be set to the 
+RowCacheSize or one close to it.
 
 =item ora_verbose
 
@@ -1812,7 +1934,7 @@ L<DBI/bind_param> or L<DBI/bind_param_inout> statement handle methods.
 
 =item ora_type
 
-Specify the placeholder's data type using an Oracle data type.
+Specify the placeholder's datatype using an Oracle datatype.
 A fatal error is raised if C<ora_type> and the DBI C<TYPE> attribute
 are used for the same placeholder.
 Some of these types are not supported by the current version of
@@ -1897,14 +2019,14 @@ Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
 
 =head1 Prefetching & Row Caching 
 
-DBD::Oracle now supports both Server pre-fetch and Client side row caching. By defualt both 
-are trurned on to give optimum performance. Most of the time one can just let DBD::Oracle
+DBD::Oracle now supports both Server pre-fetch and Client side row caching. By default both 
+are turned on to give optimum performance. Most of the time one can just let DBD::Oracle
 figure out the best optimization. 
 
 =head2 Row Caching
 
-Row caching occures on the client side and the object of it is to cut down the number of round 
-trips made to the server when fetching rows. At each fetch a set number of rows will be retreived
+Row caching occurs on the client side and the object of it is to cut down the number of round 
+trips made to the server when fetching rows. At each fetch a set number of rows will be retrieved
 from the server and stored locally. Further calls the server are made only when the end of the 
 local buffer(cache) is reached.
 
@@ -1914,9 +2036,9 @@ The default value is 0, which means that memory size is not included in computin
 the C<RowCacheSize> value is set to a negative number then the positive value of RowCacheSize is used 
 to compute the number of rows to prefetch.
 
-By default C<RowCacheSize> is automatically set. If you want to totaly turn off prefetching set this to 1.
+By default C<RowCacheSize> is automatically set. If you want to totally turn off prefetching set this to 1.
 
-For any SQL statment that contains a LOB, Long or Object Type Row Caching will be turned off. However server side 
+For any SQL statement that contains a LOB, Long or Object Type Row Caching will be turned off. However server side 
 caching still works.  If you are only selecting a LOB Locator then Row Caching will still work.
 
 =head2 Row Prefetching
@@ -2288,7 +2410,7 @@ The only multi-byte Oracle character set supported by DBD::Oracle is
 =head1 SYS.DBMS_SQL datatypes
 
 DBD::Oracle has built-in support for B<SYS.DBMS_SQL.VARCHAR2_TABLE>
-and B<SYS.DBMS_SQL.NUMBER_TABLE> data types. The simple example is here:
+and B<SYS.DBMS_SQL.NUMBER_TABLE> datatypes. The simple example is here:
 
     my $statement='
     DECLARE
@@ -2430,7 +2552,7 @@ you get:
 
 =head1 Other Data Types
 
-DBD::Oracle does not I<explicitly> support most Oracle data types.
+DBD::Oracle does not I<explicitly> support most Oracle datatypes.
 It simply asks Oracle to return them as strings and Oracle does so.
 Mostly.  Similarly when binding placeholder values DBD::Oracle binds
 them as strings and Oracle converts them to the appropriate type,
@@ -3162,7 +3284,7 @@ used, normally one can get an entire LOB is a single round trip.
 
 =head3 Simple Fetch for LONGs and LONG RAWs
 
-As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LONG data types as a single large piece. 
+As the name implies this is the simplest way to use this interface. DBD::Oracle just attempts to get your LONG datatypes as a single large piece. 
 There are no special settings, simply set the database handle's 'LongReadLen' attribute to a value that will be the larger than the expected size of the LONG or LONG RAW.
 If the size of the LONG or LONG RAW exceeds  the 'LongReadLen' DBD::Oracle will return a 'ORA-24345: A Truncation' error.  To stop this set the database handle's 'LongTruncOk' attribute to '1'.
 The maximum value of 'LongReadLen' seems to be dependent on the physical memory limits of the box that Oracle is running on.  You have most likely reached this limit if you run into
@@ -3205,8 +3327,8 @@ but you were actually using 40_000_000 bytes of buffer under the hood.  You woul
 You can now customize the size of the buffer by setting the 'ora_ncs_buff_mtpl' either on the connection or statement handle. You can
 also set this as 'ORA_DBD_NCS_BUFFER' OS environment variable so you will have to go back and change all your code if you are getting into trouble.
 
-The default value is still set to 4 for backward compatiblty. You can lower this value and thus increase the amount of data you can retreive. If the
-ora_ncs_buff_mtpl is too small DBD::Oracle will thow and error telling you to increase this buffer by one.
+The default value is still set to 4 for backward compatibility. You can lower this value and thus increase the amount of data you can retrieve. If the
+ora_ncs_buff_mtpl is too small DBD::Oracle will throw and error telling you to increase this buffer by one.
 
 If the error is not captured then you may get at some random point later on, usually at a finish() or disconnect() or even a fetch() this error;
 
@@ -3216,7 +3338,7 @@ This is one of the more obscure ORA errors (have some fun and report it to Meta-
 
 If you get this, simply increment the ora_ncs_buff_mtpl by one until it goes away.
 
-This should greatly increase your ability to select very large CLOBs or NCLOBs, by freeing up a large block of menory.
+This should greatly increase your ability to select very large CLOBs or NCLOBs, by freeing up a large block of memory.
 
 You can tune this value by setting ora_oci_success_warn which will display the following
 
@@ -3816,7 +3938,7 @@ Locator returned, and not modifying the LOB it refers to,
 the select statement does not require the "FOR UPDATE"
 clause.
 
-A word of catution when using the data retruned from an ora_lob_read in a condtional statement. 
+A word of caution when using the data returned from an ora_lob_read in a conditional statement. 
 for example if the code below;
 
    while( my $data = $dbh->ora_lob_read( $char_locator, $offset, $chunk_size ) ) {
@@ -4054,7 +4176,7 @@ Note:
 
 DBD::Oracle does not currently support binding a PL/SQL table (aka array)
 as an IN OUT parameter to any Perl data structure.  You cannot therefore call
-a PL/SQL function or procedure from DBI that uses a non-atomic data type as
+a PL/SQL function or procedure from DBI that uses a non-atomic datatype as
 either a parameter, or a return value.  However, if you are using Oracle 9.0.1
 or later, you can make use of table (or pipelined) functions.
 

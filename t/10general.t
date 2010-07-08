@@ -13,7 +13,7 @@ require 'nchar_test_lib.pl';
 
 $| = 1;
 
-plan tests => 31;
+plan tests => 30;
 
 diag('Test preparsing, Active, NLS_NUMERIC_CHARACTERS, err, ping and OCI version');
 
@@ -96,10 +96,6 @@ $dbh->{RaiseError} = 0;
 # ---
 
 ok( $dbh->ping, 'ping - connected');
-
-$dbh->disconnect;
-$dbh->{PrintError} = 0;
-ok(!$dbh->ping, 'ping disconnected');
 
 my $ora_oci = DBD::Oracle::ORA_OCI(); # dualvar
 printf "ORA_OCI = %d (%s)\n", $ora_oci, $ora_oci;
