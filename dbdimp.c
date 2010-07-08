@@ -382,15 +382,31 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	DBD_ATTRIB_GET_IV(attr, "ora_use_proc_connection", 23,
 			use_proc_connection_sv, use_proc_connection);
 #else /*CAN_USE_PRO_C*/
-    if (DBD_ATTRIB_TRUE(attr,"ora_use_proc_connection",23,svp))
-      	croak ("You can only use a ProC connection, if your DBD::Oracle was built with the -ProC on the Makefile.PL") ;
+	if (DBD_ATTRIB_TRUE(attr,"ora_use_proc_connection",23,svp))
+		croak ("You can only use a ProC connection, if your DBD::Oracle was built with the -ProC on the Makefile.PL") ;
 #endif /*CAN_USE_PRO_C*/
 
 #ifdef ORA_OCI_112
 	/*check to see if the user is connecting with DRCP */
-    if (DBD_ATTRIB_TRUE(attr,"ora_drcp",8,svp))
-        imp_dbh->using_drcp = 1;
-#endif
+	if (DBD_ATTRIB_TRUE(attr,"ora_drcp",8,svp))
+		imp_dbh->using_drcp = 1;
+
+	/* some connection pool atributes  */
+
+	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_pool_class", 14)) && SvOK(*svp)) {
+		if (!SvPOK(*svp))
+			croak("ora_pool_class is not a string");
+		imp_dbh->pool_class = (text *) SvPV (*svp, svp_len );
+		imp_dbh->pool_classl= (ub4) svp_len;
+    }
+	if (DBD_ATTRIB_TRUE(attr,"ora_pool_min",12,svp))
+		DBD_ATTRIB_GET_IV( attr, "ora_pool_min",  12, svp, imp_dbh->pool_min);
+	if (DBD_ATTRIB_TRUE(attr,"ora_pool_max",12,svp))
+		DBD_ATTRIB_GET_IV( attr, "ora_pool_max",  12, svp, imp_dbh->pool_max);
+	if (DBD_ATTRIB_TRUE(attr,"ora_pool_incr",13,svp))
+		DBD_ATTRIB_GET_IV( attr, "ora_pool_incr",  13, svp, imp_dbh->pool_incr);
+#endif /*ORA_OCI_112*/
+
 	/* check to see if DBD_verbose or ora_verbose is set*/
 	if (DBD_ATTRIB_TRUE(attr,"dbd_verbose",11,svp))
 		DBD_ATTRIB_GET_IV(  attr, "dbd_verbose",  11, svp, dbd_verbose);
@@ -789,10 +805,15 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 #ifdef ORA_OCI_112
 
-
 				if (imp_dbh->using_drcp) { /* connect uisng a DRCP */
 					ub4   purity = OCI_ATTR_PURITY_SELF;
-
+					/* pool Default values */
+					if (!imp_dbh->pool_min )
+						imp_dbh->pool_min = 4;
+					if (!imp_dbh->pool_max )
+						imp_dbh->pool_max = 40;
+					if (!imp_dbh->pool_incr)
+						imp_dbh->pool_incr = 2;
 
 					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->poolhp, OCI_HTYPE_SPOOL, status);
 
@@ -801,12 +822,12 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 							imp_dbh->poolhp,
 							(OraText **) &imp_dbh->pool_name,
 							(ub4 *) &imp_dbh->pool_namel,
-							dbname,
+							(OraText *) dbname,
 							strlen(dbname),
-							10,
-							100,
-							4,
-							uid,
+							imp_dbh->pool_min,
+							imp_dbh->pool_max,
+							imp_dbh->pool_incr,
+							(OraText *) uid,
 							strlen(uid),
 							pwd,
 							strlen(pwd),
@@ -826,6 +847,11 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 					OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
 								&purity, (ub4) 0,(ub4) OCI_ATTR_PURITY, imp_dbh->errhp, status);
+
+					if (imp_dbh->pool_class) /*pool_class may ormay not be used */
+						OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
+								(OraText *) imp_dbh->pool_class, (ub4) imp_dbh->pool_classl,
+								(ub4) OCI_ATTR_CONNECTION_CLASS, imp_dbh->errhp, status);
 
 					cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
 
@@ -1113,6 +1139,19 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 #ifdef ORA_OCI_112
 	else if (kl==8 && strEQ(key, "ora_drcp") ) {
 		imp_dbh->using_drcp = 1;
+	}
+	else if (kl==14 && strEQ(key, "ora_pool_class") ) {
+		imp_dbh->pool_class = (text *) SvPV (valuesv, vl );
+		imp_dbh->pool_classl= (ub4) vl;
+	}
+	else if (kl==12 && strEQ(key, "ora_pool_min") ) {
+		imp_dbh->pool_min = SvIV (valuesv);
+	}
+	else if (kl==12 && strEQ(key, "ora_pool_max") ) {
+		imp_dbh->pool_max = SvIV (valuesv);
+	}
+	else if (kl==13 && strEQ(key, "ora_pool_incr") ) {
+		imp_dbh->pool_incr = SvIV (valuesv);
 	}
 #endif
 	else if (kl==20 && strEQ(key, "ora_oci_success_warn") ) {

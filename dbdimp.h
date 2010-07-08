@@ -45,6 +45,11 @@ struct imp_dbh_st {
 	text        *pool_name;
 	ub4			pool_namel;
 	bool		using_drcp;
+	text		*pool_class;
+	ub4			pool_classl;
+	ub4			pool_min;
+	ub4			pool_max;
+	ub4			pool_incr;
 #endif
 	int proc_handles;		   /* If true, srvhp, svchp, and authp handles
 								   are owned by ProC and must not be freed. */

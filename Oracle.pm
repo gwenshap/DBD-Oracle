@@ -247,6 +247,30 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	# Call Oracle OCI logon func in Oracle.xs file
 	# and populate internal handle data.
 	
+	
+	if (exists $ENV{ORA_POOL_CLASS}) {
+	   $attr->{ora_pool_class} = $ENV{ORA_POOL_CLASS}
+	}
+	if($attr->{ora_pool_class}){
+	# if using ora_pool_class it cannot contain more than 1024 bytes 
+	# and cannot contain a *
+	   if (index($attr->{ora_pool_class},'*') !=-1){
+		croak("ora_pool_class cannot contain a '*'!");
+	   }
+	   if (length($attr->{ora_pool_class}) > 1024){
+		croak("ora_pool_class mut be less than 1024 characters!");
+	   }
+	}
+	if (exists $ENV{ORA_POOL_MIN}) {
+	   $attr->{ora_pool_min} = $ENV{ORA_POOL_MIN}
+	}
+	if (exists $ENV{ORA_POOL_MAX}) {
+	   $attr->{ora_pool_max} = $ENV{ORA_POOL_MAX}
+	}
+	if (exists $ENV{ORA_POOL_INCR}) {
+	   $attr->{ora_pool_incr} = $ENV{ORA_POOL_INCR}
+	}
+	
 	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth, $attr)
 	    or return undef;
 
