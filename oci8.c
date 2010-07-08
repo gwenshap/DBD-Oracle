@@ -414,7 +414,7 @@ oci_attr_name(ub4 attr)
 	/*=============================Attribute Types===============================*/
 #ifdef ORA_OCI_112
     case OCI_ATTR_PURITY:				return "OCI_ATTR_PURITY"; /* for DRCP session purity */
-    case OCI_ATTR_CONNECTION_CLASS		return "OCI_ATTR_CONNECTION_CLASS"; /* for DRCP connection class */
+    case OCI_ATTR_CONNECTION_CLASS:		return "OCI_ATTR_CONNECTION_CLASS"; /* for DRCP connection class */
 #endif
 	case OCI_ATTR_FNCODE:				return "OCI_ATTR_FNCODE";		/* the OCI function code */
 	case OCI_ATTR_OBJECT:				return "OCI_ATTR_OBJECT"; /* is the environment initialized in object mode */
