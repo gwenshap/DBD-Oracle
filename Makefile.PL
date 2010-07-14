@@ -691,7 +691,7 @@ $opts{DEFINE} .= " -DORA_OCI_102" if ($::opt_V && $client_version == 10.2)
 $opts{DEFINE} .= " -DORA_OCI_112" if ($::opt_V && $client_version == 11.2)
 				or ( $client_version >= 11.2); 
 
-print "\DEFINE=$opts{DEFINE}\n\n";
+print "\nDEFINE=$opts{DEFINE}\n\n";
 # OCIStmntFetch2() is a feature of OCI 9.0.0
 $opts{DEFINE} .= " -DUSE_ORA_OCI_STMNT_FETCH " if ( $client_version < 9.0 );
  

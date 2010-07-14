@@ -5,9 +5,9 @@
 #
 #   See COPYRIGHT section in the documentation below
 
-require 5.003;
+require 5.006;
 
-$DBD::Oracle::VERSION = '1.24';
+$DBD::Oracle::VERSION = '1.25';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -1132,9 +1132,9 @@ So to make a short story a little longer;
   6) For you Luddites out there ORAPERL still works and is still included but not updated or supported anymore.
   7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 and even get to 10. 
      I am not sure what the 11g client can connect to.
-  8) DBD::Oracle still has the code in place for ProC. But good luck trying to get it to work with any of the instance clients 
+  8) DBD::Oracle still has the code in place for ProC. But good luck trying to get it to work with any of the instant clients 
      as Oracle no longer ships the correct .mk files.  I was unable to get it to work with Oracle 11+ as it ships with only 
-     part of the full ProC install.  You may have to get a full blown version of ProC from Oracle to get it to compile.
+     part of the full ProC install.  You may have to get a full version of ProC from Oracle to get it to compile.
      
 =head1 CONNECTING TO ORACLE
 
@@ -1189,8 +1189,9 @@ will use TCP/IP (or D for DECNET, etc.) for remote SQL*Net v1 connection.
 will use the info stored in the SQL*Net v2 F<tnsnames.ora>
 configuration file for local or remote connections.
 
-Support for 'T:' syntax of Oracle SQL*Net V1 is only supported on older 7 clients and I have my doubts it will even work 
-if the DB or client has been patched and I know it will not work on any later clients.
+Support for 'T:' syntax of Oracle SQL*Net V1 is only supported on older 7 clients and 
+I have my doubts it will even work if the DB or client has been patched and I know it 
+will not work on any later clients.
 
 The ORACLE_HOME environment variable should be set correctly.
 In general, the value used should match the version of Oracle that
