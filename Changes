@@ -1,13 +1,13 @@
 =head1 Changes in DBD-Oracle 1.25(svn rev )
   
   Added support for the OCIPing by John Scoles
-  Spell checked the pod (the first time in a while me thinks) udated the todo By John Scoles
+  Spell checked the pod (the first time in a while me thinks) updated the todo By John Scoles
   Added support for DCRP (Database Resident Connection Pooling) by John Scoles with Luben Karavelov
   Fix for odd error with Ping from Tom Payerle
-  Removed the NEW_OCI_INIT compile directive and the depricated OCIInitialize calls
+  Removed the NEW_OCI_INIT compile directive and the deprecated OCIInitialize calls
   Fix for rt.cpan.org Ticket #=57256 :  Double free problem in dbdimp.c by John Scoles
   Fix for invalid format in trace of OCILobLocatorIsInit_log_stat reported by Martin Evans Fixed by John Scoles
-  Fix for very odd UNKNOWN OCI STATUS 1041 (OCILobFreeTemporary) on disconnect reported by John Parker and Dob Mcgowan fixe by John Scoles 
+  Fix for very odd UNKNOWN OCI STATUS 1041 (OCILobFreeTemporary) on disconnect reported by John Parker and Bob Mcgowan fixed by John Scoles 
   Fix for rt.cpan.org Ticket #=55445: get_info(28) SQL_IDENTIFIER_CASE seems to return the wrong value from Martin J Evans and a bunch of re jigging from John Scoles
   Patch for PL/SQL: numeric or value error: character string buffer too small from Scott T. Hildreth
   Fix for rt.cpan.org Ticket #=51594 type_info and type_info_all miss vital information from John Scoles
@@ -15,7 +15,7 @@
   Fix for rt.cpan.org Ticket #=55031 Ubuntu Server  Building with Oracle XE under 32-bit from Brian Candler 
   Fix for rt.cpan.org Ticket #=56810 bug with multiple nested cursor from John Scoles 
   Fix for bug found only on Big-Endian hardware reported by Timothy Everett and others from Charles Jardine 
-  Fix for memory leak when using prepared_cached and lobs reported by Mark Bobak and Martin Evans found and fixed by John Scoles
+  Fix for memory leak when using prepared_cached and lobs reported by Mark Bobak and Martin Evans found and fixed by John Scoles and a test from Martin Evans 
   Added more entries to the Readmes from John Scoles
   
 =head1 Changes in DBD-Oracle 1.24_01(svn rev 14060)

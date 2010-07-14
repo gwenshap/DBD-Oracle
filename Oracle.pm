@@ -189,10 +189,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    } split /\s*;\s*/, $dbname;
 	    my %dbname = ( PROTOCOL => 'tcp', @dbname );
 
-            if ($dbname{SERVER} eq "POOLED") {
+	    if ((exists $dbname{SERVER}) and ($dbname{SERVER} eq "POOLED")) {
                $attr->{ora_drcp}=1;
-	  
 	    }
+	    
 	    # extract main attributes for connect_data portion
 	    my @connect_data_attr = qw(SID INSTANCE_NAME SERVER SERVICE_NAME );
 	    my %connect_data = map { ($_ => delete $dbname{$_}) }
