@@ -1898,23 +1898,18 @@ See L</Scrollable Cursors> for more details.
 =item ora_prefetch_rows
 
 Sets the number of rows to be prefetched. If it is not set, then the default value is 1.
-See L</Prefetching Rows> for more details.
+See L</Row Prefetching> for more details.
 
 =item ora_prefetch_memory
 
 Sets the memory level for rows to be prefetched. The application then fetches as many rows as will fit into that much memory.
-See L</Prefetching Rows> for more details.
+See L</Row Prefetching> for more details.
 
 =item ora_row_cache_off
 
 By default DBD::Oracle will use a row cache when fetching to cut down the number of round 
 trips to the server. If you do not want to use an array fetch set this value to any value other than 0;
 See L</Prefetching Rows> for more details.
-
-=item 
-
-You can customize the value of the row cache with this value.  By default it will normally be set to the 
-RowCacheSize or one close to it.
 
 =item ora_verbose
 
@@ -3616,8 +3611,8 @@ LOB operations simple by hiding the LOB Locator processing:
 
 The alternative is to disable the automatic LOB Locator processing.
 If L</ora_auto_lob> is 0 in prepare(), you can fetch the LOB Locators and
-do all the work yourself using the ora_lob_*() methods and/or Oracle::OCI.
-See the L</LOB Methods> section below.
+do all the work yourself using the ora_lob_*() methods.
+See the L</Data Interface for LOB Locators> section below.
 
 =head3 LOB support in PL/SQL
 
