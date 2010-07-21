@@ -1135,7 +1135,7 @@ So to make a short story a little longer;
   8) DBD::Oracle still has the code in place for ProC. But good luck trying to get it to work with any of the instant clients 
      as Oracle no longer ships the correct .mk files.  I was unable to get it to work with Oracle 11+ as it ships with only 
      part of the full ProC install.  You may have to get a full version of ProC from Oracle to get it to compile.
-     
+
 =head1 CONNECTING TO ORACLE
 
 This is a topic which often causes problems. Mainly due to Oracle's many
@@ -1394,7 +1394,7 @@ All of which are demonstrated below;
   $dbh = DBI->connect('dbi:Oracle:DB','username','password')
  
  You can find a white paper on setting up DRCP and its advantages here http://www.oracle.com/technology/tech/oci/pdf/oracledrcp11g.pdf
-   
+
 =head2 Optimizing Oracle's listener
 
 [By Lane Sharman <lane@bienlogic.com>] I spent a LOT of time optimizing
