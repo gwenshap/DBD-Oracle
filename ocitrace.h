@@ -119,12 +119,12 @@
 				 OciTp,	(void*)svchp,(void*)envhp, src_type, src_ptr,oci_status_name(stat)),stat \
 	: stat
 
-#define OCILobLocatorIsInit_log_stat(envhp,errhp,loc,is_init,stat)\
+#define OCILobLocatorIsInit_log_stat(envhp,errhp,loc,is_initp,stat)\
 	stat =OCILobLocatorIsInit (envhp,errhp,loc,is_init );\
 	(DBD_OCI_TRACEON) \
 			? PerlIO_printf(DBD_OCI_TRACEFP,\
 				 "%sOCILobLocatorIsInit_log_stat(%p,%p,%p,%d)=%s\n",\
-				 OciTp, (void*)envhp, (void*)errhp,loc,is_init,oci_status_name(stat)),stat \
+				 OciTp, (void*)envhp, (void*)errhp,loc,*is_initp,oci_status_name(stat)),stat \
 	: stat
 
 #define OCIObjectPin_log_stat(envhp,errhp,or,ot,stat)\
