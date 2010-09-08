@@ -828,7 +828,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 							imp_dbh->pool_incr,
 							(OraText *) uid,
 							strlen(uid),
-							pwd,
+							(OraText *) pwd,
 							strlen(pwd),
 							status);
 
@@ -921,7 +921,9 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 #endif
 	}
 
+#if defined(CAN_USE_PRO_C)
 dbd_db_login6_out:
+#endif
 	DBIc_IMPSET_on(imp_dbh);	/* imp_dbh set up now			*/
 	DBIc_ACTIVE_on(imp_dbh);	/* call disconnect before freeing	*/
 	imp_dbh->ph_type = 1;	/* SQLT_CHR "(ORANET TYPE) character string" */
@@ -1137,7 +1139,6 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 {
 	dTHX;
 	STRLEN kl;
-	STRLEN vl;
 	char *key = SvPV(keysv,kl);
 	int on = SvTRUE(valuesv);
 	int cacheit = 1;
@@ -2439,7 +2440,7 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (1): bind %s <== %.1000s (", phs->name, val);
 		if (!SvOK(phs->sv))
 			PerlIO_printf(DBILOGFP, "NULL, ");
-		PerlIO_printf(DBILOGFP, "size %ld/%ld/%ld, ",(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
+		PerlIO_printf(DBILOGFP, "size %ld/%ld/%d, ",(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
 		PerlIO_printf(DBILOGFP, "ptype %d(%s), otype %d %s)\n",(int)SvTYPE(phs->sv), sql_typecode_name(phs->ftype),phs->ftype,(phs->is_inout) ? ", inout" : "");
 	}
 
