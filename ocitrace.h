@@ -120,7 +120,7 @@
 	: stat
 
 #define OCILobLocatorIsInit_log_stat(envhp,errhp,loc,is_initp,stat)\
-	stat =OCILobLocatorIsInit (envhp,errhp,loc,is_init );\
+	stat =OCILobLocatorIsInit (envhp,errhp,loc,is_initp );\
 	(DBD_OCI_TRACEON) \
 			? PerlIO_printf(DBD_OCI_TRACEFP,\
 				 "%sOCILobLocatorIsInit_log_stat(%p,%p,%p,%d)=%s\n",\
