@@ -1151,6 +1151,7 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 		imp_dbh->using_drcp = 1;
 	}
 	else if (kl==14 && strEQ(key, "ora_drcp_class") ) {
+		STRLEN vl;
 		imp_dbh->pool_class = (text *) SvPV (valuesv, vl );
 		imp_dbh->pool_classl= (ub4) vl;
 	}
@@ -2440,8 +2441,10 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (1): bind %s <== %.1000s (", phs->name, val);
 		if (!SvOK(phs->sv))
 			PerlIO_printf(DBILOGFP, "NULL, ");
-		PerlIO_printf(DBILOGFP, "size %ld/%ld/%d, ",(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),phs->maxlen);
+		PerlIO_printf(DBILOGFP, "size %ld/%ld/%ld, ",(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),(long)phs->maxlen);
 		PerlIO_printf(DBILOGFP, "ptype %d(%s), otype %d %s)\n",(int)SvTYPE(phs->sv), sql_typecode_name(phs->ftype),phs->ftype,(phs->is_inout) ? ", inout" : "");
+		
+		
 	}
 
 	/* At the moment we always do sv_setsv() and rebind.	*/

@@ -3787,8 +3787,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 							--datalen;
 					}
 					sv_setpvn(sv, p, (STRLEN)datalen);
-#if DBISTATE_VERSION > 94
-		/* DBIXS_REVISION > 13590 */
+#if DBIXS_REVISION > 13590
 		/* If a bind type was specified we use DBI's sql_type_cast
 			to cast it - currently only number types are handled */
 					if (fbh->req_type != 0) {

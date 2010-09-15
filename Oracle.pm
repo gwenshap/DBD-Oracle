@@ -2212,6 +2212,16 @@ An identifier is passed I<as is>, i.e. as the user provides or
 Oracle returns it.
 See L</table_info()> for more detailed information.
 
+It is possiable with Oracle to make the names of the various DB objects (table,column,index etc)
+case sensitive. 
+
+  alter table bloggind add ("Bla_BLA" NUMBER)
+
+So in the example the exact case "Bla_BLA" must be used to get it info on the column. While this
+
+ alter table bloggind add (Bla_BLA NUMBER)
+
+any case can be used to get info on the column.
 
 =head1 Unicode
 
