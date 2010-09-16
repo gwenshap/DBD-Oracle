@@ -1124,17 +1124,18 @@ Note that one can still connect to any Oracle version with the older DBD::Oracle
 
 So to make a short story a little longer;
 
-  1) If you are using Oracle 7 or early 8 get a 9 client and you can use any DBD::Oracle version.
+  1) If you are using Oracle 7 or early 8 DB and you can manage to get a 9 client and you can use any DBD::Oracle version.
   2) If you have to use an Oracle 7 client then DBD::Oracle 1.17 should work
   3) Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might go with 1.18.
   4) For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your patch-set, If you run into trouble go with 1.19
   5) After 9.2 you can use any version you want.
-  6) For you Luddites out there ORAPERL still works and is still included but not updated or supported anymore.
+  6) For you Luddites out there ORAPERL still works and is still included but not updated or supported anymore and will be removed in 1.27.
   7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 and even get to 10. 
      I am not sure what the 11g client can connect to.
   8) DBD::Oracle still has the code in place for ProC. But good luck trying to get it to work with any of the instant clients 
      as Oracle no longer ships the correct .mk files.  I was unable to get it to work with Oracle 11+ as it ships with only 
-     part of the full ProC install.  You may have to get a full version of ProC from Oracle to get it to compile.
+     part of the full ProC install.  You may have to get a full version of ProC from Oracle to get it to compile. It is also slated
+     to be removed in 1.27
 
 =head1 CONNECTING TO ORACLE
 
@@ -1393,7 +1394,9 @@ All of which are demonstrated below;
   
   $dbh = DBI->connect('dbi:Oracle:DB','username','password')
  
- You can find a white paper on setting up DRCP and its advantages here http://www.oracle.com/technology/tech/oci/pdf/oracledrcp11g.pdf
+You can find a white paper on setting up DRCP and its advantages here http://www.oracle.com/technology/tech/oci/pdf/oracledrcp11g.pdf
+
+At this point in time this is just the first crack at DRCP and DBD::Oracle so the mechanics or its implementation are subject to change.
 
 =head2 Optimizing Oracle's listener
 
