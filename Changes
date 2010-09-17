@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.25(svn rev )
+=head1 Changes in DBD-Oracle 1.25(svn rev 14411)
   
   Added support for the OCIPing by John Scoles
   Spell checked the pod (the first time in a while me thinks) updated the todo By John Scoles
