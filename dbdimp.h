@@ -38,7 +38,19 @@ struct imp_dbh_st {
 	OCIError 	*errhp;
 	OCIServer 	*srvhp;
 	OCISvcCtx 	*svchp;
-	OCISession	*authp;
+	OCISession	*seshp;
+#ifdef ORA_OCI_112
+	OCIAuthInfo *authp;
+	OCISPool    *poolhp;
+	text        *pool_name;
+	ub4			pool_namel;
+	bool		using_drcp;
+	text		*pool_class;
+	ub4			pool_classl;
+	ub4			pool_min;
+	ub4			pool_max;
+	ub4			pool_incr;
+#endif
 	int proc_handles;		   /* If true, srvhp, svchp, and authp handles
 								   are owned by ProC and must not be freed. */
 	int RowCacheSize; /* both of these are defined by DBI spec*/
@@ -158,7 +170,7 @@ struct fbh_obj_st {  /* embedded object or table will work recursively*/
 	OCIType			*obj_type;		 	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
 	ub1				is_final_type;		/*object's OCI_ATTR_IS_FINAL_TYPE*/
 	fbh_obj_t		*fields;			/*one object for each field/property*/
-	int				field_count;		/*The number of fields Not really needed but nice to have*/
+	ub2				field_count;		/*The number of fields Not really needed but nice to have*/
 	fbh_obj_t		*next_subtype;		/*There is strored information about subtypes for inteherited objects*/
 	AV				*value;				/*The value to send back to Perl This way there are no memory leaks*/
 	SV				*full_type_name;	/*Perl value of full type name = schema_name "." type_name*/
@@ -265,7 +277,6 @@ extern int dbd_verbose;
 extern int oci_warn;
 extern int ora_objects;
 extern int ora_ncs_buff_mtpl;
-
 extern ub2 charsetid;
 extern ub2 ncharsetid;
 extern ub2 us7ascii_csid;

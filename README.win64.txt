@@ -1,3 +1,115 @@
+DBD::Oracle and Windows 64bit 
+
+I have successfully compiled and installed  DBD::Oracle on Windows 2008 server 64bit operating system today.  
+
+I used the latest version of <a href='http://search.cpan.org/~pythian/DBD-Oracle-1.24a/'>DBD::Oracle 1.24</A>
+version 11.2.0.1.0 for 64bit windows of Oracle's
+<a href='http://www.oracle.com/technology/software/tech/oci/instantclient/htdocs/winx64soft.html'>Instant Client Package - Basic</a>
+along with the Instant Client Package - SQL*Plus and finally the Instant Client Package - SDK.
+
+
+To get it to Make and compile correctly I had to download Microsoft's <a href='http://www.microsoft.com/visualstudio/en-ca/download'>Visual Studio Ultimate</a>
+
+which should contain all the files you need.  It is rather portly at 2+gb so you might want to grab lunch while you are downloading it.
+
+
+After all the above downloading DBB::Oracle installed right out of the box.
+
+All one has to do is select  'Start Menu->All Programs->Microsoft Visual Studio 2010->Visual Studio Tools->Visual Studio x64 Win64 Command Prompt (2010)' 
+which will open a good old 'dos' window.
+
+At this point CD to the directory where you downloaded DBD::Oracle
+
+c:\DBD-Oracle>
+
+then set your 'ORACLE_HOME to the Instant Client directory
+
+c:\DBD-Oracle>set ORACLE_HOME=c:\IC_11
+
+you should also set your NLS like this
+
+c:\DBD-Oracle>set NLS_LANG=.WE8ISO8859P15
+
+Once the above setting are done do a 
+
+c:\DBD-Oracle>perl Makefile.PL
+
+and then a 
+
+c:\DBD-Oracle>nmake install
+
+
+Which will produce a whole of warnings (the make you can ignore them for now as they do not seem to effect DBD::Oracle at all) and near the end it should output something like this;
+
+
+Generating code
+Finished generating code
+        if exist blib\arch\auto\DBD\Oracle\Oracle.dll.manifest mt -nologo -manifest blib\arch\auto\DBD\Oracle\Oracle.dll.manifest -outputresource:blib\arch\auto
+\DBD\Oracle\Oracle.dll;2
+        if exist blib\arch\auto\DBD\Oracle\Oracle.dll.manifest del blib\arch\auto\DBD\Oracle\Oracle.dll.manifest
+        C:\Perl64\bin\perl.exe -MExtUtils::Command -e "chmod" -- 755 blib\arch\auto\DBD\Oracle\Oracle.dll
+        C:\Perl64\bin\perl.exe -MExtUtils::Command -e "cp" -- Oracle.bs blib\arch\auto\DBD\Oracle\Oracle.bs
+        C:\Perl64\bin\perl.exe -MExtUtils::Command -e "chmod" -- 644 blib\arch\auto\DBD\Oracle\Oracle.bs
+        C:\Perl64\bin\perl.exe "-Iblib\arch" "-Iblib\lib" ora_explain.PL ora_explain
+Extracted ora_explain from ora_explain.PL with variable substitutions.
+        C:\Perl64\bin\perl.exe -MExtUtils::Command -e "cp" -- ora_explain blib\script\ora_explain
+        pl2bat.bat blib\script\ora_explain
+
+At this point you are all done.  
+
+Well almost
+
+It is important that you test your code before you install but you will have to set a few things up to get it to fully test correctly
+
+You will need a TNSNAMES.ORA file that points to a valid DB in the Instant Client Directory
+
+Next you will need to set the ORACLE_USER_ID to a valid user
+
+
+c:\DBD-Oracle>set ORACLE_USER_ID=system/system@XE
+
+
+You will have to set up TNS_ADMIN to point to the Instant Client Directory
+
+
+c:\DBD-Oracle>set TNS_ADMIN=c:\IC_11
+
+
+Most importantly you will have to add the Instant Client directory to your path like this
+
+c:\DBD-Oracle>path = c:\IC_11;%path%
+
+If you do not do this step you will run into the dreaded 
+
+Can't load 'C:/Perl/lib/auto/DBD/Oracle/Oracle.dll' for module DBD::Oracle: load_file:%1 is not a valid Win32 application at C:/Perl/lib/DynaLoader.pm line 202.
+
+Error later on after the compile when you try to use DBD::Oracle.
+
+What is actually going on is that Perl cannot find oci.dll (or one of the other .dlls it needs to run) the 'C:/Perl/lib/auto/DBD/Oracle/Oracle.dll' and the DynaLoader error
+are just a false trails. For more info on this check out this page <a href='http://www.alexander-foken.de/Censored%20copy%20of%20Oracle%20Troubleshooter%20HOWTO.html#oneoci'>Oracle Troubleshooter'</a>
+by Alexander Foken.  It is rather dated but the facts of why perl did not find a dll are still valid.
+
+
+now you can do this
+
+c:\DBD-Oracle>nmake test
+
+and all the tests should run and it will report
+
+Finally simple do a 
+
+c:\DBD-Oracle>nmake install
+
+and you are all set
+
+That is about it.
+
+At this point you might want to add the Instant Client directory permanently to your path so you will not run into the Dynaloader error again.
+
+
+
+
+
 In general compiling DBD:Oracle for 64 bit machines has been a hit or miss operation.  
 The main thing to remember is you will have to compile using 32 bit Perl and compile DBD::Oracle against a 32bit client
 which sort of defeats the purpose of having a 64bit box.  

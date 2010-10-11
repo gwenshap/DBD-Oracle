@@ -1,4 +1,22 @@
 From: John Scoles
+Date: April 05 2010
+
+The Dreaded  "cc1: invalid option `tune=pentium4'" error.
+
+If you get the above it seems that eiter your Perl or OS where compiled with a different version of GCC or the GCC that is on your system is very old.
+
+No real problem with the above however you will have to
+
+1) run Perl Makefile.PL
+2) edit the Makefile and remove the ofending '-mtune=pentium4' text
+3) save and exit
+4) do the make install and it should work fine for you
+
+
+
+
+
+From: John Scoles
 Date: Fri, 25 May 2007 
 
 Installing with Instantclient .rpm files.

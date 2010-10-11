@@ -333,6 +333,9 @@ oci_hdtype_name(ub4 hdtype)
 	case OCI_HTYPE_DESCRIBE:		return "OCI_HTYPE_DESCRIBE";
 	case OCI_HTYPE_SERVER:			return "OCI_HTYPE_SERVER";
 	case OCI_HTYPE_SESSION:			return "OCI_HTYPE_SESSION";
+	case OCI_HTYPE_CPOOL:   		return "OCI_HTYPE_CPOOL";
+	case OCI_HTYPE_SPOOL:   		return "OCI_HTYPE_SPOOL";
+	/*case OCI_HTYPE_AUTHINFO:        return "OCI_HTYPE_AUTHINFO";*/
 	/* Descriptors */
 	case OCI_DTYPE_LOB:				return "OCI_DTYPE_LOB";
 	case OCI_DTYPE_SNAP:			return "OCI_DTYPE_SNAP";
@@ -409,8 +412,10 @@ oci_attr_name(ub4 attr)
 	SV *sv;
 	switch (attr) {
 	/*=============================Attribute Types===============================*/
-
-
+#ifdef ORA_OCI_112
+    case OCI_ATTR_PURITY:				return "OCI_ATTR_PURITY"; /* for DRCP session purity */
+    case OCI_ATTR_CONNECTION_CLASS:		return "OCI_ATTR_CONNECTION_CLASS"; /* for DRCP connection class */
+#endif
 	case OCI_ATTR_FNCODE:				return "OCI_ATTR_FNCODE";		/* the OCI function code */
 	case OCI_ATTR_OBJECT:				return "OCI_ATTR_OBJECT"; /* is the environment initialized in object mode */
 	case OCI_ATTR_NONBLOCKING_MODE:		return "OCI_ATTR_NONBLOCKING_MODE";		/* non blocking mode */
@@ -724,40 +729,43 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 	sword eg_status;
 
 	if (!SvOK(errstr))
-	sv_setpv(errstr,"");
+		sv_setpv(errstr,"");
+
 	if (!errhp) {
-	sv_catpv(errstr, oci_status_name(status));
-	if (what) {
-		sv_catpv(errstr, " ");
-		sv_catpv(errstr, what);
-	}
-	return status;
+		sv_catpv(errstr, oci_status_name(status));
+		if (what) {
+			sv_catpv(errstr, " ");
+			sv_catpv(errstr, what);
+		}
+		return status;
 	}
 
 	while( ++recno
-	&& OCIErrorGet_log_stat(errhp, recno, (text*)NULL, &eg_errcode, errbuf,
+		&& OCIErrorGet_log_stat(errhp, recno, (text*)NULL, &eg_errcode, errbuf,
 		(ub4)sizeof(errbuf), OCI_HTYPE_ERROR, eg_status) != OCI_NO_DATA
-	&& eg_status != OCI_INVALID_HANDLE
-	&& recno < 100
-	) {
-	if (debug >= 4 || recno>1/*XXX temp*/)
-		PerlIO_printf(DBILOGFP, "	OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
-		what ? what : "<NULL>", (long)recno,
+		&& eg_status != OCI_INVALID_HANDLE
+		&& recno < 100) {
+		if (debug >= 4 || recno>1/*XXX temp*/)
+			PerlIO_printf(DBILOGFP, "	OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
+			what ? what : "<NULL>", (long)recno,
 			(eg_status==OCI_SUCCESS) ? "ok" : oci_status_name(eg_status),
 			status, (long)eg_errcode, errbuf);
-	errcode = eg_errcode;
-	sv_catpv(errstr, (char*)errbuf);
-	if (*(SvEND(errstr)-1) == '\n')
-		--SvCUR(errstr);
+
+		errcode = eg_errcode;
+		sv_catpv(errstr, (char*)errbuf);
+
+		if (*(SvEND(errstr)-1) == '\n')
+			--SvCUR(errstr);
 	}
+
 	if (what || status != OCI_ERROR) {
-	sv_catpv(errstr, (debug<0) ? " (" : " (DBD ");
-	sv_catpv(errstr, oci_status_name(status));
-	if (what) {
-		sv_catpv(errstr, ": ");
-		sv_catpv(errstr, what);
-	}
-	sv_catpv(errstr, ")");
+		sv_catpv(errstr, (debug<0) ? " (" : " (DBD ");
+		sv_catpv(errstr, oci_status_name(status));
+		if (what) {
+			sv_catpv(errstr, ": ");
+			sv_catpv(errstr, what);
+		}
+		sv_catpv(errstr, ")");
 	}
 	return errcode;
 }
@@ -784,11 +792,11 @@ oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 	/* DBIc_ERR *must* be SvTRUE (for RaiseError etc), some */
 	/* errors, like OCI_INVALID_HANDLE, don't set errcode. */
 	if (force_err)
-	errcode = force_err;
+		errcode = force_err;
 	if (status == OCI_SUCCESS_WITH_INFO)
-	errcode = 0; /* record as a "warning" for DBI>=1.43 */
+		errcode = 0; /* record as a "warning" for DBI>=1.43 */
 	else if (errcode == 0)
-	errcode = (status != 0) ? status : -10000;
+		errcode = (status != 0) ? status : -10000;
 
 	sv_setiv(errcode_sv, errcode);
 	DBIh_SET_ERR_SV(h, imp_xxh, errcode_sv, errstr_sv, &sv_undef, &sv_undef);
@@ -832,11 +840,12 @@ oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags)
 {
 	dTHX;
 	 switch(handle_type) {
-	 case OCI_HTYPE_ENV:	return imp_dbh->envhp;
-	 case OCI_HTYPE_ERROR:	return imp_dbh->errhp;
-	 case OCI_HTYPE_SERVER:	return imp_dbh->srvhp;
-	 case OCI_HTYPE_SVCCTX:	return imp_dbh->svchp;
-	 case OCI_HTYPE_SESSION:	return imp_dbh->authp;
+	 	case OCI_HTYPE_ENV:		return imp_dbh->envhp;
+	 	case OCI_HTYPE_ERROR:	return imp_dbh->errhp;
+	 	case OCI_HTYPE_SERVER:	return imp_dbh->srvhp;
+	 	case OCI_HTYPE_SVCCTX:	return imp_dbh->svchp;
+	 	case OCI_HTYPE_SESSION:	return imp_dbh->seshp;
+	 	/*case OCI_HTYPE_AUTHINFO:return imp_dbh->authp;*/
 	 }
 	 croak("Can't get OCI handle type %d from DBI database handle", handle_type);
 	 if( flags ) {/* For GCC not to warn on unused parameter */}
@@ -849,11 +858,11 @@ oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags)
 {
 	dTHX;
 	 switch(handle_type) {
-	 case OCI_HTYPE_ENV:	return imp_sth->envhp;
-	 case OCI_HTYPE_ERROR:	return imp_sth->errhp;
-	 case OCI_HTYPE_SERVER:	return imp_sth->srvhp;
-	 case OCI_HTYPE_SVCCTX:	return imp_sth->svchp;
-	 case OCI_HTYPE_STMT:	return imp_sth->stmhp;
+	 	case OCI_HTYPE_ENV:		return imp_sth->envhp;
+		case OCI_HTYPE_ERROR:	return imp_sth->errhp;
+	 	case OCI_HTYPE_SERVER:	return imp_sth->srvhp;
+	 	case OCI_HTYPE_SVCCTX:	return imp_sth->svchp;
+	 	case OCI_HTYPE_STMT:	return imp_sth->stmhp;
 	 }
 	 croak("Can't get OCI handle type %d from DBI statement handle", handle_type);
 	 if( flags ) {/* For GCC not to warn on unused parameter */}
@@ -1439,6 +1448,8 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	D_imp_dbh_from_sth ;
 	sword status;
 	ub4 lobEmpty = 0;
+    if (phs->desc_h && phs->desc_t == OCI_DTYPE_LOB)
+		ora_free_templob(sth, imp_sth, (OCILobLocator*)phs->desc_h);
 
 	if (!phs->desc_h) {
 		++imp_sth->has_lobs;
@@ -2661,37 +2672,15 @@ fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 void rs_array_init(imp_sth_t *imp_sth)
 {
 	dTHX;
-/*	if (imp_sth->rs_array_on!=1		||
-		imp_sth->rs_array_size<1	||
-		imp_sth->rs_array_size>128){
 
-		imp_sth->rs_array_on=0;
-		imp_sth->rs_array_size=1;
-
-	}*/
 	imp_sth->rs_array_num_rows	=0;
 	imp_sth->rs_array_idx		=0;
 	imp_sth->rs_fetch_count		=0;
-	/*imp_sth->prefetch_rows		=0;
-	imp_sth->prefetch_memory	=0;*/
 	imp_sth->rs_array_status	=OCI_SUCCESS;
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(DBILOGFP, "	rs_array_init:imp_sth->rs_array_size=%d, rs_array_idx=%d, prefetch_rows=%d, rs_array_status=%s\n",imp_sth->rs_array_size,imp_sth->rs_array_idx,imp_sth->prefetch_rows,oci_status_name(imp_sth->rs_array_status));
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 static int			/* --- Setup the row cache for this sth --- */
@@ -2801,8 +2790,8 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 
 	imp_sth->rs_array_size=cache_rows;
 
-    if (max_cache_rows){/* limited by a cursor or something else*/
-		imp_sth->rs_array_size=max_cache_rows;
+    if (max_cache_rows){/* limited to 1 by a cursor or something else*/
+		imp_sth->rs_array_size=1;
 	}
 
 
@@ -3140,7 +3129,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 			return 0;
 		}
 	}
-
 	OCIAttrGet_stmhp_stat(imp_sth, &num_fields, 0, OCI_ATTR_PARAM_COUNT, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(h, imp_sth->errhp, status, "OCIAttrGet OCI_ATTR_PARAM_COUNT");
@@ -3799,8 +3787,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 							--datalen;
 					}
 					sv_setpvn(sv, p, (STRLEN)datalen);
-#if DBISTATE_VERSION > 94
-		/* DBIXS_REVISION > 13590 */
+#if DBIXS_REVISION > 13590
 		/* If a bind type was specified we use DBI's sql_type_cast
 			to cast it - currently only number types are handled */
 					if (fbh->req_type != 0) {
@@ -3892,15 +3879,28 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 	if (**uidp == '\0' && **pwdp == '\0') {
 		return OCI_CRED_EXT;
 	}
-
-	OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
+#ifdef ORA_OCI_112
+    if (imp_dbh->using_drcp){
+		OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
 			*uidp, strlen(*uidp),
 			(ub4) OCI_ATTR_USERNAME, imp_dbh->errhp, status);
 
-	OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
+		OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
 			(strlen(*pwdp)) ? *pwdp : NULL, strlen(*pwdp),
 			(ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
+	}
+	else {
+#endif
+		OCIAttrSet_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,
+				*uidp, strlen(*uidp),
+				(ub4) OCI_ATTR_USERNAME, imp_dbh->errhp, status);
 
+		OCIAttrSet_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,
+				(strlen(*pwdp)) ? *pwdp : NULL, strlen(*pwdp),
+			(ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
+#ifdef ORA_OCI_112
+	}
+#endif
 	return OCI_CRED_RDBMS;
 }
 
@@ -3913,8 +3913,8 @@ ora_db_reauthenticate(SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd)
 	/* XXX should possibly create new session before ending the old so	*/
 	/* that if the new one can't be created, the old will still work.	*/
 	OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp,
-			imp_dbh->authp, OCI_DEFAULT, status); /* XXX check status here?*/
-	OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->authp,
+			imp_dbh->seshp, OCI_DEFAULT, status); /* XXX check status here?*/
+	OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
 			 ora_parse_uid(imp_dbh, &uid, &pwd), (ub4) OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
@@ -4095,7 +4095,6 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
 
 	}
-
 	OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
 		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_TABLE, imp_sth->dschp, status);
 
@@ -4373,9 +4372,19 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 			hv_iterinit(imp_sth->all_params_hv);
 			while( (phs_svp = hv_iternextsv(imp_sth->all_params_hv, &p, &i)) != NULL ) {
 				phs_t *phs = (phs_t*)(void*)SvPVX(phs_svp);
+
+
+
 				if (phs->desc_h && !phs->is_inout){
-					OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);
+						OCILobFreeTemporary_log_stat(imp_sth->svchp, imp_sth->errhp, phs->desc_h, status);
+
+
+				/*	boolean lobEmpty=1;*/
+				/*	OCIAttrSet_log_stat(phs->desc_h, phs->desc_t,&lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);*/
+				/*	OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);*/
 				}
+				/*this seem to cause an error later on so I just got rid of it for Now does */
+				/* not seem to kill anything */
 			}
 		}
 		return 1;

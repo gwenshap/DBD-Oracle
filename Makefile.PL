@@ -57,6 +57,9 @@ my %opts = (
 	PREOP		=> '$(MAKE) -f Makefile.old distdir',
 	COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
     },
+    META_MERGE => {
+       configure_requires => { DBI => '1.51' }
+    },
 );
 if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
     $opts{AUTHOR} = 'Tim Bunce (dbi-users@perl.org)';
@@ -131,7 +134,7 @@ $OH =~ s:/$::;
 
 if (!$OH) {
   $OH = find_oracle_home() || die qq{
-      The $ORACLE_ENV environment variable is not set and I couldn't guess it.
+      The $ORACLE_ENV environment variable is not set and I couldn\'t guess it.
       It must be set to hold the path to an Oracle installation directory
       on this machine (or a machine with a compatible architecture).
       See the appropriate README file for your OS for more information.
@@ -162,8 +165,8 @@ print "Using Oracle in $OH\n";
 # $client_version => Major.Minor, $client_version_full => Major.Minor.X.Y.Z
 my ($client_version, $client_version_full) = get_client_version($::opt_V);
 
-die "DBD::Oracle no longer supports Oracle versions before 8.\n"
-    if $client_version < 8;
+die "DBD::Oracle no longer supports Oracle client versions before 9.2 \n Try a version before 1.25 for 9 and 1.18 for 8!"
+    if $client_version < 9;
 
 
 # Check for symbol table problem in libclntsh.dylib.9.0 on MacOS X
@@ -269,7 +272,7 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
       Please install OCI or send comments back to dbi-users\@perl.org
       if you have an OCI directory other than $OCIDIR.  
 
-      Alternatively, if you're using ActiveState perl on Windows try
+      Alternatively, if you\'re using ActiveState perl on Windows try
         ppm install ftp://ftp.esoftmatic.com/outgoing/DBI/5.8.3/DBI.ppd
         ppm install ftp://ftp.esoftmatic.com/outgoing/DBI/5.8.3/DBD-Oracle.ppd
   
@@ -657,12 +660,19 @@ $opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{gccversion};
 
 $opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
 
-$opts{DEFINE} .= ' -DCAN_USE_PRO_C' if $::opt_ProC;
+if ($::opt_ProC) {
+	$opts{DEFINE} .= ' -DCAN_USE_PRO_C' ;
+	print "Seems you want to use ProC connections. Both the Instant Clients and Oracle XE client may not work!!\n\n";
+}
+
+	
+
+
 
 $opts{DEFINE} .= ' -DUTF8_SUPPORT' if ($] >= 5.006);
 
 # Use OCIEnvNlsCreate if available for best unicode behaviour
-$opts{DEFINE} .= ' -DNEW_OCI_INIT' if $client_version >= 9.2;
+#$opts{DEFINE} .= ' -DNEW_OCI_INIT' if $client_version >= 9.2;
 $opts{DEFINE} .= ($os ne 'VMS')
 	? " -DORA_OCI_VERSION=\\\"$client_version_full\\\""
 	: " -DORA_OCI_VERSION=\"$client_version_full\"";
@@ -671,9 +681,17 @@ $opts{DEFINE} .= ($os ne 'VMS')
 # use this if, for some reason the default handling for this function
 # doesn't work or you are building a binary release for distribution
 # to machines with older client libraries.
-$opts{DEFINE} .= " -DORA_OCI_8" if ($::opt_V && $client_version == 8.0)
-				or ($^O eq 'VMS' && $client_version < 9.0); # OCILobIsTemporary
 
+
+print "\nclient_version=$client_version\n\n";
+
+$opts{DEFINE} .= " -DORA_OCI_102" if ($::opt_V && $client_version == 10.2)
+				or ( $client_version >= 10.2); 
+
+$opts{DEFINE} .= " -DORA_OCI_112" if ($::opt_V && $client_version == 11.2)
+				or ( $client_version >= 11.2); 
+
+print "\nDEFINE=$opts{DEFINE}\n\n";
 # OCIStmntFetch2() is a feature of OCI 9.0.0
 $opts{DEFINE} .= " -DUSE_ORA_OCI_STMNT_FETCH " if ( $client_version < 9.0 );
  
@@ -1056,6 +1074,7 @@ sub find_mkfile {
 	'proc16/lib/proc16.mk',
     );
     my @mk_oci32 = (
+    	'rdbms/demo/demo_xe.mk',
 	'rdbms/demo/demo_rdbms32.mk'
     );
     my @mk_oci64 = (
@@ -1600,7 +1619,7 @@ sub get_client_version {
     if (!$client_version_full) {
 	$client_version_full = "8.0.0.0";
         print qq{
-WARNING: I could not determine Oracle client version so I'll just
+WARNING: I could not determine Oracle client version so I\'ll just
 default to version $client_version_full. Some features of DBD::Oracle may not work.
 Oracle version based logic in Makefile.PL may produce erroneous results.
 You can use "perl Makefile.PL -V X.Y.Z" to specify a your client version.\n
