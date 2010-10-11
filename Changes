@@ -1,3 +1,7 @@
+=head1 Changes in DBD-Oracle 1.26 (svn rev 14411)
+
+  Manual re-release of 1.25 with changes to file permissions.
+
 =head1 Changes in DBD-Oracle 1.25(svn rev 14411)
   
   Added support for the OCIPing by John Scoles
