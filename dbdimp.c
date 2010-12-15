@@ -212,7 +212,7 @@ dbd_discon_all(SV *drh, imp_drh_t *imp_drh)
 	dTHR;
 	dTHX;
 	/* The disconnect_all concept is flawed and needs more work */
-	if (!dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
+	if (!PL_dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
 	DBIh_SET_ERR_CHAR(drh, (imp_xxh_t*)imp_drh, Nullch, 1, "disconnect_all not implemented", Nullch, Nullch);
 	return FALSE;
 	}
@@ -438,6 +438,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				PerlIO_printf(DBILOGFP, "dbd_db_login6 skip connect\n");
 			/* tell our parent we've adopted an active child */
 			++DBIc_ACTIVE_KIDS(DBIc_PARENT_COM(imp_dbh));
+
 			return 1;
 		}
 		/* not ACTIVE so connect not skipped */
@@ -1265,7 +1266,7 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 		(void)SvREFCNT_inc(retsv);	/* so sv_2mortal won't free it	*/
 	}
 
-	if (retsv == &sv_yes || retsv == &sv_no)
+	if (retsv == &PL_sv_yes || retsv == &PL_sv_no)
 		return retsv; /* no need to mortalize yes or no */
 
 	return sv_2mortal(retsv);
@@ -1391,7 +1392,7 @@ phs_t *phs;
 	phs_tpl.imp_sth = imp_sth;
 	phs_tpl.ftype  = imp_dbh->ph_type;
 	phs_tpl.csform = imp_dbh->ph_csform;
-	phs_tpl.sv = &sv_undef;
+	phs_tpl.sv = &PL_sv_undef;
 
 	src  = statement;
 	dest = imp_sth->statement;
@@ -2429,7 +2430,7 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 	if (!SvPOK(phs->sv)) {	/* normalizations for special cases	*/
 		if (SvOK(phs->sv)) {	/* ie a number, convert to string ASAP	*/
 			if (!(SvROK(phs->sv) && phs->is_inout))
-				sv_2pv(phs->sv, &na);
+				sv_2pv(phs->sv, &PL_na);
 		}
 		else /* ensure we're at least an SVt_PV (so SvPVX etc work)	*/
 			if(SvUPGRADE(phs->sv, SVt_PV)){} /* For gcc not to warn on unused result)*/;
@@ -2443,8 +2444,8 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 			PerlIO_printf(DBILOGFP, "NULL, ");
 		PerlIO_printf(DBILOGFP, "size %ld/%ld/%ld, ",(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),(long)phs->maxlen);
 		PerlIO_printf(DBILOGFP, "ptype %d(%s), otype %d %s)\n",(int)SvTYPE(phs->sv), sql_typecode_name(phs->ftype),phs->ftype,(phs->is_inout) ? ", inout" : "");
-		
-		
+
+
 	}
 
 	/* At the moment we always do sv_setsv() and rebind.	*/
@@ -2970,7 +2971,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 		/* This value is not a string, but a binary structure phs_st instead. */
 	phs = (phs_t*)(void*)SvPVX(*phs_svp);	/* placeholder struct	*/
 
-	if (phs->sv == &sv_undef) {	/* first bind for this placeholder	*/
+	if (phs->sv == &PL_sv_undef) {	/* first bind for this placeholder	*/
 		phs->is_inout = is_inout;
 		if (is_inout) {
 			/* phs->sv assigned in the code below */
@@ -3067,11 +3068,11 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 	phs->maxlen = maxlen;		/* 0 if not inout		*/
 
 	if (!is_inout) {	/* normal bind so take a (new) copy of current value	*/
-		if (phs->sv == &sv_undef)	/* (first time bind) */
+		if (phs->sv == &PL_sv_undef)	/* (first time bind) */
 			phs->sv = newSV(0);
 		sv_setsv(phs->sv, newvalue);
 		if (SvAMAGIC(phs->sv)) /* overloaded. XXX hack, logic ought to be pushed deeper */
-			sv_pvn_force(phs->sv, &na);
+			sv_pvn_force(phs->sv, &PL_na);
 	}
 	else if (newvalue != phs->sv) {
 		if (phs->sv)
@@ -3472,7 +3473,7 @@ init_bind_for_array_exec(phs)
 	phs_t *phs;
 {
 	dTHX;
-	if (phs->sv == &sv_undef) { /* first bind for this placeholder  */
+	if (phs->sv == &PL_sv_undef) { /* first bind for this placeholder  */
 		phs->is_inout = 0;
 		phs->maxlen = 1;
 		/* treat Oracle7 SQLT_CUR as SQLT_RSET for Oracle8 */
@@ -3846,7 +3847,7 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
 		if (fbh->fetch_cleanup) fbh->fetch_cleanup(sth, fbh);
 	}
 
-	if (dirty)			/* don't walk on the wild side	*/
+	if (PL_dirty)			/* don't walk on the wild side	*/
 		return 1;
 
 	if (!DBIc_ACTIVE(imp_dbh))		/* no longer connected	*/
@@ -3963,10 +3964,10 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 
 	if (DBIc_DBISTATE(imp_sth)->debug >= 6 || dbd_verbose >= 6 )
 		PerlIO_printf(DBIc_LOGPIO(imp_sth), "	dbd_st_destroy %s\n",
-		(dirty) ? "(OCIHandleFree skipped during global destruction)" :
+		(PL_dirty) ? "(OCIHandleFree skipped during global destruction)" :
 		(imp_sth->nested_cursor) ?"(OCIHandleFree skipped for nested cursor)" : "");
 
-	if (!dirty) { /* XXX not ideal, leak may be a problem in some cases */
+	if (!PL_dirty) { /* XXX not ideal, leak may be a problem in some cases */
 		if (!imp_sth->nested_cursor) {
 			OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
 			if (status != OCI_SUCCESS)
@@ -4001,7 +4002,7 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 		I32 retlen;
 		hv_iterinit(hv);
 		while( (sv = hv_iternextsv(hv, &key, &retlen)) != NULL ) {
-			if (sv != &sv_undef) {
+			if (sv != &PL_sv_undef) {
 			  	phs_t *phs = (phs_t*)(void*)SvPVX(sv);
 				if (phs->desc_h && phs->desc_t == OCI_DTYPE_LOB)
 					ora_free_templob(sth, imp_sth, (OCILobLocator*)phs->desc_h);
@@ -4059,7 +4060,7 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 	/* we can't return Nullsv here because the xs code will	*/
 	/* then just pass the attribute name to DBI for FETCH.	*/
 		croak("Describe failed during %s->FETCH(%s): %ld: %s",
-			SvPV(sth,na), key, (long)SvIV(DBIc_ERR(imp_sth)),
+			SvPV(sth,PL_na), key, (long)SvIV(DBIc_ERR(imp_sth)),
 			SvPV(DBIc_ERRSTR(imp_sth),lna)
 		);
 	}

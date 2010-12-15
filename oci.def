@@ -381,4 +381,10 @@ OCIXMLTypeCreateFromSrc
 OCIDateTimeToText
 OCIIntervalToText
 OCIDateTimeGetTimeZoneOffset
+OCIPing
+OCISessionRelease
+OCISessionPoolDestroy
+OCISessionPoolCreate
+OCISessionGet
+OCISessionPoolDestroy
 

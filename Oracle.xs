@@ -173,7 +173,7 @@ ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
 		}
 	}
 	ST(0) = dbd_bind_ph(sth, imp_sth, param,av_value, sql_type, attribs, TRUE, maxlen)
-		? &sv_yes : &sv_no;
+		? &PL_sv_yes : &PL_sv_no;
 }
 
 
@@ -220,7 +220,7 @@ ora_fetch(sth)
 		neatsvpv(DBIc_ERR(imp_sth),0), neatsvpv(DBIc_ERRSTR(imp_sth),0));
 
 void
-ora_execute_array(sth, tuples, exe_count, tuples_status, cols=&sv_undef)
+ora_execute_array(sth, tuples, exe_count, tuples_status, cols=&PL_sv_undef)
 	SV *		sth
 	SV *		tuples
 	IV		 exe_count
@@ -251,7 +251,7 @@ cancel(sth)
 	SV *		sth
 	CODE:
 	D_imp_sth(sth);
-	ST(0) = dbd_st_cancel(sth, imp_sth) ? &sv_yes : &sv_no;
+	ST(0) = dbd_st_cancel(sth, imp_sth) ? &PL_sv_yes : &PL_sv_no;
 
 
 MODULE = DBD::Oracle	PACKAGE = DBD::Oracle::db
@@ -293,7 +293,7 @@ reauthenticate(dbh, uid, pwd)
 	char *	pwd
 	CODE:
 	D_imp_dbh(dbh);
-	ST(0) = ora_db_reauthenticate(dbh, imp_dbh, uid, pwd) ? &sv_yes : &sv_no;
+	ST(0) = ora_db_reauthenticate(dbh, imp_dbh, uid, pwd) ? &PL_sv_yes : &PL_sv_no;
 
 void
 ora_lob_write(dbh, locator, offset, data)
@@ -321,7 +321,7 @@ ora_lob_write(dbh, locator, offset, data)
 	 OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
-	ST(0) = &sv_undef;
+	ST(0) = &PL_sv_undef;
 		return;
 	}
 #ifdef OCI_ATTR_CHARSET_ID
@@ -329,7 +329,7 @@ ora_lob_write(dbh, locator, offset, data)
 	OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
-	ST(0) = &sv_undef;
+	ST(0) = &PL_sv_undef;
 		return;
 	}
 #endif /* OCI_ATTR_CHARSET_ID */
@@ -343,10 +343,10 @@ ora_lob_write(dbh, locator, offset, data)
 		(ub2)0, csform , status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobWrite");
-	ST(0) = &sv_undef;
+	ST(0) = &PL_sv_undef;
 	}
 	else {
-	ST(0) = &sv_yes;
+	ST(0) = &PL_sv_yes;
 	}
 
 void
@@ -377,7 +377,7 @@ ora_lob_append(dbh, locator, data)
 	OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
-	ST(0) = &sv_undef;
+	ST(0) = &PL_sv_undef;
 		return;
 	}
 #ifdef OCI_ATTR_CHARSET_ID
@@ -385,7 +385,7 @@ ora_lob_append(dbh, locator, data)
 	OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
-	ST(0) = &sv_undef;
+	ST(0) = &PL_sv_undef;
 		return;
 	}
 #endif /* OCI_ATTR_CHARSET_ID */
@@ -397,10 +397,10 @@ ora_lob_append(dbh, locator, data)
 				   csid, csform, status);
 	if (status != OCI_SUCCESS) {
 	   oci_error(dbh, imp_dbh->errhp, status, "OCILobWriteAppend");
-	   ST(0) = &sv_undef;
+	   ST(0) = &PL_sv_undef;
 	}
 	else {
-	   ST(0) = &sv_yes;
+	   ST(0) = &PL_sv_yes;
 	}
 
 
@@ -434,7 +434,7 @@ ora_lob_read(dbh, locator, offset, length)
 	OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
-	dest_sv = &sv_undef;
+	dest_sv = &PL_sv_undef;
 		return;
 	}
 	OCILobRead_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
@@ -443,7 +443,7 @@ ora_lob_read(dbh, locator, offset, length)
 		0, 0, (ub2)0, csform, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobRead");
-		dest_sv = &sv_undef;
+		dest_sv = &PL_sv_undef;
 	}
 	else {
 		SvCUR(dest_sv) = amtp; /* always bytes here */
@@ -468,10 +468,10 @@ ora_lob_trim(dbh, locator, length)
 	OCILobTrim_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, length, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobTrim");
-	ST(0) = &sv_undef;
+	ST(0) = &PL_sv_undef;
 	}
 	else {
-	ST(0) = &sv_yes;
+	ST(0) = &PL_sv_yes;
 	}
 
 void
@@ -486,7 +486,7 @@ ora_lob_is_init(dbh, locator)
 	OCILobLocatorIsInit_log_stat(imp_dbh->envhp,imp_dbh->errhp,locator,&is_init,status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobLocatorIsInit ora_lob_is_init");
-	    ST(0) = &sv_undef;
+	    ST(0) = &PL_sv_undef;
 	}
 	else {
 	    ST(0) = sv_2mortal(newSVuv(is_init));
@@ -504,7 +504,7 @@ ora_lob_length(dbh, locator)
 	OCILobGetLength_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &len, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobGetLength ora_lob_length");
-	ST(0) = &sv_undef;
+	ST(0) = &PL_sv_undef;
 	}
 	else {
 	ST(0) = sv_2mortal(newSVuv(len));
@@ -523,7 +523,7 @@ ora_lob_chunk_size(dbh, locator)
 	OCILobGetChunkSize_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &chunk_size, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobGetChunkSize");
-		ST(0) = &sv_undef;
+		ST(0) = &PL_sv_undef;
 	}
 	else {
 		ST(0) = sv_2mortal(newSVuv(chunk_size));
