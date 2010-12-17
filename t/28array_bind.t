@@ -21,7 +21,7 @@ use Devel::Peek;
 use DBI;
 use DBD::Oracle qw(:ora_types ORA_OCI);
 
-use Test::More tests => 15;
+use Test::More;
 
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
@@ -238,6 +238,7 @@ SKIP: {
     $dbh = db_connect(0);
 
     plan skip_all => "Not connected to oracle" if not $dbh;
+    plan  tests => 15;
 
     test_varchar2_table_3_tests($dbh);
     test_number_table_3_tests($dbh);

@@ -4,7 +4,7 @@ use DBI;
 use DBD::Oracle qw(ORA_RSET SQLCS_NCHAR);
 use strict;
 
-use Test::More tests =>17 ;
+use Test::More;
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
 
@@ -19,20 +19,27 @@ $| = 1;
 ##  an ASCII only DB
 ## ----------------------------------------------------------------------------
 
-BEGIN {
-	use_ok('DBI');
-}
 
 # create a database handle
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 $ENV{NLS_NCHAR} = "US7ASCII";
 $ENV{NLS_LANG} = "AMERICAN";
-my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1, 
+my $dbh  = DBI->connect($dsn, $dbuser, '', {  
 						AutoCommit=>1,
 						PrintError => 0,
 						ora_envhp  => 0,
 						});
+
+if ($dbh){
+ plan  tests => 16;
+}
+else {
+
+    plan skip_all => "Not connected to oracle" if not $dbh;
+}						
+
+ 
 
 # check that our db handle is good
 isa_ok($dbh, "DBI::db");

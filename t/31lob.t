@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
-use Test::More tests => 12;
+use Test::More ;
 use DBD::Oracle qw(:ora_types);
 use DBI;
 
@@ -24,7 +24,7 @@ SKIP: {
 	    data BLOB
 	)
     });
-
+plan  tests => 12;
 my ($stmt, $sth, $id, $loc);
 ## test with insert empty blob and select locator.
 $stmt = "INSERT INTO $table (id,data) VALUES (1, EMPTY_BLOB())";
