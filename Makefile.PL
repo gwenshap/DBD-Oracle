@@ -282,10 +282,11 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
   
       print "Using $OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib\n";
       $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir $OCILIB" ];
+      
     };
 
-    my $OCIINCLUDE = "-I$OH/$OCIDIR/include -I$OH/rdbms/demo";
-    $opts{INC}  = "$OCIINCLUDE -I$dbi_arch_dir";
+    my $OCIINCLUDE = "-I\"$OH/$OCIDIR/include\" -I\"$OH/rdbms/demo\"";
+    $opts{INC}     = "$OCIINCLUDE -I\"$dbi_arch_dir\"";
 }
 
 # --- UNIX Variants ---
