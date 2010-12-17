@@ -2045,6 +2045,7 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 	text		str_buf[200];
 	double		dnum;
 	size_t		str_len;
+	ub4			ub4_str_len;
 	OCIRaw		*raw 	= (OCIRaw *) 0;
 	OCIString	*vs 	= (OCIString *) 0;
 	ub1			*temp	= (ub1 *)0;
@@ -2068,7 +2069,7 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 		 						fbh->imp_sth->errhp,
 		 						attr_value,
 		 						str_buf,
-		 						200,
+		 						(size_t) 200,
 		 						&str_len,
 							status);
 		str_buf[str_len+1] = '\0';
@@ -2080,9 +2081,9 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 	case OCI_TYPECODE_TIMESTAMP :
 
 
-		str_len = 200;
+		ub4_str_len = 200;
 		OCIDateTimeToText_log_stat(fbh->imp_sth->envhp,
-									fbh->imp_sth->errhp,attr_value,&str_len,str_buf,status);
+									fbh->imp_sth->errhp,attr_value,&ub4_str_len,str_buf,status);
 
 		if (typecode == OCI_TYPECODE_TIMESTAMP_TZ || typecode == OCI_TYPECODE_TIMESTAMP_LTZ){
 			char s_tz_hour[3]="000";
@@ -2104,19 +2105,19 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 			sprintf(s_tz_min,":%02d", tz_minute);
 			strcat((signed char*)str_buf, s_tz_hour);
 			strcat((signed char*)str_buf, s_tz_min);
-			str_buf[str_len+7] = '\0';
+			str_buf[ub4_str_len+7] = '\0';
 
 		} else {
-		  str_buf[str_len+1] = '\0';
+		  str_buf[ub4_str_len+1] = '\0';
 		}
 
 		av_push(list, newSVpv( (char *) str_buf,0));
 		break;
 
 	case OCI_TYPECODE_DATE :						 /* fixed length string*/
-		str_len = 200;
-		OCIDateToText_log_stat(fbh->imp_sth->errhp, (CONST OCIDate *) attr_value,&str_len,str_buf,status);
-		str_buf[str_len+1] = '\0';
+		ub4_str_len = 200;
+		OCIDateToText_log_stat(fbh->imp_sth->errhp, (CONST OCIDate *) attr_value,&ub4_str_len,str_buf,status);
+		str_buf[ub4_str_len+1] = '\0';
 		av_push(list, newSVpv( (char *) str_buf,0));
 		break;
 
