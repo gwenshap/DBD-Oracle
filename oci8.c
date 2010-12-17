@@ -4036,6 +4036,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	lob_refetch_t *lr = NULL;
 	STRLEN tablename_len;
 	char *tablename;
+	char new_tablename[100];
 	switch (imp_sth->stmt_type) {
 		case OCI_STMT_UPDATE:
 			tablename = find_ident_after(imp_sth->statement,
@@ -4068,7 +4069,6 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	if (status == OCI_SUCCESS) { /* There is a synonym, get the schema */
 		char *syn_schema=NULL;
 		char syn_name[100];
-		char new_tablename[100];
 		ub4  tn_len = 0, syn_schema_len = 0;
 
 		strncpy(syn_name,tablename,strlen(tablename));
