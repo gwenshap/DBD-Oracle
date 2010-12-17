@@ -19,7 +19,7 @@
 
 DBISTATE_DECLARE;
 
-int describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level );
+int describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level );
 int dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level);
 
 
@@ -1553,7 +1553,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 #ifdef UTF8_SUPPORT
 ub4
 ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
-  SV *dest_sv, long offset, UV len, long destoffset)
+  SV *dest_sv, long offset, ub4 len, long destoffset)
 {
 	dTHX;
 	ub4 loblen = 0;
@@ -2851,7 +2851,7 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 	}
 
 int
-describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level ) {
+describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 	dTHX;
 	sword status;
 	text *type_name, *schema_name;
