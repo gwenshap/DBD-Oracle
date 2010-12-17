@@ -2215,7 +2215,7 @@ An identifier is passed I<as is>, i.e. as the user provides or
 Oracle returns it.
 See L</table_info()> for more detailed information.
 
-It is possiable with Oracle to make the names of the various DB objects (table,column,index etc)
+It is possible with Oracle to make the names of the various DB objects (table,column,index etc)
 case sensitive. 
 
   alter table bloggind add ("Bla_BLA" NUMBER)
