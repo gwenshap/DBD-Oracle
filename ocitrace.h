@@ -36,6 +36,13 @@
 	If done well the log will read like a compilable program.
 */
 
+#define OCIServerRelease_log_stat(sc,errhp,b,bl,ht,ver,stat)\
+	stat =OCIServerRelease(sc,errhp,b,bl,ht,ver);\
+	(DBD_OCI_TRACEON) \
+			? PerlIO_printf(DBD_OCI_TRACEFP,\
+				 "%sOCIServerRelease(%p)=%s\n",\
+				 OciTp, sc,oci_status_name(stat)),stat \
+	: stat
 
 #define OCISessionRelease_log_stat(svchp, errhp,stat)\
 	stat =OCISessionRelease(svchp, errhp, NULL, (ub4)0, OCI_DEFAULT);\
@@ -44,6 +51,7 @@
 						 "%sOCISessionRelease(svchp=%p)=%s\n",\
 						 OciTp, svchp,oci_status_name(stat)),stat \
 	: stat
+
 #define OCISessionPoolDestroy_log_stat(ph, errhp,stat )\
 	stat =OCISessionPoolDestroy(ph, errhp,OCI_DEFAULT);\
 	(DBD_OCI_TRACEON) \

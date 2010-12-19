@@ -408,7 +408,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	if (DBD_ATTRIB_TRUE(attr,"ora_drcp_incr",13,svp))
 		DBD_ATTRIB_GET_IV( attr, "ora_drcp_incr",  13, svp, imp_dbh->pool_incr);
 #endif /*ORA_OCI_112*/
-
+    imp_dbh->server_version = 0;
 	/* check to see if DBD_verbose or ora_verbose is set*/
 	if (DBD_ATTRIB_TRUE(attr,"dbd_verbose",11,svp))
 		DBD_ATTRIB_GET_IV(  attr, "dbd_verbose",  11, svp, dbd_verbose);
@@ -1625,6 +1625,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	int flag_data_is_utf8=0;
 	int need_allocate_rows;
 	int buflen;
+	int numarrayentries;
 	if( ( ! SvROK(phs->sv) )  || (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) ) { /* Allow only array binds */
 	croak("dbd_rebind_ph_varchar2_table(): bad bind variable. ARRAY reference required, but got %s for '%s'.",
 			neatsvpv(phs->sv,0), phs->name);
@@ -1638,16 +1639,15 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	/* If no number of entries to bind specified,
 	 * set phs->array_numstruct to the scalar(@array) bound.
 	 */
-	if( phs->array_numstruct <= 0 ){
 	/* av_len() returns last array index, or -1 is array is empty */
-	int numarrayentries=av_len( arr );
+	numarrayentries=av_len( arr );
+
 	if( numarrayentries >= 0 ){
 		phs->array_numstruct = numarrayentries+1;
 		if (trace_level >= 2 || dbd_verbose >= 3 ){
 		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): array_numstruct=%d (calculated) \n",
 			phs->array_numstruct);
 		}
-	}
 	}
 	/* Fix charset */
 	csform = phs->csform;
@@ -2011,6 +2011,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	AV *arr;
 	int need_allocate_rows;
 	int buflen;
+	int numarrayentries;
 	/*int flag_data_is_utf8=0;*/
 
 	if( ( ! SvROK(phs->sv) )  || (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) ) { /* Allow only array binds */
@@ -2034,20 +2035,19 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): array_numstruct=%d\n",
 		  phs->array_numstruct);
 	}
-	/* If no number of entries to bind specified,
-	 * set phs->array_numstruct to the scalar(@array) bound.
-	 */
-	if( phs->array_numstruct <= 0 ){
-/* av_len() returns last array index, or -1 is array is empty */
-		int numarrayentries=av_len( arr );
-		if( numarrayentries >= 0 ){
-			phs->array_numstruct = numarrayentries+1;
-			if (trace_level >= 2 || dbd_verbose >= 3 ){
+	/* If no number of entries to bind specified,*/
+	/* set phs->array_numstruct to the scalar(@array) bound.*/
+	/* av_len() returns last array index, or -1 is array is empty */
+	numarrayentries=av_len( arr );
+
+	if( numarrayentries >= 0 ){
+		phs->array_numstruct = numarrayentries+1;
+		if (trace_level >= 2 || dbd_verbose >= 3 ){
 				PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): array_numstruct=%d (calculated) \n",
 				phs->array_numstruct);
-			}
 		}
 	}
+
 	/* Calculate each bound structure maxlen.
 	 * maxlen(int) = sizeof(int);
 	 * maxlen(double) = sizeof(double);
@@ -3055,8 +3055,24 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 			if(  (phs->ftype == ORA_VARCHAR2_TABLE)	||
 				 (phs->ftype == ORA_NUMBER_TABLE)	||
 				 (phs->ftype == 1)) /*ORA_VARCHAR2*/ {
-			/* Supported */
-			}else{
+				/* Supported */
+
+				/* Reload array-size-related attributes */
+				if (attribs) {
+					SV **svp;
+
+					if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_maxdata_size", 16, 0)) != NULL) {
+						phs->maxdata_size = SvUV(*svp);
+					}
+					if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_maxarray_numentries", 23, 0)) != NULL) {
+						phs->ora_maxarray_numentries=SvUV(*svp);
+					}
+					if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_internal_type", 17, 0)) != NULL) {
+						phs->ora_internal_type=SvUV(*svp);
+					}
+				}
+			}
+			else{
 				/* All the other types are not supported */
 				croak("Array bind is supported only for ORA_%%_TABLE types. Unable to bind '%s'.",phs->name);
 			}
@@ -3315,8 +3331,8 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 			SV *sv = phs->sv;
 			if (debug >= 2 || dbd_verbose >= 3 ) {
 				PerlIO_printf(DBILOGFP,
-					"dbd_st_execute(): Analyzing inout parameter '%s of type=%d'\n",
-					phs->name,phs->ftype);
+					"dbd_st_execute(): Analyzing inout  a parameter '%s of type=%d  name=%s'\n",
+					phs->name,phs->ftype,sql_typecode_name(phs->ftype));
 			}
 			if( phs->ftype == ORA_VARCHAR2_TABLE ){
 				dbd_phs_ora_varchar2_table_fixup_after_execute(phs);

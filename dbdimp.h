@@ -60,7 +60,7 @@ struct imp_dbh_st {
 	int parse_error_offset;	/* position in statement of last error */
 	int max_nested_cursors;	 /* limit on cached nested cursors per stmt */
 	int array_chunk_size;  /* the max size for an array bind */
-
+    ub4 server_version; /* version of Oracle server */
 };
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
@@ -370,7 +370,7 @@ void * oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags);
 void fb_ary_free(fb_ary_t *fb_ary);
 void rs_array_init(imp_sth_t *imp_sth);
 
-
+ub4 ora_db_version _((SV *dbh, imp_dbh_t *imp_dbh));
 
 /* These defines avoid name clashes for multiple statically linked DBD's	*/
 

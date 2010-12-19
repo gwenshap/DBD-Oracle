@@ -263,10 +263,12 @@ ora_ping(dbh)
 	PREINIT:
 	D_imp_dbh(dbh);
 	sword status;
-#if !defined(ORA_OCI_102)
-	text buf[2];
+#if defined(ORA_OCI_102)
+	ub4 vernum;
 #endif
+ 	text buf[2];
 	CODE:
+	/*when OCIPing not available,*/
 	/*simply does a call to OCIServerVersion which should make 1 round trip*/
 	/*later I will replace this with the actual OCIPing command*/
 	/*This will work if the DB goes down, */
@@ -276,7 +278,13 @@ ora_ping(dbh)
 #if !defined(ORA_OCI_102)
 	OCIServerVersion_log_stat(imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
 #else
+	vernum = ora_db_version(dbh,imp_dbh);
+	/* OCIPing causes server failures if called against server ver < 10.2 */
+	if (((int)((vernum>>24) & 0xFF) < 10 ) || (((int)((vernum>>24) & 0xFF) == 10 ) && ((int)((vernum>>20) & 0x0F) < 2 ))){
+		OCIServerVersion_log_stat(imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
+	} else {
     	OCIPing_log_stat(imp_dbh->svchp,imp_dbh->errhp,status);
+	}
 #endif
 	if (status != OCI_SUCCESS){
 		XSRETURN_IV(0);

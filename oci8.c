@@ -24,6 +24,7 @@ int dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level);
 
 
 
+
 void
 dbd_init_oci(dbistate_t *dbistate)
 {
@@ -4507,3 +4508,26 @@ ora_free_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	imp_sth->lob_refetch = NULL;
 }
 
+ub4
+ora_db_version(SV *dbh, imp_dbh_t *imp_dbh)
+{
+	dTHX;
+	sword status;
+	text buf[2];
+	ub4 vernum;
+
+	if( imp_dbh->server_version > 0 ) {
+		return imp_dbh->server_version;
+	}
+
+
+	/* XXX should possibly create new session before ending the old so	*/
+	/* that if the new one can't be created, the old will still work.	*/
+	OCIServerRelease_log_stat(imp_dbh->svchp, imp_dbh->errhp, buf, 2,OCI_HTYPE_SVCCTX, &vernum , status);
+	if (status != OCI_SUCCESS) {
+		oci_error(dbh, imp_dbh->errhp, status, "OCISessionServerRelease");
+		return 0;
+	}
+	imp_dbh->server_version = vernum;
+	return vernum;
+}
