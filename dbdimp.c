@@ -1895,19 +1895,19 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 /* Copy array data from array buffer into perl array */
 /* Returns false on error, true on success */
-int dbd_phs_ora_varchar2_table_fixup_after_execute(phs_t *phs){
+int dbd_phs_varchar_table_posy_exe(phs_t *phs){
 	dTHX;
 
 	int trace_level = DBIS->debug;
 	AV *arr;
 
 	if( ( ! SvROK(phs->sv) )  || (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) ) { /* Allow only array binds */
-	croak("dbd_phs_ora_varchar2_table_fixup_after_execute(): bad bind variable. ARRAY reference required, but got %s for '%s'.",
+	croak("dbd_phs_varchar_table_posy_exe(): bad bind variable. ARRAY reference required, but got %s for '%s'.",
 			neatsvpv(phs->sv,0), phs->name);
 	}
 	if (trace_level >= 1 || dbd_verbose >= 3 ){
 	PerlIO_printf(DBILOGFP,
-		"dbd_phs_ora_varchar2_table_fixup_after_execute(): Called for '%s' : array_numstruct=%d, maxlen=%ld \n",
+		"dbd_phs_varchar_table_posy_exe(): Called for '%s' : array_numstruct=%d, maxlen=%ld \n",
 		phs->name,
 		phs->array_numstruct,
 		(long)phs->maxlen
@@ -1947,14 +1947,14 @@ int dbd_phs_ora_varchar2_table_fixup_after_execute(phs_t *phs){
 				SvSetMagicSV(item,&PL_sv_undef);
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
 					PerlIO_printf(DBILOGFP,
-						"dbd_phs_ora_varchar2_table_fixup_after_execute(): arr[%d] = undef; SvSetMagicSV(item,&PL_sv_undef);\n",i);
+						"dbd_phs_varchar_table_posy_exe(): arr[%d] = undef; SvSetMagicSV(item,&PL_sv_undef);\n",i);
 				}
 			}
 			else{
 				av_store(arr,i,&PL_sv_undef);
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
 					PerlIO_printf(DBILOGFP,
-						"dbd_phs_ora_varchar2_table_fixup_after_execute(): arr[%d] = undef; av_store(arr,i,&PL_sv_undef);\n",i);
+						"dbd_phs_varchar_table_posy_exe(): arr[%d] = undef; av_store(arr,i,&PL_sv_undef);\n",i);
 				}
 			}
 		}
@@ -1963,7 +1963,7 @@ int dbd_phs_ora_varchar2_table_fixup_after_execute(phs_t *phs){
 			/* Truncation occurred */
 				if (trace_level >= 2 || dbd_verbose >= 3 ){
 					PerlIO_printf(DBILOGFP,
-					"dbd_phs_ora_varchar2_table_fixup_after_execute(): Placeholder '%s': data truncated at %d row.\n",
+					"dbd_phs_varchar_table_posy_exe(): Placeholder '%s': data truncated at %d row.\n",
 							phs->name,i);
 				}
 			}
@@ -1975,7 +1975,7 @@ int dbd_phs_ora_varchar2_table_fixup_after_execute(phs_t *phs){
 				SvPOK_only_UTF8(item);
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
 					PerlIO_printf(DBILOGFP,
-						"dbd_phs_ora_varchar2_table_fixup_after_execute(): arr[%d] = '%s'; "
+						"dbd_phs_varchar_table_posy_exe(): arr[%d] = '%s'; "
 						"sv_setpvn_mg(item,phs->array_buf+phs->maxlen*i,phs->array_lengths[i]); \n",
 						i, phs->array_buf+phs->maxlen*i
 					);
@@ -1985,7 +1985,7 @@ int dbd_phs_ora_varchar2_table_fixup_after_execute(phs_t *phs){
 				av_store(arr,i,newSVpvn(phs->array_buf+phs->maxlen*i,phs->array_lengths[i]));
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
 					PerlIO_printf(DBILOGFP,
-						"dbd_phs_ora_varchar2_table_fixup_after_execute(): arr[%d] = '%s'; "
+						"dbd_phs_varchar_table_posy_exe(): arr[%d] = '%s'; "
 						"av_store(arr,i,newSVpvn(phs->array_buf+phs->maxlen*i,phs->array_lengths[i])); \n",
 						i, phs->array_buf+phs->maxlen*i
 					);
@@ -1996,7 +1996,7 @@ int dbd_phs_ora_varchar2_table_fixup_after_execute(phs_t *phs){
 	}
 	if (trace_level >= 2 || dbd_verbose >= 3 ){
 		PerlIO_printf(DBILOGFP,
-			"dbd_phs_ora_varchar2_table_fixup_after_execute(): scalar(@arr)=%ld.\n",
+			"dbd_phs_varchar_table_posy_exe(): scalar(@arr)=%ld.\n",
 			(long)av_len(arr)+1);
 	}
 	return 1;
@@ -2261,19 +2261,19 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 
 /* Copy array data from array buffer into perl array */
 /* Returns false on error, true on success */
-int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
+int dbd_phs_number_table_post_exe(phs_t *phs){
 	dTHX;
 
 	int trace_level = DBIS->debug;
 	AV *arr;
 
 	if( ( ! SvROK(phs->sv) )  || (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) ) { /* Allow only array binds */
-	croak("dbd_phs_ora_number_table_fixup_after_execute(): bad bind variable. ARRAY reference required, but got %s for '%s'.",
+	croak("dbd_phs_number_table_post_exe(): bad bind variable. ARRAY reference required, but got %s for '%s'.",
 			neatsvpv(phs->sv,0), phs->name);
 	}
 	if (trace_level >= 1 || dbd_verbose >= 3 ){
 	PerlIO_printf(DBILOGFP,
-		"dbd_phs_ora_number_table_fixup_after_execute(): Called for '%s' : array_numstruct=%d, maxlen=%ld \n",
+		"dbd_phs_number_table_post_exe(): Called for '%s' : array_numstruct=%d, maxlen=%ld \n",
 		phs->name,
 		phs->array_numstruct,
 		(long)phs->maxlen
@@ -2319,7 +2319,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 			SvSetMagicSV(item,&PL_sv_undef);
 			if (trace_level >= 3 || dbd_verbose >= 3 ){
 			PerlIO_printf(DBILOGFP,
-				"dbd_phs_ora_number_table_fixup_after_execute(): arr[%d] = undef; SvSetMagicSV(item,&PL_sv_undef);\n",
+				"dbd_phs_number_table_post_exe(): arr[%d] = undef; SvSetMagicSV(item,&PL_sv_undef);\n",
 				i
 				);
 			}
@@ -2327,7 +2327,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 			av_store(arr,i,&PL_sv_undef);
 			if (trace_level >= 3 || dbd_verbose >= 3 ){
 			PerlIO_printf(DBILOGFP,
-				"dbd_phs_ora_number_table_fixup_after_execute(): arr[%d] = undef; av_store(arr,i,&PL_sv_undef);\n",
+				"dbd_phs_number_table_post_exe(): arr[%d] = undef; av_store(arr,i,&PL_sv_undef);\n",
 				i
 				);
 			}
@@ -2337,7 +2337,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 			/* Truncation occurred */
 			if (trace_level >= 2 || dbd_verbose >= 3 ){
 			PerlIO_printf(DBILOGFP,
-				"dbd_phs_ora_number_table_fixup_after_execute(): Placeholder '%s': data truncated at %d row.\n",
+				"dbd_phs_number_table_post_exe(): Placeholder '%s': data truncated at %d row.\n",
 				phs->name,i);
 			}
 		}else{
@@ -2348,7 +2348,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 			case SQLT_INT:
 				if (trace_level >= 4 || dbd_verbose >= 4 ){
 				PerlIO_printf(DBILOGFP,
-					"dbd_phs_ora_number_table_fixup_after_execute(): (int) set arr[%d] = %d \n",
+					"dbd_phs_number_table_post_exe(): (int) set arr[%d] = %d \n",
 					i, *(int*)(phs->array_buf+phs->maxlen*i)
 					);
 				}
@@ -2357,7 +2357,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 			case SQLT_FLT:
 				if (trace_level >= 4 || dbd_verbose >= 4 ){
 				PerlIO_printf(DBILOGFP,
-					"dbd_phs_ora_number_table_fixup_after_execute(): (double) set arr[%d] = %lf \n",
+					"dbd_phs_number_table_post_exe(): (double) set arr[%d] = %lf \n",
 					i, *(double*)(phs->array_buf+phs->maxlen*i)
 					);
 				}
@@ -2367,7 +2367,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 			STRLEN l;
 			char *str= SvPOK(item) ? SvPV(item,l) : "<unprintable>" ;
 			PerlIO_printf(DBILOGFP,
-				"dbd_phs_ora_number_table_fixup_after_execute(): arr[%d] = '%s'\n",
+				"dbd_phs_number_table_post_exe(): arr[%d] = '%s'\n",
 					i, str ? str : "<unprintable>"
 				);
 			}
@@ -2376,7 +2376,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 			case SQLT_INT:
 				if (trace_level >= 4 || dbd_verbose >= 4 ){
 				PerlIO_printf(DBILOGFP,
-					"dbd_phs_ora_number_table_fixup_after_execute(): (int) store new arr[%d] = %d \n",
+					"dbd_phs_number_table_post_exe(): (int) store new arr[%d] = %d \n",
 					i, *(int*)(phs->array_buf+phs->maxlen*i)
 				);
 				}
@@ -2385,7 +2385,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 			case SQLT_FLT:
 				if (trace_level >= 4 || dbd_verbose >= 4 ){
 				PerlIO_printf(DBILOGFP,
-					"dbd_phs_ora_number_table_fixup_after_execute(): (double) store new arr[%d] = %lf \n",
+					"dbd_phs_number_table_post_exe(): (double) store new arr[%d] = %lf \n",
 					i, *(double*)(phs->array_buf+phs->maxlen*i)
 					);
 				}
@@ -2400,7 +2400,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 				}
 				str= item ? ( SvPOK(item) ? SvPV(item,l) : "<unprintable>"  ) : "<undef>";
 				PerlIO_printf(DBILOGFP,
-					"dbd_phs_ora_number_table_fixup_after_execute(): arr[%d] = '%s'\n",
+					"dbd_phs_number_table_post_exe(): arr[%d] = '%s'\n",
 					i, str ? str : "<unprintable>"
 				);
 			}
@@ -2410,7 +2410,7 @@ int dbd_phs_ora_number_table_fixup_after_execute(phs_t *phs){
 	}
 	if (trace_level >= 2 || dbd_verbose >= 3 ){
 	PerlIO_printf(DBILOGFP,
-		"dbd_phs_ora_number_table_fixup_after_execute(): scalar(@arr)=%ld.\n",
+		"dbd_phs_number_table_post_exe(): scalar(@arr)=%ld.\n",
 		(long)av_len(arr)+1);
 	}
 	return 1;
@@ -3335,11 +3335,11 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 					phs->name,phs->ftype,sql_typecode_name(phs->ftype));
 			}
 			if( phs->ftype == ORA_VARCHAR2_TABLE ){
-				dbd_phs_ora_varchar2_table_fixup_after_execute(phs);
+				dbd_phs_varchar_table_posy_exe(phs);
 				continue;
 			}
 			if( phs->ftype == ORA_NUMBER_TABLE ){
-				dbd_phs_ora_number_table_fixup_after_execute(phs);
+				dbd_phs_number_table_post_exe(phs);
 				continue;
 			}
 
