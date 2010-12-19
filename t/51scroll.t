@@ -25,7 +25,7 @@ my $dbh =  DBI->connect($dsn, $dbuser, '', { AutoCommit=>1,
 						
 						
 if ($dbh){
- plan  tests => 33;
+ plan  tests => 32;
 }
 else {
 
