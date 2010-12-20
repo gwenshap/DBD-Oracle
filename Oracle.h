@@ -45,8 +45,6 @@
 
 #define NEED_DBIXS_VERSION 93
 
-#define PERL_POLLUTE
-
 #define PERL_NO_GET_CONTEXT  /*for Threaded Perl */
 
 #include <DBIXS.h>		/* installed by the DBI module	*/

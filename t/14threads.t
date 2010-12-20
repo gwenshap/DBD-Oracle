@@ -29,6 +29,7 @@ use Test::More tests => 19;
 unshift @INC, 't';
 require 'nchar_test_lib.pl';
 
+
 my $last_session : shared;
 our @pool : shared;
 
@@ -55,11 +56,13 @@ for my $i ( 0 .. 4 ) {
             free_dbh_to_pool($dbh);
         }
     )->join;
+   
+
 }
 
 # TESTS: 1
 is scalar(@pool), 1, 'one imp_data in pool';
-
+ 
 # get two sessions in same thread
 # TESTS: 2
 threads->create(
