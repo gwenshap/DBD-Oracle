@@ -147,7 +147,7 @@ struct fb_ary_st { 	/* field buffer array EXPERIMENTAL	*/
 	ub4				piece_count;/*# of pieces retrieved*/
 	sb2				*aindp;	/* null/trunc indicator variable	*/
 	ub1				*abuf;		/* data buffer (points to sv data)	*/
-	ub2				*cb_abuf;	/*yet another buffer for picewise callbacks this means I only need to allocate memory once a prepare rather than at each fetch*/
+	ub1				*cb_abuf;	/*yet another buffer for picewise callbacks this means I only need to allocate memory once a prepare rather than at each fetch*/
 	ub2				*arlen;	/* length of returned data		*/
 	ub2				*arcode;	/* field level error status		*/
 };
