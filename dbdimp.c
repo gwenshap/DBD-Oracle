@@ -369,6 +369,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     D_imp_drh_from_dbh;
 	ub2 new_charsetid = 0;
 	ub2 new_ncharsetid = 0;
+    int forced_new_environment = 0;
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
 	SV **	shared_dbh_priv_svp ;
 	SV *	shared_dbh_priv_sv ;
@@ -494,12 +495,14 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_envhp", 9)) && SvOK(*svp)) {
 		if (!SvTRUE(*svp)) {
 			imp_dbh->envhp = NULL; /* force new environment */
+            forced_new_environment = 1;
 		}
 #if defined(CAN_USE_PRO_C)
 		else {
 			IV tmp;
 			if (!sv_isa(*svp, "ExtProc::OCIEnvHandle"))
 				croak("ora_envhp value is not of type ExtProc::OCIEnvHandle");
+            /* MJE cannot believe the following will work on 64bit platforms */
 			tmp = SvIV((SV*)SvRV(*svp));
 			imp_dbh->envhp = (struct OCIEnv *)tmp;
 		}
@@ -625,6 +628,9 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 					"OCIEnvNlsCreate. Check ORACLE_HOME (Linux) env var  or PATH (Windows) and or NLS settings, permissions, etc.");
 				return 0;
 			}
+            if (!imp_drh->envhp)	/* cache first envhp info drh as future default */
+                imp_drh->envhp = imp_dbh->envhp;
+
 
 			svp = DBD_ATTRIB_GET_SVP(attr, "ora_charset", 11);/*get the charset passed in by the user*/
 			if (svp) {
@@ -663,6 +669,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 						"OCIEnvNlsCreate. Check ORACLE_HOME (Linux) env var  or PATH (Windows) and or NLS settings, permissions, etc");
 					return 0;
 				}
+                if (!imp_drh->envhp)	/* cache first envhp info drh as future default */
+                    imp_drh->envhp = imp_dbh->envhp;
 			}
 
 			/* update the hard-coded csid constants for unicode charsets */
@@ -907,6 +915,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 						OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 						OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 						OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+                        if (forced_new_environment)
+                            OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
 						return 0;
 					}
 
