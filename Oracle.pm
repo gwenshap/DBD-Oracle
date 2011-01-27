@@ -363,13 +363,20 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_svchp		=> undef,
                  ora_errhp		=> undef,
                  ora_init_mode		=> undef,
-                 ora_charset		=> undef,	
+                 ora_charset		=> undef,
                  ora_ncharset		=> undef,
                  ora_session_mode	=> undef,
                  ora_verbose		=> undef,
                  ora_oci_success_warn	=> undef,
                  ora_objects		=> undef,
                  ora_ncs_buff_mtpl      => undef,
+                 ora_drcp               => undef,
+                 ora_drcp_class         => undef,
+                 ora_drcp_min           => undef,
+                 ora_drcp_max           => undef,
+                 ora_drcp_incr          => undef,
+                 ora_oratab_orahome     => undef,
+                 ora_module_name        => undef,
                  };
     }
    
@@ -1046,19 +1053,8 @@ SQL
 		ora_rowid		=> undef,
 		ora_est_row_width	=> undef,
 		ora_type		=> undef,
-		ora_field		=> undef,
-		ora_csform		=> undef,
-		ora_maxdata_size	=> undef,
-		ora_parse_lang		=> undef,
-		ora_placeholders	=> undef,
-		ora_auto_lob		=> undef,
-		ora_check_sql		=> undef,
-		ora_row_cache_off	=> undef,
-		ora_prefetch_rows	=> undef,
-		ora_prefetch_memory	=> undef,
-		};
+    };
    }
-   
 }
 
 1;
@@ -1824,7 +1820,7 @@ bind values in its C<execute_for_fetch> implementation. This attribute
 sets the number of rows to buffer at a time (default value is 1000).
 
 The C<execute_for_fetch> function will collect (at most) this many
-rows in an array, send them of to the DB for execution, then go back
+rows in an array, send them off to the DB for execution, then go back
 to collect the next chunk of rows and so on. This attribute can be
 used to limit or extend the number of rows processed at a time.
 
@@ -2215,7 +2211,7 @@ An identifier is passed I<as is>, i.e. as the user provides or
 Oracle returns it.
 See L</table_info()> for more detailed information.
 
-It is possible with Oracle to make the names of the various DB objects (table,column,index etc)
+It is possiable with Oracle to make the names of the various DB objects (table,column,index etc)
 case sensitive. 
 
   alter table bloggind add ("Bla_BLA" NUMBER)
