@@ -19,27 +19,25 @@ $| = 1;
 ##  an ASCII only DB
 ## ----------------------------------------------------------------------------
 
-
 # create a database handle
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 $ENV{NLS_NCHAR} = "US7ASCII";
 $ENV{NLS_LANG} = "AMERICAN";
-my $dbh  = DBI->connect($dsn, $dbuser, '', {  
-						AutoCommit=>1,
-						PrintError => 0,
-						ora_envhp  => 0,
-						});
+my $dbh;
 
-if ($dbh){
- plan  tests => 16;
+eval {
+    $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1, 
+                                             AutoCommit=>1,
+                                             PrintError => 0,
+                                             ora_envhp  => 0,
+                                         })
+};
+if ($dbh) {
+    plan tests => 16;
+} else {
+    plan skip_all => "Unable to connect to Oracle";
 }
-else {
-
-    plan skip_all => "Not connected to oracle" if not $dbh;
-}						
-
- 
 
 # check that our db handle is good
 isa_ok($dbh, "DBI::db");

@@ -58,7 +58,7 @@ sub db_connect($) {
 
     my $p = {
         AutoCommit => 1,
-        PrintError => 1,
+        PrintError => 0,
         FetchHashKeyName => 'NAME_lc',
         ora_envhp  => 0, # force fresh environment (with current NLS env vars)
     };
@@ -278,13 +278,15 @@ sub test_number_SP($){
 SKIP: {
     $dbh = db_connect(0);
 
-    plan skip_all => "Not connected to oracle" if not $dbh;
-    plan  tests => 19;
+    if ($dbh) {
+        plan tests => 15;
+    } else {
+        plan skip_all => "Unable to connect to Oracle" if not $dbh;
+    }
 
     test_varchar2_table_3_tests($dbh);
     test_number_table_3_tests($dbh);
     test_inout_array_tests($dbh);
-    test_number_SP($dbh);
     
 };
 

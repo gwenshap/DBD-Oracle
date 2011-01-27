@@ -22,7 +22,7 @@ SKIP: {
     set_nls_lang_charset( 'WE8MSWIN1252' ,1 );
     $dbh = db_handle();
 
-    plan skip_all => "Not connected to oracle" if not $dbh;
+    plan skip_all => "Unable to connect to Oracle" if not $dbh;
     plan skip_all => "Database character set is not Unicode" if not db_ochar_is_utf($dbh) ;
     print "testing utf8 with char columns (wide mode database)\n" ;
 

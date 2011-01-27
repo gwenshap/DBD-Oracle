@@ -1,5 +1,6 @@
 =head1 Changes in DBD-Oracle 1.28 (svn rev 14583)
 
+  Fix for rt 64244 - don't bail out, skip tests we cannot connect by Martin J. Evans and John Scoles
   Added DBI to PREREQ_PM in Makefile.PL by Martin J. Evans
   Added build_requires in Makefile.PL by Martin J. Evans
   Added workaround for ExtUtils::MakeMaker problems by Martin J. Evans

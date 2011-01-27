@@ -43,13 +43,17 @@ SKIP: {
         # global variables defined in dbdimp.c
         $dbh_utf8 = db_connect(1);
     }
-    $dbh = db_connect(0);
-
-    plan skip_all => "Not connected to oracle" if not $dbh;
-
     my $testcount = 8 + insert_test_count( $tdata );
 
-    plan tests => $testcount;
+    $dbh = db_connect(0);
+    if ($dbh) {
+        $dbh->ora_nls_parameters ()->{NLS_CHARACTERSET} =~ m/US7ASCII/ and plan skip_all => "Database is set up as US7ASCII";
+
+        plan tests => $testcount;
+    } else {
+        plan skip_all => "Unable to connect to Oraclee";
+    }
+
     show_test_data( $tdata ,0 );
 
     drop_table($dbh);
@@ -108,7 +112,7 @@ sub db_connect
 
     my $p = {
         AutoCommit => 1,
-        PrintError => 1,
+        PrintError => 0,
         FetchHashKeyName => 'NAME_lc',
         ora_envhp  => 0, # force fresh environment (with current NLS env vars)
     };
@@ -116,7 +120,6 @@ sub db_connect
     $p->{ora_ncharset} = $ncharset if $ncharset;
 
     my $dbh = DBI->connect($dsn, $dbuser, '', $p);
-    $dbh->ora_nls_parameters ()->{NLS_CHARACTERSET} =~ m/US7ASCII/ and plan skip_all => "Database is set up as US7ASCII";
     return $dbh;
 }
 

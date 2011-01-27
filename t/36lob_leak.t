@@ -23,13 +23,15 @@ $| = 1;
 
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect($dsn, $dbuser, '');
+my $dbh = DBI->connect($dsn, $dbuser, '',,{
+                           PrintError => 0,
+                       });
 
 if ($dbh) {
    plan tests => 7;
 } else {
-   plan skip_all => "Unable to connect to Oracle ($DBI::errstr)\nTests
-skipped.\n";
+   $dbh->{PrintError}=1;
+   plan skip_all => "Unable to connect to Oracle";
 }
 
 # get SID and cached lobs
@@ -152,12 +154,14 @@ END {
    if ($dbh) {
        local $dbh->{PrintError} = 0;
        local $dbh->{RaiseError} = 1;
-       eval {$dbh->do(qq/drop function $function/);};
-       if ($@) {
-           warn("function p_DBD_Oracle_drop_me possibly not dropped" .
+       if ($function){
+          eval {$dbh->do(qq/drop function $function/);};
+          if ($@) {
+             warn("function p_DBD_Oracle_drop_me possibly not dropped" .
                     "- check - $@\n") if $dbh->err ne '4043';
-       } else {
-           diag("function p_DBD_Oracle_drop_me dropped");
+          } else {
+             diag("function p_DBD_Oracle_drop_me dropped");
+          }
        }
    }
 }

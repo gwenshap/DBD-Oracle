@@ -43,7 +43,7 @@ if ($dbh) {
 
     diag("Max cursors: $limit\n");
 } else {
-    plan skip_all => "Unable to connect to Oracle as $dbuser ($DBI::errstr)\n";
+    plan skip_all => "Unable to connect to Oracle";
 }
 
 my @cursors;

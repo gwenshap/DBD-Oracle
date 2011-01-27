@@ -35,14 +35,13 @@ my $table = "dbd_ora__drop_me" . ($ENV{DBD_ORACLE_SEQ}||'');
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect($dsn, $dbuser, '', {
-	AutoCommit => 1,
-	PrintError => 0,
-});
+                           PrintError => 0,
+                       });
 
 if ($dbh) {
     plan tests=>$tests;
 } else {
-    plan skip_all => "Unable to connect to oracle ($DBI::errstr)\n";
+    plan skip_all => "Unable to connect to oracle\n";
 }
 
 diag('test simple select statements with [utf8]');

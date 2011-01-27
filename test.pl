@@ -76,8 +76,9 @@ printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os 
         warn "Try to connect to the database using an oracle tool like sqlplus\n";
         warn "only if that works should you suspect problems with DBD::Oracle.\n";
         warn "Try leaving dbname value empty and set dbuser to name/passwd\@dbname.\n";
-	die "\nTest aborted.\n";
-    }
+        warn "\nTest aborted cannot connect.\n";
+        exit 0;
+   }
     if ($os ne 'MSWin32' and $os ne 'VMS') {
 	my $backtick = `sleep 1; echo Backticks OK`;
 	unless ($backtick) {	 # $! == Interrupted system call
@@ -88,6 +89,7 @@ printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os 
     #test_bind_csr($l);
     #test_auto_reprepare($l);
     &ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
+    
 }
 
 &test_intfetch_perf() if $opt_p;

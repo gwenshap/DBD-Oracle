@@ -26,7 +26,7 @@ if ($dbh) {
     }
     plan tests=>82;
 } else {
-    plan skip_all => "Unable to connect to Oracle ($DBI::errstr)\n";
+    plan skip_all => "Unable to connect to Oracle \n";
 }
 
 

@@ -21,15 +21,20 @@ BEGIN {
     die $use_threads_err if $use_threads_err;    # need threads
 }
 
-use Test::More tests => 7;
-
 unshift @INC, 't';
 require 'nchar_test_lib.pl';
 
 my $dsn    = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh    = DBI->connect( $dsn, $dbuser, '', );
+my $dbh    = DBI->connect( $dsn, $dbuser, '', {
+                           PrintError => 0,
+                       });
 
+if ($dbh) {
+    plan tests => 7;
+} else {
+    plan skip_all => "Unable to connect to Oracle";
+}
 my $drh = $dbh->{Driver};
 my ($sess_1) = $dbh->selectrow_array("select userenv('sessionid') from dual");
 

@@ -13,17 +13,20 @@ require 'nchar_test_lib.pl';
 
 $| = 1;
 
-plan tests => 30;
-
 diag('Test preparsing, Active, NLS_NUMERIC_CHARACTERS, err, ping and OCI version');
 
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect($dsn, $dbuser, '');
 
-unless($dbh) {
-    BAIL_OUT("Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n");
-    exit 0;
+my $dbh = DBI->connect($dsn, $dbuser, '',
+                       {
+                           PrintError => 0,
+                       });
+
+if ($dbh) {
+    plan tests => 30;
+} else {
+    plan skip_all => "Unable to connect to Oracle";
 }
 
 my($sth, $p1, $p2, $tmp);
@@ -83,6 +86,7 @@ my $warn='';
 eval {
 	local $SIG{__WARN__} = sub { $warn = $_[0] };
 	$dbh->{RaiseError} = 1;
+	$dbh->{PrintError} = 1;
 	$dbh->do("some invalid sql statement");
 };
 ok($@    =~ /DBD::Oracle::db do failed:/, "eval error: ``$@'' expected 'do failed:'");
@@ -92,7 +96,7 @@ ok($DBI::err, 'err defined');
 ok($ora_errno, 'ora_errno defined');
 is($ora_errno, $DBI::err, 'ora_errno and err equal');
 $dbh->{RaiseError} = 0;
-
+$dbh->{PrintError} = 0;
 # ---
 
 ok( $dbh->ping, 'ping - connected');
