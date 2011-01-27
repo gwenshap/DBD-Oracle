@@ -1,3 +1,11 @@
+=head1 Changes in DBD-Oracle 1.28 (svn rev 14583)
+
+  Added DBI to PREREQ_PM in Makefile.PL by Martin J. Evans
+  Added build_requires in Makefile.PL by Martin J. Evans
+  Added workaround for ExtUtils::MakeMaker problems by Martin J. Evans
+  Added LICENSE to Makefile.PL by Martin J. Evans
+
+
 =head1 Changes in DBD-Oracle 1.27 (svn rev 14583)
 
   This version removes ‘PERL_POLLUTE’ and adds in PL_ where required so it will be fully compatible with Perl 5.13
