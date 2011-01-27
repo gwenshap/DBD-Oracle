@@ -44,6 +44,59 @@ dbd_init_oci_drh(imp_drh_t * imp_drh)
 }
 
 char *
+oci_sql_function_code_name(int sqlfncode)
+{
+	dTHX;
+	SV *sv;
+	switch (sqlfncode) {
+		case 1 :	return "CREATE TABLE";
+		case 3 :	return "INSERT";
+		case 4 :	return "SELECT";
+		case 5 :	return "UPDATE";
+		case 8 :	return "DROP TABLE";
+		case 9 :	return "DELETE";
+
+	}
+	sv = sv_2mortal(newSVpv("",0));
+	sv_grow(sv, 50);
+	sprintf(SvPVX(sv),"(UNKNOWN SQL FN Code %d)", sqlfncode);
+	return SvPVX(sv);
+}
+
+char *
+oci_ptype_name(int ptype)
+{
+	dTHX;
+	SV *sv;
+	switch (ptype) {
+		case OCI_PTYPE_UNK:			return "UNKNOWN";
+		case OCI_PTYPE_TABLE:		return "TABLE";
+		case OCI_PTYPE_VIEW:		return "VIEW";
+		case OCI_PTYPE_PROC:		return "PROCEDURE";
+		case OCI_PTYPE_FUNC:		return "FUNCTION";
+		case OCI_PTYPE_PKG:			return "PACKAGE";
+		case OCI_PTYPE_TYPE:		return "USER DEFINED TYPE";
+		case OCI_PTYPE_SYN:			return "SYNONYM";
+		case OCI_PTYPE_SEQ:			return "SEQUENCE";
+		case OCI_PTYPE_COL:			return "COLUMN";
+		case OCI_PTYPE_ARG:			return "ARGUMENT";
+		case OCI_PTYPE_LIST:		return "LIST";
+		case OCI_PTYPE_TYPE_ATTR:	return "USER-DEFINED TYPE'S ATTRIBUTE";
+		case OCI_PTYPE_TYPE_COLL:	return "COLLECTION TYPE'S ELEMENT";
+		case OCI_PTYPE_TYPE_METHOD:	return "USER-DEFINED TYPE'S METHOD";
+		case OCI_PTYPE_TYPE_ARG:	return "USER-DEFINED TYPE METHOD'S ARGUMENT";
+		case OCI_PTYPE_TYPE_RESULT:	return "USER-DEFINED TYPE METHOD'S RESULT";
+		case OCI_PTYPE_SCHEMA:		return "SCHEMA";
+		case OCI_PTYPE_DATABASE:		return "DATABASE";
+
+	}
+	sv = sv_2mortal(newSVpv("",0));
+	sv_grow(sv, 50);
+	sprintf(SvPVX(sv),"(UNKNOWN PTYPE Code %d)", ptype);
+	return SvPVX(sv);
+}
+
+char *
 oci_exe_mode(ub4 mode)
 {
 
