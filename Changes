@@ -1,10 +1,19 @@
 =head1 Changes in DBD-Oracle 1.28 (svn rev 14583)
 
-  Fix for rt64524  Memory Leak when Oracle connection fails by  Martin J. Evans
+  Fix for function name length, Some function names are over 31char long which may cause problems for some OS/Compilers (VMS IA64 box.) from Jakob Snoer
+  Fix for OCIPing in case where a 10 client tries to ping a <10 DB  from Tim Oertel
+  Fix for DBD-Oracle stored proc with array bug where second call array size is unchanged from Tim Oertel
+  Fix for rt.cpan.org Ticket #=63332: Spelling error in POD from jonasbn
+  Fix for rt.cpan.org Ticket #=62152: t/28array_bind.t and t/31lob.t may call plan() twice and  others do not fial on not connect from John Scoles
+  Fix for rt.cpan.org Ticket #=61511 ORA-00942 when inserting into a table with a LOB column over a synonym on HP-U from Kris Lemaire
+  Fix for rt.cpan.org Ticket #=42842 Test 31lob fails with 64-bit Instant Client by John Scoles
+  Fix for support for objects on big endian platforms from Charles Jardine, John R Pierce
+  Fix for rt.cpan.org Ticket #=61225 Windows install (Stawberry Perl) fails on long path names from David Tulloh
+  Fix for rt.cpan.org Ticket #=rt64524  Memory Leak when Oracle connection fails by  Martin J. Evans
   Add missing ora_drcp* values to dbh private_attribute_info by Martin J. Evans
   Added all the missing ora_drcp values to dbh private_attribute_info by Martin J. Evans
   Removed a load of attributes from sth private_attribute_info which are not handle attributes but attributes to bind_param/prepare by Martin J. Evans
-  Fix for rt 64244 - don't bail out, skip tests we cannot connect by Martin J. Evans and John Scoles
+  Fix for rt.cpan.org Ticket #=64244 - don't bail out, skip tests we cannot connect by Martin J. Evans and John Scoles
   Added DBI to PREREQ_PM in Makefile.PL by Martin J. Evans
   Added build_requires in Makefile.PL by Martin J. Evans
   Added workaround for ExtUtils::MakeMaker problems by Martin J. Evans

@@ -283,7 +283,37 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
 	return 0;
 }
 
+static int
+oratype_rebind_ok(int dbtype) /* all are vrcar any way so just use it */
+{
+	/* basically we support types that can be returned as strings */
+	switch(dbtype) {
+	case  1:	/* VARCHAR2	*/
+	case  2:	/* NVARCHAR2	*/
+	case  5:	/* STRING	*/
+	case  8:	/* LONG		*/
+	case 21:	/* BINARY FLOAT os-endian */
+	case 22:	/* BINARY DOUBLE os-endian */
+	case 23:	/* RAW		*/
+	case 24:	/* LONG RAW	*/
+	case 96:	/* CHAR		*/
+	case 97:	/* CHARZ	*/
+	case 100:	/* BINARY FLOAT oracle-endian */
+	case 101:	/* BINARY DOUBLE oracle-endian */
+	case 106:	/* MLSLABEL	*/
+	case 102:	/* SQLT_CUR	OCI 7 cursor variable	*/
+	case 116:	/* SQLT_RSET	OCI 8 cursor variable	*/
+ 	case ORA_VARCHAR2_TABLE: /* 201 */
+	case ORA_NUMBER_TABLE:	/* 202 */
+	case ORA_XMLTYPE:		/* SQLT_NTY   must be carefull here as its value (108) is the same for an embedded object Well realy only XML clobs not embedded objects  */
+	case 113:	/* SQLT_BLOB / long	*/
+		return SQLT_BIN;
+	case 112:	/* SQLT_CLOB / long	*/
+		return SQLT_CHR;
+	}
 
+	return dbtype;
+}
 /* --- allocate and free oracle oci 'array' buffers --- */
 
 /* --- allocate and free oracle oci 'array' buffers for callback--- */
@@ -366,10 +396,10 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	SV **svp;
 	shared_sv * shared_dbh_ssv = NULL ;
 	imp_dbh_t * shared_dbh	 = NULL ;
-    D_imp_drh_from_dbh;
+	D_imp_drh_from_dbh;
 	ub2 new_charsetid = 0;
 	ub2 new_ncharsetid = 0;
-    int forced_new_environment = 0;
+	int forced_new_environment = 0;
 #if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
 	SV **	shared_dbh_priv_svp ;
 	SV *	shared_dbh_priv_sv ;
@@ -495,14 +525,14 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_envhp", 9)) && SvOK(*svp)) {
 		if (!SvTRUE(*svp)) {
 			imp_dbh->envhp = NULL; /* force new environment */
-            forced_new_environment = 1;
+			forced_new_environment = 1;
 		}
 #if defined(CAN_USE_PRO_C)
 		else {
 			IV tmp;
 			if (!sv_isa(*svp, "ExtProc::OCIEnvHandle"))
 				croak("ora_envhp value is not of type ExtProc::OCIEnvHandle");
-            /* MJE cannot believe the following will work on 64bit platforms */
+			 /* MJE cannot believe the following will work on 64bit platforms */
 			tmp = SvIV((SV*)SvRV(*svp));
 			imp_dbh->envhp = (struct OCIEnv *)tmp;
 		}
@@ -628,9 +658,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 					"OCIEnvNlsCreate. Check ORACLE_HOME (Linux) env var  or PATH (Windows) and or NLS settings, permissions, etc.");
 				return 0;
 			}
-            if (!imp_drh->envhp)	/* cache first envhp info drh as future default */
-                imp_drh->envhp = imp_dbh->envhp;
-
+			if (!imp_drh->envhp)	/* cache first envhp info drh as future default */
+				imp_drh->envhp = imp_dbh->envhp;
 
 			svp = DBD_ATTRIB_GET_SVP(attr, "ora_charset", 11);/*get the charset passed in by the user*/
 			if (svp) {
@@ -669,8 +698,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 						"OCIEnvNlsCreate. Check ORACLE_HOME (Linux) env var  or PATH (Windows) and or NLS settings, permissions, etc");
 					return 0;
 				}
-                if (!imp_drh->envhp)	/* cache first envhp info drh as future default */
-                    imp_drh->envhp = imp_dbh->envhp;
+				if (!imp_drh->envhp)	/* cache first envhp info drh as future default */
+					imp_drh->envhp = imp_dbh->envhp;
 			}
 
 			/* update the hard-coded csid constants for unicode charsets */
@@ -915,8 +944,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 						OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 						OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 						OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
-                        if (forced_new_environment)
-                            OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
+						if (forced_new_environment)
+							OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
 						return 0;
 					}
 
@@ -2862,16 +2891,16 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 	if (csform) {
 		/* set OCI_ATTR_CHARSET_FORM before we get the default OCI_ATTR_CHARSET_ID */
-	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+		OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
 		&csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
-	if ( status != OCI_SUCCESS ) {
-		oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)"));
-		return 0;
-	}
+		if ( status != OCI_SUCCESS ) {
+			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)"));
+			return 0;
+		}
 	}
 
 	if (!phs->csid_orig) {	/* get the default csid Oracle would use */
-	OCIAttrGet_log_stat(phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
+		OCIAttrGet_log_stat(phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
 		OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
 	}
 
@@ -2894,21 +2923,21 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 
 	if (csid) {
-	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
-		&csid, (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
-	if ( status != OCI_SUCCESS ) {
-		oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)"));
-		return 0;
-	}
+		OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+			&csid, (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
+		if ( status != OCI_SUCCESS ) {
+			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)"));
+			return 0;
+		}
 	}
 
 	if (phs->maxdata_size) {
-	OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
-		neatsvpv(phs->sv,0), (ub4)phs->maxdata_size, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
-	if ( status != OCI_SUCCESS ) {
-		oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)"));
-		return 0;
-	}
+		OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
+			neatsvpv(phs->sv,0), (ub4)phs->maxdata_size, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
+		if ( status != OCI_SUCCESS ) {
+			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)"));
+			return 0;
+		}
 	}
 
 	return 1;
@@ -2962,7 +2991,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 		croak("Can't bind ``lvalue'' mode scalar as inout parameter (currently)");
 
 	if (DBIS->debug >= 2 || dbd_verbose >= 3 ) {
-		PerlIO_printf(DBILOGFP, "dbd_bind_ph(): bind %s <== %s (type %ld (%s)",
+		PerlIO_printf(DBILOGFP, "dbd_bind_ph(1): bind %s <== %s (type %ld (%s)",
 		name, neatsvpv(newvalue,0), (long)sql_type,sql_typecode_name(sql_type));
 		if (is_inout)
 			PerlIO_printf(DBILOGFP, ", inout 0x%lx, maxlen %ld",

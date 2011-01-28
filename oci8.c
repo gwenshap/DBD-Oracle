@@ -24,6 +24,15 @@ int dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level);
 
 
 
+char *
+dbd_yes_no(int yes_no)
+{
+	dTHX;
+	if (yes_no) {
+		return "Yes";
+	}
+	return "No";
+}
 
 void
 dbd_init_oci(dbistate_t *dbistate)
@@ -1511,8 +1520,10 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		OCIDescriptorAlloc_ok(imp_sth->envhp,
 				&phs->desc_h, phs->desc_t);
 	}
+
 	OCIAttrSet_log_stat(phs->desc_h, phs->desc_t,
 			&lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);
+
 	if (status != OCI_SUCCESS)
 		return oci_error(sth, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_LOBEMPTY");
 
@@ -1525,9 +1536,11 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 			if(SvUPGRADE(phs->sv, SVt_PV)){} /* For GCC not to warn on unused result */
 		}
 	}
+
 	phs->indp	= (SvOK(phs->sv)) ? 0 : -1;
 	phs->progv  = (char*)&phs->desc_h;
 	phs->maxlen = sizeof(OCILobLocator*);
+
 	if (phs->is_inout)
 		phs->out_prepost_exec = lob_phs_post_execute;
 	/* accept input LOBs */
@@ -1599,7 +1612,6 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 			}
 		}
 	}
-
 	return 1;
 }
 
@@ -4017,6 +4029,8 @@ find_ident_after(char *src, char *after, STRLEN *len, int copy)
 	int seen_key = 0;
 	char *orig = src;
 	char *p;
+
+
 	while(*src){
 		if (*src == '\'') {
 			char delim = *src;

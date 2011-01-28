@@ -331,6 +331,7 @@ char *oci_define_options _((ub4 options));
 char *oci_hdtype_name _((ub4 hdtype));
 char *oci_attr_name _((ub4 attr));
 char *oci_exe_mode _((ub4 mode));
+char *dbd_yes_no _((int yes_no));
 char *oci_col_return_codes _((int rc));
 char *oci_csform_name _((ub4 attr));
 char *oci_sql_function_code_name _((int sqlfncode));
