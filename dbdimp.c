@@ -424,7 +424,6 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		imp_dbh->using_drcp = 1;
 
 	/* some connection pool atributes  */
-
 	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_drcp_class", 14)) && SvOK(*svp)) {
 		STRLEN  svp_len;
 		if (!SvPOK(*svp))
@@ -432,13 +431,44 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		imp_dbh->pool_class = (text *) SvPV (*svp, svp_len );
 		imp_dbh->pool_classl= (ub4) svp_len;
     }
-	if (DBD_ATTRIB_TRUE(attr,"ora_drcp_min",12,svp))
+    if (DBD_ATTRIB_TRUE(attr,"ora_drcp_min",12,svp))
 		DBD_ATTRIB_GET_IV( attr, "ora_drcp_min",  12, svp, imp_dbh->pool_min);
 	if (DBD_ATTRIB_TRUE(attr,"ora_drcp_max",12,svp))
 		DBD_ATTRIB_GET_IV( attr, "ora_drcp_max",  12, svp, imp_dbh->pool_max);
 	if (DBD_ATTRIB_TRUE(attr,"ora_drcp_incr",13,svp))
 		DBD_ATTRIB_GET_IV( attr, "ora_drcp_incr",  13, svp, imp_dbh->pool_incr);
+
+
+	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_driver_name", 15)) && SvOK(*svp)) {
+		STRLEN  svp_len;
+		if (!SvPOK(*svp))
+			croak("ora_driver_name is not a string");
+		imp_dbh->driver_name = (text *) SvPV (*svp, svp_len );
+		imp_dbh->driver_namel= (ub4) svp_len;
+    }
 #endif /*ORA_OCI_112*/
+
+	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_module_name", 15)) && SvOK(*svp)) {
+		STRLEN  svp_len;
+		if (!SvPOK(*svp))
+			croak("ora_module_name is not a string");
+		imp_dbh->module_name = (text *) SvPV (*svp, svp_len );
+		imp_dbh->module_namel= (ub4) svp_len;
+    }
+    if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_client_identifier", 21)) && SvOK(*svp)) {
+		STRLEN  svp_len;
+		if (!SvPOK(*svp))
+			croak("ora_client_identifier is not a string");
+		imp_dbh->client_identifier = (text *) SvPV (*svp, svp_len );
+		imp_dbh->client_identifierl= (ub4) svp_len;
+    }
+    if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_client_info", 15)) && SvOK(*svp)) {
+		STRLEN  svp_len;
+		if (!SvPOK(*svp))
+			croak("ora_client_info is not a string");
+		imp_dbh->client_info = (text *) SvPV (*svp, svp_len );
+		imp_dbh->client_infol= (ub4) svp_len;
+    }
     imp_dbh->server_version = 0;
 	/* check to see if DBD_verbose or ora_verbose is set*/
 	if (DBD_ATTRIB_TRUE(attr,"dbd_verbose",11,svp))
@@ -952,8 +982,31 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 					OCIAttrSet_log_stat(imp_dbh->svchp, (ub4) OCI_HTYPE_SVCCTX,
 								imp_dbh->seshp, (ub4) 0,(ub4) OCI_ATTR_SESSION, imp_dbh->errhp, status);
 #ifdef ORA_OCI_112
-				}
+
+
+if (imp_dbh->driver_name){
+
+	OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION,imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
+}
 #endif
+
+
+if (imp_dbh->client_identifier){
+
+	OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION,imp_dbh->client_identifier,imp_dbh->client_identifierl,OCI_ATTR_CLIENT_IDENTIFIER,imp_dbh->errhp, status);
+
+}
+
+if (imp_dbh->module_name){
+
+	OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION,imp_dbh->client_info,imp_dbh->client_infol,OCI_ATTR_CLIENT_INFO,imp_dbh->errhp, status);
+
+}
+if (imp_dbh->module_name){
+
+	OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION,imp_dbh->module_name,imp_dbh->module_namel,OCI_ATTR_MODULE,imp_dbh->errhp, status);
+
+}
 			}
 
 #if defined(CAN_USE_PRO_C)
@@ -985,6 +1038,7 @@ dbd_db_login6_out:
 		imp_dbh->shared_dbh = (imp_dbh_t *)SvPVX(shared_dbh_ssv->sv);
 	}
 #endif
+
 
 	return 1;
 }
@@ -1187,6 +1241,11 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 		ora_ncs_buff_mtpl = SvIV (valuesv);
 	}
 #ifdef ORA_OCI_112
+	else if (kl==15 && strEQ(key, "ora_driver_name") ) {
+		STRLEN vl;
+		imp_dbh->driver_name = (text *) SvPV (valuesv, vl );
+		imp_dbh->driver_namel= (ub4) vl;
+	}
 	else if (kl==8 && strEQ(key, "ora_drcp") ) {
 		imp_dbh->using_drcp = 1;
 	}
@@ -1205,6 +1264,21 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 		imp_dbh->pool_incr = SvIV (valuesv);
 	}
 #endif
+	else if (kl==21 && strEQ(key, "ora_client_identifier") ) {
+		STRLEN vl;
+		imp_dbh->client_identifier = (text *) SvPV (valuesv, vl );
+		imp_dbh->client_identifierl= (ub4) vl;
+	}
+    else if (kl==15 && strEQ(key, "ora_client_info") ) {
+		STRLEN vl;
+		imp_dbh->client_info = (text *) SvPV (valuesv, vl );
+		imp_dbh->client_infol= (ub4) vl;
+	}
+	else if (kl==15 && strEQ(key, "ora_module_name") ) {
+		STRLEN vl;
+		imp_dbh->module_name = (text *) SvPV (valuesv, vl );
+		imp_dbh->module_namel= (ub4) vl;
+	}
 	else if (kl==20 && strEQ(key, "ora_oci_success_warn") ) {
 		oci_warn = SvIV (valuesv);
 	}
@@ -1265,6 +1339,35 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 
 	if (kl==18 && strEQ(key, "ora_ncs_buff_mtpl") ) {
 		retsv = newSViv (ora_ncs_buff_mtpl);
+	}
+#ifdef ORA_OCI_112
+	else if (kl==15 && strEQ(key, "ora_driver_name") ) {
+		retsv = newSVpv((char *)imp_dbh->driver_name,0);
+	}
+	else if (kl==8 && strEQ(key, "ora_drcp") ) {
+		retsv = newSViv(imp_dbh->using_drcp);
+	}
+	else if (kl==14 && strEQ(key, "ora_drcp_class") ) {
+		retsv = newSV(imp_dbh->pool_class);
+	}
+	else if (kl==12 && strEQ(key, "ora_drcp_min") ) {
+		retsv = newSViv(imp_dbh->pool_min);
+	}
+	else if (kl==12 && strEQ(key, "ora_drcp_max") ) {
+		retsv = newSViv(imp_dbh->pool_max));
+	}
+	else if (kl==13 && strEQ(key, "ora_drcp_incr") ) {
+		retsv = newSViv(imp_dbh->pool_incr);
+	}
+#endif
+    else if (kl==21 && strEQ(key, "ora_client_identifier")) {
+		retsv =  newSVpv((char *)imp_dbh->client_identifier,0);
+	}
+	else if (kl==15 && strEQ(key, "ora_client_info")) {
+		retsv =  newSVpv((char *)imp_dbh->client_info,0);
+	}
+	else if (kl==15 && strEQ(key, "ora_module_name")) {
+		retsv =  newSVpv((char *)imp_dbh->module_name,0);
 	}
 	else if (kl==20 && strEQ(key, "ora_oci_success_warn")) {
 		retsv = newSViv (oci_warn);

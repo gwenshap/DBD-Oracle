@@ -274,12 +274,6 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth, $attr)
 	    or return undef;
 
-	if ($attr && $attr->{ora_module_name}) {
-	    eval {
-		$dbh->do(q{BEGIN DBMS_APPLICATION_INFO.SET_MODULE(:1,NULL); END;},
-		       undef, $attr->{ora_module_name});
-	    };
-	}
 	unless (length $user_only) {
 	    $user_only = $dbh->selectrow_array(q{
 		SELECT SYS_CONTEXT('userenv','session_user') FROM DUAL
@@ -377,6 +371,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_drcp_incr          => undef,
                  ora_oratab_orahome     => undef,
                  ora_module_name        => undef,
+                 ora_driver_name	=> undef,
+                 ora_client_info	=> undef,
+                 ora_session_user	=> undef,	
                  };
     }
    
@@ -1120,18 +1117,23 @@ Note that one can still connect to any Oracle version with the older DBD::Oracle
 
 So to make a short story a little longer;
 
-  1) If you are using Oracle 7 or early 8 DB and you can manage to get a 9 client and you can use any DBD::Oracle version.
+  1) If you are using Oracle 7 or early 8 DB and you can manage to get a 9 client and you can use
+     any DBD::Oracle version.
   2) If you have to use an Oracle 7 client then DBD::Oracle 1.17 should work
-  3) Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might go with 1.18.
-  4) For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your patch-set, If you run into trouble go with 1.19
+  3) Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might
+     go with 1.18.
+  4) For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your 
+     patch-set, If you run into trouble go with 1.19
   5) After 9.2 you can use any version you want.
-  6) For you Luddites out there ORAPERL still works and is still included but not updated or supported anymore and will be removed in 1.27.
-  7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 and even get to 10. 
-     I am not sure what the 11g client can connect to.
-  8) DBD::Oracle still has the code in place for ProC. But good luck trying to get it to work with any of the instant clients 
-     as Oracle no longer ships the correct .mk files.  I was unable to get it to work with Oracle 11+ as it ships with only 
-     part of the full ProC install.  You may have to get a full version of ProC from Oracle to get it to compile. It is also slated
-     to be removed in 1.27
+  6) For you Luddites out there ORAPERL still works and is still included but not updated or 
+     supported anymore and will be removed in 1.29.
+  7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 
+     and even get to 10. I am not sure what the 11g client can connect to.
+  8) DBD::Oracle still has the code in place for ProC. But good luck trying to get it to work 
+     with any of the instant clients as Oracle no longer ships the correct .mk files.  I was 
+     unable to get it to work with Oracle 11+ as it ships with only part of the full ProC install.
+     You may have to get a full version of ProC from Oracle to get it to compile. It is also 
+     slated to be removed in 1.29
 
 =head1 CONNECTING TO ORACLE
 
@@ -1654,6 +1656,36 @@ monitoring and performance tuning purposes. For example:
 
   DBI->connect($dsn, $user, $passwd, { ora_module_name => $0 });
 
+=item ora_driver_name
+
+For 11g and later you can now set the name of the driver layer using OCI.
+PERL, PERL5, ApachePerl so on. Names starting with "ORA" are reserved. You
+can enter up to 8 characters.  If none is enter then this will default to
+DBDOxxxx where xxxx is the current version number. This value can be 
+retrieved on the server side using V$SESSION_CONNECT_INFO or 
+GV$SESSION_CONNECT_INFO
+
+
+  DBI->connect($dsn, $user, $passwd, { ora_driver_name => 'ModPerl_1' });
+
+=item ora_client_info
+
+When passed in on the connection attribues it can specify any info you want
+onto the session up t0 64 bytes. This value can be 
+retrieved on the server side using V$SESSION view.
+
+  DBI->connect($dsn, $user, $passwd, { ora_client_info => 'BigQuerry2' });
+
+=item ora_client_identifier
+
+When passed in on the connection attribues it specifies the user identifier 
+in the session handle. Most useful for web app as it can pass in the seesion
+user name which might be different than the connection user name. Can be up 
+to 64 bytes long do not to include the password for security reasons and the
+first character of the identifier should not be ':'. 
+
+  DBI->connect($dsn, $user, $passwd, { ora_client_identifier => $some_web_user });
+
 =item ora_dbh_share
 
 Needs at least Perl 5.8.0 compiled with ithreads. Allows to share database
@@ -1841,13 +1873,19 @@ L<DBI/prepare> database handle method.
 Set to false to disable processing of placeholders. Used mainly for loading a
 PL/SQL package that has been I<wrapped> with Oracle's C<wrap> utility.
 
-=item ora_parse_lang
+=item ora_parse_lang--->depricated
 
 Tells the connected database how to interpret the SQL statement.
 If 1 (default), the native SQL version for the database is used.
 Other recognized values are 0 (old V6, treated as V7 in OCI8),
 2 (old V7), 7 (V7), and 8 (V8).
 All other values have the same effect as 1.
+
+=item ora_exe_action
+
+You can set the name of the current execution action to anything you want up to 32byes.
+This value is reset to NULL after an exectue action is called.
+
 
 =item ora_auto_lob
 

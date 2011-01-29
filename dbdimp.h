@@ -50,7 +50,15 @@ struct imp_dbh_st {
 	ub4			pool_min;
 	ub4			pool_max;
 	ub4			pool_incr;
+	text		*driver_name;/*driver name user defined*/
+	ub4			driver_namel;
 #endif
+    text		*client_info;  /*user defined*/
+    ub4			client_infol;
+	text		*module_name; /*module user defined */
+	ub4			module_namel;
+	text		*client_identifier;  /*user defined*/
+    ub4			client_identifierl;
 	int proc_handles;		   /* If true, srvhp, svchp, and authp handles
 								   are owned by ProC and must not be freed. */
 	int RowCacheSize; /* both of these are defined by DBI spec*/
