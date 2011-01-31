@@ -221,11 +221,11 @@ ora_fetch(sth)
 
 void
 ora_execute_array(sth, tuples, exe_count, tuples_status, cols=&PL_sv_undef)
-	SV *		sth
-	SV *		tuples
-	IV		 exe_count
-	SV *		tuples_status
-	SV *		cols
+	SV *	sth
+	SV *	tuples
+	IV		exe_count
+	SV *	tuples_status
+	SV *	cols
 	PREINIT:
 	D_imp_sth(sth);
 	int retval;
@@ -500,9 +500,11 @@ ora_lob_is_init(dbh, locator)
 	    ST(0) = sv_2mortal(newSVuv(is_init));
 	}
 
+
+
 void
 ora_lob_length(dbh, locator)
-	SV *dbh
+	SV 				*dbh
 	OCILobLocator   *locator
 	PREINIT:
 	D_imp_dbh(dbh);

@@ -474,6 +474,29 @@ oci_attr_name(ub4 attr)
 	dTHX;
 	SV *sv;
 	switch (attr) {
+	case OCI_ATTR_MODULE:                    return "OCI_ATTR_MODULE";        /* module for tracing */
+	case OCI_ATTR_ACTION:                    return "OCI_ATTR_ACTION";        /* action for tracing */
+	case OCI_ATTR_CLIENT_INFO:               return "OCI_ATTR_CLIENT_INFO";               /* client info */
+	case OCI_ATTR_COLLECT_CALL_TIME:         return "OCI_ATTR_COLLECT_CALL_TIME";         /* collect call time */
+	case OCI_ATTR_CALL_TIME:                 return "OCI_ATTR_CALL_TIME";         /* extract call time */
+	case OCI_ATTR_ECONTEXT_ID:               return "OCI_ATTR_ECONTEXT_ID";      /* execution-id context */
+	case OCI_ATTR_ECONTEXT_SEQ:              return "OCI_ATTR_ECONTEXT_SEQ";  /*execution-id sequence num */
+
+
+	/*------------------------------ Session attributes -------------------------*/
+	case OCI_ATTR_SESSION_STATE:             return "OCI_ATTR_SESSION_STATE";             /* session state */
+
+	case OCI_ATTR_SESSION_STATETYPE:         return "OCI_ATTR_SESSION_STATETYPE";        /* session state type */
+	case OCI_SESSION_STATELESS_DEF: 		 return "OCI_SESSION_STATELESS_DEF";                    /* valid state types */
+
+	case OCI_ATTR_SESSION_STATE_CLEARED:     return "OCI_ATTR_SESSION_STATE_CLEARED";     /* session state cleared*/
+	case OCI_ATTR_SESSION_MIGRATED:          return "OCI_ATTR_SESSION_MIGRATED";       /* did session migrate*/
+	case OCI_ATTR_SESSION_PRESERVE_STATE:    return "OCI_ATTR_SESSION_PRESERVE_STATE";    /* preserve session state */
+#ifdef ORA_OCI_112
+	case OCI_ATTR_DRIVER_NAME:               return "OCI_ATTR_DRIVER_NAME";               /* Driver Name */
+#endif
+	case OCI_ATTR_CLIENT_IDENTIFIER:         return "OCI_ATTR_CLIENT_IDENTIFIER";   /* value of client id to set*/
+
 	/*=============================Attribute Types===============================*/
 #ifdef ORA_OCI_112
     case OCI_ATTR_PURITY:				return "OCI_ATTR_PURITY"; /* for DRCP session purity */
@@ -947,7 +970,6 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	ub4	oparse_lng		 = 1;  /* auto v6 or v7 as suits db connected to	*/
 	int ora_check_sql 	 = 1;	/* to force a describe to check SQL	*/
 	IV  ora_placeholders = 1;	/* find and handle placeholders */
-	oratext * exe_action = "";
 	/* XXX we set ora_check_sql on for now to force setup of the	*/
 	/* row cache. Change later to set up row cache using just a	*/
 	/* a memory size, perhaps also default $RowCacheSize to a	*/
@@ -980,9 +1002,6 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	if (attribs) {
 		SV **svp;
 		IV ora_auto_lob = 1;
-		if (svp= DBD_ATTRIB_GET_SVP(attribs, "ora_exe_action", 14)){;
-			exe_action = (oratext*)SvPV_nolen(*svp);
-		}
 		DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_placeholders", 16, svp, ora_placeholders);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob", 12, svp, ora_auto_lob);
@@ -1033,13 +1052,6 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		default: oparse_lng = OCI_NTV_SYNTAX;	break;
 	}
 
-
-	if (exe_action){
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION,exe_action,(ub4)strlen(exe_action),OCI_ATTR_ACTION,imp_dbh->errhp, status);
-	}
-	else {
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION,NULL,0,OCI_ATTR_ACTION,imp_dbh->errhp, status);
-	}
 	OCIHandleAlloc_ok(imp_dbh->envhp, &imp_sth->stmhp, OCI_HTYPE_STMT, status);
 	OCIStmtPrepare_log_stat(imp_sth->stmhp, imp_sth->errhp,
 			(text*)imp_sth->statement, (ub4)strlen(imp_sth->statement),

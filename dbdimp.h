@@ -50,15 +50,17 @@ struct imp_dbh_st {
 	ub4			pool_min;
 	ub4			pool_max;
 	ub4			pool_incr;
-	text		*driver_name;/*driver name user defined*/
+	char		*driver_name;/*driver name user defined*/
 	ub4			driver_namel;
 #endif
-    text		*client_info;  /*user defined*/
+    char		*client_info;  /*user defined*/
     ub4			client_infol;
-	text		*module_name; /*module user defined */
+	char		*module_name; /*module user defined */
 	ub4			module_namel;
-	text		*client_identifier;  /*user defined*/
+	char		*client_identifier;  /*user defined*/
     ub4			client_identifierl;
+    char		*action;  /*user defined*/
+    ub4			actionl;
 	int proc_handles;		   /* If true, srvhp, svchp, and authp handles
 								   are owned by ProC and must not be freed. */
 	int RowCacheSize; /* both of these are defined by DBI spec*/
@@ -313,6 +315,7 @@ void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
 void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
 void ora_free_fbh_contents _((imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
+
 int ora_dbtype_is_long _((int dbtype));
 fb_ary_t *fb_ary_alloc _((ub4 bufl, int size));
 fb_ary_t *fb_ary_cb_alloc _((ub4 piece_size,ub4 max_len, int size));

@@ -345,8 +345,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     }
 
     sub private_attribute_info {
-        return { ora_max_nested_cursors => undef,
-                 ora_array_chunk_size   => undef,
+        return { ora_max_nested_cursors	=> undef,
+                 ora_array_chunk_size	=> undef,
                  ora_ph_type		=> undef,
                  ora_ph_csform		=> undef,
                  ora_parse_error_offset => undef,
@@ -363,17 +363,18 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_verbose		=> undef,
                  ora_oci_success_warn	=> undef,
                  ora_objects		=> undef,
-                 ora_ncs_buff_mtpl      => undef,
-                 ora_drcp               => undef,
-                 ora_drcp_class         => undef,
-                 ora_drcp_min           => undef,
-                 ora_drcp_max           => undef,
-                 ora_drcp_incr          => undef,
-                 ora_oratab_orahome     => undef,
-                 ora_module_name        => undef,
+                 ora_ncs_buff_mtpl	=> undef,
+                 ora_drcp		=> undef,
+                 ora_drcp_class		=> undef,
+                 ora_drcp_min		=> undef,
+                 ora_drcp_max		=> undef,
+                 ora_drcp_incr		=> undef,
+                 ora_oratab_orahome	=> undef,
+                 ora_module_name	=> undef,
                  ora_driver_name	=> undef,
                  ora_client_info	=> undef,
-                 ora_session_user	=> undef,	
+                 ora_client_identifier	=> undef,
+                 ora_action		=> undef,
                  };
     }
    
@@ -977,7 +978,8 @@ SQL
 
 	return $dbh->{ora_can_unicode};
     }
-
+    
+    
 }   # end of package DBD::Oracle::db
 
 
@@ -1654,8 +1656,11 @@ to the SET_MODULE() function in the C<DBMS_APPLICATION_INFO> PL/SQL
 package. This can be used to identify the application to the DBA for
 monitoring and performance tuning purposes. For example:
 
-  DBI->connect($dsn, $user, $passwd, { ora_module_name => $0 });
-
+  my $dbh = DBI->connect($dsn, $user, $passwd, { ora_module_name => $0 });
+  
+  $dbh{ora_module_name} = $y;
+  
+  
 =item ora_driver_name
 
 For 11g and later you can now set the name of the driver layer using OCI.
@@ -1666,26 +1671,42 @@ retrieved on the server side using V$SESSION_CONNECT_INFO or
 GV$SESSION_CONNECT_INFO
 
 
-  DBI->connect($dsn, $user, $passwd, { ora_driver_name => 'ModPerl_1' });
+  my $dbh = DBI->connect($dsn, $user, $passwd, { ora_driver_name => 'ModPerl_1' });
 
+  $dbh{ora_driver_name} = $q;
+  
 =item ora_client_info
 
 When passed in on the connection attribues it can specify any info you want
 onto the session up t0 64 bytes. This value can be 
 retrieved on the server side using V$SESSION view.
 
-  DBI->connect($dsn, $user, $passwd, { ora_client_info => 'BigQuerry2' });
+  my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_info => 'Remote2' });
 
+  $dbh{ora_client_info} = "Remote2";
+  
 =item ora_client_identifier
 
 When passed in on the connection attribues it specifies the user identifier 
 in the session handle. Most useful for web app as it can pass in the seesion
 user name which might be different than the connection user name. Can be up 
 to 64 bytes long do not to include the password for security reasons and the
-first character of the identifier should not be ':'. 
+first character of the identifier should not be ':'. This value can be 
+retrieved on the server side using V$SESSION view. 
 
-  DBI->connect($dsn, $user, $passwd, { ora_client_identifier => $some_web_user });
+  my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_identifier => $some_web_user });
 
+  $dbh{ora_client_identifier} = $local_user;
+
+=item ora_action
+
+You can set this value to anything you want up to 32byes.This value can be 
+retrieved on the server side using V$SESSION view.
+
+   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_action => "Login"});
+   
+   $dbh{ora_action} = "New Long Query 22"
+   ;
 =item ora_dbh_share
 
 Needs at least Perl 5.8.0 compiled with ithreads. Allows to share database
@@ -1880,12 +1901,6 @@ If 1 (default), the native SQL version for the database is used.
 Other recognized values are 0 (old V6, treated as V7 in OCI8),
 2 (old V7), 7 (V7), and 8 (V8).
 All other values have the same effect as 1.
-
-=item ora_exe_action
-
-You can set the name of the current execution action to anything you want up to 32byes.
-This value is reset to NULL after an exectue action is called.
-
 
 =item ora_auto_lob
 
@@ -3097,13 +3112,16 @@ Null fields are returned as undef values in the list.
 
 The valid orientation constant and fetch offset values combination are detailed below 
 
-  OCI_FETCH_CURRENT, fetches the current row, the fetch offset value is ignored.
-  OCI_FETCH_NEXT, fetches the next row from the current position, the fetch offset value is ignored.
-  OCI_FETCH_FIRST, fetches the first row, the fetch offset value is ignored.
-  OCI_FETCH_LAST, fetches the last row, the fetch offset value is ignored.
-  OCI_FETCH_PRIOR, fetches the previous row from the current position, the fetch offset value is ignored.
+  OCI_FETCH_CURRENT,  fetches the current row, the fetch offset value is ignored.
+  OCI_FETCH_NEXT,     fetches the next row from the current position, the fetch offset value
+                      is ignored.
+  OCI_FETCH_FIRST,    fetches the first row, the fetch offset value is ignored.
+  OCI_FETCH_LAST,     fetches the last row, the fetch offset value is ignored.
+  OCI_FETCH_PRIOR,    fetches the previous row from the current position, the fetch offset
+                      value is ignored.
   OCI_FETCH_ABSOLUTE, fetches the row that is specified by the fetch offset value.
-  OCI_FETCH_RELATIVE, fetches the row relative from the current position as specified by the fetch offset value.
+  OCI_FETCH_RELATIVE, fetches the row relative from the current position as specified by the 
+                      fetch offset value.
 
   OCI_FETCH_ABSOLUTE, and a fetch offset value of 1 is equivalent to a OCI_FETCH_FIRST.
   OCI_FETCH_ABSOLUTE, and a fetch offset value of 0 is equivalent to a OCI_FETCH_CURRENT.
@@ -3115,30 +3133,47 @@ The valid orientation constant and fetch offset values combination are detailed 
 The effect that a ora_fetch_scroll method call has on the current_positon attribute is detailed below.
 
   OCI_FETCH_CURRENT, has no effect on the current_positon attribute.
-  OCI_FETCH_NEXT, increments current_positon attribute by 1
-  OCI_FETCH_NEXT, when at the last row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT 
-  OCI_FETCH_FIRST, sets the current_positon attribute to 1.
-  OCI_FETCH_LAST, sets the current_positon attribute to the total number of rows in the record set.
-  OCI_FETCH_PRIOR, decrements current_positon attribute by 1.
-  OCI_FETCH_PRIOR, when at the first row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_NEXT,    increments current_positon attribute by 1
+  OCI_FETCH_NEXT,    when at the last row in the record set does not change current_positon
+                     attribute, it is equivalent to a OCI_FETCH_CURRENT 
+  OCI_FETCH_FIRST,   sets the current_positon attribute to 1.
+  OCI_FETCH_LAST,    sets the current_positon attribute to the total number of rows in the 
+                     record set.
+  OCI_FETCH_PRIOR,   decrements current_positon attribute by 1.
+  OCI_FETCH_PRIOR,   when at the first row in the record set does not change current_positon 
+                     attribute, it is equivalent to a OCI_FETCH_CURRENT.
+  
   OCI_FETCH_ABSOLUTE, sets the current_positon attribute to the fetch offset value.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set, does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, sets the current_positon attribute to (current_positon attribute + fetch offset value).
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes the current position less than 1, does not change fetch offset value so it is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, does not change fetch offset value so it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 does not change 
+                      current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in
+                      the record set, does not change current_positon attribute, it is 
+                      equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, sets the current_positon attribute to (current_positon attribute + 
+                      fetch offset value).
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes the current position less than 1, 
+                      does not change fetch offset value so it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records
+                      in the record set, does not change fetch offset value so it is equivalent
+                      to a OCI_FETCH_CURRENT.
 
 The effects of the differing orientation constants on the first fetch (current_postion attribute at 0) are as follows.
 
   OCI_FETCH_CURRENT, dose not fetch a row or change the current_positon attribute.
-  OCI_FETCH_FIRST, fetches row 1 and sets the current_positon attribute to 1.
-  OCI_FETCH_LAST, fetches the last row in the record set and sets the current_positon attribute to the total number of rows in the record set.
-  OCI_FETCH_NEXT, equivalent to a OCI_FETCH_FIRST.
-  OCI_FETCH_PRIOR, equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value that is less than 1 is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_FIRST,   fetches row 1 and sets the current_positon attribute to 1.
+  OCI_FETCH_LAST,    fetches the last row in the record set and sets the current_positon
+                     attribute to the total number of rows in the record set.
+  OCI_FETCH_NEXT,    equivalent to a OCI_FETCH_FIRST.
+  OCI_FETCH_PRIOR,   equivalent to a OCI_FETCH_CURRENT.
+  
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 is equivalent to a 
+                      OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of 
+                      records in the record set is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that is less than 1 is equivalent 
+                      to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number
+                      of records in the record set, is equivalent to a OCI_FETCH_CURRENT.
 
 =back
 
@@ -3385,7 +3420,8 @@ This should greatly increase your ability to select very large CLOBs or NCLOBs, 
 
 You can tune this value by setting ora_oci_success_warn which will display the following
 
-  OCILobRead field 2 of 3 SUCCESS: csform 1 (SQLCS_IMPLICIT), LOBlen 10240(characters), LongReadLen 20(characters), BufLen 80(characters), Got 28(characters)
+  OCILobRead field 2 of 3 SUCCESS: csform 1 (SQLCS_IMPLICIT), LOBlen 10240(characters), LongReadLen 
+  20(characters), BufLen 80(characters), Got 28(characters)
 
 In the case above the query Got 28 characters (well really only 20 characters of 28 bytes) so we could use ora_ncs_buff_mtpl=>2 (20*2=40) thus saving 40bytes of memory.
 
