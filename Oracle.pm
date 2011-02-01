@@ -1719,11 +1719,11 @@ to a already shared scalar which is initialized to an empty string.
 
   $dbh = DBI->connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
   
-=item ora_context -->Depricated will be removed in 1.29
+=item ora_context -->deprecated will be removed in 1.29
 
 Use this attribute to send a pointer to a ProC connection when the your dbname is set to extproc. 
 
-=item ora_use_proc_connection -->Depricated will be removed in 1.29
+=item ora_use_proc_connection -->deprecated will be removed in 1.29
 
 This attribute allows to create a DBI handle for an existing SQLLIB
 database connection. This can be used to share database connections
@@ -1894,7 +1894,7 @@ L<DBI/prepare> database handle method.
 Set to false to disable processing of placeholders. Used mainly for loading a
 PL/SQL package that has been I<wrapped> with Oracle's C<wrap> utility.
 
-=item ora_parse_lang -->Depricated will be removed in 1.29
+=item ora_parse_lang -->deprecated will be removed in 1.29
 
 Tells the connected database how to interpret the SQL statement.
 If 1 (default), the native SQL version for the database is used.

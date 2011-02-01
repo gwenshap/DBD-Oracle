@@ -1,6 +1,6 @@
 =head1 Changes in DBD-Oracle 1.28 (svn rev xxxxx)
 
-  Marked ProC, Oraperl.pm, ora_explain.pl, ora_context, ora_use_proc_connection and ora_parse_lang as depricated to be removed in 1.29
+  Marked ProC, Oraperl.pm, ora_explain.pl, ora_context, ora_use_proc_connection and ora_parse_lang as deprecated  to be removed in 1.29
   Added in 4 new server side debug/trace attributes, ora_driver_name, ora_client_info, ora_session_user and ora_action on the connection handle from John Scoles
   Cleaned up the pod a little by John Scoles
   Fix for function name length, Some function names are over 31char long which may cause problems for some OS/Compilers (VMS IA64 box.) from Jakob Snoer
