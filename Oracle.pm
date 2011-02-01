@@ -1087,7 +1087,7 @@ access to Oracle databases.
 =head1 Which version DBD::Oracle is for me?
 
 From version 1.25 onwards DBD::Oracle will only support Oracle clients 9.2 or greater and it will
-be dropping support for ProC connections in 1.26. Sorry for this it was just getting to hard to 
+be dropping support for ProC connections in 1.29. Sorry for this it was just getting to hard to 
 maintain the code base for an ever shrinking user base. This is especially so with the many new functions 
 being introduced in 10g and 11g.
 
@@ -1719,11 +1719,11 @@ to a already shared scalar which is initialized to an empty string.
 
   $dbh = DBI->connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
   
-=item ora_context
+=item ora_context -->Depricated will be removed in 1.29
 
 Use this attribute to send a pointer to a ProC connection when the your dbname is set to extproc. 
 
-=item ora_use_proc_connection
+=item ora_use_proc_connection -->Depricated will be removed in 1.29
 
 This attribute allows to create a DBI handle for an existing SQLLIB
 database connection. This can be used to share database connections
@@ -1894,7 +1894,7 @@ L<DBI/prepare> database handle method.
 Set to false to disable processing of placeholders. Used mainly for loading a
 PL/SQL package that has been I<wrapped> with Oracle's C<wrap> utility.
 
-=item ora_parse_lang--->depricated
+=item ora_parse_lang -->Depricated will be removed in 1.29
 
 Tells the connected database how to interpret the SQL statement.
 If 1 (default), the native SQL version for the database is used.
@@ -1902,7 +1902,7 @@ Other recognized values are 0 (old V6, treated as V7 in OCI8),
 2 (old V7), 7 (V7), and 8 (V8).
 All other values have the same effect as 1.
 
-=item ora_auto_lob
+=item ora_auto_lob 
 
 If true (the default), fetching retrieves the contents of the CLOB or
 BLOB column in most circumstances.  If false, fetching retrieves the
