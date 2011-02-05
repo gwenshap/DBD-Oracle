@@ -445,10 +445,10 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			croak("ora_driver_name is not a string");
 		imp_dbh->driver_name = (char *) SvPV (*svp, svp_len );
 		imp_dbh->driver_namel= (ub4) svp_len;
-		OCIAttrSet_log_stat(,imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
     }
     else {
-		OCIAttrSet_log_stat(,imp_dbh->seshp,OCI_HTYPE_SESSION,(text*)"DBDO1.28",7,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION,(text*)"DBDO1.28",7,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
 	}
 #endif /*ORA_OCI_112*/
 
@@ -1240,7 +1240,7 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 	else if (kl==15 && strEQ(key, "ora_driver_name") ) {
 		imp_dbh->driver_name = (char *) SvPV (valuesv, vl );
 		imp_dbh->driver_namel= (ub4) vl;
-		OCIAttrSet_log_stat(,imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
 	}
 	else if (kl==8 && strEQ(key, "ora_drcp") ) {
 		imp_dbh->using_drcp = 1;
@@ -1352,7 +1352,7 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 		retsv = newSViv(imp_dbh->using_drcp);
 	}
 	else if (kl==14 && strEQ(key, "ora_drcp_class") ) {
-		retsv = newSV(imp_dbh->pool_class);
+		retsv = newSVpv(imp_dbh->pool_class);
 	}
 	else if (kl==12 && strEQ(key, "ora_drcp_min") ) {
 		retsv = newSViv(imp_dbh->pool_min);
