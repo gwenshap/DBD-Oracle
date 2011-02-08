@@ -1355,13 +1355,13 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 		retsv = newSViv(imp_dbh->using_drcp);
 	}
 	else if (kl==14 && strEQ(key, "ora_drcp_class") ) {
-		retsv = newSVpv(imp_dbh->pool_class);
+		retsv = newSVpv((char *)imp_dbh->pool_class, 0);
 	}
 	else if (kl==12 && strEQ(key, "ora_drcp_min") ) {
 		retsv = newSViv(imp_dbh->pool_min);
 	}
 	else if (kl==12 && strEQ(key, "ora_drcp_max") ) {
-		retsv = newSViv(imp_dbh->pool_max));
+		retsv = newSViv(imp_dbh->pool_max);
 	}
 	else if (kl==13 && strEQ(key, "ora_drcp_incr") ) {
 		retsv = newSViv(imp_dbh->pool_incr);
@@ -3653,7 +3653,7 @@ init_bind_for_array_exec(phs)
 	}
 }
 
- int
+int
 ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 	SV *sth;
 	imp_sth_t *imp_sth;
