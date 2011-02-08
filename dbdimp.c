@@ -780,7 +780,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 					}
 			}
 			else {
-#endif
+#endif /* CAN_USE_PRO_C */
 				OCIEnvInit_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, 0, status);
 				imp_dbh->proc_handles = 0;
 				if (status != OCI_SUCCESS) {
@@ -967,7 +967,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 				}
 				else {
-#endif
+#endif /* ORA_OCI_112 */
 
 
 					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
@@ -1002,6 +1002,9 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 					OCIAttrSet_log_stat(imp_dbh->svchp, (ub4) OCI_HTYPE_SVCCTX,
 								imp_dbh->seshp, (ub4) 0,(ub4) OCI_ATTR_SESSION, imp_dbh->errhp, status);
 
+#ifdef ORA_OCI_112
+				}
+#endif
 			}
 #if defined(CAN_USE_PRO_C)
 		} /* use_proc_connection */
