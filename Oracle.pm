@@ -1707,7 +1707,7 @@ retrieved on the server side using V$SESSION view.
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_info => 'Remote2' });
 
   $dbh{ora_client_info} = "Remote2";
-  
+
 =item ora_client_identifier
 
 When passed in on the connection attributes it specifies the user identifier 
@@ -1728,8 +1728,8 @@ retrieved on the server side using V$SESSION view.
 
    my $dbh = DBI->connect($dsn, $user, $passwd, { ora_action => "Login"});
    
-   $dbh{ora_action} = "New Long Query 22"
-   ;
+   $dbh{ora_action} = "New Long Query 22";
+
 =item ora_dbh_share
 
 Needs at least Perl 5.8.0 compiled with ithreads. Allows to share database
@@ -1741,7 +1741,7 @@ to a already shared scalar which is initialized to an empty string.
   our $orashr : shared = '' ;
 
   $dbh = DBI->connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
-  
+
 =item ora_context -->deprecated will be removed in 1.29
 
 Use this attribute to send a pointer to a ProC connection when the your dbname is set to extproc. 
