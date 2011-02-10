@@ -978,8 +978,7 @@ SQL
 
 	return $dbh->{ora_can_unicode};
     }
-    
-    
+
 }   # end of package DBD::Oracle::db
 
 
@@ -1011,6 +1010,7 @@ SQL
     sub execute_for_fetch {
        my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
        my $row_count = 0;
+       my $err_count = 0;
        my $tuple_count="0E0";
        my $tuple_batch_status;
        my $dbh = $sth->{Database};
@@ -1020,30 +1020,47 @@ SQL
            $tuple_batch_status = [ ];
        }
        
+       my $finished;
        while (1) {
            my @tuple_batch;
            for (my $i = 0; $i < $batch_size; $i++) {
-                push @tuple_batch, [ @{$fetch_tuple_sub->() || last} ];
+               $finished = $fetch_tuple_sub->();
+               push @tuple_batch, [@{$finished || last}];
+
            }
            last unless @tuple_batch;
+           
            my $res = ora_execute_array($sth,
                                            \@tuple_batch,
                                            scalar(@tuple_batch),
-                                           $tuple_batch_status);
-           if(defined($res) && defined($row_count)) {
+                                           $tuple_batch_status,
+                                           $err_count );
+                                           
+           if(defined($res)) { #no error
                 $row_count += $res;
            } else {
                 $row_count = undef;
            }
+           
            $tuple_count+=@$tuple_batch_status;
            push @$tuple_status, @$tuple_batch_status
-           if defined($tuple_status);
+                if defined($tuple_status);
+           
+           last if !$finished;	
+           
        }
+       #error check here
+       return $sth->set_err($DBI::stderr, "executing $tuple_count generated $err_count errors")
+       	   if $err_count;
+                   
        if (!wantarray) {
-	   return undef if !defined $row_count;
-   	   return $tuple_count;
+	   return $tuple_count;
        }
-       return (defined $row_count ? $tuple_count : undef, $row_count);
+
+       return ($tuple_count, defined $row_count ? $row_count : undef);
+            
+       
+       
     }
 
     sub private_attribute_info {
@@ -1382,7 +1399,9 @@ All of which are demonstrated below;
   
   $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1})
   
-  $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1, ora_drcp_class=>'my_app', ora_drcp_min=>10})
+  $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1,
+                                                             ora_drcp_class=>'my_app',
+                                                             ora_drcp_min  =>10})
  
   $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=ORCL;port=1521;SERVER=POOLED', 'scott/tiger', '')
 

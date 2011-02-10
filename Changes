@@ -1,5 +1,8 @@
 =head1 Changes in DBD-Oracle 1.28 (svn rev xxxxx)
 
+  Fix in execute_array to stop possible endless loop when using a fetch sub by by Martin J. Evans 
+  Adapted Martin J. Evans' ODBC 70execute_array.t into t/26exe_array.t by John Scoles
+  Fix for execute_array to bring it up to spec. by Martin J. Evans and John Scoles
   Marked ProC, Oraperl.pm, ora_explain.pl, ora_context, ora_use_proc_connection and ora_parse_lang as deprecated  to be removed in 1.29
   Added in 4 new server side debug/trace attributes, ora_driver_name, ora_client_info, ora_session_user and ora_action on the connection handle from John Scoles
   Cleaned up the pod a little by John Scoles

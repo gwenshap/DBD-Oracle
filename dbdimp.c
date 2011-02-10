@@ -424,6 +424,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		imp_dbh->using_drcp = 1;
 
 	/* some connection pool atributes  */
+
 	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_drcp_class", 14)) && SvOK(*svp)) {
 		STRLEN  svp_len;
 		if (!SvPOK(*svp))
@@ -436,7 +437,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	if (DBD_ATTRIB_TRUE(attr,"ora_drcp_max",12,svp))
 		DBD_ATTRIB_GET_IV( attr, "ora_drcp_max",  12, svp, imp_dbh->pool_max);
 	if (DBD_ATTRIB_TRUE(attr,"ora_drcp_incr",13,svp))
-		DBD_ATTRIB_GET_IV( attr, "ora_drcp_incr", 13, svp, imp_dbh->pool_incr);
+		DBD_ATTRIB_GET_IV( attr, "ora_drcp_incr",  13, svp, imp_dbh->pool_incr);
 
 
 	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_driver_name", 15)) && SvOK(*svp)) {
@@ -1001,11 +1002,11 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 					OCIAttrSet_log_stat(imp_dbh->svchp, (ub4) OCI_HTYPE_SVCCTX,
 								imp_dbh->seshp, (ub4) 0,(ub4) OCI_ATTR_SESSION, imp_dbh->errhp, status);
-
 #ifdef ORA_OCI_112
 				}
 #endif
 			}
+
 #if defined(CAN_USE_PRO_C)
 		} /* use_proc_connection */
 #endif
@@ -1035,7 +1036,6 @@ dbd_db_login6_out:
 		imp_dbh->shared_dbh = (imp_dbh_t *)SvPVX(shared_dbh_ssv->sv);
 	}
 #endif
-
 
 	return 1;
 }
@@ -3599,12 +3599,13 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 				OCINlsCharSetIdToName(imp_sth->envhp,charsetname, sizeof(charsetname),csid );
 
 				for(i=0;i<av_len(tuples_utf8_av)+1;i++){
-					SV *err_svs[2];
+					SV *err_svs[3];
 					SV *item;
 					item=*(av_fetch(tuples_utf8_av,i,0));
 					err_svs[0] = newSViv((IV)0);
 					err_svs[1] = newSVpvf("DBD Oracle Warning: You have mixed utf8 and non-utf8 in an array bind in parameter#%d. This may result in corrupt data. The Query charset id=%d, name=%s",parma_index+1,csid,charsetname);
-					av_store(tuples_status_av,SvIV(item),newRV_noinc((SV *)(av_make(2, err_svs))));
+					err_svs[2] = newSVpvn("S1000", 0);
+					av_store(tuples_status_av,SvIV(item),newRV_noinc((SV *)(av_make(3, err_svs))));
 				}
 
 
@@ -3654,17 +3655,18 @@ init_bind_for_array_exec(phs)
 }
 
 int
-ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
+ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, err_count)
 	SV *sth;
 	imp_sth_t *imp_sth;
 	SV *tuples;
 	SV *tuples_status;
 	SV *columns;
 	ub4 exe_count;
+	SV *err_count;
 {
 	dTHX;
 	dTHR;
-	/*ub4 row_count = 0;*/
+	ub4 row_count = 0;
 	int debug = DBIS->debug;
 	D_imp_dbh_from_sth;
 	sword status, exe_status;
@@ -3847,6 +3849,9 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 	OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
 							exe_count, 0, 0, 0, oci_mode, exe_status);
 
+	OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
+
+
 	 imp_sth->bind_tuples = NULL;
 
 	if (exe_status != OCI_SUCCESS) {
@@ -3854,7 +3859,6 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 		if(exe_status != OCI_SUCCESS_WITH_INFO)
 			return -2;
 	}
-
 	if (outparams){
 		i=outparams;
 		while(--i >= 0) {
@@ -3879,12 +3883,13 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 	if(num_errs && tuples_status_av) {
 		OCIError *row_errhp, *tmp_errhp;
 		ub4 row_off;
-		SV *err_svs[2];
+		SV *err_svs[3];
 		/*AV *err_av;*/
 		sb4 err_code;
-
+	    sv_setiv(err_count,num_errs);
 		err_svs[0] = newSViv((IV)0);
 		err_svs[1] = newSVpvn("", 0);
+		err_svs[2] = newSVpvn("S1000",5);
 		OCIHandleAlloc_ok(imp_sth->envhp, &row_errhp, OCI_HTYPE_ERROR, status);
 		OCIHandleAlloc_ok(imp_sth->envhp, &tmp_errhp, OCI_HTYPE_ERROR, status);
 		for(i = 0; (unsigned int) i < num_errs; i++) {
@@ -3900,7 +3905,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 			err_code = oci_error_get(row_errhp, exe_status, NULL, err_svs[1], debug);
 			sv_setiv(err_svs[0], (IV)err_code);
 			av_store(tuples_status_av, row_off,
-					 newRV_noinc((SV *)(av_make(2, err_svs))));
+					 newRV_noinc((SV *)(av_make(3, err_svs))));
 		}
 		OCIHandleFree_log_stat(tmp_errhp, OCI_HTYPE_ERROR,  status);
 		OCIHandleFree_log_stat(row_errhp, OCI_HTYPE_ERROR,  status);
@@ -3920,8 +3925,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count)
 	if(num_errs) {
 		return -2;
 	} else {
-		ub4 row_count = 0;
-		OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
+
 		return row_count;
 	}
 }
