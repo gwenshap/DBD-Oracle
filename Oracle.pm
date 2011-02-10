@@ -1682,9 +1682,8 @@ monitoring and performance tuning purposes. For example:
 
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_module_name => $0 });
   
-  $dbh{ora_module_name} = $y;
-  
-  
+  $dbh{ora_module_name} = $y; 
+
 =item ora_driver_name
 
 For 11g and later you can now set the name of the driver layer using OCI.
@@ -1698,10 +1697,10 @@ GV$SESSION_CONNECT_INFO
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_driver_name => 'ModPerl_1' });
 
   $dbh{ora_driver_name} = $q;
-  
+
 =item ora_client_info
 
-When passed in on the connection attribues it can specify any info you want
+When passed in on the connection attributes it can specify any info you want
 onto the session up t0 64 bytes. This value can be 
 retrieved on the server side using V$SESSION view.
 
@@ -1711,8 +1710,8 @@ retrieved on the server side using V$SESSION view.
   
 =item ora_client_identifier
 
-When passed in on the connection attribues it specifies the user identifier 
-in the session handle. Most useful for web app as it can pass in the seesion
+When passed in on the connection attributes it specifies the user identifier 
+in the session handle. Most useful for web app as it can pass in the session
 user name which might be different than the connection user name. Can be up 
 to 64 bytes long do not to include the password for security reasons and the
 first character of the identifier should not be ':'. This value can be 
@@ -2304,7 +2303,7 @@ An identifier is passed I<as is>, i.e. as the user provides or
 Oracle returns it.
 See L</table_info()> for more detailed information.
 
-It is possiable with Oracle to make the names of the various DB objects (table,column,index etc)
+It is possible with Oracle to make the names of the various DB objects (table,column,index etc)
 case sensitive. 
 
   alter table bloggind add ("Bla_BLA" NUMBER)
@@ -3331,7 +3330,7 @@ The current_positon attribute will be 6 after this snippet.
   $sth->finish();
 
 When using scrollable cursors it is required that you use the $sth->finish() method when you are done with the cursor as this type of
-cursor has to be explicitly canceled on the server. If you do not do this you may cause resource problems on your database.  
+cursor has to be explicitly cancelled on the server. If you do not do this you may cause resource problems on your database.  
 
 =back
 
