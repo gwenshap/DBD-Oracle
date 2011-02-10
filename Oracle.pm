@@ -271,8 +271,12 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	   $attr->{ora_drcp_incr} = $ENV{ORA_DRCP_INCR}
 	}
 	
-	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth, $attr)
-	    or return undef;
+	{
+	   local @SIG{ @{ $attr->{ora_connect_with_default_signals} } }
+          if $attr->{ora_connect_with_default_signals};
+	   DBD::Oracle::db::_login($dbh, $dbname, $user, $auth, $attr)
+	      or return undef;
+	}
 
 	unless (length $user_only) {
 	    $user_only = $dbh->selectrow_array(q{
@@ -344,7 +348,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	return $v;
     }
 
-    sub private_attribute_info {
+    sub private_attribute_info { #this should only be for ones that have setters and getters
         return { ora_max_nested_cursors	=> undef,
                  ora_array_chunk_size	=> undef,
                  ora_ph_type		=> undef,
@@ -375,6 +379,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_client_info	=> undef,
                  ora_client_identifier	=> undef,
                  ora_action		=> undef,
+               
                  };
     }
    
@@ -1898,6 +1903,22 @@ used to limit or extend the number of rows processed at a time.
 
 Note that this attribute also applies to C<execute_array>, since that
 method is implemented using C<execute_for_fetch>.
+
+=item ora_connect_with_default_signals
+
+Sometimes the Oracle client seems to change some of the signal handlers
+of the process during the connect phase.  For instance, some users have
+observed Perl's default C<$SIG{INT}> handler being ignored after 
+connecting to an Oracle database.  If this causes problems in your 
+application, set this attribute to an array reference of signals you 
+would like to be localized during the connect process.  Once the connect
+is complete, the signal handlers should be returned to their previous state.
+
+For example:
+
+  $dbh = DBI->connect ($dsn, $user, $passwd,
+                       {ora_connect_with_default_signals => [ 'INT' ] });
+
 
 =back
 
