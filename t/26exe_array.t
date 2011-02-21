@@ -17,9 +17,6 @@ require 'nchar_test_lib.pl';
 
 $| = 1;
 
-my $has_test_nowarnings = 1;
-eval "require Test::NoWarnings";
-$has_test_nowarnings = undef if $@;
 
 my $table = 'PERL_DBD_execute_array';
 my $table2 = 'PERL_DBD_execute_array2';
@@ -40,12 +37,16 @@ my $fetch_row = 0;
 use DBI qw(:sql_types);
 
 eval {
-    $dbh = DBI->connect($dsn, $dbuser, '');
+    $dbh = DBI->connect($dsn, $dbuser, '', {PrintError => 0});
 };
 
 if (!$dbh) {
     plan skip_all => "Unable to connect to Oracle";
 }
+$dbh->{PrintError} = 1;
+my $has_test_nowarnings = 1;
+eval "require Test::NoWarnings";
+$has_test_nowarnings = undef if $@;
 use_ok('Data::Dumper');
 
 END {
