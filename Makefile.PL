@@ -46,7 +46,7 @@ $| = 1;
 my %opts = (
     NAME => 'DBD::Oracle',
     VERSION_FROM => 'Oracle.pm',
-    PREREQ_PM => { "Test::Simple" => 0.40, # actually Test::More pkg in T::S dist
+    PREREQ_PM => { "Test::Simple" => 0.90, # actually Test::More pkg in T::S dist
                    "DBI"          => 1.51},
     EXE_FILES => [ "ora_explain$exe_ext" ],
     OBJECT => '$(O_FILES)',

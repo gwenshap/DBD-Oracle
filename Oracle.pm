@@ -1701,7 +1701,7 @@ GV$SESSION_CONNECT_INFO
 =item ora_client_info
 
 When passed in on the connection attributes it can specify any info you want
-onto the session up t0 64 bytes. This value can be 
+onto the session up to 64 bytes. This value can be 
 retrieved on the server side using V$SESSION view.
 
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_info => 'Remote2' });
@@ -1723,7 +1723,7 @@ retrieved on the server side using V$SESSION view.
 
 =item ora_action
 
-You can set this value to anything you want up to 32byes.This value can be 
+You can set this value to anything you want up to 32 bytes. This value can be 
 retrieved on the server side using V$SESSION view.
 
    my $dbh = DBI->connect($dsn, $user, $passwd, { ora_action => "Login"});
