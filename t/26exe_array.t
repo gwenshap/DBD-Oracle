@@ -43,7 +43,7 @@ eval {
 if (!$dbh) {
     plan skip_all => "Unable to connect to Oracle";
 }
-$dbh->{PrintError} = 1;
+#$dbh->{PrintError} = 1;
 my $has_test_nowarnings = 1;
 eval "require Test::NoWarnings";
 $has_test_nowarnings = undef if $@;
@@ -114,7 +114,7 @@ sub check_data
 {
     my ($dbh, $c1, $c2) = @_;
 
-    my $data = $dbh->selectall_arrayref(qq/select * from $table/);
+    my $data = $dbh->selectall_arrayref(qq/select * from $table order by a/);
     my $row = 0;
     foreach (@$data) {
         is($_->[0], $c1->[$row], "row $row p1 data");
@@ -441,7 +441,7 @@ sub update
     $sth->bind_param_array(2, ['dave%', 'fred%']);
     insert($dbh, $sth,
            {commit => 0, error => 0, sts => 2, affected => 5,
-            tuple => [1, 1], %$ref});
+            tuple => [4, 1], %$ref});
     check_data($dbh, \@p1, [qw(pete pete pete pete pete)]);
 
 
