@@ -25,13 +25,15 @@ $| = 1;
 
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect($dsn, $dbuser, '');
+my $dbh = DBI->connect($dsn, $dbuser, '',{
+                           PrintError => 0,
+                       });
 
 if ($dbh) {
     plan tests => 31;
     $dbh->{LongReadLen} = 7000;
 } else {
-    plan skip_all => "Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n";
+    plan skip_all => "Unable to connect to Oracle";
     diag('Test reported bugs');
 }
 

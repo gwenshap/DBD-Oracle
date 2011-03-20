@@ -22,7 +22,7 @@ SKIP: {
     set_nls_nchar( (ORA_OCI >= 9.2) ? 'AL32UTF8' : 'UTF8' ,1 );
     $dbh = db_handle();
 
-    plan skip_all => "Not connected to oracle" if not $dbh;
+    plan skip_all => "Unable to connect to Oracle" if not $dbh;
     plan skip_all => "Database NCHAR character set is not Unicode" if not db_nchar_is_utf($dbh) ;
     diag("testing utf8 with nchar columns\n");
 

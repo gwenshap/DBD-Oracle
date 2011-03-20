@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
-use Test::More tests => 4;
+use Test::More;
 use DBD::Oracle qw(:ora_types);
 use DBI;
 
@@ -16,18 +16,20 @@ require 'nchar_test_lib.pl';
 ##  Nothing fancy. 
 ## ----------------------------------------------------------------------------
 
-BEGIN {
-	use_ok('DBI');
-}
-
 # create a database handle
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1, 
-						AutoCommit=>1,
-						PrintError => 0 });
+my $dbh;
 
+eval {$dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1, 
+                                               AutoCommit=>1,
+                                               PrintError => 0 })};
 
+if ($dbh) {
+    plan tests => 3;
+} else {
+    plan skip_all => "Unable to connect to Oracle"
+}
 # check that our db handle is good
 isa_ok($dbh, "DBI::db");
 

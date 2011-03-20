@@ -17,7 +17,7 @@ my $dbh = DBI->connect($dsn, $dbuser, '', { PrintError => 0 });
 if ($dbh) {
     plan tests=> 29;
 } else {
-    plan skip_all =>"Unable to connect to Oracle as $dbuser ($DBI::errstr)\n";
+    plan skip_all =>"Unable to connect to Oracle";
 }
 
 # ref cursors may be slow due to oracle bug 3735785

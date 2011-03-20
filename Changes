@@ -1,6 +1,37 @@
+=head1 Changes in DBD-Oracle 1.28 (svn rev 14765)
+
+  Changed 26exe_array.t so it is compatiable with older version of Test::More by John Scoles
+  A fix from Charles Jardine for 58object.t to stop an error on some 64 bit systems
+  A few quick changes from H. Merijn Brand to fix some compiler warings and a fix for Oracle 9 clients
+  Added connection attribute 'ora_connect_with_default_signals' that will localize Perl's $SIG{INT} handler from Brian Phillips and T. Bunce
+  Fix in execute_array to stop possible endless loop when using a fetch sub by Martin J. Evans 
+  Adapted Martin J. Evans' ODBC 70execute_array.t into t/26exe_array.t by John Scoles
+  Fix for execute_array to bring it up to spec. by Martin J. Evans and John Scoles
+  Marked ProC, Oraperl.pm, ora_explain.pl, ora_context, ora_use_proc_connection and ora_parse_lang as deprecated  to be removed in 1.29
+  Added in 4 new server side debug/trace attributes, ora_driver_name, ora_client_info, ora_session_user and ora_action on the connection handle from John Scoles
+  Cleaned up the pod a little by John Scoles
+  Fix for function name length, Some function names are over 31char long which may cause problems for some OS/Compilers (VMS IA64 box.) from Jakob Snoer
+  Fix for OCIPing in case where a 10 client tries to ping a <10 DB  from Tim Oertel
+  Fix for DBD-Oracle stored proc with array bug where second call array size is unchanged from Tim Oertel
+  Fix for rt.cpan.org Ticket #=63332: Spelling error in POD from jonasbn
+  Fix for rt.cpan.org Ticket #=62152: t/28array_bind.t and t/31lob.t may call plan() twice and others do not fail on not connect from John Scoles
+  Fix for rt.cpan.org Ticket #=61511 ORA-00942 when inserting into a table with a LOB column over a synonym on HP-UX from Kris Lemaire
+  Fix for rt.cpan.org Ticket #=42842 Test 31lob fails with 64-bit Instant Client by John Scoles
+  Fix for support for objects on big endian platforms from Charles Jardine, John R Pierce
+  Fix for rt.cpan.org Ticket #=61225 Windows install (Stawberry Perl) fails on long path names from David Tulloh
+  Fix for rt.cpan.org Ticket #=rt64524 Memory Leak when Oracle connection fails by Martin J. Evans
+  Added all the missing ora_drcp values to dbh private_attribute_info by Martin J. Evans
+  Removed a load of attributes from sth private_attribute_info which are not handle attributes but attributes to bind_param/prepare by Martin J. Evans
+  Fix for rt.cpan.org Ticket #=64244 - don't bail out, skip tests when we cannot connect by Martin J. Evans and John Scoles
+  Added DBI to PREREQ_PM in Makefile.PL by Martin J. Evans
+  Added build_requires in Makefile.PL by Martin J. Evans
+  Added workaround for ExtUtils::MakeMaker problems by Martin J. Evans
+  Added LICENSE to Makefile.PL by Martin J. Evans
+
+
 =head1 Changes in DBD-Oracle 1.27 (svn rev 14583)
 
-  This version removes ‘PERL_POLLUTE’ and adds in PL_ where required so it will be fully compatible with Perl 5.13
+  This version removes 'PERL_POLLUTE' and adds in PL_ where required so it will be fully compatible with Perl 5.13
 
 =head1 Changes in DBD-Oracle 1.26 (svn rev 14411)
 

@@ -32,7 +32,7 @@ my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dsn = oracle_test_dsn();
 my $dbh = DBI->connect($dsn, $dbuser, '', {
 	AutoCommit => 0,
-	PrintError => 1,
+	PrintError => 0,
 	FetchHashKeyName => 'NAME_lc',
 });
 
@@ -40,7 +40,7 @@ if ($dbh) {
     plan tests => $tests;
 } else {
     plan skip_all =>
-        "Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n";
+        "Unable to connect to Oracle";
 }
 
 eval {

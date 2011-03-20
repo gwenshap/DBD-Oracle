@@ -23,14 +23,19 @@ require 'nchar_test_lib.pl';
 
 $| = 1;
 
-plan tests => 29;
-
 # create a database handle
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1,
-						AutoCommit=>1,
-						PrintError => 0 ,LongReadLen=>10000000});
+my $dbh;
+eval {$dbh = DBI->connect($dsn, $dbuser, '',
+                          { RaiseError=>1,
+                            AutoCommit=>1,
+                            PrintError => 0 ,LongReadLen=>10000000})};
+if ($dbh) {
+    plan tests => 29;
+} else {
+    plan skip_all => "Unable to connect to Oracle";
+}
 # check that our db handle is good
 my $ora_oci = DBD::Oracle::ORA_OCI(); # dualvar
 

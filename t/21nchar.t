@@ -17,7 +17,8 @@ SKIP: {
     plan skip_all => "Unable to run 8bit char test, perl version is less than 5.6" unless ( $] >= 5.006 );
 
     $dbh = db_handle();
-    plan skip_all => "Not connected to oracle" if not $dbh;
+  #  $dbh->{PrintError} = 1;
+    plan skip_all => "Unable to connect to Oracle" if not $dbh;
 
     diag("testing control and 8 bit chars:\n") ;
     diag(" Database and client versions and character sets:\n");

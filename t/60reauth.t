@@ -27,7 +27,7 @@ my $dbh = DBI->connect($dsn, $dbuser, '');
 if ($dbh) {
     plan tests => 3;
 } else {
-    plan skip_all => "Unable to connect to Oracle ($DBI::errstr)\n";
+    plan skip_all => "Unable to connect to Oracle\n";
 }
 
 is(($dbh->selectrow_array("SELECT USER FROM DUAL"))[0], $uid1, 'uid1' );

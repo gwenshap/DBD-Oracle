@@ -17,7 +17,7 @@ my $dbh = DBI->connect($dsn, $dbuser, '', { PrintError => 0 });
 if ($dbh) {
     plan tests=>13;
 } else {
-    plan skip_all => "Unable to connect to Oracle as $dbuser ($DBI::errstr)\n";
+    plan skip_all => "Unable to connect to Oracle";
 }
 
 diag("type_info_all\n");

@@ -24,11 +24,23 @@ BEGIN {
 use strict;
 use DBI;
 
-use Test::More tests => 19;
+use Test::More;
 
 unshift @INC, 't';
 require 'nchar_test_lib.pl';
 
+my $dsn = oracle_test_dsn();
+my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
+my $dbh = DBI->connect($dsn, $dbuser, '',{
+                           PrintError => 0,
+                       });
+
+if ($dbh) {
+    plan tests => 19;
+    $dbh->disconnect;
+} else {
+    plan skip_all => "Unable to connect to Oracle";
+}
 
 my $last_session : shared;
 our @pool : shared;
