@@ -1,6 +1,6 @@
 =head1 Changes in DBD-Oracle 1.28 (svn rev 14765)
 
-  Changed out note for diag in 26exe_array.t so it is compatiable with older version of test by John Scoles
+  Changed 26exe_array.t so it is compatiable with older version of Test::More by John Scoles
   A fix from Charles Jardine for 58object.t to stop an error on some 64 bit systems
   A few quick changes from H. Merijn Brand to fix some compiler warings and a fix for Oracle 9 clients
   Added connection attribute 'ora_connect_with_default_signals' that will localize Perl's $SIG{INT} handler from Brian Phillips and T. Bunce
