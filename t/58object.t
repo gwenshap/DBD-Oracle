@@ -82,9 +82,9 @@ $dbh->do(qq{ INSERT INTO $table VALUES (1, $super_type(13, 'obj1')) })
             or die $dbh->errstr;
 $dbh->do(qq{ INSERT INTO $table VALUES (2, $sub_type(NULL, 'obj2', 
                     TO_DATE('2004-11-30 14:27:18', 'YYYY-MM-DD HH24:MI:SS'),
-                    12345.6789)) }
+                    '12345.6789')) }
             ) or die $dbh->errstr;
-$dbh->do(qq{ INSERT INTO $table VALUES (3, $sub_type(5, 'obj3', NULL, 777.666)) }
+$dbh->do(qq{ INSERT INTO $table VALUES (3, $sub_type(5, 'obj3', NULL, '777.666')) }
             ) or die $dbh->errstr;
 
 $dbh->do(qq{ CREATE OR REPLACE TYPE $inner_type AS OBJECT (

@@ -474,6 +474,7 @@ oci_attr_name(ub4 attr)
 	dTHX;
 	SV *sv;
 	switch (attr) {
+#ifdef ORA_OCI_102
 	case OCI_ATTR_MODULE:                    return "OCI_ATTR_MODULE";        /* module for tracing */
 	case OCI_ATTR_ACTION:                    return "OCI_ATTR_ACTION";        /* action for tracing */
 	case OCI_ATTR_CLIENT_INFO:               return "OCI_ATTR_CLIENT_INFO";               /* client info */
@@ -492,6 +493,7 @@ oci_attr_name(ub4 attr)
 	case OCI_ATTR_SESSION_STATE_CLEARED:     return "OCI_ATTR_SESSION_STATE_CLEARED";     /* session state cleared*/
 	case OCI_ATTR_SESSION_MIGRATED:          return "OCI_ATTR_SESSION_MIGRATED";       /* did session migrate*/
 	case OCI_ATTR_SESSION_PRESERVE_STATE:    return "OCI_ATTR_SESSION_PRESERVE_STATE";    /* preserve session state */
+#endif
 #ifdef ORA_OCI_112
 	case OCI_ATTR_DRIVER_NAME:               return "OCI_ATTR_DRIVER_NAME";               /* Driver Name */
 #endif
@@ -1731,7 +1733,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 	}
 
 	if (dbis->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	blob_read field %d, ftype %d, offset %ld, len %ld, destoffset %ld, retlen %lu\n",
+		PerlIO_printf(DBILOGFP, "	blob_read field %d, ftype %d, offset %ld, len %lu, destoffset %ld, retlen %lu\n",
 			fbh->field_num+1, ftype, offset, len, destoffset, ul_t(amtp));
 
 	SvCUR_set(dest_sv, byte_destoffset+amtp);
@@ -3889,7 +3891,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						aTHX_ sv, fbh->req_type, fbh->bind_flags, NULL);
 						if (sts == 0) {
 							sprintf(errstr,
-								"over/under flow converting column %d to type %ld",
+								"over/under flow converting column %d to type %d",
 								i+1, fbh->req_type);
 							oci_error(sth, imp_sth->errhp, OCI_ERROR, errstr);
 							return Nullav;
@@ -3897,7 +3899,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						}
 						else if (sts == -2) {
 							sprintf(errstr,
-								"unsupported bind type %ld for column %d",
+								"unsupported bind type %d for column %d",
 								fbh->req_type, i+1);
 							return Nullav;
 						}
