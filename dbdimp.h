@@ -316,7 +316,6 @@ void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
 void ora_free_fbh_contents _((imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
-int oratype_rebind_ok _((int dbtype));
 fb_ary_t *fb_ary_alloc _((ub4 bufl, int size));
 fb_ary_t *fb_ary_cb_alloc _((ub4 piece_size,ub4 max_len, int size));
 
