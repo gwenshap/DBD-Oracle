@@ -1,4 +1,4 @@
-=head1 Changes in DBD-Oracle 1.28 (svn rev xxxxx)
+=head1 Changes in DBD-Oracle 1.28 (svn rev 14765)
 
   Changed out note for diag in 26exe_array.t so it is compatiable with older version of test by John Scoles
   A fix from Charles Jardine for 58object.t to stop an error on some 64 bit systems
