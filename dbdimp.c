@@ -283,6 +283,7 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
 	return 0;
 }
 
+#ifdef THIS_IS_NOT_CURRENTLY_USED
 static int
 oratype_rebind_ok(int dbtype) /* all are vrcar any way so just use it */
 {
@@ -314,6 +315,7 @@ oratype_rebind_ok(int dbtype) /* all are vrcar any way so just use it */
 
 	return dbtype;
 }
+#endif /* THIS_IS_NOT_CURRENTLY_USED */
 /* --- allocate and free oracle oci 'array' buffers --- */
 
 /* --- allocate and free oracle oci 'array' buffers for callback--- */
@@ -3154,7 +3156,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 				if (!oratype_bind_ok(ora_type))
 					croak("Can't bind %s, ora_type %d not supported by DBD::Oracle", phs->name, ora_type);
 				if (sql_type)
-					croak("Can't specify both TYPE (%ld) and ora_type (%d) for %s", sql_type, ora_type, phs->name);
+					croak("Can't specify both TYPE (%"IVdf") and ora_type (%d) for %s", sql_type, ora_type, phs->name);
 				phs->ftype = ora_type;
 			}
 			if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_field",9, 0)) != NULL) {
@@ -3163,7 +3165,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 			if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_csform", 10, 0)) != NULL) {
 				if (SvIV(*svp) == SQLCS_IMPLICIT || SvIV(*svp) == SQLCS_NCHAR)
 					phs->csform = (ub1)SvIV(*svp);
-				else warn("ora_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR), not %ld", SvIV(*svp));
+				else warn("ora_csform must be 1 (SQLCS_IMPLICIT) or 2 (SQLCS_NCHAR), not %"IVdf"", SvIV(*svp));
 			}
 			if ( (svp=hv_fetch((HV*)SvRV(attribs), "ora_maxdata_size", 16, 0)) != NULL) {
 				phs->maxdata_size = SvUV(*svp);
@@ -3196,7 +3198,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 
 	}
 	else if (sql_type && phs->ftype != ora_sql_type(imp_sth, phs->name, (int)sql_type)) {
-		croak("Can't change TYPE of param %s to %ld after initial bind",
+		croak("Can't change TYPE of param %s to %"IVdf" after initial bind",
 			phs->name, sql_type);
 
 	}

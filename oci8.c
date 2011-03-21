@@ -3891,7 +3891,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						aTHX_ sv, fbh->req_type, fbh->bind_flags, NULL);
 						if (sts == 0) {
 							sprintf(errstr,
-								"over/under flow converting column %d to type %d",
+								"over/under flow converting column %d to type %"IVdf"",
 								i+1, fbh->req_type);
 							oci_error(sth, imp_sth->errhp, OCI_ERROR, errstr);
 							return Nullav;
@@ -3899,7 +3899,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						}
 						else if (sts == -2) {
 							sprintf(errstr,
-								"unsupported bind type %d for column %d",
+								"unsupported bind type %"IVdf" for column %d",
 								fbh->req_type, i+1);
 							return Nullav;
 						}

@@ -1,10 +1,14 @@
+=head1 Changes in DBD-Oracle 1.29_1 (svn rev NNNNN)
+
+  Fixed some compiler warnings in dbdimp.c and oci8.c by Martin J. Evans
+
 =head1 Changes in DBD-Oracle 1.28 (svn rev 14765)
 
   Changed 26exe_array.t so it is compatiable with older version of Test::More by John Scoles
   A fix from Charles Jardine for 58object.t to stop an error on some 64 bit systems
   A few quick changes from H. Merijn Brand to fix some compiler warings and a fix for Oracle 9 clients
   Added connection attribute 'ora_connect_with_default_signals' that will localize Perl's $SIG{INT} handler from Brian Phillips and T. Bunce
-  Fix in execute_array to stop possible endless loop when using a fetch sub by Martin J. Evans 
+  Fix in execute_array to stop possible endless loop when using a fetch sub by Martin J. Evans
   Adapted Martin J. Evans' ODBC 70execute_array.t into t/26exe_array.t by John Scoles
   Fix for execute_array to bring it up to spec. by Martin J. Evans and John Scoles
   Marked ProC, Oraperl.pm, ora_explain.pl, ora_context, ora_use_proc_connection and ora_parse_lang as deprecated  to be removed in 1.29
@@ -38,7 +42,7 @@
   Manual re-release of 1.25 with changes to file permissions.
 
 =head1 Changes in DBD-Oracle 1.25(svn rev 14411)
-  
+
   Added support for the OCIPing by John Scoles
   Spell checked the pod (the first time in a while me thinks) updated the todo By John Scoles
   Added support for DCRP (Database Resident Connection Pooling) by John Scoles with Luben Karavelov
@@ -46,43 +50,43 @@
   Removed the NEW_OCI_INIT compile directive and the deprecated OCIInitialize calls
   Fix for rt.cpan.org Ticket #=57256 :  Double free problem in dbdimp.c by John Scoles
   Fix for invalid format in trace of OCILobLocatorIsInit_log_stat reported by Martin Evans Fixed by John Scoles
-  Fix for very odd UNKNOWN OCI STATUS 1041 (OCILobFreeTemporary) on disconnect reported by John Parker and Bob Mcgowan fixed by John Scoles 
+  Fix for very odd UNKNOWN OCI STATUS 1041 (OCILobFreeTemporary) on disconnect reported by John Parker and Bob Mcgowan fixed by John Scoles
   Fix for rt.cpan.org Ticket #=55445: get_info(28) SQL_IDENTIFIER_CASE seems to return the wrong value from Martin J Evans and a bunch of re jigging from John Scoles
   Patch for PL/SQL: numeric or value error: character string buffer too small from Scott T. Hildreth
   Fix for rt.cpan.org Ticket #=51594 type_info and type_info_all miss vital information from John Scoles
   Added ora_lob_is_init function by John Scoles
-  Fix for rt.cpan.org Ticket #=55031 Ubuntu Server  Building with Oracle XE under 32-bit from Brian Candler 
-  Fix for rt.cpan.org Ticket #=56810 bug with multiple nested cursor from John Scoles 
-  Fix for bug found only on Big-Endian hardware reported by Timothy Everett and others from Charles Jardine 
-  Fix for memory leak when using prepared_cached and lobs reported by Mark Bobak and Martin Evans found and fixed by John Scoles and a test from Martin Evans 
+  Fix for rt.cpan.org Ticket #=55031 Ubuntu Server  Building with Oracle XE under 32-bit from Brian Candler
+  Fix for rt.cpan.org Ticket #=56810 bug with multiple nested cursor from John Scoles
+  Fix for bug found only on Big-Endian hardware reported by Timothy Everett and others from Charles Jardine
+  Fix for memory leak when using prepared_cached and lobs reported by Mark Bobak and Martin Evans found and fixed by John Scoles and a test from Martin Evans
   Added more entries to the Readmes from John Scoles
-  
+
 =head1 Changes in DBD-Oracle 1.24_01(svn rev 14060)
 
   This release has been prepared specifically for the 'Debian' http://www.debian.org project.  It contains no changes
   to functionality or usage.  The following has been changed
-  
+
   Fixed some formatting and typos in Pod from Julián Patiño
   The Copyright terms for ora_explain have changed and now read as follows:
     You may distribute under the terms of either the GNU General Public
     License or the Artistic License, as specified in the Perl README file.
-  
+
 =head1 Changes in DBD-Oracle 1.24(svn rev 13793)
 
   Extended precision for OCIDateTimeToText to 6 instead of 0 for embedded types from John Scoles
   Extended support of Oracle Embedded objects from Charles Jardine
-  Added support for RowsInCache as RO and RowCacheSize as a set-able value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans 
+  Added support for RowsInCache as RO and RowCacheSize as a set-able value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans
   Added extended support for 64 bit clients in Makefile.PL from Ralph Doncaster
   Added extended nvarchar support from Jan Mach
-  Added support for the TYPE attribute on bind_col and the new DBI bind_col attributes StrictlyTyped and DiscardString from Martin J. Evans 
+  Added support for the TYPE attribute on bind_col and the new DBI bind_col attributes StrictlyTyped and DiscardString from Martin J. Evans
   Added ora_ncs_buff_mtpl and environment var ORA_DBD_NCS_BUFFER so we can control the size of the buffer when doing nclob reads
-  Fix for rt.cpan.org Ticket #=49741 Oracle.h has commented out params in OCIXMLTypeCreateFromSrc from Kartik Thakore 
-  Added from rt.cpan.org Ticket #=49436 Patch to add support for a few Oracle data types to type_info_all from David Hull 
-  Added from rt.cpan.org Ticket #=49435 Patch to add support for a few Oracle data types to dbd_describe from David Hull 
+  Fix for rt.cpan.org Ticket #=49741 Oracle.h has commented out params in OCIXMLTypeCreateFromSrc from Kartik Thakore
+  Added from rt.cpan.org Ticket #=49436 Patch to add support for a few Oracle data types to type_info_all from David Hull
+  Added from rt.cpan.org Ticket #=49435 Patch to add support for a few Oracle data types to dbd_describe from David Hull
   Fix for rt.cpan.org Ticket #=49331 Bad code example in POD from John Scoles
   Added support for looking up OCI_DTYPE_PARAM Attributes
-  Added support for looking up csform values 
-  Fix for rt.cpan.org Ticket #=46763,46998 enhancement -Rowcache size is now being properly implemented with row fetch buffer from John Scoles 
+  Added support for looking up csform values
+  Fix for rt.cpan.org Ticket #=46763,46998 enhancement -Rowcache size is now being properly implemented with row fetch buffer from John Scoles
   Fix for rt.cpan.org Ticket #=46438 enhancement -Errors returned by procedures are now unicode strings from Martin Evans, John Scoles and Tim Bunce
   Fix for rt.cpan.org Ticket #=47503 bugfix - using more than 1 LOB in insert broken from APLA
   Fix for rt.cpan.org Ticket #=46613 bugfix - sig-abort on nested objects with ora_objects=1 from TomasP
@@ -93,14 +97,14 @@
 
 =head1 Changes in DBD-Oracle 1.23(svn rev 12724)
 
-  Fix from rt.cpan.org ticket #=44788 bool in_lite should be char in_literal 
+  Fix from rt.cpan.org ticket #=44788 bool in_lite should be char in_literal
   Fix for UTF8 and blobs by John Scoles with Milo van der Leij
   Fix for some warnings and one bug in ocitrace.h from Charles Jardine
   Fix in case there may be a bug in 11 where the OCI_ATTR_DATA_SIZE my return 0 which should never happen, John Scoles
   Fix on the Makefile.PL for a possible sql bug in IC from Martin Evans
   Added a change from a suggestion from Martin Evans for making ref cursors faster.
   Added rt.cpan.org Ticket #=42328 ora_objects attribute for extended embedded objects support from Tomas Pokorny
-  Fix for rt.cpan.org Ticket #=42328 user defined types from different schema in describe_obj from Tomas Pokorny 
+  Fix for rt.cpan.org Ticket #=42328 user defined types from different schema in describe_obj from Tomas Pokorny
   Added a README for sun suggested by Jim McCullars
   Clean up of white space and formatting to 4 tabs  from John Scoles
   Fix for GCC 4.3 warnings from Eric Simon
@@ -113,26 +117,26 @@
   Fix for rt.cpan.org Ticket #=38267 Inserts/Updates to BLOB's via synonyms fails from John Scoles
   Fix for rt.cpan.org Ticket #=39603 build problem and fix missing functions in oci.def from Zoltán Sebestyén
   Fix for rt.cpan.org Ticket #=39374 Makefile.PL: error when reducing echo messages from make from Tippa
-  Fix for rt.cpan.org Ticket #=39232 binding large XMLTYPE fails on 64-bit perl from Jeff Klein 
+  Fix for rt.cpan.org Ticket #=39232 binding large XMLTYPE fails on 64-bit perl from Jeff Klein
   Fix for rt.cpan.org Ticket #=38749 Warning of a NULL column in an aggregate function also added ora_oci_success_warn to display silent OCI warnings from John Scoles
   Patch for UTF8 check on execute_array from David Mansfield and a little by John Scoles
-  
-  
-=head1 Changes in DBD-Oracle 1.22(svn rev 11618)  1st Aug 2008 
+
+
+=head1 Changes in DBD-Oracle 1.22(svn rev 11618)  1st Aug 2008
 
   Patch to remove compiler warnings from H.Merijn Brand
   Patch to Makfile for 64bit boxes from Alex Laslavic
   Added OCILobGetLength to lob functions from Milo van der Leij
-  Updated readmes to state the test user has to have create, call and drop a procedure privileges by John Scoles suggested by Gisle Aas  
-  Patch to Makfile to prevent the installation of the lib/DBD/mkta.pl fil from Gisle Aas  
-  Added new Test 31lob_extended.t for use of LOBs when returned via stored procedures with bind_param_inout from Martin Evans 
+  Updated readmes to state the test user has to have create, call and drop a procedure privileges by John Scoles suggested by Gisle Aas
+  Patch to Makfile to prevent the installation of the lib/DBD/mkta.pl fil from Gisle Aas
+  Added new Test 31lob_extended.t for use of LOBs when returned via stored procedures with bind_param_inout from Martin Evans
   Update to connection part of POD from  John Scoles
   Fix to test suite to bring it up to standard from Martin Evans
   Fix for memory hemorrhage in bind_param_inout_array found by Ricky Egeland, Fix by John Scoles
-  Fix for a typo in oracle.xs from Milo van der Leij 
+  Fix for a typo in oracle.xs from Milo van der Leij
   Fix for bugs on SPs with Lobs reported by Martin Evans, Fix by J Scoles
   Changed the way Ping works rather than using prepare and execute it now makes a single round trip call to DB by John Scoles
-  Fix for rt.cpan.org Ticket #=37501 fail HP-UX Itanium 11.31 makefile also added the OS and version to the output of the Makefile.PL for easier debugging. from John Scoles and Rich Roemer 
+  Fix for rt.cpan.org Ticket #=37501 fail HP-UX Itanium 11.31 makefile also added the OS and version to the output of the Makefile.PL for easier debugging. from John Scoles and Rich Roemer
   Added a number of internal functions for decoding OCI debug values from John Scoles
   Fix for  hpux 11.23 linker error unrecognized argument on the Makefile from someone on CPAN forum
   Added fetch by piece for lobs, fixed persistent lobs and expansed thier usage for LONG and LONG RAW and changed to pod to reflect the changes from John Scoles
@@ -146,33 +150,33 @@
   Makefile.PL now working without flags for Linux 11.1.0.6 instant client and regular client from John Scoles, Andy Sautins, H.Merijn Brand, Nathan Vonnahme and Karun Dutt
   Fixed how persistent lob fetch works now uses callback correctly, from John Scoles & Darren Kipp
 
-  
-=head1 Changes in DBD-Oracle 1.21(svn rev 11067) 11th April 2008 
- 
+
+=head1 Changes in DBD-Oracle 1.21(svn rev 11067) 11th April 2008
+
   Added Notes to README.win32.txt on installing Instant Client 11.1.0.6.0 from John Scoles
   Added the oci_typecode_name method to get the name rather than just the number of an OCI_TYPECODE from John Scoles
   Fixed a unreported bug with Embedded Objects from John Scoles
-  Fixes for #34621 & 33791 from RT cpan 
+  Fixes for #34621 & 33791 from RT cpan
   Added patch to allow faster fetch from REF CURSORs from Biswadeep Chowdhury
   Updated the Todo file for next version from John Scoles
   Added support for the 10.2 Data Interface for Persistent LOBs by John Scoles
   Changed the way pre-fetching is done by John Scoles
   Added support for Scrollable cursors from John Scoles
   Changed the max size of cache_rows to a sb4 rather than a int and or a ub4 from John Scoles
-  Added support for Lobs in select of OCI Embedded Objects from John Scoles with a big thankyou to  Paul Weiss 
+  Added support for Lobs in select of OCI Embedded Objects from John Scoles with a big thankyou to  Paul Weiss
   Fixed for embedded object in object from Paul Weiss
   Added support for direct insert of large XML data into XMLType fields from Hendrik Fuss & John Scoles
   Fixed memory leak (not releasing Temp Lob with OCILobFreeTemporary) when created for a bind from John Scoles
   Added support for bind_param_inout_array for use with execute_array from John Scoles
   Added enhancement for Embedded Objects handling from Paul G. Weiss
   Fixed to Makefile.PL let it read makefiles from other makes from Alexander V Alekseev
-  Updated POD to tell users to Avoid Using "SQL Call" from Charles Jardine   
+  Updated POD to tell users to Avoid Using "SQL Call" from Charles Jardine
   Updated POD to account for rt.cpan.org #30910: "DBD-Oracle crashes when trying to read empty LOB" from John Scoles
   Added DBD::Oracle impdata/threads patch from Jeffrey Klein
-  
+
 =head1 Changes in DBD-Oracle 1.20(svn rev 10517) 11th January 2008
 
-  Fixed lob test so it skips the one test that relies on it if v$ session. from Rafael Kitover 
+  Fixed lob test so it skips the one test that relies on it if v$ session. from Rafael Kitover
   Fixed // with /* */ in dbdimp.c from John Scoles
   Fixed for execute_for_fetch in Oracle.pm returning 0 instead of 0E0.  from Martin J. Evans
   Added README.64bit.txt that contains help for compiling on 64 bit boxes from John Scoles
@@ -187,45 +191,45 @@
   Added support for OCI array bind from Alexander V Alekseev
   Added support for select of OCI Embedded Objects from John Scoles
   Added a tip in README.64bit.txt from cartmanltd
-  Added fix to Makefile.PL for finding SQLplus for Ubuntu Server (but should work for others) from Martin J. Evans  
+  Added fix to Makefile.PL for finding SQLplus for Ubuntu Server (but should work for others) from Martin J. Evans
   Added fix to Makefile.PL for Gentoo AMD64 from Tom R.
-  Added fix to dbdimp.c for speed up of Null-Operations from Andreas Behal 
+  Added fix to dbdimp.c for speed up of Null-Operations from Andreas Behal
   Added fix to dbdimp.c for SQLCS_NCHAR index use on varchar2s from  Peter J. Holzer
-  
+
 =head1 Changes in DBD-Oracle 1.19 (svn rev 8002) 3rd November 2006
 
-  Fixed execute_array to comply with DBI standard from Martin J. Evans, Xho Jingleheimerschmidt and others 
+  Fixed execute_array to comply with DBI standard from Martin J. Evans, Xho Jingleheimerschmidt and others
   Fixed execute_array so it will not throw a Perl warning on undef values in Tuples from John Scoles
   Fixed execute_array so it will take the ora_array_chunk_size DB handle attribute
   Fixed some typos in code and READMEs from John Scoles
   Fixed a few other little bugs dealing with  compatibility with Oracle 8
-  Changes to README from Karl Auer 
+  Changes to README from Karl Auer
   Suppress warning in 26exe_array.t from Philip Garrett
-  Added support for array context aware execute_for_fetch from Martin J. Evans 
+  Added support for array context aware execute_for_fetch from Martin J. Evans
   Fixed Makefile.PL for an incompatibility with ExtUtils::MM_Unix v1.50 (invoked byExtUtils::MakeMaker) from Dennis McRitchie
   Updated POD to reflect that OCI after 9.2 no longer strips trialing spaces
-  
-  
+
+
 =head1 Changes in DBD-Oracle 1.18 (svn rev 6697)
 
-  Added support for native Oracle Array interface thanks Kristian Nielsen 
+  Added support for native Oracle Array interface thanks Kristian Nielsen
   Added suppot for LOB Locators from Jeffrey Klein.
   Updated README.win32.txt for Oracle 10xe and new Visual C++ version
   Updated README.lunix.txt for work-araound for UTF8 bug
-  Fixed a number of compile warings  
-  
+  Fixed a number of compile warings
+
 please enjoy.
 
 =head1 Changes in DBD-Oracle 1.17 (svn rev 3726)
-  
+
   Updated README.win32.txt fixed some typos
   Fixed expanded support for Lobs support from Jeffrey Klein
   Added notes on expanded support for Lobs to Oracle.pm
- 
-=head1 Changes in DBD-Oracle 1.17 (svn rev 3725)   
+
+=head1 Changes in DBD-Oracle 1.17 (svn rev 3725)
 
   Added expanded support for Lobs from Jeffrey Klein
-  
+
 =head1 Changes in DBD-Oracle 1.17 (svn rev 2487)   7th February 2006
 
   NOTE: With this release of DBD::Oracle pythian.com (http://www.pythian.com)
@@ -407,7 +411,7 @@ please enjoy.
     examples thanks to Michael A Chase.
   Updated PL/SQL example setup thanks to Bob Kline.
 
-=head1 Changes in DBD-Oracle 1.14    27th March 2003  
+=head1 Changes in DBD-Oracle 1.14    27th March 2003
 
   NOTE: OCI 7 and Oraperl will not be supported in future releases.
 
@@ -422,7 +426,7 @@ please enjoy.
   Updated README.hpux thanks to H.Merijn Brand, Jay Strauss, and Lincoln Baxter.
   Updated README and README.utf8 with minor changes thanks to Alexey Mahotkin.
 
-=head1 Changes in DBD-Oracle 1.13    14th March 2003  
+=head1 Changes in DBD-Oracle 1.13    14th March 2003
 
   Fixed null user issue when using OS Authentication thanks to Christopher R. Baker
   Fixed precision for Raw types in oci7.c thanks to J.D. Laub.
@@ -994,8 +998,8 @@ please enjoy.
 
   Fixed typecast warning (s/safefree/Safefree).
   Automatically sets/resets ORACLE_HOME from oratab value for sid.
- 
-  TO DO: Automatic configuration from Oracle 7.3 is not yet working 
+
+  TO DO: Automatic configuration from Oracle 7.3 is not yet working
   (Oracle have reorganised the makefiles yet again!).
 
 =head1 Changes in DBD::Oracle 0.29, 2 March 1996
@@ -1141,7 +1145,7 @@ please enjoy.
   &ora_do() now returns "OK" for 0 rows (as per oraperl).
   Reworked logging to use DBILOGFP macro.
   Now test code added to loop through logon/prep/fin/logoff.
-  
+
 =head1 Changes in DBD::Oracle 0.18, 17th June 1995
 
   Makefile.PL: HPUX now builds with LINKTYPE=static automatically.
