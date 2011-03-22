@@ -1,6 +1,7 @@
 =head1 Changes in DBD-Oracle 1.29_1 (svn rev NNNNN)
 
   Fixed some compiler warnings in dbdimp.c and oci8.c by Martin J. Evans
+  Added Test::Simple 0.90 to build_requires as we use note etc by Martin J. Evans
 
 =head1 Changes in DBD-Oracle 1.28 (svn rev 14765)
 

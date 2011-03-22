@@ -61,7 +61,8 @@ my %opts = (
     META_MERGE => {
        configure_requires => { "DBI" => '1.51' },
        build_requires => {"DBI" => '1.51',
-                          "ExtUtils::MakeMaker" => 0}
+                          "ExtUtils::MakeMaker" => 0,
+                          "Test::Simple" => '0.90'}
     },
 );
 my $eumm = $ExtUtils::MakeMaker::VERSION;
