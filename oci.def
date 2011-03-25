@@ -226,6 +226,7 @@ OCISecurity_PKEncrypt
 OCIServerAttach
 OCIServerDetach
 OCIServerVersion
+OCIServerRelease
 OCISessionBegin
 OCISessionEnd
 OCIStmtBindByName
