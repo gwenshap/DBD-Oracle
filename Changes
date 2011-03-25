@@ -3,6 +3,7 @@
   Fixed some compiler warnings in dbdimp.c and oci8.c by Martin J. Evans
   Added Test::Simple 0.90 to build_requires as we use note etc by Martin J. Evans
   Added missing OCIServerRelease to oci.def
+  Fixed bug in bind_col which was broken in 1.27 and stopped anyone using a string as a column number (e.g., '1') by Martin J. Evans, Alexander Foken
 
 =head1 Changes in DBD-Oracle 1.28 (svn rev 14765)
 
