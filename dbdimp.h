@@ -21,8 +21,6 @@ typedef struct imp_fbh_st imp_fbh_t;
 struct imp_drh_st {
 	dbih_drc_t com;		/* MUST be first element in structure	*/
 	OCIEnv *envhp;
-	int proc_handles;		   /* If true, the envhp handle is owned by ProC
-								   and must not be freed. */
 	SV *ora_long;
 	SV *ora_trunc;
 	SV *ora_cache;
@@ -72,8 +70,6 @@ struct imp_dbh_st {
     ub4			client_identifierl;
     char		*action;  /*user defined*/
     ub4			actionl;
-	int proc_handles;		   /* If true, srvhp, svchp, and authp handles
-								   are owned by ProC and must not be freed. */
 	int RowCacheSize; /* both of these are defined by DBI spec*/
 	int RowsInCache;	/* this vaue is RO and cannot be set*/
 	int ph_type;		/* default oratype for placeholders */

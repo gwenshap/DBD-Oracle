@@ -359,9 +359,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_ph_csform		=> undef,
                  ora_parse_error_offset => undef,
                  ora_dbh_share		=> undef,
-                 ora_use_proc_connection=> undef,
                  ora_envhp		=> undef,
-                 ora_context		=> undef,
                  ora_svchp		=> undef,
                  ora_errhp		=> undef,
                  ora_init_mode		=> undef,
@@ -1116,9 +1114,8 @@ access to Oracle databases.
 
 =head1 Which version DBD::Oracle is for me?
 
-From version 1.25 onwards DBD::Oracle will only support Oracle clients 9.2 or greater and it will
-be dropping support for ProC connections in 1.29. Sorry for this it was just getting to hard to 
-maintain the code base for an ever shrinking user base. This is especially so with the many new functions 
+From version 1.25 onwards DBD::Oracle will only support Oracle clients 9.2 or greater as well
+support for ProC connections was dropped in 1.29. This is especially so with the many new functions 
 being introduced in 10g and 11g.
 
 If you are still stuck with an older version of Oracle or its client you might want to look at the table below.
@@ -1163,11 +1160,7 @@ So to make a short story a little longer;
      supported anymore and will be removed in 1.29.
   7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 
      and even get to 10. I am not sure what the 11g client can connect to.
-  8) DBD::Oracle still has the code in place for ProC. But good luck trying to get it to work 
-     with any of the instant clients as Oracle no longer ships the correct .mk files.  I was 
-     unable to get it to work with Oracle 11+ as it ships with only part of the full ProC install.
-     You may have to get a full version of ProC from Oracle to get it to compile. It is also 
-     slated to be removed in 1.29
+ 
 
 =head1 CONNECTING TO ORACLE
 
@@ -1864,33 +1857,6 @@ to a already shared scalar which is initialized to an empty string.
   our $orashr : shared = '' ;
 
   $dbh = DBI->connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
-
-=item ora_context -->deprecated will be removed in 1.29
-
-Use this attribute to send a pointer to a ProC connection when the your dbname is set to extproc. 
-
-=item ora_use_proc_connection -->deprecated will be removed in 1.29
-
-This attribute allows to create a DBI handle for an existing SQLLIB
-database connection. This can be used to share database connections
-between Oracle ProC code and DBI running in an embedded Perl interpreter.
-The SQLLIB connection id is appended after the "dbi:Oracle:" initial
-argument to DBI::connect.
-
-For example, if in ProC a connection is made like
-
-  EXEC SQL CONNECT 'user/pass@db' AT 'CONID';
-
-the connection may be used from DBI after running something like
-
-  my $dbh = DBI->connect("dbi:Oracle:CONID", "", "",
-                        { ora_use_proc_connection => 1 });
-
-To disconnect, first call $dbh->disconnect(), then disconnect in ProC.
-
-This attribute requires DBD::Oracle to be built with the -ProC
-option to Makefile.PL.  It is not available with OCI_V7. Not tested
-with Perl ithreads or with the ora_dbh_share connect attribute.
 
 =item ora_envhp
 
