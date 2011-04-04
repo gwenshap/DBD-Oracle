@@ -492,7 +492,26 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
     }
 
+    /* TAF Events */
+	imp_dbh->using_taf = 0;
+
+	if (DBD_ATTRIB_TRUE(attr,"ora_taf",7,svp)){
+		imp_dbh->using_taf = 1;
+		imp_dbh->taf_sleep = 5; /* 5 second default */
+
+    	DBD_ATTRIB_GET_IV( attr, "ora_taf_sleep",  13, svp, imp_dbh->taf_sleep);
+
+		if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_taf_function",  16)) && SvOK(*svp)) {
+			STRLEN  svp_len;
+			if (!SvPOK(*svp))
+				croak("ora_taf_function is not a string");
+			imp_dbh->taf_function = (char *) SvPV (*svp, svp_len );
+
+		}
+	}
+
     imp_dbh->server_version = 0;
+
 	/* check to see if DBD_verbose or ora_verbose is set*/
 	if (DBD_ATTRIB_TRUE(attr,"dbd_verbose",11,svp))
 		DBD_ATTRIB_GET_IV(  attr, "dbd_verbose",  11, svp, dbd_verbose);
@@ -1039,6 +1058,29 @@ dbd_db_login6_out:
 	}
 #endif
 
+    /* set up TAF callback if wanted */
+
+
+    if (imp_dbh->using_taf){
+		bool	can_taf;
+		OCIAttrGet_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, &can_taf, NULL,
+				OCI_ATTR_TAF_ENABLED, imp_dbh->errhp, status);
+
+		if (!can_taf){
+			croak("You are attempting to enable TAF on a server that is not TAF Enabled \n");
+		}
+
+		if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
+        	PerlIO_printf(DBILOGFP,"Setting up TAF with wait time of %d seconds\n",imp_dbh->taf_sleep);
+		}
+		status = reg_taf_callback(imp_dbh);
+		if (status != OCI_SUCCESS) {
+			oci_error(dbh, NULL, status,
+				"Setting TAF Callback Failed! ");
+			return 0;
+		}
+	}
+
 	return 1;
 }
 
@@ -1204,6 +1246,15 @@ dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 			goto dbd_db_destroy_out;
 		if (!imp_dbh->proc_handles)	{
 			sword status;
+			if (imp_dbh->using_taf){
+				OCIFocbkStruct 	tafailover;
+				tafailover.fo_ctx = NULL;
+				tafailover.callback_function = NULL;
+				OCIAttrSet_log_stat(imp_dbh->srvhp, (ub4) OCI_HTYPE_SERVER,
+								(dvoid *) &tafailover, (ub4) 0,
+								(ub4) OCI_ATTR_FOCBK, imp_dbh->errhp, status);
+
+			}
 #ifdef ORA_OCI_112
 			if (imp_dbh->using_drcp) {
 				OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
@@ -1265,6 +1316,21 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 		imp_dbh->pool_incr = SvIV (valuesv);
 	}
 #endif
+	else if (kl==7 && strEQ(key, "ora_taf") ) {
+		imp_dbh->using_taf = 1;
+	}
+	else if (kl==16 && strEQ(key, "ora_taf_function") ) {
+			imp_dbh->taf_function = (char *) SvPV (valuesv, vl );
+	}
+	else if (kl==13 && strEQ(key, "ora_taf_sleep") ) {
+			imp_dbh->taf_sleep = SvIV (valuesv);
+	}
+	else if (kl==10 && strEQ(key, "ora_action") ) {
+		imp_dbh->action = (char *) SvPV (valuesv, vl );
+		imp_dbh->actionl= (ub4) vl;
+		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
+
+	}
 	else if (kl==10 && strEQ(key, "ora_action") ) {
 		imp_dbh->action = (char *) SvPV (valuesv, vl );
 		imp_dbh->actionl= (ub4) vl;
@@ -1369,6 +1435,15 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 		retsv = newSViv(imp_dbh->pool_incr);
 	}
 #endif
+	else if (kl==7 && strEQ(key, "ora_taf") ) {
+		retsv = newSViv(imp_dbh->using_taf);
+	}
+	else if (kl==16 && strEQ(key, "ora_taf_function") ) {
+		retsv = newSVpv((char *)imp_dbh->taf_function,0);
+	}
+	else if (kl==13 && strEQ(key, "ora_taf_sleep") ) {
+		retsv = newSViv(imp_dbh->taf_sleep);
+	}
 	else if (kl==10 && strEQ(key, "ora_action")) {
 		retsv =  newSVpv((char *)imp_dbh->action,0);
 	}
@@ -1435,23 +1510,23 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 SV *
 createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 
-dTHX;
-dTHR;
-OCIXMLType *xml = NULL;
-STRLEN len;
-ub4 buflen;
-sword status;
-ub1 src_type;
-dvoid* src_ptr = NULL;
-D_imp_dbh_from_sth;
-SV* sv_dest;
-dvoid *bufp;
-ub1 csform;
-ub2 csid;
-csid = 0;
-csform = SQLCS_IMPLICIT;
-len = SvLEN(source);
-bufp = SvPV(source, len);
+	dTHX;
+	dTHR;
+	OCIXMLType *xml = NULL;
+	STRLEN len;
+	ub4 buflen;
+	sword status;
+	ub1 src_type;
+	dvoid* src_ptr = NULL;
+	D_imp_dbh_from_sth;
+	SV* sv_dest;
+	dvoid *bufp;
+	ub1 csform;
+	ub2 csid;
+	csid 	= 0;
+	csform 	= SQLCS_IMPLICIT;
+	len 	= SvLEN(source);
+	bufp 	= SvPV(source, len);
 
 	if (DBIS->debug >=3 || dbd_verbose >= 3 )
         PerlIO_printf(DBILOGFP, " creating xml from string that is %lu long\n",(unsigned long)len);

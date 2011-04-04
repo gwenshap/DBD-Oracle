@@ -82,9 +82,9 @@ $dbh->do(qq{ INSERT INTO $table VALUES (1, $super_type(13, 'obj1')) })
             or die $dbh->errstr;
 $dbh->do(qq{ INSERT INTO $table VALUES (2, $sub_type(NULL, 'obj2', 
                     TO_DATE('2004-11-30 14:27:18', 'YYYY-MM-DD HH24:MI:SS'),
-                    '12345.6789')) }
+                    12345.6789)) }
             ) or die $dbh->errstr;
-$dbh->do(qq{ INSERT INTO $table VALUES (3, $sub_type(5, 'obj3', NULL, '777.666')) }
+$dbh->do(qq{ INSERT INTO $table VALUES (3, $sub_type(5, 'obj3', NULL, 777.666)) }
             ) or die $dbh->errstr;
 
 $dbh->do(qq{ CREATE OR REPLACE TYPE $inner_type AS OBJECT (
@@ -159,14 +159,14 @@ ok (scalar @row2, 'new: Fetch second row');
 cmp_ok(ref $row2[1], 'eq', 'DBD::Oracle::Object', 'new: Row 2 column 2 is an DBD::Oracle::Object');
 cmp_ok(uc $row2[1]->type_name, "eq", uc "$schema.$sub_type", "new: Row 2 column 2 object type");
 is_deeply([$row2[1]->attributes], ['NUM', undef, 'NAME', 'obj2', 
-            'DATETIME', '2004-11-30T14:27:18', 'AMOUNT', '12345.6789'], "new: Row 1 column 2 object attributes");
+            'DATETIME', '2004-11-30T14:27:18', 'AMOUNT', 12345.6789], "new: Row 1 column 2 object attributes");
 
 @row3 = $sth->fetchrow();
 ok (scalar @row3, 'new: Fetch third row');
 cmp_ok(ref $row3[1], 'eq', 'DBD::Oracle::Object', 'new: Row 3 column 2 is an DBD::Oracle::Object');
 cmp_ok(uc $row3[1]->type_name, "eq", uc "$schema.$sub_type", "new: Row 3 column 2 object type");
 is_deeply([$row3[1]->attributes], ['NUM', 5, 'NAME', 'obj3', 
-            'DATETIME', undef, 'AMOUNT', '777.666'], "new: Row 1 column 2 object attributes");
+            'DATETIME', undef, 'AMOUNT', 777.666], "new: Row 1 column 2 object attributes");
 
 ok (!$sth->fetchrow(), 'new: No more rows expected');
 

@@ -1271,7 +1271,8 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 	to get it all.  I also take set fb_ary->cb_abuf back to empty just
 	to keep things clean
  -------------------------------------------------------------- */
-sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
+sb4
+presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
 					  ub4 **alenpp, ub1 *piecep, dvoid **indpp, ub2 **rcpp)
 {
 	dTHX;
@@ -1285,7 +1286,7 @@ sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufp
 
 
 	if (dbd_verbose >= 5 ) {
-			PerlIO_printf(DBILOGFP, " In presist_lob_fetch_cbk\n");
+		PerlIO_printf(DBILOGFP, " In presist_lob_fetch_cbk\n");
 	}
 
 	if ( *piecep ==OCI_NEXT_PIECE ){/*more than one piece*/
@@ -1304,6 +1305,80 @@ sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufp
 
 	return OCI_CONTINUE;
 
+}
+
+/* TAF or Trasarent Application Failoever callback
+   Works like this.  The fuction below is registered on the server,
+   when the server is set up to use it, when an exe is called (not sure about other server round trips)
+   and the server fails tt should get into this cbk error below.
+   It will wait X seconds and then try to reconnect (up to n times if that is the users choice)
+   That is how I see it working */
+
+sb4
+taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
+{
+	dTHX;
+	taf_callback_t *cb =(taf_callback_t*)fo_ctx;
+
+	dSP;
+	PUSHMARK(SP);
+	XPUSHs(sv_2mortal(newSViv(fo_event)));
+	XPUSHs(sv_2mortal(newSViv(fo_type)));
+	PUTBACK;
+	call_pv(cb->function, G_DISCARD);
+
+	switch (fo_event){
+
+		case OCI_FO_BEGIN:
+		case OCI_FO_ABORT:
+		case OCI_FO_END:
+		case OCI_FO_REAUTH:
+		{
+			break;
+		}
+		case OCI_FO_ERROR:
+		{
+			sleep(cb->sleep);
+			return OCI_FO_RETRY;
+			break;
+		}
+
+		default:
+		{
+			break;
+		}
+	}
+	return 0;
+}
+
+
+sb4
+reg_taf_callback( imp_dbh_t *imp_dbh)
+{
+	dTHX;
+	OCIFocbkStruct 	tafailover;
+	sword 			status;
+	taf_callback_t  *cb = NULL;
+/*allocate space for the callback */
+	Newz(1, cb, 1, taf_callback_t);
+	cb->function= (char*)safemalloc(strlen(imp_dbh->taf_function));
+	cb->sleep   = imp_dbh->taf_sleep;
+	strcpy((char *)cb->function,imp_dbh->taf_function);
+
+	if (dbd_verbose >= 5 ) {
+  		PerlIO_printf(DBILOGFP, " In reg_taf_callback\n");
+	}
+
+/* set the context up as a pointer to the taf callback struct*/
+	tafailover.fo_ctx = cb;
+	tafailover.callback_function = &taf_cbk;
+
+/* register the callback */
+	OCIAttrSet_log_stat(imp_dbh->srvhp, (ub4) OCI_HTYPE_SERVER,
+								(dvoid *) &tafailover, (ub4) 0,
+								(ub4) OCI_ATTR_FOCBK, imp_dbh->errhp, status);
+
+	return status;
 }
 
 #ifdef UTF8_SUPPORT
@@ -3960,6 +4035,7 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 {
 	dTHX;
 	sword status;
+
 	/* OCI 8 does not seem to allow uid to be "name/pass" :-( */
 	/* so we have to split it up ourselves */
 	if (strlen(*pwdp)==0 && strchr(*uidp,'/')) {
@@ -4097,6 +4173,7 @@ find_ident_after(char *src, char *after, STRLEN *len, int copy)
 	}
 	return NULL;
 }
+
 
 
 

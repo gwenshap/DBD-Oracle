@@ -1,5 +1,6 @@
 =head1 Changes in DBD-Oracle 1.29_1 (svn rev NNNNN)
 
+  Added support for TAF callback by John Scoles
   Fixed some compiler warnings in dbdimp.c and oci8.c by Martin J. Evans
   Added Test::Simple 0.90 to build_requires as we use note etc by Martin J. Evans
   Added missing OCIServerRelease to oci.def

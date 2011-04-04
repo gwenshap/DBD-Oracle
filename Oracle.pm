@@ -31,12 +31,15 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
         ora_fetch_orient  => [ qw( OCI_FETCH_NEXT OCI_FETCH_CURRENT OCI_FETCH_FIRST 
         			   OCI_FETCH_LAST OCI_FETCH_PRIOR OCI_FETCH_ABSOLUTE 
         			   OCI_FETCH_RELATIVE)],
-    	ora_exe_modes     => [ qw(OCI_STMT_SCROLLABLE_READONLY)],
+    	ora_exe_modes     => [ qw( OCI_STMT_SCROLLABLE_READONLY)],
+    	ora_fail_over     => [ qw( OCI_FO_END OCI_FO_ABORT OCI_FO_REAUTH OCI_FO_BEGIN
+    				   OCI_FO_ERROR OCI_FO_NONE OCI_FO_SESSION OCI_FO_SELECT 
+    				   OCI_FO_TXNAL)],
     );
     @EXPORT_OK = qw(OCI_FETCH_NEXT OCI_FETCH_CURRENT OCI_FETCH_FIRST OCI_FETCH_LAST OCI_FETCH_PRIOR
     		    OCI_FETCH_ABSOLUTE 	OCI_FETCH_RELATIVE ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var ora_cygwin_set_env );
     #unshift @EXPORT_OK, 'ora_cygwin_set_env' if $^O eq 'cygwin';
-    Exporter::export_ok_tags(qw(ora_types ora_session_modes ora_fetch_orient ora_exe_modes));
+    Exporter::export_ok_tags(qw(ora_types ora_session_modes ora_fetch_orient ora_exe_modes ora_fail_over));
 
     my $Revision = substr(q$Revision: 1.103 $, 10);
 
@@ -68,22 +71,23 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    });
 	DBD::Oracle::dr::init_oci($drh) ;
 	$drh->STORE('ShowErrorStatement', 1);
-        DBD::Oracle::db->install_method("ora_lob_read");
-        DBD::Oracle::db->install_method("ora_lob_write");
-        DBD::Oracle::db->install_method("ora_lob_append");
-        DBD::Oracle::db->install_method("ora_lob_trim");
-        DBD::Oracle::db->install_method("ora_lob_length");
-        DBD::Oracle::db->install_method("ora_lob_chunk_size");
-        DBD::Oracle::db->install_method("ora_lob_is_init");
-        DBD::Oracle::db->install_method("ora_nls_parameters");
-        DBD::Oracle::db->install_method("ora_can_unicode");
- 	DBD::Oracle::st->install_method("ora_fetch_scroll");
- 	DBD::Oracle::st->install_method("ora_scroll_position");
- 	DBD::Oracle::st->install_method("ora_ping");
- 	DBD::Oracle::st->install_method("ora_stmt_type_name");
- 	DBD::Oracle::st->install_method("ora_stmt_type");
- 	$drh;
- 	
+	DBD::Oracle::db->install_method("ora_lob_read");
+	DBD::Oracle::db->install_method("ora_lob_write");
+	DBD::Oracle::db->install_method("ora_lob_append");
+	DBD::Oracle::db->install_method("ora_lob_trim");
+	DBD::Oracle::db->install_method("ora_lob_length");
+	DBD::Oracle::db->install_method("ora_lob_chunk_size");
+	DBD::Oracle::db->install_method("ora_lob_is_init");
+	DBD::Oracle::db->install_method("ora_nls_parameters");
+	DBD::Oracle::db->install_method("ora_can_unicode");
+	DBD::Oracle::db->install_method("ora_can_taf");
+	DBD::Oracle::st->install_method("ora_fetch_scroll");
+	DBD::Oracle::st->install_method("ora_scroll_position");
+	DBD::Oracle::st->install_method("ora_ping");
+	DBD::Oracle::st->install_method("ora_stmt_type_name");
+	DBD::Oracle::st->install_method("ora_stmt_type");
+	$drh;
+	
     }
 
 
@@ -379,6 +383,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_client_info	=> undef,
                  ora_client_identifier	=> undef,
                  ora_action		=> undef,
+                 ora_taf		=> undef,
+                 ora_taf_function	=> undef,
+                 ora_taf_sleep		=> undef,
                
                  };
     }
@@ -1074,6 +1081,7 @@ SQL
 		ora_rowid		=> undef,
 		ora_est_row_width	=> undef,
 		ora_type		=> undef,
+		ora_fail_over		=> undef,
     };
    }
 }
@@ -1135,9 +1143,11 @@ If you are still stuck with an older version of Oracle or its client you might w
   |      1.25+          | N  |      N      |    N    |  N   |    N   |    Y   |
   +---------------------+----+-------------+---------+------+--------+--------+
 
-As there are dozens and dozens of different versions of Oracle's clients I did not bother to list any of them, just the major release versions of Oracle that are out there.  
+As there are dozens and dozens of different versions of Oracle's clients I did not bother to list any of them, just the 
+major release versions of Oracle that are out there.  
 
-Note that one can still connect to any Oracle version with the older DBD::Oracle versions the only problem you will have is that some of the newer OCI and Oracle features available in later DBD::Oracle releases will not be available to you.
+Note that one can still connect to any Oracle version with the older DBD::Oracle versions the only problem you will 
+have is that some of the newer OCI and Oracle features available in later DBD::Oracle releases will not be available to you.
 
 So to make a short story a little longer;
 
@@ -1422,6 +1432,89 @@ You can find a white paper on setting up DRCP and its advantages here http://www
 
 At this point in time this is just the first crack at DRCP and DBD::Oracle so the mechanics or its implementation are subject to change.
 
+=head2 TAF (Transparent Application Failover)
+Transparent Application Failover (TAF) is a longstanding default feature in OCI that allows for clients to automatically reconnect to 
+an instance in the event of a failure of the instance. The reconnect happens automatically from within the OCI (Oracle Call Interface) library.
+DBD::Oracle now supports a callback function that will fire when a TAF event takes place. The main use of the callback is to give the 
+oppertunity for the program to inform the user that a failover is taking place.  
+
+You will have to set up TAF on your instance before you can use this callback.  You can test your instance to see if you can use TAF callback with 
+
+  $dbh->ora_can_taf();
+  
+If you try to set up a callback without it being enable DBD::Oracle will croak.
+
+It is outside the scope of this documents to go through all of the possiable TAF situations you might want to set up. Below is the simplest of examples;
+
+The TNS entry for the instace has had the following added to the CONNECT_DATA portion 
+
+   (FAILOVER_MODE=
+               (TYPE=select) 
+               (METHOD=basic)
+               (RETRIES=10)
+               (DELAY=10))
+
+You will also have to create your on perl function that will be called from the client.  You can name it anything you want and it will allways have 
+two parameters, the failover event value and the failover type.  You can also set a sleep value in case of failover error and the oci client will sleep 
+for the entered seconds before it attempts another event.
+
+  use DBD::Oracle(qw(:ora_fail_over));
+  #import the ora_fail_over constancts 
+  
+  #set up TAF on the conection
+  my $dbh = DBI->connect('dbi:Oracle:XE','hr','hr',{ora_taf=>1,taf_sleep=>5,ora_taf_function=>'handle_taft'});
+  
+  #create the perl TAF event function 
+  
+  sub handle_taf {
+    my ($fo_event,$fo_type) = @_;
+    if ($fo_event == OCI_FO_BEGIN){
+    
+      print(" Instance Unavailable Please stand by!! \n");
+      printf(" Your TAF type is %s \n",
+                       (($fo_type==OCI_FO_NONE) ? "NONE"
+                       :($fo_type==OCI_FO_SESSION) ? "SESSION"
+                       :($fo_type==OCI_FO_SELECT) ? "SELECT"
+                       : "UNKNOWN!"));
+    }
+    elsif ($fo_event == OCI_FO_ABORT){
+       printf(" Failover aborted. Failover will not take place.\n");
+    }
+    elsif ($fo_event == OCI_FO_END){
+       printf(" Failover ended ...Resuming your %s\n",(($fo_type==OCI_FO_NONE) ? "NONE"
+                                                      :($fo_type==OCI_FO_SESSION) ? "SESSION"
+                                                      :($fo_type==OCI_FO_SELECT) ? "SELECT"
+                                                      : "UNKNOWN!"));
+    }
+    elsif ($fo_event == OCI_FO_REAUTH){
+       printf(" Failed over user. Resuming services\n");
+    }
+    elsif ($fo_event == OCI_FO_ERROR){
+       printf(" Failover error Sleeping...\n");
+    }
+    else {
+       printf(" Bad Failover Event: %d.\n",  $fo_event);
+   
+    }
+    return 0;
+  }
+
+The TAF types are as follows
+
+  OCI_FO_SESSION which indicates the user has requested only session failover.
+  OCI_FO_SELECT which indicates the user has requested select failover.
+  OCI_FO_NONE which inicates the user has not requested a failover type.
+  OCI_FO_TXNAL which indicates the user has requested a transaction failover.
+
+The TAF events are as follows
+
+  OCI_FO_BEGIN indicates that failover has detected a lost connection and failover is starting.
+  OCI_FO_END   indicates successful completion of failover.
+  OCI_FO_ABORT indicates that failover was unsuccessful, and there is no option of retrying.
+  OCI_FO_ERROR also indicates that failover was unsuccessful, but it gives the application the opportunity to handle the error and retry failover.
+  OCI_FO_REAUTH indicates that you have multiple authentication handles and failover has occurred after the original authentication. It indicates that a user handle has been re-authenticated. To find out which, the application checks the OCI_ATTR_SESSION attribute of the service context handle (which is the first parameter).
+
+
 =head2 Optimizing Oracle's listener
 
 [By Lane Sharman <lane@bienlogic.com>] I spent a LOT of time optimizing
@@ -1567,7 +1660,12 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 =item :ora_exe_modes
 
   OCI_STMT_SCROLLABLE_READONLY 
-  
+
+=item :ora_fail_over
+
+  OCI_FO_END OCI_FO_ABORT OCI_FO_REAUTH OCI_FO_BEGIN OCI_FO_ERROR 
+  OCI_FO_NONE OCI_FO_SESSION OCI_FO_SELECT OCI_FO_TXNAL
+
 =back
 
 =head1 Attributes
@@ -1638,6 +1736,31 @@ sessions are less than ora_drcp_max. The default value is '2' and  any value abo
 as the value of ora_drcp_min + ora_drcp_incr is not greater than ora_drcp_max.
 
 This value can be set at the environment level with 'ORA_DRCP_INCR'.
+
+
+=item ora_taf
+
+If your Oracle instace has been configured to use TAF events you can enable the TAF callback by seting this
+value to anything other than 0;
+
+=item ora_taf_function
+
+The name of the Perl that will be called from OCI when a TAF event. You must supply a perl function to use the callback it will
+allways have two parameters, the failover event value and the failover type. Below is an example of a TAF function
+
+  sub taf_event{
+     my ($event,$type)=@_;
+     
+     print "My TAF event=$event\n";
+     print "My TAF type=$type\n";
+     return;
+  }
+
+=item taf_sleep
+
+A sleep value in seconds that you can sent to the OCI client and when there is a TAF event of the type OCI_FO_ERROR the client
+will sleep that long before it attempts another failover event.
+
 
 =item ora_session_mode
 
@@ -3011,9 +3134,7 @@ Example 2:
   # retrieve the string
   $date_string = $dbh->func( 'dbms_output_get' );
 
-=over 4
-
-=item dbms_output_enable ( [ buffer_size ] )
+=head2 dbms_output_enable ( [ buffer_size ] )
 
 This function calls DBMS_OUTPUT.ENABLE to enable calls to package
 DBMS_OUTPUT procedures GET, GET_LINE, PUT, and PUT_LINE.  Calls to
@@ -3024,7 +3145,7 @@ The buffer_size is the maximum amount of text that can be saved in the
 buffer and must be between 2000 and 1,000,000.  If buffer_size is not
 given, the default is 20,000 bytes.
 
-=item dbms_output_put ( [ @lines ] )
+=head2 dbms_output_put ( [ @lines ] )
 
 This function calls DBMS_OUTPUT.PUT_LINE to add lines to the buffer.
 
@@ -3035,7 +3156,7 @@ If any line causes buffer_size to be exceeded, a buffer overflow error
 is raised and the function call fails.  Some of the text might be in
 the buffer.
 
-=item dbms_output_get
+=head2 dbms_output_get
 
 This function calls DBMS_OUTPUT.GET_LINE to retrieve lines of text from
 the buffer.
@@ -3051,18 +3172,18 @@ Any text in the buffer after a call to DBMS_OUTPUT.GET_LINE or
 DBMS_OUTPUT.GET is discarded by the next call to DBMS_OUTPUT.PUT_LINE,
 DBMS_OUTPUT.PUT, or DBMS_OUTPUT.NEW_LINE.
 
-=item reauthenticate ( $username, $password )
+=head2 reauthenticate ( $username, $password )
 
 Starts a new session against the current database using the credentials
 supplied.
 
-=item ora_nls_parameters ( [ $refresh ] )
+=head2 ora_nls_parameters ( [ $refresh ] )
 
 Returns a hash reference containing the current NLS parameters, as given
 by the v$nls_parameters view. The values fetched are cached between calls.
 To cause the latest values to be fetched, pass a true value to the function.
 
-=item ora_can_unicode ( [ $refresh ] )
+=head2 ora_can_unicode ( [ $refresh ] )
 
 Returns a number indicating whether either of the database character sets
 is a Unicode encoding. Calls ora_nls_parameters() and passes the optional
@@ -3076,21 +3197,21 @@ $refresh parameter to it.
 
 3 = Both character sets are Unicode encodings.
 
-=back
+=head2 ora_can_taf 
+
+Returns true if the current connection supports TAF events. False if otherise.
 
 =head1 Private statement handle functions
 
 =over
 
-=item ora_stmt_type
+=head2 ora_stmt_type
 
 Returns the OCI Statement Type number for the SQL of a statement handle.
 
-=item ora_stmt_type_name
+=head2 ora_stmt_type_name
 
 Returns the OCI Statement Type name for the SQL of a statement handle.
-
-=back
 
 =head1 Scrollable Cursors
 

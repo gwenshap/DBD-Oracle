@@ -8,6 +8,13 @@
 
 /* ====== define data types ====== */
 
+typedef struct taf_callback_st taf_callback_t;
+
+struct taf_callback_st {
+	char *function; /*User supplied TAF functiomn*/
+	int  sleep;
+};
+
 typedef struct imp_fbh_st imp_fbh_t;
 
 
@@ -53,6 +60,10 @@ struct imp_dbh_st {
 	char		*driver_name;/*driver name user defined*/
 	ub4			driver_namel;
 #endif
+	taf_callback_t  *taf_callback;
+    bool		using_taf; /*TAF stuff*/
+    char		*taf_function; /*User supplied TAF functiomn*/
+    int			taf_sleep;
     char		*client_info;  /*user defined*/
     ub4			client_infol;
 	char		*module_name; /*module user defined */
@@ -75,6 +86,7 @@ struct imp_dbh_st {
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
 #define DBH_DUP_LEN (sizeof(struct imp_dbh_st) - sizeof(dbih_dbc_t))
+
 
 
 typedef struct lob_refetch_st lob_refetch_t; /* Define sth implementor data structure */
@@ -385,6 +397,7 @@ void fb_ary_free(fb_ary_t *fb_ary);
 void rs_array_init(imp_sth_t *imp_sth);
 
 ub4 ora_db_version _((SV *dbh, imp_dbh_t *imp_dbh));
+sb4 reg_taf_callback _((imp_dbh_t *imp_dbh));
 
 /* These defines avoid name clashes for multiple statically linked DBD's	*/
 
