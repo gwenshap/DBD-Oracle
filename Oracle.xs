@@ -7,28 +7,31 @@ DBISTATE_DECLARE;
 #else
 # define DBD_ORA_OCI 7
 #endif
- 
+
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle
 
 I32
 constant(name=Nullch)
     char *name
-    PROTOTYPE:
     ALIAS:
     ORA_VARCHAR2 =   1
     ORA_NUMBER	 =   2
+    ORA_STRING	 =   5
     ORA_LONG	 =   8
     ORA_ROWID	 =  11
     ORA_DATE	 =  12
     ORA_RAW	 =  23
     ORA_LONGRAW	 =  24
     ORA_CHAR	 =  96
+    ORA_CHARZ	 =  97
     ORA_MLSLABEL = 105
     ORA_NTY	 = 108
     ORA_CLOB	 = 112
     ORA_BLOB	 = 113
     ORA_RSET	 = 116
     ORA_OCI      = DBD_ORA_OCI
+    ORA_SYSDBA	 = 0x0002
+    ORA_SYSOPER	 = 0x0004
     CODE:
     if (!ix) {
 	if (!name) name = GvNAME(CvGV(cv));
@@ -39,6 +42,7 @@ constant(name=Nullch)
     RETVAL
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle
+
 
 INCLUDE: Oracle.xsi
 
@@ -66,7 +70,7 @@ ora_fetch(sth)
 	XSRETURN_IV(DBIc_NUM_FIELDS(imp_sth));
     }
     if (debug >= 2)
-	fprintf(DBILOGFP, "    -> ora_fetch\n");
+	PerlIO_printf(DBILOGFP, "    -> ora_fetch\n");
     av = dbd_st_fetch(sth, imp_sth);
     if (av) {
 	int num_fields = AvFILL(av)+1;
@@ -76,14 +80,14 @@ ora_fetch(sth)
 	    PUSHs(AvARRAY(av)[i]);
 	}
 	if (debug >= 2)
-	    fprintf(DBILOGFP, "    <- (...) [%d items]\n", num_fields);
+	    PerlIO_printf(DBILOGFP, "    <- (...) [%d items]\n", num_fields);
     }
     else {
 	if (debug >= 2)
-	    fprintf(DBILOGFP, "    <- () [0 items]\n");
+	    PerlIO_printf(DBILOGFP, "    <- () [0 items]\n");
     }
     if (debug >= 2 && SvTRUE(DBIc_ERR(imp_sth)))
-	fprintf(DBILOGFP, "    !! ERROR: %s %s",
+	PerlIO_printf(DBILOGFP, "    !! ERROR: %s %s",
 	    neatsvpv(DBIc_ERR(imp_sth),0), neatsvpv(DBIc_ERRSTR(imp_sth),0));
 
 
@@ -105,3 +109,18 @@ reauthenticate(dbh, uid, pwd)
     CODE:
     D_imp_dbh(dbh);
     ST(0) = ora_db_reauthenticate(dbh, imp_dbh, uid, pwd) ? &sv_yes : &sv_no;
+
+    
+MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::dr
+
+void
+init_oci(drh)
+    SV *	drh
+    CODE:
+    D_imp_drh(drh);
+	dbd_init_oci(DBIS) ;
+	dbd_init_oci_drh(imp_drh) ;
+
+    
+
+	

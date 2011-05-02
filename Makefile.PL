@@ -47,10 +47,11 @@ my %opts = (
     OBJECT => '$(O_FILES)',
     DEFINE => '',
     DIR  => [],
-    clean => {         FILES	=> 'Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def ora_explain mk.pm' },
-    dist  => {	DIST_DEFAULT	=> 'clean distcheck disttest ci tardist',
-		PREOP		=> '$(MAKE) -f Makefile.old distdir',
-		COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
+    clean => {	FILES	=> 'Oracle.xsi dll.base dll.exp sqlnet.log libOracle.def ora_explain mk.pm' },
+    dist  => {
+	DIST_DEFAULT	=> 'clean distcheck disttest ci tardist',
+	PREOP		=> '$(MAKE) -f Makefile.old distdir',
+	COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
     },
 );
 if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
@@ -81,14 +82,22 @@ $::opt_v = 0;	# be more verbose
 $::opt_d = 0;	# much more verbose for debugging
 $::opt_8 = 0;	# disable use of OCI 8 (where available)
 $::opt_f = 0;	# include text of oracle's .mk file within generated Makefile
+$::opt_F = 0;	# force - ignore errors
+$::opt_W = 0;	# just write a basic default Makefile (won't build)
 
-GetOptions(qw(b! v! d! g! p! l! c! 8! f! m=s n=s s=s S=s))
+Getopt::Long::config( qw( no_ignore_case ) );
+GetOptions(qw(b! v! d! g! p! l! c! 8! f! F! W! m=s n=s s=s S=s))
 	or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
 $::opt_v = 1 if $::opt_d;
 $Verbose = 1 if $::opt_v;
+my $is_me = (-d "/home/timbo/dbi" && ($ENV{LOGNAME}||'') eq 'timbo'); # a reasonable guess
 
+if ($::opt_W) {
+    open(MK_PM, ">/dev/null") or die "Unable to create mk.pm: $!";
+    exit WriteMakefile( dbd_edit_mm_attribs(\%opts) )
+}
 
 # --- Introduction
 
@@ -186,8 +195,12 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
     print "Using OCI directory '$OCIDIR'\n";
 
     if ($Config{cc} =~ /gcc/i) {
-      $opts{LIBS} = [ "-loci" ];
-      print "Using liboci.a  (did you build it?)\n";
+      system("dlltool --input-def oci.def --output-lib liboci.a")
+	  if ! -f "liboci.a";
+      die "Could not find or create liboci.a.  See README.wingcc\n"
+	  if ! -f "liboci.a";
+      my $pwd = cwd();
+      $opts{LIBS} = [ "-L$pwd -loci" ];
     } else {
       my %OCILIB;
       my $oci_compiler_dir;
@@ -222,7 +235,8 @@ elsif (($os eq 'MSWin32') or ($os =~ /cygwin/i)) {
       if you have an OCI directory other than $OCIDIR.  
   
       } unless  (-e "$OH/$OCIDIR/include/oratypes.h" 
-	      && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib");
+	      && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib")
+	      or $::opt_F;
   
       print "Using $OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib\n";
       $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir $OCILIB" ];
@@ -270,7 +284,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 		&& ($opts{LINKTYPE}||'') ne 'static' && @shared && !$::opt_c;
 
     my $mkfile = find_mkfile();
-    my $linkvia = fetch_oci_macros($mkfile);
+    my $linkvia = fetch_oci_macros($mkfile) if -f $mkfile;
 
     my $libhome = expand_mkvars($MK{LIBHOME}, 0, 1) || "$OH/lib";
     $linkwith = expand_mkvars($linkvia, 0, 1);
@@ -288,24 +302,54 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	sleep 2; #
 	system("make $DBD_ORA_OBJ.o CC='$Config{cc}'");
 	my $make = "$Config{make} -f $mkfile build"
-		." ECHODO=true ECHO=echo GENCLNTSH='echo genclntsh' CC=echo"
+		." ECHODO=echo ECHO=echo GENCLNTSH='echo genclntsh' CC=echo"
 		." OPTIMIZE= CCFLAGS="
 		." EXE=DBD_ORA_EXE OBJS=$DBD_ORA_OBJ.o";
-	print "by executing:\n$make\n" if $::opt_v;
-	my @cmds = map { chop; $_ } grep { !m/^\s*$/ } `$make 2>&1`;
+	print "by executing:\n[$make]\n" if $::opt_v;
+	my @cmds = `$make 2>&1`;
+	print "returned:\n[".join("\n[",@cmds)."]\n" if $::opt_v;
 	warn "Warning: Oracle build rule discovery failed ($?)\n" if $?;
-	unlink "$DBD_ORA_OBJ.c", "$DBD_ORA_OBJ.o";
-	my $prev = '';
-	@cmds = grep { my $skip = $prev eq "echo $_"; $prev=$_; !$skip } @cmds;
-	my @prolog; push @prolog, shift @cmds while @cmds && $cmds[0] !~ /DBD_ORA_EXE/;
-	print "Oracle oci build prolog:\n\t",  join("\n\t", @prolog), "\n" if @prolog;
-	print "Oracle oci build command:\n\t", join("\n\t", @cmds), "\n";
-	while ($cmds[0] =~ s/\\$/ /) { # join lines split with \'s
-	    $cmds[0] .= splice(@cmds,1,1);
+
+	my @filtered_cmds;
+        while (my $line = shift @cmds) {
+	    # join lines split with \'s
+	    while ($line =~ s/\\$/ /)  { $line .= shift @cmds; }
+	    # remove any echo's as the following line should be the result of the echo
+	    if ($line =~ /^\s*echo\s+/) {
+		$line = shift @cmds; # replace line with the next one
+		$line =~ s/^echo\s+//; # handle " echo echo ..." case
+	    }
+	    next if $line =~ /^\s*$/; # remove any blank lines
+	    push @filtered_cmds, $line;
 	}
+	@cmds = @filtered_cmds;
+
+	print "reduced to:\n[".join("\n[",@cmds)."]\n" if $::opt_v;
+
+	# expand any shell-escapes that remain 
+	#@cmds = map { s/`(.*?[^\\])`/expand_shellescape("$1", 1)/esg; $_ } @cmds;
+
+	my @prolog; push @prolog, shift @cmds while @cmds && $cmds[0] !~ /DBD_ORA_EXE/;
+	print "Oracle oci build prolog:\n\t+ ",  join("\n\t+ ", @prolog), "\n" if @prolog;
+	print "Oracle oci build command:\n\t+ ", join("\n\t+ ", @cmds), "\n";
+ 	if (@cmds == 2) {
+ 		# Newer Oracle (>8.0.5, it seems) seem to disregard ECHODO, in
+ 		# which case the make output probably looked like this:
+ 		#      echo foo `bar` baz
+ 		#      foo shell-expanded-bar baz
+ 		# So let's check for that, and fix things up if so
+ 		if (my($foo) = ($cmds[0] =~ /^echo\s+([^`]+)`/)) {
+ 			if ($cmds[1] =~ /^$foo/) {
+ 				# The second line looks like the expanded
+ 				# version of the first; let's fix it up like
+ 				# we're expecting it to look and use it
+ 				@cmds = ("true echo $cmds[1]");
+ 			}
+ 		}
+ 	}
 	if (@cmds == 1) {
 	    my $build = $cmds[0];
-	    $build =~ s/^\s*(true\s+)?(\S+)\s*//;	# remove 'true' and compiler/linker
+	    #$build =~ s/^\s*(true\s+)?(\S+)\s*//;	# remove 'true' and compiler/linker
 	    $build =~ s/$DBD_ORA_OBJ.o//;		# remove dummy object file
 	    $build =~ s/\S+\s+DBD_ORA_EXE//;	# remove dummy exe file and preceding flag
 	    $linkwith = $build;
@@ -313,9 +357,10 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	    $linkwith = del_crtobj($linkwith, 1) if $os eq 'solaris';
 	}
 	else {
-	    print "Unable to interpret Oracle oci build commands. Using fallback approach.\n";
+	    print "Unable to interpret Oracle build commands from $mkfile. Using fallback approach.\n";
 	    $::opt_b = 0;
 	}
+	unlink "$DBD_ORA_OBJ.c", "$DBD_ORA_OBJ.o";
 	print "\n";
     }
     else {
@@ -356,7 +401,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
            $linkwith =~ s/$/ -lqsmashr/ if ( $linkwith !~ m/-lqsmshr/ );
         }
 
-        if ( $os eq "hpux" && $osvers >= 11 and
+        if ( $osvers >= 11 and #Lincoln: removed os check since it *is* done above...  duh
              $inspdver{RDBMS} =~ /^7.3/ and
              $linkwith =~ m/-lcl\b/ && $linkwith =~ m/-l:libcl.a/
 	) {  # from h.m.brand@hccnet.nl
@@ -365,13 +410,49 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
             $linkwith =~ s/\s*-lcl\b//g;
         }
 
+        # Lincoln: Jay Strauss's Oracle 8.1.6 fix... I did this manually
+        #          when I still had 8.1.6 to deal with (its in the README):
+        #
+        # Jay:     8.1.6 gets Unresolved symbols on LhtStrInsert
+        #           $linkwith =~ s/$/ -lclntsh/ if ( $linkwith !~ = m/-lclntsh/ );
+        #          }
+        #          Tim - Not to be disobedient but at this point of the code
+        #          $inspdver{RDBMS} = 0, so I can't do Oracle version 8.1.6 logic
+        #          So it seems easier to modify if I do it like below rather than above
+        #          obviously its your choice
+        #
+        # Lincoln: I don't see how the code above could work if $inspdver{RDMS} == 0
+        #          so I will add this Jays prefered way but inside a test like that
+        #          above... if he tests this and it works great... if someone else is
+        #          has a problem it is easy to comment out the test. I like Jay's test
+        #          for existence first... And I added an addition test of $OH to see
+        #          if it looks like 8.1.6 (just incase Jay was right).
+        #
+        # Jay:     Add Librarys where one gets Unresolved symbols
+        #
+        if ( ( $osvers >= 11 and $inspdver{RDBMS} =~ /^8.1.6/ )
+        or   ( $osvers >= 11 and $OH =~ m,/8.1.6, ) ) {
+            my @extraLib = qw[libqsmashr.sl libclntsh.sl];
+            foreach my $extraLib (@extraLib) {
+                if (-r "$OH/lib/$extraLib") {
+                        $extraLib =~ s/^lib([^\.]+).*$/\-l$1/;
+                        $linkwith =~ s/$/ $extraLib/ if ( $linkwith !~ m/$extraLib/ );
+                }
+            }
+        }
+
+         if ( $os eq "hpux" && $osvers >= 11 and $linkwith =~ m/-l:libcl.a/) {
+                print "Warning: stripping -l:libcl.a from liblist (conflict with ld looking for shared libs)";
+                $linkwith =~ s/\s*-l:libcl.a\b//g;
+	}
+
         if (($linkwith !~ m/-lcl/) || ($linkwith !~ m/-lpthread/)) {
             print "Warning: Oracle is built with multi-threading libraries\n"
                 . "         You will most likely need to rebuild perl from sources\n"
                 . "         with the following libraries: -lcl -lpthread\n" ;
         }
 
-        if ( ($Config{'cc'} eq 'cc') && ($Config{'ccflags'} !~ m/\+z/ ) ) {
+        if ( ($Config{'cc'} eq 'cc') && ($Config{'ccflags'} !~ m/\+z/ && $Config{'ccldflags'} !~ m/\+Z/i) ) {
             print "Warning: perl was not built with +z in ccflags\n"
                 . "         You may need to rebuild perl from sources\n"
                 . "         See instructions in README.hpux\n" ;
@@ -428,16 +509,23 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 
 # --- Handle special cases ---
 
+if ($::opt_g && $os eq "MSWin32" && $Config::Config{cc} eq "cl") {
+   $opts{LDDLFLAGS} = $Config::Config{lddlflags} . ' -debug'
+}
+
 $opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{gccversion} eq 'gcc';
 
 $opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
 
 $opts{DEFINE} .= ' -DNO_OCI8' if $::opt_8;
 
+$opts{DEFINE} .= ' -DUTF8_SUPPORT' if ($] >= 5.006);
+
 # Set some private WriteMakefile options if this is 'me' :-)
-if (($ENV{LOGNAME}||'') eq 'timbo'){  # a reasonable guess
+if ($is_me){  # a reasonable guess
     $BELL = "<BELL>";
-    $opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith -Wtraditional'
+    # -Wconversion is over-noisy for us
+    $opts{DEFINE} .= ' -Wall -Wcast-align -Wpointer-arith'
 	. ' -Wbad-function-cast -Wcast-qual' if $Config{gccversion};
     $::opt_g = '-g';
     $opts{dynamic_lib}->{OTHERLDFLAGS} = "$::opt_g ".($opts{dynamic_lib}->{OTHERLDFLAGS}||'');
@@ -545,7 +633,7 @@ if ($opts{LINKTYPE} && $opts{LINKTYPE} eq 'static') {
 open(MK_PM, ">mk.pm") or die "Unable to create mk.pm: $!";
 
 print "\n";
-WriteMakefile(%opts);
+WriteMakefile( dbd_edit_mm_attribs(\%opts) );
 
 check_security() unless $os eq 'VMS' or $os eq 'MSWin32' or $os =~ /cygwin/i;
 
@@ -564,6 +652,7 @@ sub win32_oracle_home {
   my $oh = shift;
 
   my ($req_ok, $hkey, $Val, $Keys);
+  my $default_home;
   if ( ! $oh ) {
       if ( $Config{osname} eq "MSWin32") {
 	  # Win32::TieRegistry is prefered, but it requires Win32API::Registry
@@ -580,6 +669,9 @@ sub win32_oracle_home {
 	      $req_ok = 1;
 	      $hkey = $Tie::Registry::Registry->{"LMachine/SOFTWARE/Oracle/"};
 	  } unless $req_ok;
+	  eval {
+	     $default_home = $hkey->{ORACLE_HOME} || '';
+	  };
 	  eval {
 	      $Val = sub {
 		  # Return value
@@ -604,6 +696,11 @@ sub win32_oracle_home {
 	  require Win32::Registry;
 	  $main::HKEY_LOCAL_MACHINE->Open('SOFTWARE\\ORACLE', $hkey);
 	  my $dummy = $main::HKEY_LOCAL_MACHINE; # avoid single use complaint
+	  eval {
+	     my $hval;
+	     $hkey->GetValues($hval);
+	     $default_home = $hval->{ORACLE_HOME}[2] || '';
+	  };
 	  $Val = sub {
 	      # Return value
 	      my ($hkey) = @_;
@@ -629,27 +726,35 @@ sub win32_oracle_home {
       eval {
 	  my ($oh1, %oh);
 	  my @hkey = ($hkey);
-	  while (@hkey) {
-	      $hkey = shift @hkey;
+	  # JLU: December 5, 2002: if the "default" home is set and has
+	  # an OCI directory, then use it.
+	  if ($default_home && -d $default_home && -d $default_home . "/oci") {
+	     $oh = $default_home;
+	  } else {
+	     # use previous logic if default home doesn't have OCI
+	     # directory
+	     while (@hkey) {
+		$hkey = shift @hkey;
 	      $oh   = $oh1, $oh{$oh1} = 1
 		  if ($oh1 = &$Val($hkey)) && -d $oh1;
 	      push @hkey, &$Keys($hkey);
-	  }
-	  if (1 < keys %oh) {
-	    # JLU: 8/21/01 Oracle's default home is the first one in
-	    # the path, at least with 8i
-	    print "\n\007Multiple Oracle homes: ", join(" ", sort keys %oh), "\n\n";
-	    my @path = split(";", $ENV{PATH});
-	    my $dir;
-	    foreach $dir (@path) {
-	       # the path will be c:\path\to\home\bin, so remove \bin if it's there.
-	       $dir =~ s/\\bin$//;
-	       if (defined($oh{$dir})) {
-		  print "$dir is first in the PATH, so we'll use that as Oracle's default home.\n\n";
-		  $oh = $dir;
-		  last;
-	       }
-	    }
+	     }
+	     if (1 < keys %oh) {
+	        # JLU: 8/21/01 Oracle's default home is the first one in
+	        # the path, at least with 8i
+		print "\n\007Multiple Oracle homes: ", join(" ", sort keys %oh), "\n\n";
+		my @path = split(";", $ENV{PATH});
+		my $dir;
+		foreach $dir (@path) {
+	           # the path will be c:\path\to\home\bin, so remove \bin if it's there.
+		   $dir =~ s/\\bin$//;
+		   if (defined($oh{$dir})) {
+		      print "$dir is first in the PATH, so we'll use that as Oracle's default home.\n\n";
+		      $oh = $dir;
+		      last;
+		   }
+		}
+	     }
 	  }
       } if defined $Keys;
   }
@@ -741,7 +846,7 @@ sub find_mkfile {
 
 	See README.clients for more information and some alternatives.
 
-    } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile);
+    } unless ($os eq 'MSWin32') || ($os eq 'VMS') || ($mkfile && -f $mkfile) || $::opt_F;
 
     print "Using $mkfile\n";
 
@@ -971,7 +1076,7 @@ sub expand_shellescape {
     $cmd =~ s/\$[({](\w+)[})]/mkvar("$1", 1, 0, $level+1)/ge;
     print "  expanded `$cmd`\n" if $debug and $cmd ne $orig;
     my $result = `$cmd`;
-	chop $result;
+    $result =~ s/\s+$/ /; # newlines etc to single space
     print "  returned '$result'\n"
 		if $debug && !$expand_shellescape{$orig};
 	$expand_shellescape{$orig} = $result;
@@ -1048,7 +1153,7 @@ sub find_bin{
 sub find_headers {
     my (%h_dir, @h_dir);
     find( sub {
-	return unless /^o(ci...|ratypes)\.h$/i;
+	return unless /^o(ci.{3,4}|ratypes)\.h$/i;
 	my $dir = $File::Find::dir;
 	$dir =~ s:^\Q$OH/::;
 	$h_dir{$dir} = $_;
@@ -1126,14 +1231,15 @@ You have an old copy which you should delete when installing this one.\n";
 	}
 
 	# Add $linkwith to EXTRALIBS for those doing static linking
-	$self->{EXTRALIBS} .= " -L\$(LIBHOME) $linkwith";
+	$self->{EXTRALIBS} .= " -L\$(LIBHOME)";
+	$self->{EXTRALIBS} .= " $linkwith" if $linkwith;
 
 	'';
     }
 
 
     sub postamble {
-	    return main::dbd_postamble(@_);
+	return main::dbd_postamble(@_);
     }
 
 
@@ -1182,14 +1288,20 @@ ORACLE_HOME = '.$OH.'
 	local($_) = $self->SUPER::const_cccmd(@_);
 	# If perl Makefile.PL *-g* then switch on debugging
 	if ($::opt_g) {
+	   if ($os eq "MSWin32" and $Config::Config{cc} eq 'cl') {
+	      s/\s-/ -Zi -/;
+	      s/-O1//;
+	   } else {
 	    s/\s-O\d?\b//;	# delete optimise option
 	    s/\s-/ -g -/;	# add -g option
+	   }
 	}
 	# are we using the non-bundled hpux compiler?
 	if ($os eq "hpux" and $Config::Config{ccflags} =~ /-Aa\b/) {
 	    print "Changing -Aa to -Ae for HP-UX in ccmd.\n"
 	     if s/-Aa\b/-Ae/g;	# allow "long long" in oratypes.h
 	}
+
 	$_;
     }
 
@@ -1198,8 +1310,14 @@ ORACLE_HOME = '.$OH.'
 	local($_) = $self->SUPER::cflags(@_);
 	# If perl Makefile.PL *-g* then switch on debugging
 	if ($::opt_g) {
-	    s/\s-O\d?\b//;	# delete optimise option
-	    s/\s-/ -g -/;	# add -g option
+	   if ($os eq "MSWin32" and $Config::Config{cc} eq 'cl') {
+	      s/\s-/ -Zi -/;
+	      s/-O1//;
+	      
+	   } else {
+	      s/\s-O\d?\b//;	# delete optimise option
+  	      s/\s-/ -g -/;	# add -g option
+	   }
 	}
 	# are we using the non-bundled hpux compiler?
 	if ($os eq "hpux" and $Config::Config{ccflags} =~ /-Aa\b/) {

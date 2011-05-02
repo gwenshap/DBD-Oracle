@@ -16,6 +16,8 @@ my $failed = 0;
 my %ocibug;
 my $table = "dbd_ora__drop_me";
 
+my $utf8_test = ($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i);
+
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
 	AutoCommit => 1,
@@ -53,12 +55,12 @@ sub array_test {
 }
 
 my @test_sets = (
-	[ "LONG",	undef ],
-	[ "LONG RAW",	ORA_LONGRAW ]
+	[ "LONG",	0 ,		0 ],
+	[ "LONG RAW",	ORA_LONGRAW,	0 ]
 );
 push @test_sets,
-	[ "CLOB",	ORA_CLOB ],
-	[ "BLOB",	ORA_BLOB ]
+	[ "CLOB",	ORA_CLOB,	0 ],
+	[ "BLOB",	ORA_BLOB,	0 ]
     if ORA_OCI >= 8;
 
 # Set size of test data (in 10KB units)
@@ -67,7 +69,7 @@ push @test_sets,
 my $sz = 8;
 
 my $tests;
-my $tests_per_set = 35;
+my $tests_per_set = 37;
 $tests = @test_sets * $tests_per_set + 3;
 print "1..$tests\n";
 
@@ -75,7 +77,9 @@ my($sth, $p1, $p2, $tmp, @tmp);
 #$dbh->trace(4);
 
 foreach (@test_sets) {
-    run_long_tests( @$_ );
+    my ($type_name, $type_num, $test_no_type) = @$_;
+    run_long_tests($type_name, $type_num);
+    run_long_tests($type_name, 0) if $test_no_type;
 }
 
 if (ORA_OCI >= 8) {
@@ -96,7 +100,26 @@ sub run_long_tests {
     my ($type_name, $type_num) = @_;
 
 # relationships between these lengths are important # e.g.
-my $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
+
+    my $long_data0;
+    if ($utf8_test) {
+      $long_data0 = ("0\x{263A}xyX"   x 2048) x (1    );  # 10KB  < 64KB
+      if (length($long_data0) > 10240) {
+	print "known bug in Perl5.6.0, applying workaround\n";
+	$long_data0 = "0\x{263A}xyZ";
+	foreach my $i (1..2047) {
+	  $long_data0 .= "0\x{263A}xyZ";
+	}
+      }
+      if ($type_name =~ /BLOB/) {
+	# convert string from utf-8 to byte encoding
+	$long_data0 = pack "C*", (unpack "C*", $long_data0);
+      }
+    }
+    else {
+      $long_data0 = ("0\177x\0X"   x 2048) x (1    );  # 10KB  < 64KB
+    }
+
 my $long_data1 = ("1234567890"  x 1024) x ($sz  );  # 80KB >> 64KB && > long_data2
 my $long_data2 = ("2bcdefabcd"  x 1024) x ($sz-1);  # 70KB  > 64KB && < long_data1
 
@@ -126,13 +149,14 @@ if (!create_table("lng $type_name", 1)) {
     return;
 }
 
-print " --- insert some $type_name data\n";
+print " --- insert some $type_name data (ora_type $type_num)\n";
 ok(0, $sth = $dbh->prepare("insert into $table values (?, ?, SYSDATE)"), 1);
 $sth->bind_param(2, undef, { ora_type => $type_num }) or die "$type_name: $DBI::errstr"
     if $type_num;
 ok(0, $sth->execute(40, $long_data0), 1);
 ok(0, $sth->execute(41, $long_data1), 1);
 ok(0, $sth->execute(42, $long_data2), 1);
+ok(0, $sth->execute(42, undef), 1); # NULL
 
 array_test();
 
@@ -148,17 +172,21 @@ $out_len *= 2 if ($type_name =~ /RAW/i);
 ok(0, $sth = $dbh->prepare("select * from $table order by idx"), 1);
 ok(0, $sth->execute, 1);
 ok(0, $tmp = $sth->fetchall_arrayref, 1);
+ok(0, @$tmp == 4);
 ok(0, $tmp->[0][1] eq substr($long_data0,0,$out_len),
 	cdif($tmp->[0][1], substr($long_data0,0,$out_len), "Len ".length($tmp->[0][1])) );
 ok(0, $tmp->[1][1] eq substr($long_data1,0,$out_len),
 	cdif($tmp->[1][1], substr($long_data1,0,$out_len), "Len ".length($tmp->[1][1])) );
 ok(0, $tmp->[2][1] eq substr($long_data2,0,$out_len),
 	cdif($tmp->[2][1], substr($long_data2,0,$out_len), "Len ".length($tmp->[2][1])) );
+#use Data::Dumper; print Dumper($tmp->[3]);
+#ok(0, !defined $tmp->[3][1], 1); # NULL # known bug in DBD::Oracle <= 1.13
 
 
 print " --- fetch $type_name data back again -- truncated - LongTruncOk == 0\n";
 $dbh->{LongReadLen} = $len_data1 - 10; # so $long_data0 fits but long_data1 doesn't
 $dbh->{LongReadLen} = $dbh->{LongReadLen} / 2 if $type_name =~ /RAW/i;
+my $LongReadLen = $dbh->{LongReadLen};
 $dbh->{LongTruncOk} = 0;
 print "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
 
@@ -170,7 +198,7 @@ ok(0, $tmp->[1] eq $long_data0, length($tmp->[1]));
 
 ok(0, !defined $sth->fetchrow_arrayref,
 	"truncation error not triggered "
-	."(LongReadLen $dbh->{LongReadLen}, data ".length($tmp->[1]||0).")");
+	."(LongReadLen $LongReadLen, data ".length($tmp->[1]||0).")");
 $tmp = $sth->err || 0;
 ok(0, $tmp == 1406 || $tmp == 24345, 1);
 

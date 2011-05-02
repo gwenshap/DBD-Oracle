@@ -27,6 +27,7 @@ README.longs
 README.sec
 README.win32
 README.wingcc	Notes about building with mingw32 and cygwin32
+README.utf8
 Todo
 dbdimp.c
 dbdimp.h
@@ -38,9 +39,11 @@ ocitrace.h
 ora_explain.PL
 oraperl.ph	Old oraperl file included for completeness of emulation
 t/base.t
+t/cursor.t
 t/general.t
 t/long.t
 t/plsql.t
 t/ph_type.t
 t/reauth.t
+t/select.t
 test.pl

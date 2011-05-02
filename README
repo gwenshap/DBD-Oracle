@@ -10,12 +10,14 @@ DBD::Oracle  --  an Oracle 7 and Oracle 8 interface for Perl 5.
 
    PLEASE READ THE ENTIRE README FILE CAREFULLY !
 
+   If you are building under MS Windows, read all of README.win32 too.
+
 
 *** QUICK START GUIDE:
 
     The DBI requires one or more 'driver' modules to talk to databases.
     Fetch, build and install the DBI module as per it's README file.
-    Then delete its source directory tree since it's no longer needed.
+    You may then delete its source directory tree since it's no longer needed.
     Use the 'perldoc DBI' command to read the DBI documentation.
     Fetch the DBD::Oracle driver module and unpack it.
     Follow the guidelines in this README file caefully.
@@ -33,9 +35,11 @@ DBD::Oracle  --  an Oracle 7 and Oracle 8 interface for Perl 5.
     Remember to *read* the DBI README file and this one CAREFULLY!
 
     Install enough Oracle software to enable DBD::Oracle to build.
-    That usually includes Pro*C. That's not very specific because it
-    varies so much between Oracle releases.
+    That usually includes Pro*C and SQL*Net. That's not very specific
+    because it varies so much between Oracle releases.
 
+    Except under MS Windows, ORACLE_HOME must point to the Oracle Home
+    used to create DBD::Oracle.  Even under MS Windows, it doesn't hurt.
 
 *** BUILDING:
 
@@ -193,6 +197,8 @@ Tim.
 Examples and other info:
 
 README.help     -- READ IT FIRST IF YOU HAVE ANY PROBLEMS AT ALL!
+README.win32    -- building DBD::Oracle under MS Windows
+README.wingcc   -- building DBD::Oracle under MS Windows with gcc
 README.clients  -- building/using DBD::Oracle on minimally configured systems
 README.login    -- help for login problems
 README.longs    -- examples dealing with LONG types (blobs)
