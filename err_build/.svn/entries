@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="1088"
+   name=""
+   committed-date="2005-06-25T00:30:12.866514Z"
+   url="http://svn.perl.org/modules/dbd-oracle/trunk/err_build"
+   last-author="timbo"
+   kind="dir"
+   uuid="50811bd7-b8ce-0310-adc1-d9db26280581"
+   repos="http://svn.perl.org/modules"
+   revision="6699"/>
+<entry
+   committed-rev="1088"
+   name="err_hpux_ld.msg"
+   text-time="2006-07-07T13:17:29.312500Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="9d65f47dbebd53bfc5b6fc59bf3729ff"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.234375Z"/>
+<entry
+   committed-rev="1088"
+   name="err_solarisnotes.msg"
+   text-time="2006-07-07T13:17:29.328125Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="68a6c908c39462590dda03edf13ba1c1"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.250000Z"/>
+<entry
+   committed-rev="1088"
+   name="err_aix64.msg"
+   text-time="2006-07-07T13:17:29.328125Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="8ff7df726e135e99218412a61ba83803"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.265625Z"/>
+<entry
+   committed-rev="1088"
+   name="err_memleak.msg"
+   text-time="2006-07-07T13:17:29.343750Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="e886ab0a37ae6e18cc16bf9676341be3"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.265625Z"/>
+<entry
+   committed-rev="1088"
+   name="err_hpuxsuccess.msg"
+   text-time="2006-07-07T13:17:29.343750Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="a1f778ff10a8e2ebd36990f11a2509d3"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.281250Z"/>
+<entry
+   committed-rev="1088"
+   name="err_makefileundef.msg"
+   text-time="2006-07-07T13:17:29.359375Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="759d1cd0e992c99e24ce9dc172fcc90a"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.281250Z"/>
+<entry
+   committed-rev="1088"
+   name="err_instantclient.msg"
+   text-time="2006-07-07T13:17:29.375000Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="6c4e97e38201dd3fc07c73fc710f6eca"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.296875Z"/>
+<entry
+   committed-rev="1088"
+   name="err_testfailnotable.msg"
+   text-time="2006-07-07T13:17:29.375000Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="96ef7a1055549ca5367c483d9ad67bcf"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.296875Z"/>
+</wc-entries>

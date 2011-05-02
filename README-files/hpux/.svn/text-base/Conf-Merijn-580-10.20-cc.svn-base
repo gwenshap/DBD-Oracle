@@ -1,0 +1,46 @@
+Summary of my perl5 (revision 5.0 version 8 subversion 0) configuration:
+  Platform:
+    osname=hpux, osvers=10.20, archname=PA-RISC2.0
+    uname='hp-ux d3 b.10.20 u 9000800 2015358431 unlimited-user license '
+    config_args='-des'
+    hint=recommended, useposix=true, d_sigaction=define
+    usethreads=undef use5005threads=undef useithreads=undef usemultiplicity=undef
+    useperlio=define d_sfio=undef uselargefiles=define usesocks=undef
+    use64bitint=undef use64bitall=undef uselongdouble=undef
+    usemymalloc=n, bincompat5005=undef
+  Compiler:
+    cc='cc', ccflags =' -Ae -DDEBUGGING +DAportable -D_HPUX_SOURCE -Wl,+vnocompatwarnings -I/pro/local/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 ',
+    optimize='+O2 +Onolimit',
+    cppflags='-Aa -D__STDC_EXT__ -DDEBUGGING +DAportable -D_HPUX_SOURCE -Ae -DDEBUGGING +DAportable -D_HPUX_SOURCE -Wl,+vnocompatwarnings -I/pro/local/include'
+    ccversion='A.10.32.30', gccversion='', gccosandvers=''
+    intsize=4, longsize=4, ptrsize=4, doublesize=8, byteorder=4321
+    d_longlong=define, longlongsize=8, d_longdbl=define, longdblsize=16
+    ivtype='long', ivsize=4, nvtype='double', nvsize=8, Off_t='off_t', lseeksize=8
+    alignbytes=8, prototype=define
+  Linker and Libraries:
+    ld='/usr/bin/ld', ldflags ='-L/pro/local/lib'
+    libpth=/pro/local/lib /lib /usr/lib /usr/ccs/lib
+    libs=-lcl -lpthread -lnsl_s -lndbm -lgdbm -ldb -lmalloc -ldld -lm -lc -lndir -lcrypt -lsec
+    perllibs=-lcl -lpthread -lnsl_s -lmalloc -ldld -lm -lc -lndir -lcrypt -lsec
+    libc=/lib/libc.sl, so=sl, useshrplib=false, libperl=libperl.a
+    gnulibc_version=''
+  Dynamic Linking:
+    dlsrc=dl_hpux.xs, dlext=sl, d_dlsymun=undef, ccdlflags='-Wl,-E -Wl,-B,deferred '
+    cccdlflags='+Z', lddlflags='-b +vnocompatwarnings -L/pro/local/lib'
+
+
+Characteristics of this binary (from libperl):
+  Compile-time options: DEBUGGING USE_LARGE_FILES
+  Locally applied patches:
+        // patches 17682, 17690, and 17777
+  Built under hpux
+  Compiled at Aug 27 2002 12:28:36
+  %ENV:
+    PERL5_CPANPLUS_CONFIG="/u/usr/merijn/.cpanplus/config"
+  @INC:
+    /pro/lib/perl5/5.8.0/PA-RISC2.0
+    /pro/lib/perl5/5.8.0
+    /pro/lib/perl5/site_perl/5.8.0/PA-RISC2.0
+    /pro/lib/perl5/site_perl/5.8.0
+    /pro/lib/perl5/site_perl
+    .

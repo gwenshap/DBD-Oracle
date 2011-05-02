@@ -5,34 +5,40 @@ If you built Perl with gcc, read README.wingcc.txt as well as this file.
 
 --- other information, some of which is out of date ---
 
-DBD-Oracle for Windows and Oracle Instantclient
+DBD-Oracle for Windows and Oracle Instantclient and 10XE (Express Edition)
 By: John Scoles Scoles@ptyhian.com
 The Pythian Group
 
 The preferred method of getting DBD::Oracle is to use a pre-built version from the ActiveState 
 repository, which can be installed with PPM. 
 
-Compiling and installing DBD::Oracle 1.06 on a windows 2000 professional OS for use 
-with Oracle instantClient ver 10.2.0.1 & 10.1.0.4 requires only a few downloads and 
+Compiling and installing DBD::Oracle 1.18 on a windows 2000 professional or XP OS for use 
+with Oracle instantClient ver 10.2.0.1 & 10.1.0.5 or Oracle XE requires only a few downloads and 
 a minimal number of environment setting.  The procedures below were tested on a clean 
-Windows 2000 professional platform having no Oracle or other development environment installed.
+Windows platform having no Oracle or other development environment installed.
 
 1) The first part of the process is to download and install the latest version of 
-   Active Perl (5.8.7 used) from http://www.activeperl.com/.
+   Active Perl from http://www.activeperl.com/.
 
 2) Use the PPM application to get the latest version of DBI
 
 3) Download the latest DBD::Oracle from http://svn.perl.org/modules/dbd-oracle/trunk/
 
-4) Download and unzip the Oracle Instant Client (10.2.0.1 or 10.1.0.4) 32 bit from 
+4) Download and unzip the Oracle Instant Client (10.2.0.1 or 10.1.0.5) 32 bit from 
    http://www.oracle.com/technology/tech/oci/instantclient/instantclient.html 
    You will need all three of these products
 	i.	Instant Client Package - Basic
 	ii.	Instant Client Package - SQL*Plus:
 	iii.	Instant Client Package - SDK:
+   or 
+   
+   install oracle 10XE http://www.oracle.com/technology/products/database/xe/index.html 
 
-5) You will now need the Microsoft Visual C++ toolkit. Which you can get at 
-   http://msdn.microsoft.com/visualc/vctoolkit2003/. Download and then install this product.
+5) You will now need the Microsoft Visual C++ toolkit 2003. Unfortunately this product is no longer available from Microsoft.  
+   The file name was VCToolkitSetup.exe  and is available at this mirror site http://www.filewatcher.com/m/VCToolkitSetup.exe.32952488.0.0.html at the time of writing.
+   Microsoft's replacement for this tool kit is Visual C++ 2005 Express Edition and all attempts to compile DBD::Oracle with this product fail. It has been successfully compiled
+   using a complete edition of Microsoft Visual Studio 2005. 
+   Download and then install this product.
 
 6) You will also need the Windows SDK. Which can be found at 
    http://www.microsoft.com/downloads/details.aspx?FamilyId=A55B6B43-E24F-4EA3-A93E-40C0EC4F68E5&displaylang=en
@@ -53,22 +59,28 @@ Windows 2000 professional platform having no Oracle or other development environ
 
 	i.   Add  the local path to the windows platform SDK include directory to the Set INCLUDE 
              Command Line to include the needed files from the Windows SDK. 
+             
              e.g.  "C:\Program Files\Microsoft Platform SDK\Include;" 
+             
 	ii.  Add the local path to the .net Vc7 lib directory to the Set LIB command
              to include the needed library file from the .Net SKD
+             
              e.g. C:\Program Files\Microsoft Visual Studio .NET 2003\Vc7\lib;
+             
         iii. Add the local path to the windows platform SDK Lib directory to the Set Lib command 
              to include the needed library files from the Windows SDK
+             
 	     e.g. C:\Program Files\Microsoft Platform SDK\Lib;
 
 11) Open a Windows Visual C++ command window from the start menu.
 
-12) Add the path to the instant client directory to the Path command
-    e.g.  PATH = C:\Oracle\instantclient;%PATH%
-
+12) Add the path to the instant client to the Path command. If you are compiling aginst a 10XE db/client then you can skip steps 
+    12 to 14. 
+    e.g.  PATH = C:/Oracle/instantclient;%PATH%
+   
 13) Using the "Set" command add "ORACLE_HOME=path to Instant client" to the environment variables.
-    e.g. Set ORACLE_HOME= C:\Oracle\instantclient
-
+    e.g. Set ORACLE_HOME=C:\Oracle\instantclient
+   
 14) Using the "Set" command add "NLS_LANG=.WE8ISO8859P15" to the environment variables. The globalization variable is required, 
     with this or another compatible value, by Oracle instantclient in order for it to compile correctly.
     e.g. Set NLS_LANG=.WE8ISO8859P15
@@ -76,7 +88,7 @@ Windows 2000 professional platform having no Oracle or other development environ
 15) Using the "Set" command add "ORACLE_USERID=test/test@test" substituting test with the username/password@database 
     you wish to run the make test files against. 
         Note: it is not necessary to do this step for the compile and install to work. 
-              However, the self-test programs included with Oracle-DBD will not run correctly is this varaible is not set.
+     However: The self-test programs included with Oracle-DBD will mostly fail.
 
 16) Move to the DBD-Oracle directory in the Visual C++ window DOS prompt and enter the following.
 
@@ -84,7 +96,7 @@ Windows 2000 professional platform having no Oracle or other development environ
 
      The Makefile should then run and compile Oracle-dbd without reporting any errors.
 
-17) From the DOS prompt enter the following command
+17) From this DOS prompt enter the following command
 
 		c:\oracle-dbd\>nmake
 
@@ -94,7 +106,7 @@ Windows 2000 professional platform having no Oracle or other development environ
 
 		c:\oracle-dbd\>nmake test
 
-    As long as you have given a valid user name, password and database name instep 15 you will see some results.  If it appears to
+    As long as you have given a valid user name, password and database name in step 15 you will see some results.  If it appears to
     run but you do not get a connection check the following.
 
 		i.   User name password and DB Name 
@@ -102,6 +114,7 @@ Windows 2000 professional platform having no Oracle or other development environ
 		iii. Attempt to log into the version of SQLPLUS that comes with Instantclient.  
                      If you manage to log on use the username password and TNS name with 
                      the Set ORACLE_USERID = and rerun the tests.
+                iv   If you are compiling against 10XE and have skiped steps 12 to 14 try again bu this time carry out these steps
 
 19) You can now install DBD-Oracle into you system by entering the following command from the Visual C++ window dos prompt;
 

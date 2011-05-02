@@ -1,0 +1,37 @@
+     Platform:
+       osname=hpux, osvers=11.00, archname=PA-RISC2.0
+       uname='hp-ux dhdb108 b.11.00 u 9000800 612309363 unlimited-user license '
+       config_args='-Dprefix=/temp_data/baxtlinc/perl -Ubincompat5005'
+       hint=previous, useposix=true, d_sigaction=define
+       usethreads=undef use5005threads=undef useithreads=undef usemultiplicity=undef
+       useperlio=undef d_sfio=undef uselargefiles=define
+       use64bitint=undef use64bitall=undef uselongdouble=undef usesocks=undef
+     Compiler:
+       cc='cc', optimize='-O', gccversion=
+       cppflags='-D_HP-UX_SOURCE -I/usr/local/include +z -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -Ae'
+       ccflags ='-D_HP-UX_SOURCE -I/usr/local/include +z -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -Ae'
+       stdchar='unsigned char', d_stdstdio=define, usevfork=false
+       intsize=4, longsize=4, ptrsize=4, doublesize=8
+       d_longlong=define, longlongsize=8, d_longdbl=define, longdblsize=16
+       ivtype='long', ivsize=4, nvtype='double', nvsize=8, Off_t='off_t', lseeksize=8
+       alignbytes=8, usemymalloc=y, prototype=define
+     Linker and Libraries:
+       ld='ld', ldflags =' -Wl,+vnocompatwarnings'
+       libpth=/lib /usr/lib /usr/ccs/lib
+       libs=-lnsl -lnm -lndbm -ldld -lm -lc -lndir -lcrypt -lsec -lcl -lpthread
+       libc=, so=sl, useshrplib=true, libperl=libperl.sl
+     Dynamic Linking:
+       dlsrc=dl_hpux.xs, dlext=sl, d_dlsymun=undef, ccdlflags='-Wl,-E -Wl,-B,deferred '
+       cccdlflags='+z', lddlflags='-b +vnocompatwarnings'
+
+   Characteristics of this binary (from libperl):
+     Compile-time options: USE_LARGE_FILES
+     Built under hpux
+     Compiled at Jan  9 2001 17:36:00
+     @INC:
+       /temp_data/baxtlinc/perl/lib/5.6.0/PA-RISC2.0
+       /temp_data/baxtlinc/perl/lib/5.6.0
+       /temp_data/baxtlinc/perl/lib/site_perl/5.6.0/PA-RISC2.0
+       /temp_data/baxtlinc/perl/lib/site_perl/5.6.0
+       /temp_data/baxtlinc/perl/lib/site_perl
+       .

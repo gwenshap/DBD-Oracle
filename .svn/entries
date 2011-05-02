@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="6698"
+   name=""
+   committed-date="2006-07-24T17:55:20.545881Z"
+   url="http://svn.perl.org/modules/dbd-oracle/trunk"
+   last-author="byterock"
+   kind="dir"
+   uuid="50811bd7-b8ce-0310-adc1-d9db26280581"
+   repos="http://svn.perl.org/modules"
+   revision="6699"/>
+<entry
+   committed-rev="3723"
+   name="ocitrace.h"
+   text-time="2006-07-07T13:17:29.421875Z"
+   committed-date="2006-03-28T16:47:33.975748Z"
+   checksum="4cd25c445ebc5fc0c85708d3d1127e54"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:24.984375Z"/>
+<entry
+   committed-rev="2478"
+   name="Oraperl.pm"
+   text-time="2006-07-07T13:17:29.453125Z"
+   committed-date="2006-02-02T21:32:37.155483Z"
+   checksum="dd734fe0142ac06f930ed2e1e08db3b5"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:25.078125Z"/>
+<entry
+   name="Oracle.ex"
+   kind="dir"/>
+<entry
+   committed-rev="2333"
+   name="README.login.txt"
+   text-time="2006-07-07T13:17:29.468750Z"
+   committed-date="2005-12-28T22:21:26.084387Z"
+   checksum="6103c75d2d018a99c83799fa710a0487"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:25.484375Z"/>
+<entry
+   committed-rev="6673"
+   name="oci8.c"
+   text-time="2006-07-17T14:19:44.656250Z"
+   committed-date="2006-07-17T18:44:01.362276Z"
+   checksum="2b680aeb5b3f5e943f708346b83c7768"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:25.640625Z"/>
+<entry
+   committed-rev="2333"
+   name="README.sec.txt"
+   text-time="2006-07-07T13:17:29.484375Z"
+   committed-date="2005-12-28T22:21:26.084387Z"
+   checksum="456a8b8837f01a8a4502717222658ada"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:25.656250Z"/>
+<entry
+   name="hints"
+   kind="dir"/>
+<entry
+   committed-rev="2348"
+   name="README.java.txt"
+   text-time="2006-07-07T13:17:29.531250Z"
+   committed-date="2005-12-31T17:42:40.653449Z"
+   checksum="68bb45b2c50f5a876af7af2316f365f9"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:25.875000Z"/>
+<entry
+   committed-rev="2462"
+   name="README.aix.txt"
+   text-time="2006-07-07T13:17:29.515625Z"
+   committed-date="2006-01-31T22:19:24.172118Z"
+   checksum="a762fa34f0a40ed5d61e227044ee0c23"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:25.859375Z"/>
+<entry
+   committed-rev="2333"
+   name="README.longs.txt"
+   text-time="2006-07-07T13:17:29.562500Z"
+   committed-date="2005-12-28T22:21:26.084387Z"
+   checksum="dca1dc7e932244ec53d80be5177057cc"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:25.890625Z"/>
+<entry
+   name="README-files"
+   kind="dir"/>
+<entry
+   committed-rev="2477"
+   name="README.hpux.txt"
+   text-time="2006-07-07T13:17:29.578125Z"
+   committed-date="2006-02-02T20:57:03.981892Z"
+   checksum="ced365acec14b66d8b1950e9baf0fb74"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:26.656250Z"/>
+<entry
+   name="err_unicode"
+   kind="dir"/>
+<entry
+   name="err_executearray.msg"
+   kind="file"
+   deleted="true"
+   revision="6700"/>
+<entry
+   name="err_docs"
+   kind="dir"/>
+<entry
+   committed-rev="2348"
+   name="README.help.txt"
+   text-time="2006-07-07T13:17:29.593750Z"
+   committed-date="2005-12-31T17:42:40.653449Z"
+   checksum="b08f438422a3de959c2c39dcfb92b0a0"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:26.765625Z"/>
+<entry
+   committed-rev="2333"
+   name="README.macosx.txt"
+   text-time="2006-07-07T13:17:29.609375Z"
+   committed-date="2005-12-28T22:21:26.084387Z"
+   checksum="29c2507971b6a1b4e673d1bdf659a57f"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:26.781250Z"/>
+<entry
+   committed-rev="392"
+   name="Todo"
+   text-time="2006-07-07T13:17:29.609375Z"
+   committed-date="2004-07-13T23:15:39.992893Z"
+   checksum="499aaf62fa0a3b19e041ea193cf41e87"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:26.796875Z"/>
+<entry
+   committed-rev="2494"
+   name="MANIFEST"
+   text-time="2006-07-07T13:17:29.640625Z"
+   committed-date="2006-02-13T16:44:21.507475Z"
+   checksum="d8119d5bf35f3de4dd0429c619f385b6"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.046875Z"/>
+<entry
+   name="lib"
+   kind="dir"/>
+<entry
+   committed-rev="6640"
+   name="oci.def"
+   text-time="2006-07-12T15:19:13.546875Z"
+   committed-date="2006-07-12T15:21:39.495343Z"
+   checksum="2a3d42cfc8f89520a0d32167c942f445"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.093750Z"/>
+<entry
+   committed-rev="6698"
+   name="Changes"
+   text-time="2006-07-24T17:52:30.671875Z"
+   committed-date="2006-07-24T17:55:20.545881Z"
+   checksum="74152492a9dcd24047237de233215d36"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.109375Z"/>
+<entry
+   committed-rev="6689"
+   name="README.linux.txt"
+   text-time="2006-07-21T16:43:01.031250Z"
+   committed-date="2006-07-21T16:50:55.869232Z"
+   checksum="d76301584296adde7d9347643fb339e2"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.125000Z"/>
+<entry
+   committed-rev="104"
+   name="oraperl.ph"
+   text-time="2006-07-07T13:17:29.687500Z"
+   committed-date="2004-02-21T23:47:25.524583Z"
+   checksum="f6cbcc74fb6ea0e24838ce3676e83cbf"
+   last-author="jurl"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.125000Z"/>
+<entry
+   committed-rev="114"
+   name="ora_explain.PL"
+   text-time="2006-07-07T13:17:29.703125Z"
+   committed-date="2004-02-22T00:16:59.205883Z"
+   checksum="88b2f564e5ec32bd290e736871e7897a"
+   last-author="jurl"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.656250Z"/>
+<entry
+   committed-rev="170"
+   name="MANIFEST.SKIP"
+   text-time="2006-07-07T13:17:29.703125Z"
+   committed-date="2004-02-28T15:08:03.421590Z"
+   checksum="0afa19ad1160fb3b1dec5b29b2db7135"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.640625Z"/>
+<entry
+   name="err_unsorted"
+   kind="dir"/>
+<entry
+   committed-rev="6673"
+   name="README.win32.txt"
+   text-time="2006-07-17T18:28:16.281250Z"
+   committed-date="2006-07-17T18:44:01.362276Z"
+   checksum="5fd8b41f36fe0295d3895c9a85b2217c"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.671875Z"/>
+<entry
+   committed-rev="2348"
+   name="README.vms.txt"
+   text-time="2006-07-07T13:17:29.734375Z"
+   committed-date="2005-12-31T17:42:40.653449Z"
+   checksum="516490b7aab0f745be10417600727c81"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.671875Z"/>
+<entry
+   committed-rev="431"
+   name="dbivport.h"
+   text-time="2006-07-07T13:17:29.750000Z"
+   committed-date="2004-08-21T20:01:42.176906Z"
+   checksum="8e8acbd5cac4127ac9e9cc12c28867bb"
+   last-author="lbaxter"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.687500Z"/>
+<entry
+   committed-rev="119"
+   name="typemap"
+   text-time="2006-07-07T13:17:29.750000Z"
+   committed-date="2004-02-22T00:20:53.893332Z"
+   checksum="0dc4e4c331dcc1f8443fcdffd5cf7253"
+   last-author="jurl"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.687500Z"/>
+<entry
+   committed-rev="6647"
+   name="Oracle.pm"
+   text-time="2006-07-13T14:17:46.000000Z"
+   committed-date="2006-07-14T16:01:35.023333Z"
+   checksum="80b6bc454f14c1adeaab1040789b9aef"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.750000Z"/>
+<entry
+   committed-rev="6673"
+   name="dbdimp.c"
+   text-time="2006-07-14T17:31:43.031250Z"
+   committed-date="2006-07-17T18:44:01.362276Z"
+   checksum="d9db4ee18be7b9ac5ab95bf864f318df"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:27.828125Z"/>
+<entry
+   name="err_lob"
+   kind="dir"/>
+<entry
+   name="err_bind"
+   kind="dir"/>
+<entry
+   committed-rev="2333"
+   name="README.wingcc.txt"
+   text-time="2006-07-07T13:17:29.781250Z"
+   committed-date="2005-12-28T22:21:26.084387Z"
+   checksum="354ca3f6cdc30a5da26b63eeee40b637"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.265625Z"/>
+<entry
+   committed-rev="6640"
+   name="dbdimp.h"
+   text-time="2006-07-12T15:19:16.734375Z"
+   committed-date="2006-07-12T15:21:39.495343Z"
+   checksum="beb2fe5a3460afc63a9273a6db1ce1f4"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.281250Z"/>
+<entry
+   committed-rev="2462"
+   name="Makefile.PL"
+   text-time="2006-07-07T13:17:29.812500Z"
+   committed-date="2006-01-31T22:19:24.172118Z"
+   checksum="a772e5a117bc878ac888543f440e3f47"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.296875Z"/>
+<entry
+   committed-rev="2463"
+   name="test.pl"
+   text-time="2006-07-07T13:17:29.828125Z"
+   committed-date="2006-01-31T22:25:48.271655Z"
+   checksum="fe8037d7babb5273539bf58adcd3e91e"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.312500Z"/>
+<entry
+   committed-rev="2429"
+   name="Oracle.h"
+   text-time="2006-07-07T13:17:29.843750Z"
+   committed-date="2006-01-18T11:11:15.140754Z"
+   checksum="b661eb6f824f8fea2745ca9362ee9468"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.312500Z"/>
+<entry
+   committed-rev="2478"
+   name="README"
+   text-time="2006-07-07T13:17:29.859375Z"
+   committed-date="2006-02-02T21:32:37.155483Z"
+   checksum="b9144cab12b90003049a9ece20491bbb"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.328125Z"/>
+<entry
+   committed-rev="6647"
+   name="Oracle.xs"
+   text-time="2006-07-13T15:08:46.000000Z"
+   committed-date="2006-07-14T16:01:35.023333Z"
+   checksum="facd444474058fc2900f17c453716ed9"
+   last-author="byterock"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.328125Z"/>
+<entry
+   name="t"
+   kind="dir"/>
+<entry
+   committed-rev="506"
+   name="mkta.pl"
+   text-time="2006-07-07T13:17:29.875000Z"
+   committed-date="2004-10-20T15:34:14.636940Z"
+   checksum="e2265e0c867410298054997d6e8dc873"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.125000Z"/>
+<entry
+   name="err_build"
+   kind="dir"/>
+<entry
+   committed-rev="2333"
+   name="README.explain.txt"
+   text-time="2006-07-07T13:17:29.890625Z"
+   committed-date="2005-12-28T22:21:26.084387Z"
+   checksum="7624ac0dbbf48364d05ffa8b5a498644"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.406250Z"/>
+<entry
+   committed-rev="2334"
+   name="README.clients.txt"
+   text-time="2006-07-07T13:17:29.890625Z"
+   committed-date="2005-12-28T23:09:54.500681Z"
+   checksum="6d9f334ce24ccdcb19d4bd09d1dfd6a7"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:29.406250Z"/>
+</wc-entries>

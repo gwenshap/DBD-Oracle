@@ -1,0 +1,117 @@
+   -----Original Message-----
+   From: Stevenson, Jonathan [mailto:Jonathan.Stevenson@infores.com.Fix.This]
+   Sent: Wednesday, March 27, 2002 6:31 AM
+   To: LBaxter@FLEETCC.COM.Fix.This
+   Cc: dbi_users@perl.org
+   Subject: RE: Error on make for DBD-Oracle 1.12 on HP-UX 11.0
+
+   Hi Lincoln,
+
+   Thanks for your help with this. We now have a working installation,
+   although we still do have some issues to resolve still. The problem
+   seems to be the libjava.sl library. Running the make test step
+   generated this message: Can't shl_load() a library containing Thread
+   Local Storage.
+
+   We have got round this by setting the LD_PRELOAD to point to the
+   library - $ORACLE_HOME/JRE/lib/PA_RISC/native_threads/libjava.sl. The
+   make test passes OK, and make install works. My DBI test script is
+   able to do some basic stuff, so presumably it is OK.
+
+   There are some problems remaining with it, though. You have to
+   set the LD_PRELOAD variable before running any perl against Oracle
+   (as I guess the library does not get built into the DBD). We have
+   also noticed that if you set LD_PRELOAD as above, then run swlist,
+   the system coredumps (swlist works normally without this set).
+
+   This worries me, as it may cause other commands to coredump, so we
+   will need to try to extensively roadtest this before we can move
+   into production.
+
+   The libjava.sl library is only required for an advanced authentication
+   module that we do not use, so we are hoping that we can remove this
+   from our Oracle installation, and get around the problem this way.
+
+   We did manage to install DBD on one of our boxes before Xmas without
+   this problem, so we know that it can be done, we have just lost the
+   recipe that we need. If anyone has any suggestions that we could try,
+   we would be grateful. It is also worth noting that this error was what
+   hung us up trying to get gcc to work, so with this option, we may be
+   able to push forward on this. We will give it a go on another box,
+   and post if we get any joy from this.
+
+   I have included the recipe that we have used below. This does produce
+   a working build, we are just a little concerned about the side effects.
+
+   Cheers,
+
+   Jon
+
+
+   Machine specs:
+
+   HP-UX 11.00
+   Oracle 8.1.6 client
+   HP ANSI C compiler (B.11.02.03)
+
+
+   Downloaded:
+
+   Perl 5.6.1  From http://www.cpan.org/src/index.html
+   <http://www.cpan.org/src/index.html>  (Stable release)
+
+   DBI 1.21  From http://search.cpan.org/search?dist=DBI
+   <http://search.cpan.org/search?dist=DBI>
+   DBD:Oracle 1.12  From http://search.cpan.org/search?module=DBD::Oracle
+   <http://search.cpan.org/search?module=DBD::Oracle>
+
+   Create /tmp/perl temporary area and extract tar files
+
+      cd /tmp/perl/perl-5.6.1
+      ../Configure -Ubincompat5005
+      #Prepend additional libraries with "-lcl -lpthread"
+      #Prepend cc flags with "+z"
+
+      make
+      make test
+      make install
+
+   Install DBI
+
+      cd /tmp/perl/DBI-1.21
+      perl Makefile.PL
+      make
+      make test
+      make install
+
+
+   Install DBD:Oracle
+
+      #Set the Oracle environment
+      export ORACLE_HOME=/oracle/app/oracle/product/8.1.6
+      export SHLIB_PATH=/usr/lib:/oracle/app/oracle/product/8.1.6/lib
+      export ORACLE_SID=sid
+      export ORACLE_USERID=userid/password@sid
+      export LD_LIBRARY_PATH=/oracle/app/oracle/product/8.1.6/lib
+
+      export LD_PRELOAD=/oracle/app/oracle/product/8.1.6/JRE/lib/PA_RISC/native_threads/libjava.sl
+      # Need to prevent libjava.sl TLS error - need to do this for runtime as well
+
+      cd /tmp/perl/DBD-Oracle-1.12
+      perl Makefile.PL
+
+      cat Makefile | sed 's/PERL_DL_NONLAZY=1/PERL_DL_NONLAZY=0/g' > Makefile.tmp
+      # Need to force load of all libraries
+      mv Makefile.tmp Makefile
+      make
+      make test
+      make install
+
+   Apparently Oracle stored the 64 bit libraries in .../lib & .../rdbms/lib.
+   32 bit libraries are available in .../lib32 and .../rdbms/lib32.  I'm forced
+   to stay with Perl 32bit & the workaround is to manually edit the resulting
+   Makefile.  Anyone have a patch to detect & correct this situation?
+
+   John Schaefer
+
+   BAESystems, San Diego

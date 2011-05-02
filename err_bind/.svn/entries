@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="1088"
+   name=""
+   committed-date="2005-06-25T00:30:12.866514Z"
+   url="http://svn.perl.org/modules/dbd-oracle/trunk/err_bind"
+   last-author="timbo"
+   kind="dir"
+   uuid="50811bd7-b8ce-0310-adc1-d9db26280581"
+   repos="http://svn.perl.org/modules"
+   revision="6699"/>
+<entry
+   committed-rev="1088"
+   name="err_bind_param_inout_overrun_bug.msg"
+   text-time="2006-07-07T13:17:28.187500Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="78ccb324b5f2e0cddf0f8dc781019e36"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.125000Z"/>
+<entry
+   committed-rev="1088"
+   name="err_bindclobleak.msg"
+   text-time="2006-07-07T13:17:28.203125Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="b0250f2a9492b95c4fe868294a44ba88"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.140625Z"/>
+<entry
+   committed-rev="1088"
+   name="err_bindnullhash.msg"
+   text-time="2006-07-07T13:17:28.218750Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="2ed2e51508cd0cc3ef20d79dfa80ddca"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.140625Z"/>
+<entry
+   committed-rev="1088"
+   name="err_bindarrays.msg"
+   text-time="2006-07-07T13:17:28.234375Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="bd8274f07d5ea5ec52813883332cba5e"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.156250Z"/>
+<entry
+   committed-rev="1088"
+   name="err_trailingblank.msg"
+   text-time="2006-07-07T13:17:28.250000Z"
+   committed-date="2005-06-25T00:30:12.866514Z"
+   checksum="eb1bf2a43ff02ed25ae103b99e5ea183"
+   last-author="timbo"
+   kind="file"
+   prop-time="2006-07-07T13:17:28.171875Z"/>
+</wc-entries>
