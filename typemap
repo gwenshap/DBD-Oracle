@@ -1,1 +1,2 @@
-OCILobLocator *              T_PTROBJ
+OCILobLocator *         T_PTROBJ
+OCIXMLType *		T_PTROBJ

@@ -441,7 +441,8 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	    # remove any echo's as the following line should be the result of the echo
 	    next if $line =~ /^\s*\S*echo\s+/;
 	    next if $line =~ /^\s*\S*make\s+/; # remove recursive calls to make
-	    next if $line =~ /^\s*\S*make:/;   # remove message from make
+	    next if $line =~ /^\s*\S*make(\[\d\])?:/; # remove message rom "make:" or "make[x]:"
+
 	    next if $line =~ /^\s*$/; # remove any blank lines
 	    push @filtered_cmds, $line;
 	}
@@ -1517,7 +1518,9 @@ sub get_client_version {
 	print FH "DEFINE _SQLPLUS_RELEASE\nQUIT\n";
 	close FH;
 	my $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
-	if ($sqlplus_release =~ /SP2-0750/) {
+	if ($sqlplus_release =~ /(SP2-0750)|(SP2-0642)/) {
+	
+
 	                my $x = $ENV{ORACLE_HOME};
 	                delete $ENV{ORACLE_HOME};
 	                $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;

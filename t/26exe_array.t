@@ -4,7 +4,7 @@ use DBI;
 use DBD::Oracle qw(ORA_RSET SQLCS_NCHAR);
 use strict;
 
-use Test::More tests =>14 ;
+use Test::More tests =>17 ;
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
 
@@ -15,7 +15,8 @@ $| = 1;
 ## By John Scoles, The Pythian Group
 ## ----------------------------------------------------------------------------
 ##  Just a few checks to see if execute array works in Oracle::DBD
-##  Nothing fancy. 
+##  Nothing fancy. I also checks for warnings when utf8 is inserted into 
+##  an ASCII only DB
 ## ----------------------------------------------------------------------------
 
 BEGIN {
@@ -25,21 +26,28 @@ BEGIN {
 # create a database handle
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
+$ENV{NLS_NCHAR} = "US7ASCII";
+$ENV{NLS_LANG} = "AMERICAN";
 my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1, 
 						AutoCommit=>1,
-						PrintError => 0 });
-
+						PrintError => 0,
+						ora_envhp  => 0,
+						});
 
 # check that our db handle is good
 isa_ok($dbh, "DBI::db");
 
+
 my $table = table();
-    
+eval{
+ drop_table($dbh);
+};
 $dbh->do(qq{
             CREATE TABLE $table (
 	    row_1 INTEGER NOT NULL,
 	    row_2 INTEGER NOT NULL,
-	    row_3 INTEGER NOT NULL
+	    row_3 INTEGER NOT NULL,
+	    row_4 CHAR(5)
 	)
     });
     
@@ -47,7 +55,7 @@ my $rv;
 my @var1         = (1,1,1,1,1,1,1,1,1,1);
 my @var2         = (2,2,2,2,2,2,2,2,2,2);
 my @var3         = (3,3,3,3,3,3,3,3,3,3);
-
+my @utf8_string =  ("A","A","A","A","\x{6e9}","A","A","A","A","A");
 my $tuple_status = [];
 my $dumped ;
 
@@ -146,9 +154,22 @@ $sth2->execute();
  cmp_ok(scalar @$problems, '==',48, '... we should have 48 rows');
 
 
+$sth = $dbh->prepare("INSERT INTO $table ( row_1,  row_2, row_3,row_4) VALUES (1,2,3,?)");
+
+ok ($sth->execute_array(
+      {ArrayTupleStatus => $tuple_status},
+       \@utf8_string 
+ ), '... execute_array should return true');
+
+
+cmp_ok(@$tuple_status[4],'ne','-1','... #5 should be a warning');
+cmp_ok(scalar @{$tuple_status}, '==', 10, '... we should have 10 tuple_status');
+
+
+
  drop_table($dbh);
 
-
+#dbh->{dbd_verbose}=0;
 $dbh->disconnect;
 
 1;
