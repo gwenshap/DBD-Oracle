@@ -3,7 +3,54 @@ The main thing to remember is you will have to compile using 32 bit Perl and com
 which sort of defeats the purpose of having a 64bit box.  
 So until 64bit Perl comes out we will be posing in this README any success stories we have come across
 
-fyi
+
+-------- Original Message --------
+
+Subject:   DBD::Oracle 64-bit success story 
+From:   "QiangLi" <qiangli@yorku.ca> 
+Date:   Thu, March 6, 2008 5:25 pm 
+To:   pause@pythian.com 
+Priority:   Normal 
+
+hi,
+
+thanks for maintaining DBD::Oracle. I have installed DBD::Oracle against 
+  64-bit oracle 10g on a 64-bit solaris machine. maybe worth another 
+entry for the README.64bit.txt file.
+
+i am using gcc from sun freesoftware and also SUNWbinutils which 
+contains the gas (gnu assembler)
+
+here is the steps with comment:
+
+# set install target
+% /usr/perl5/5.8.4/bin/perlgcc Makefile.PL PREFIX=/var/tmp/lib
+
+# since our perl is 32-bit, we can't build it against a 64bit oracle 
+install.
+# edit Makefile and change reference to oracle's "lib/" to "lib32/"
+% perl -pi -e 's/oracle_home\/lib/oracle_home\/lib32/g' Makefile
+% perl -pi -e 's/oracle_home\/rdbms\/lib/oracle_home\/rdbms\/lib32/g' 
+Makefile
+
+% make
+
+# ignore error like  ORA-12162: TNS:net service name is incorrectly 
+specified...
+% make test
+
+% make install
+
+# does it work.
+% perl -I'/var/tmp/lib/lib/site_perl/5.8.4/sun4-solaris-64int/' 
+-MDBD::Oracle -e1
+
+cheers,
+
+Qiang
+
+
+
 
 -------- Original Message --------
 Subject:     Tip: Compiling 32bit modules against 64bit Oracle 10g on solaris

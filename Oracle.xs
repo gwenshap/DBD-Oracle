@@ -16,23 +16,42 @@ constant(name=Nullch)
     ORA_LONG	 =   8
     ORA_ROWID	 =  11
     ORA_DATE	 =  12
-    ORA_RAW	 =  23
+    ORA_RAW	 	 =  23
     ORA_LONGRAW	 =  24
     ORA_CHAR	 =  96
     ORA_CHARZ	 =  97
     ORA_MLSLABEL = 105
-    ORA_NTY	 = 108
+    ORA_XMLTYPE	 = 108
     ORA_CLOB	 = 112
     ORA_BLOB	 = 113
     ORA_RSET	 = 116
     ORA_VARCHAR2_TABLE = ORA_VARCHAR2_TABLE
     ORA_NUMBER_TABLE   = ORA_NUMBER_TABLE
-    ORA_SYSDBA	 = 0x0002
-    ORA_SYSOPER	 = 0x0004
-    SQLCS_IMPLICIT = SQLCS_IMPLICIT
-    SQLCS_NCHAR    = SQLCS_NCHAR
-    SQLT_INT     = SQLT_INT
-    SQLT_FLT     = SQLT_FLT    
+    ORA_SYSDBA	 		  = 0x0002
+    ORA_SYSOPER	 		  = 0x0004
+    SQLCS_IMPLICIT 		  = SQLCS_IMPLICIT
+	SQLCS_NCHAR    		  = SQLCS_NCHAR
+	SQLT_INT     		  = SQLT_INT
+	SQLT_FLT     		  = SQLT_FLT
+	OCI_BATCH_MODE        = 0x01
+	OCI_EXACT_FETCH       = 0x02
+	OCI_KEEP_FETCH_STATE  = 0x04
+	OCI_DESCRIBE_ONLY     = 0x10
+	OCI_COMMIT_ON_SUCCESS = 0x20
+	OCI_NON_BLOCKING      = 0x40
+	OCI_BATCH_ERRORS      = 0x80
+	OCI_PARSE_ONLY        = 0x100
+	OCI_SHOW_DML_WARNINGS = 0x400
+	OCI_STMT_SCROLLABLE_READONLY = 0x08
+  	OCI_FETCH_CURRENT 	= OCI_FETCH_CURRENT
+	OCI_FETCH_NEXT 		= OCI_FETCH_NEXT
+	OCI_FETCH_FIRST		= OCI_FETCH_FIRST
+	OCI_FETCH_LAST 		= OCI_FETCH_LAST
+	OCI_FETCH_PRIOR 	= OCI_FETCH_PRIOR
+	OCI_FETCH_ABSOLUTE 	= OCI_FETCH_ABSOLUTE
+	OCI_FETCH_RELATIVE	= OCI_FETCH_RELATIVE
+	SQLT_CHR    = SQLT_CHR
+	SQLT_BIN	= SQLT_BIN
     CODE:
     if (!ix) {
 	if (!name) name = GvNAME(CvGV(cv));
@@ -76,6 +95,65 @@ ora_cygwin_set_env(name, value)
 INCLUDE: Oracle.xsi
 
 MODULE = DBD::Oracle    PACKAGE = DBD::Oracle::st
+
+
+void
+ora_scroll_position(sth)
+    SV *	sth
+    PREINIT:
+    D_imp_sth(sth);
+   CODE:
+    {
+   	XSRETURN_IV( imp_sth->fetch_position);
+}
+
+void
+ora_fetch_scroll(sth,fetch_orient,fetch_offset)
+    SV *	sth
+    IV  fetch_orient
+    IV 	fetch_offset
+    PREINIT:
+    D_imp_sth(sth);
+    CODE:
+    {
+    AV *av;
+ 	imp_sth->fetch_orient=fetch_orient;
+    imp_sth->fetch_offset=fetch_offset;
+    av = dbd_st_fetch(sth,imp_sth);
+    ST(0) = (av) ? sv_2mortal(newRV((SV *)av)) : &PL_sv_undef;
+}
+
+void
+ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
+    SV *	sth
+    SV *	param
+    SV *	av_ref
+    IV 		maxlen
+    SV *	attribs
+    CODE:
+    {
+    IV sql_type = 0;
+    D_imp_sth(sth);
+    SV *av_value;
+    if (!SvROK(av_ref) || SvTYPE(SvRV(av_ref)) != SVt_PVAV)
+	croak("bind_param_inout_array needs a reference to a array value");
+    av_value = av_ref;
+    if (SvREADONLY(av_value))
+	croak("Modification of a read-only value attempted");
+    if (attribs) {
+    	if (SvNIOK(attribs)) {
+	    sql_type = SvIV(attribs);
+	    attribs = Nullsv;
+	}
+	else {
+	    SV **svp;
+	    DBD_ATTRIBS_CHECK("bind_param", sth, attribs);
+	    DBD_ATTRIB_GET_IV(attribs, "ora_type",4, svp, sql_type);
+	}
+    }
+    ST(0) = dbd_bind_ph(sth, imp_sth, param,av_value, sql_type, attribs, TRUE, maxlen)
+		? &sv_yes : &sv_no;
+}
 
 void
 ora_fetch(sth)
@@ -188,7 +266,7 @@ ora_lob_write(dbh, locator, offset, data)
     /* if (0 && SvUTF8(data) && !IN_BYTES) { amtp = sv_len_utf8(data); }  */
     /* added by lab: */
     /* LAB do something about length here? see above comment */
-    OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
+     OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
     if (status != OCI_SUCCESS) {
         oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
 	ST(0) = &sv_undef;
@@ -395,6 +473,6 @@ init_oci(drh)
 	dbd_init_oci(DBIS) ;
 	dbd_init_oci_drh(imp_drh) ;
 
-    
 
-	
+
+

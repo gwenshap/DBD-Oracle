@@ -36,6 +36,24 @@
 	If done well the log will read like a compilable program.
 */
 
+
+
+#define OCIXMLTypeCreateFromSrc_log_stat(svchp,envhp,src_type,src_ptr,xml,stat)\
+    stat =OCIXMLTypeCreateFromSrc (svchp,envhp,(OCIDuration)OCI_DURATION_CALLOUT,(ub1)src_type,(dvoid *)src_ptr,(sb4)OCI_IND_NOTNULL, xml);\
+    (DBD_OCI_TRACEON) \
+    		? PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCIXMLTypeCreateFromSrc_log_stat(%p,%p,%p,%p,%p)=%s\n",\
+		         OciTp,  (void*)svchp,(void*)envhp, src_type, src_ptr,oci_status_name(stat)),stat \
+   : stat
+
+#define OCILobLocatorIsInit_log_stat(envhp,errhp,loc,is_init,stat)\
+    stat =OCILobLocatorIsInit (envhp,errhp,loc,is_init );\
+    (DBD_OCI_TRACEON) \
+    		? PerlIO_printf(DBD_OCI_TRACEFP,\
+		         "%sOCILobLocatorIsInit_log_stat(%p,%p,%p,%d)=%s\n",\
+		         OciTp, (void*)envhp, (void*)errhp,loc,is_init,oci_status_name(stat)),stat \
+   : stat
+
 #define OCIObjectPin_log_stat(envhp,errhp,or,ot,stat)\
     stat = OCIObjectPin(envhp,errhp,or,(OCIComplexObject *)0,OCI_PIN_LATEST,OCI_DURATION_TRANS,OCI_LOCK_NONE,ot);\
     (DBD_OCI_TRACEON) \
@@ -123,10 +141,9 @@
 		         OciTp, (void*)envhp, (void*)errhp,oci_status_name(stat)),stat \
    : stat
 
-
-#define OCIDefineObject_log_stat(defnp,errhp,tdo,eo_buff,stat)\
-    stat = OCIDefineObject(defnp,errhp,tdo,eo_buff,0,0, 0);\
-   (DBD_OCI_TRACEON) \
+#define OCIDefineObject_log_stat(defnp,errhp,tdo,eo_buff,eo_ind,stat)\
+    stat = OCIDefineObject(defnp,errhp,tdo,eo_buff,0,eo_ind, 0);\
+    (DBD_OCI_TRACEON) \
 	   ?  PerlIO_printf(DBD_OCI_TRACEFP,\
 	         "%sOCIDefineObject(%p,%p,%d)=%s\n",\
 	         OciTp, (void*)defnp, (void*)errhp, (void*)tdo,oci_status_name(stat)),stat \
@@ -423,18 +440,18 @@
 	  ul_t((ro)),(void*)(si),(void*)(so),ul_t((md)),		\
 	  oci_status_name(stat)),stat : stat
 #if !defined(USE_ORA_OCI_STMNT_FETCH)
- #define OCIStmtFetch_log_stat(sh,eh,nr,or,md,stat)                     \
-         stat=OCIStmtFetch2(sh,eh,nr,or,0,md);                                \
+ #define OCIStmtFetch_log_stat(sh,eh,nr,or,os,stat)                     \
+         stat=OCIStmtFetch2(sh,eh,nr,or,os,OCI_DEFAULT);                                \
          (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,                        \
            "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",                                \
-           OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,ul_t(md),                \
+           OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,(ub2)os,                \
            oci_status_name(stat)),stat : stat
 #else
-#define OCIStmtFetch_log_stat(sh,eh,nr,or,md,stat)                     \
-        stat=OCIStmtFetch(sh,eh,nr,or,md);                                \
+#define OCIStmtFetch_log_stat(sh,eh,nr,or,os,stat)                     \
+        stat=OCIStmtFetch(sh,eh,nr,or,OCI_DEFAULT);                                \
         (DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,                        \
-          "%sStmtFetch(%p,%p,%lu,%u,%lu)=%s\n",                                \
-          OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,ul_t(md),                \
+          "%sStmtFetch(%p,%p,%lu,%lu)=%s\n",                                \
+          OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,                \
           oci_status_name(stat)),stat : stat
 #endif
 

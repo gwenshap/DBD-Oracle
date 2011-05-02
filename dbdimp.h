@@ -46,6 +46,7 @@ struct imp_dbh_st {
     int parse_error_offset;	/* position in statement of last error */
     int max_nested_cursors;     /* limit on cached nested cursors per stmt */
     int array_chunk_size;  /* the max size for an array bind */
+
 };
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
@@ -55,21 +56,22 @@ struct imp_dbh_st {
 typedef struct lob_refetch_st lob_refetch_t; /* Define sth implementor data structure */
 
 
-
+/*statement structure */
 struct imp_sth_st {
 
     dbih_stc_t com;		/* MUST be first element in structure	*/
 
     void *(*get_oci_handle) _((imp_sth_t *imp_sth, int handle_type, int flags));
-    OCIEnv			 *envhp;	/* copy of dbh pointer	*/
-    OCIError		 *errhp;	/* copy of dbh pointer	*/
-    OCIServer		 *srvhp;	/* copy of dbh pointer	*/
-    OCISvcCtx		 *svchp;	/* copy of dbh pointer	*/
-    OCIStmt		     *stmhp;    /* oci statement  handle */
-    OCIDescribe 	 *dschp;    /* oci describe handle */
-   	ub2 		stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
-    U16			auto_lob;
-    int  		has_lobs;  /* Statement has boud LOBS*/
+    OCIEnv			*envhp;	/* copy of dbh pointer	*/
+    OCIError		*errhp;	/* copy of dbh pointer	*/
+    OCIServer		*srvhp;	/* copy of dbh pointer	*/
+    OCISvcCtx		*svchp;	/* copy of dbh pointer	*/
+    OCIStmt			*stmhp;	/* oci statement  handle */
+    OCIDescribe 	*dschp; /* oci describe handle */
+   	ub2 			stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
+    U16				auto_lob;	/* use auto lobs*/
+    int				pers_lob;   /*use dblink for lobs only for 10g Release 2. or later*/
+    int  			has_lobs;   /* Statement has bound LOBS*/
 
     lob_refetch_t *lob_refetch;
     int  		nested_cursor; /* cursors fetched from SELECTs */
@@ -91,14 +93,27 @@ struct imp_sth_st {
     UV        	long_readlen; 	/* local copy to handle oraperl	*/
     HV        	*fbh_tdo_hv;  	 /* hash of row #(0 based) and tdo object name from ora_oci_type_names hash */
      /* Select Row Cache Details */
-    int       	cache_rows;
+    sb4       	cache_rows;
     int       	in_cache;
     int       	next_entry;
     int       	eod_errno;
     int      	est_width;    /* est'd avg row width on-the-wire	*/
     /* (In/)Out Parameter Details */
     bool  		has_inout_params;
-
+    /* execute mode*/
+    /* will be using this alot later me thinks  */
+    ub4         exe_mode;
+    /* fetch scrolling values */
+    int 		fetch_orient;
+    int			fetch_offset;
+    int			fetch_position;
+    int 		prefetch_memory;   /* OCI_PREFETCH_MEMORY*/
+    /* array fetch: state variables */
+    bool      rs_array_on;           /* if array to be used */
+    int       rs_array_size;         /* array size */
+    int       rs_array_num_rows;     /* num rows in last fetch */
+    int       rs_array_idx;          /* index of current row */
+    sword     rs_array_status;       /* status of last fetch */
 };
 #define IMP_STH_EXECUTING	0x0001
 
@@ -125,7 +140,7 @@ struct fbh_obj_st {  /* embedded object or table will work recursively*/
 	OCITypeCode 	col_typecode;    	/*if collection this is its OCI_ATTR_COLLECTION_TYPECODE */
     OCITypeCode 	element_typecode;	/*if collection this is its element's OCI_ATTR_TYPECODE*/
 	OCIRef      	*obj_ref;			/*if an embeded object this is ref handle to its TDO*/
-	OCIComplexObject *obj_ind;			/*Null indictator for object */
+	OCIInd		    *obj_ind;			/*Null indictator for object */
  	OCIComplexObject *obj_value;        /*the actual value from the DB*/
  	OCIType      	*obj_type;         	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
     fbh_obj_t       *fields;			/*one object for each field/property*/

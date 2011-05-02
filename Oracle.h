@@ -33,7 +33,7 @@
 
 /* ori.h uses 'dirty' as an arg name in prototypes so we use this */
 /* hack to prevent ori.h being read (since we don't need it)	  */
-//#define ORI_ORACLE
+/*#define ORI_ORACLE*/
 #include <oci.h>
 #include <oratypes.h>
 #include <ocidfn.h>
@@ -67,7 +67,7 @@ int	 dbd_db_do _((SV *sv, char *statement));
 int	 dbd_db_commit     _((SV *dbh, imp_dbh_t *imp_dbh));
 int	 dbd_db_rollback   _((SV *dbh, imp_dbh_t *imp_dbh));
 int	 dbd_db_disconnect _((SV *dbh, imp_dbh_t *imp_dbh));
-void	 dbd_db_destroy    _((SV *dbh, imp_dbh_t *imp_dbh));
+void dbd_db_destroy    _((SV *dbh, imp_dbh_t *imp_dbh));
 int	 dbd_db_STORE_attrib _((SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv));
 SV	*dbd_db_FETCH_attrib _((SV *dbh, imp_dbh_t *imp_dbh, SV *keysv));
 
@@ -79,8 +79,8 @@ int	 dbd_st_cancel  _((SV *sth, imp_sth_t *imp_sth));
 AV	*dbd_st_fetch	_((SV *sth, imp_sth_t *imp_sth));
 
 int	 dbd_st_finish	_((SV *sth, imp_sth_t *imp_sth));
-void	 dbd_st_destroy _((SV *sth, imp_sth_t *imp_sth));
-int      dbd_st_blob_read _((SV *sth, imp_sth_t *imp_sth,
+void dbd_st_destroy _((SV *sth, imp_sth_t *imp_sth));
+int	 dbd_st_blob_read _((SV *sth, imp_sth_t *imp_sth,
 		int field, long offset, long len, SV *destrv, long destoffset));
 int	 dbd_st_STORE_attrib _((SV *sth, imp_sth_t *imp_sth, SV *keysv, SV *valuesv));
 SV	*dbd_st_FETCH_attrib _((SV *sth, imp_sth_t *imp_sth, SV *keysv));
@@ -88,15 +88,32 @@ int	 dbd_bind_ph  _((SV *sth, imp_sth_t *imp_sth,
 		SV *param, SV *value, IV sql_type, SV *attribs, int is_inout, IV maxlen));
 
 int	 dbd_db_login6 _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, char *pwd, SV *attr));
-int    dbd_describe _((SV *sth, imp_sth_t *imp_sth));
-ub4    ora_blob_read_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
+int	 dbd_describe _((SV *sth, imp_sth_t *imp_sth));
+ub4	 ora_blob_read_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
                    long offset, UV len, long destoffset));
-ub4    ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
+ub4	 ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 		   long offset, UV len, long destoffset));
 
 /* Oracle types */
 
 #define ORA_VARCHAR2_TABLE	201
 #define ORA_NUMBER_TABLE	202
+#define ORA_XMLTYPE			108
+
+/* other Oracle not in noraml API defines
+
+most of these are largly undocumented XML functions that are in the API but not defined
+not noramlly found in the  defines the prototypes of OCI functions in most clients
+Normally can be found in ociap.h (Oracle Call Interface - Ansi Prototypes
+) and ocikp.h (functions in K&R style)
+
+They will be added when needed
+
+*/
+
+sword  OCIXMLTypeCreateFromSrc(/*_ OCISvcCtx *svchp, OCIError *errhp,
+                     OCIDuration dur, ub1 src_type, dvoid *src_ptr,
+                     sb4 ind, OCIXMLType **retInstance _*/);
+
 
 /* end of Oracle.h */

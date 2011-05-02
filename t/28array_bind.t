@@ -1,6 +1,17 @@
 #!perl -w
 use strict;
 
+## ----------------------------------------------------------------------------
+## 26array_bind.t
+## By Alexander V Alekseev
+## and John Scoles, The Pythian Group
+## 
+## ----------------------------------------------------------------------------
+##  Checking bind_param_inout to an varchar2_table and number_table
+##  Checking bind_param_inout_array with execute_array
+## 
+## ----------------------------------------------------------------------------
+
 use strict;
 use warnings;
 
@@ -10,7 +21,7 @@ use Devel::Peek;
 use DBI;
 use DBD::Oracle qw(:ora_types ORA_OCI);
 
-use Test::More tests => 6;
+use Test::More tests => 15;
 
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
@@ -133,12 +144,14 @@ sub test_number_table_3_tests($){
 	my @arr=( 1,"2E0","3.5" );
 
 	# note, that ora_internal_type defaults to SQLT_FLT for ORA_NUMBER_TABLE .
+
 	if( not $sth->bind_param_inout(":mytable", \\@arr, 10, {
 				ora_type => ORA_NUMBER_TABLE,
 				ora_maxarray_numentries => (scalar(@arr)+2),
 				ora_internal_type => SQLT_INT
 			}
-		) ){
+		) )
+	{
 		BAIL_OUT("bind(NUMBER_TABLE) :mytable error: ".$dbh->errstr);
 	}
 	my $cc=undef;
@@ -174,6 +187,53 @@ sub test_number_table_3_tests($){
 	ok( $result , "NUMBER_TABLE output content") or
 		diag( "arr=", Data::Dumper::Dumper(\@arr),"\nThough must be: ",Data::Dumper::Dumper(\@r));
 }
+
+sub test_inout_array_tests($){
+	my $dbh=shift;
+	$dbh->do("create table array_in_out_test (id number(12,0), name varchar2(20), value varchar2(2000))");
+	$dbh->do("create sequence seq_array_in_out_test start with 1");
+	$dbh->do("
+		create or replace trigger trg_array_in_out_testst 
+		before insert
+		on array_in_out_test
+		for each row
+		DECLARE  
+			iCounter array_in_out_test.id%TYPE;  
+		BEGIN  
+			if INSERTING THEN  
+				Select seq_array_in_out_test.nextval INTO iCounter FROM Dual;  
+				:new.id := iCounter;  
+			END IF;  
+		END;
+	");
+   	
+        my @in_array1=('one','two','three','four','five');
+	my @in_array2=('5','4','3','2','1');
+	my @out_array;
+	my @tuple_status;
+	
+	my $sql = "insert into array_in_out_test (name, value) values (?,?) returning id into ?" ;
+
+	my $sth = $dbh->prepare($sql);
+	
+	$sth->bind_param_array(1,\@in_array1 );
+	$sth->bind_param_array(2,\@in_array2);
+ 	ok ( $sth->bind_param_inout_array(3,\@out_array,0,{ora_type => ORA_VARCHAR2}),'... bind_param_inout_array should return false');
+	
+        ok ( $sth->execute_array({ArrayTupleStatus=>\@tuple_status}),'... execute_array should return false');
+
+	cmp_ok(scalar (@tuple_status), '==',5 , '... we should have 19 tuple_status');
+	cmp_ok(scalar (@out_array), '==',5 , '... we should have 5 out_array');
+        cmp_ok($out_array[0], '==', 1,'... out values should match 1');
+        cmp_ok($out_array[1], '==', 2,'... out values should match 2');
+        cmp_ok($out_array[2], '==', 3,'... out values should match 3');
+        cmp_ok($out_array[3], '==', 4,'... out values should match 3');
+        cmp_ok($out_array[4], '==', 5,'... out values should match 5');
+
+	$dbh->do("drop table array_in_out_test") or warn $dbh->errstr;
+	$dbh->do("drop sequence seq_array_in_out_test") or die $dbh->errstr;
+	
+}
 SKIP: {
     $dbh = db_connect(0);
 
@@ -181,6 +241,8 @@ SKIP: {
 
     test_varchar2_table_3_tests($dbh);
     test_number_table_3_tests($dbh);
+    test_inout_array_tests($dbh);
+    
 };
 
 END {

@@ -1,5 +1,24 @@
 [ In no particular order ]
 
+Seems this file has been neglected for quite a while so I will try to keep it up to date for now
+
+For release 1.22 or later
+
+Add in the DBD only debugging flag
+
+Add new method oci_exe_mode to get the Name of the Execution Modes
+
+Add support for OCIClientVersion(),OCIPing(),OCIServerVersion()
+
+Expand support for Data Interface for Persistent LOBs by setting up support 
+for Piecewise Fetch and Piecewise Fetch with Callback and perhaps  Array Fetch as well
+
+Add support for version 2 of lob functions
+
+Add support for OCIStmtPrepare2(), Statement caching
+
+The below might of been done but this list has not been maintained;
+
 Add column_info test
 
 Add info about getting help - mailing lists etc.

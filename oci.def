@@ -230,6 +230,7 @@ OCIStmtBindByName
 OCIStmtBindByPos
 OCIStmtExecute
 OCIStmtFetch
+OCIStmtFetch2
 OCIStmtGetBindInfo
 OCIStmtGetPieceInfo
 OCIStmtPrepare
@@ -374,4 +375,8 @@ OCILobIsTemporary
 OCILobFreeTemporary
 OCILobLocatorAssign
 OCILobCreateTemporary
+OCIXMLTypeCreateFromSrc
+OCIDateTimeToText
+OCIIntervalToText
+OCIDateTimeGetTimeZoneOffset
 

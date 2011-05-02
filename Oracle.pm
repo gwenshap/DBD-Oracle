@@ -6,7 +6,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.20';
+$DBD::Oracle::VERSION = '1.21';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -20,15 +20,20 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     %EXPORT_TAGS = (
 	ora_types => [ qw(
 	    ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
-	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
+	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_XMLTYPE
 	    ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
-	    SQLT_INT SQLT_FLT
+	    SQLT_INT SQLT_FLT ORA_OCI SQLT_CHR SQLT_BIN     
 	) ],
         ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
+        ora_fetch_orient  => [ qw( OCI_FETCH_NEXT OCI_FETCH_CURRENT OCI_FETCH_FIRST 
+        			   OCI_FETCH_LAST OCI_FETCH_PRIOR OCI_FETCH_ABSOLUTE 
+        			   OCI_FETCH_RELATIVE)],
+    	ora_exe_modes     => [ qw(OCI_STMT_SCROLLABLE_READONLY)],
     );
-    @EXPORT_OK = qw(ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var ora_cygwin_set_env);
+    @EXPORT_OK = qw(OCI_FETCH_NEXT OCI_FETCH_CURRENT OCI_FETCH_FIRST OCI_FETCH_LAST OCI_FETCH_PRIOR
+    		    OCI_FETCH_ABSOLUTE 	OCI_FETCH_RELATIVE ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var ora_cygwin_set_env);
     #unshift @EXPORT_OK, 'ora_cygwin_set_env' if $^O eq 'cygwin';
-    Exporter::export_ok_tags(qw(ora_types ora_session_modes));
+    Exporter::export_ok_tags(qw(ora_types ora_session_modes ora_fetch_orient ora_exe_modes));
 
     my $Revision = substr(q$Revision: 1.103 $, 10);
 
@@ -68,7 +73,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
         DBD::Oracle::db->install_method("ora_lob_length");
         DBD::Oracle::db->install_method("ora_nls_parameters");
         DBD::Oracle::db->install_method("ora_can_unicode");
-
+ 	DBD::Oracle::st->install_method("ora_fetch_scroll");
+ 	DBD::Oracle::st->install_method("ora_scroll_position");
+ 	
 	$drh;
     }
 
@@ -212,6 +219,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
         (my $user_only = $user) =~ s:/.*::;
 	my ($dbh, $dbh_inner) = DBI::_new_dbh($drh, {
 	    'Name' => $dbname,
+	    'dbi_imp_data' => $attr->{dbi_imp_data},
 	    # these two are just for backwards compatibility
 	    'USER' => uc $user_only, 'CURRENT_USER' => uc $user_only,
 	    });
@@ -322,9 +330,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 		@$CatVal{'TABLE_CAT','TABLE_SCHEM','TABLE_NAME','TABLE_TYPE'};
 	}
 	my @Where = ();
-	my $Sql;
+	my $SQL;
 	if ( defined $CatVal && $CatVal eq '%' && (!defined $SchVal || $SchVal eq '') && (!defined $TblVal || $TblVal eq '')) { # Rule 19a
-		$Sql = <<'SQL';
+		$SQL = <<'SQL';
 SELECT NULL TABLE_CAT
      , NULL TABLE_SCHEM
      , NULL TABLE_NAME
@@ -334,7 +342,7 @@ SELECT NULL TABLE_CAT
 SQL
 	}
 	elsif ( defined $SchVal && $SchVal eq '%' && (!defined $CatVal || $CatVal eq '') && (!defined $TblVal || $TblVal eq '')) { # Rule 19b
-		$Sql = <<'SQL';
+		$SQL = <<'SQL';
 SELECT NULL TABLE_CAT
      , s    TABLE_SCHEM
      , NULL TABLE_NAME
@@ -350,7 +358,7 @@ SELECT NULL TABLE_CAT
 SQL
 	}
 	elsif ( defined $TypVal && $TypVal eq '%' && (!defined $CatVal || $CatVal eq '') && (!defined $SchVal || $SchVal eq '') && (!defined $TblVal || $TblVal eq '')) { # Rule 19c
-		$Sql = <<'SQL';
+		$SQL = <<'SQL';
 SELECT NULL TABLE_CAT
      , NULL TABLE_SCHEM
      , NULL TABLE_NAME
@@ -370,7 +378,7 @@ SELECT NULL TABLE_CAT
 SQL
 	}
 	else {
-		$Sql = <<'SQL';
+		$SQL = <<'SQL';
 SELECT *
   FROM
 (
@@ -409,10 +417,10 @@ SQL
 			}
 			push @Where, "TABLE_TYPE IN ($table_type_list)";
 		}
-		$Sql .= ' WHERE ' . join("\n   AND ", @Where ) . "\n" if @Where;
-		$Sql .= " ORDER BY TABLE_TYPE, TABLE_SCHEM, TABLE_NAME\n";
+		$SQL .= ' WHERE ' . join("\n   AND ", @Where ) . "\n" if @Where;
+		$SQL .= " ORDER BY TABLE_TYPE, TABLE_SCHEM, TABLE_NAME\n";
 	}
-	my $sth = $dbh->prepare($Sql) or return undef;
+	my $sth = $dbh->prepare($SQL) or return undef;
 	$sth->execute or return undef;
 	$sth;
 }
@@ -424,7 +432,7 @@ SQL
             ($schema, $table) = @$catalog{'TABLE_SCHEM','TABLE_NAME'};
             $catalog = undef;
         }                  
-	my $Sql = <<'SQL';
+	my $SQL = <<'SQL';
 SELECT *
   FROM
 (
@@ -447,7 +455,7 @@ SELECT *
  ORDER BY TABLE_SCHEM, TABLE_NAME, KEY_SEQ
 SQL
 #warn "@_\n$Sql ($schema, $table)";
-	my $sth = $dbh->prepare($Sql) or return undef;
+	my $sth = $dbh->prepare($SQL) or return undef;
 	$sth->execute($schema, $table) or return undef;
 	$sth;
 }
@@ -457,7 +465,7 @@ SQL
 	my $attr = ( ref $_[0] eq 'HASH') ? $_[0] : {
 	    'UK_TABLE_SCHEM' => $_[1],'UK_TABLE_NAME ' => $_[2]
 	   ,'FK_TABLE_SCHEM' => $_[4],'FK_TABLE_NAME ' => $_[5] };
-	my $Sql = <<'SQL';  # XXX: DEFERABILITY
+	my $SQL = <<'SQL';  # XXX: DEFERABILITY
 SELECT *
   FROM
 (
@@ -498,12 +506,12 @@ SQL
 	my @BindVals = ();
 	while ( my ( $k, $v ) = each %$attr ) {
 	    if ( $v ) {
-		$Sql .= "   AND $k = ?\n";
+		$SQL .= "   AND $k = ?\n";
 		push @BindVals, $v;
 	    }
 	}
-	$Sql .= " ORDER BY UK_TABLE_SCHEM, UK_TABLE_NAME, FK_TABLE_SCHEM, FK_TABLE_NAME, ORDINAL_POSITION\n";
-	my $sth = $dbh->prepare( $Sql ) or return undef;
+	$SQL .= " ORDER BY UK_TABLE_SCHEM, UK_TABLE_NAME, FK_TABLE_SCHEM, FK_TABLE_NAME, ORDINAL_POSITION\n";
+	my $sth = $dbh->prepare( $SQL ) or return undef;
 	$sth->execute( @BindVals ) or return undef;
 	$sth;
     }
@@ -524,7 +532,7 @@ ELSE
 SQL
 	    $typecaseend = 'END';
 	}
-	my $Sql = <<"SQL";
+	my $SQL = <<"SQL";
 SELECT *
   FROM
 (
@@ -641,12 +649,12 @@ SQL
 	my @BindVals = ();
 	while ( my ( $k, $v ) = each %$attr ) {
 	    if ( $v ) {
-		$Sql .= "   AND $k LIKE ? ESCAPE '\\'\n";
+		$SQL .= "   AND $k LIKE ? ESCAPE '\\'\n";
 		push @BindVals, $v;
 	    }
 	}
-	$Sql .= " ORDER BY TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION\n";
-	my $sth = $dbh->prepare( $Sql ) or return undef;
+	$SQL .= " ORDER BY TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION\n";
+	my $sth = $dbh->prepare( $SQL ) or return undef;
 	$sth->execute( @BindVals ) or return undef;
 	$sth;
     }
@@ -854,6 +862,29 @@ SQL
 
 {   package DBD::Oracle::st; # ====== STATEMENT ======
 
+
+   sub bind_param_inout_array {
+	my $sth = shift;
+	my ($p_id, $value_array,$maxlen, $attr) = @_;
+	return $sth->set_err($DBI::stderr, "Value for parameter $p_id must be an arrayref, not a ".ref($value_array))
+	   if defined $value_array and ref $value_array and ref $value_array ne 'ARRAY';
+	   
+	return $sth->set_err($DBI::stderr, "Can't use named placeholder '$p_id' for non-driver supported bind_param_inout_array")
+	   unless DBI::looks_like_number($p_id); # because we rely on execute(@ary) here
+	   
+	return $sth->set_err($DBI::stderr, "Placeholder '$p_id' is out of range")
+	   if $p_id <= 0; # can't easily/reliably test for too big
+	   
+	# get/create arrayref to hold params
+	my $hash_of_arrays = $sth->{ParamArrays} ||= { };
+	   
+        $$hash_of_arrays{$p_id} = $value_array;
+	return ora_bind_param_inout_array($sth, $p_id, $value_array,$maxlen, $attr);
+	1;
+
+    }
+    
+    
     sub execute_for_fetch {
        my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
        my $row_count = 0;
@@ -861,7 +892,6 @@ SQL
        my $tuple_batch_status;
        my $dbh = $sth->{Database};
        my $batch_size =($dbh->{'ora_array_chunk_size'}||= 1000);
-        
        if(defined($tuple_status)) {
            @$tuple_status = ();
            $tuple_batch_status = [ ];
@@ -906,7 +936,7 @@ SQL
                  ora_placeholders	=> undef,
                  ora_auto_lob		=> undef,
                  ora_check_sql		=> undef
-                 };
+                };
     }
    
 }
@@ -1084,21 +1114,21 @@ connections over tnslistener on the same humble Netra 1 take an average
 of 10-20 milli seconds according to tnsping. If anyone knows how to
 make it better, please let me know!
 
- LISTENER =
-  (ADDRESS_LIST =
+  LISTENER =
+   (ADDRESS_LIST =
     (ADDRESS =
       (PROTOCOL = TCP)
       (Host = aa.bbb.cc.d)
       (Port = 1521)
       (QUEUESIZE=10)
     )
-  )
+   )
 
- STARTUP_WAIT_TIME_LISTENER = 0
- CONNECT_TIMEOUT_LISTENER = 10
- TRACE_LEVEL_LISTENER = OFF
- SID_LIST_LISTENER =
-  (SID_LIST =
+  STARTUP_WAIT_TIME_LISTENER = 0
+  CONNECT_TIMEOUT_LISTENER = 10
+  TRACE_LEVEL_LISTENER = OFF
+  SID_LIST_LISTENER =
+   (SID_LIST =
     (SID_DESC =
       (SID_NAME = xxxx)
       (ORACLE_HOME = /xxx/local/oracle7-3)
@@ -1106,8 +1136,8 @@ make it better, please let me know!
         (PRESPAWN_LIST=
         (PRESPAWN_DESC=(PROTOCOL=tcp) (POOL_SIZE=40) (TIMEOUT=120))
       )
-    )
-  )
+     )
+   )
 
 1) When the application is co-located on the host AND there is no need for
 outside SQLNet connectivity, stop the listener. You do not need it. Get
@@ -1158,20 +1188,23 @@ If it generates any errors which look relevant then please talk to your
 Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
 
-
 =head2 Constants
+
+=over 4
 
 =item :ora_session_modes
 
-  ORA_SYSDBA ORA_SYSOPER
+ORA_SYSDBA ORA_SYSOPER
 
 =item :ora_types
 
-  ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
-  ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
-  ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
-  SQLT_INT SQLT_FLT
- 
+  ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE ORA_RAW
+  ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_XMLTYPE ORA_CLOB ORA_BLOB 
+  ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE SQLT_INT SQLT_FLT ORA_OCI 
+  SQLT_CHR SQLT_BIN  
+
+=over 4
+
 =item SQLCS_IMPLICIT
 
 =item SQLCS_NCHAR
@@ -1186,7 +1219,6 @@ See notes about Unicode elsewhere in this document.
 These types are used only internally, and may be specified as internal
 bind type for ORA_NUMBER_TABLE. See notes about ORA_NUMBER_TABLE elsewhere
 in this document
-
 
 =item ORA_OCI
 
@@ -1207,6 +1239,18 @@ The contents and format of ORA_OCI are subject to change (it may,
 for example, become a I<version object> in later releases).
 I recommend that you avoid checking for exact values.
 
+=back
+
+=item :ora_fetch_orient
+
+  OCI_FETCH_CURRENT OCI_FETCH_NEXT OCI_FETCH_FIRST OCI_FETCH_LAST
+  OCI_FETCH_PRIOR OCI_FETCH_ABSOLUTE OCI_FETCH_RELATIVE 
+
+These constants are used to set the orientaion of a fetch on a scrollable cursor.
+
+=item :ora_exe_modes
+
+  OCI_STMT_SCROLLABLE_READONLY 
 
 =head2 Connect Attributes
 
@@ -1277,12 +1321,12 @@ argument to DBI::connect.
 
 For example, if in ProC a connection is made like
 
-    EXEC SQL CONNECT 'user/pass@db' AT 'CONID';
+  EXEC SQL CONNECT 'user/pass@db' AT 'CONID';
 
 the connection may be used from DBI after running something like
 
-    my $dbh = DBI->connect("dbi:Oracle:CONID", "", "",
-                           { ora_use_proc_connection => 1 });
+  my $dbh = DBI->connect("dbi:Oracle:CONID", "", "",
+                        { ora_use_proc_connection => 1 });
 
 To disconnect, first call $dbh->disconnect(), then disconnect in ProC.
 
@@ -1317,13 +1361,9 @@ These attributes override the settings from environment variables.
   $dbh = DBI->connect ($dsn, $user, $passwd,
                        {ora_charset => 'AL32UTF8'});
 
-=back
-
 =head2 Database Handle Attributes
 
-=over 4
-
-=item C<ora_ph_type>
+=item ora_ph_type
 
 The default placeholder data type for the database session.
 The C<TYPE> or L</ora_type> attributes to L<DBI/bind_param> and
@@ -1358,14 +1398,12 @@ For example:
 
   use DBD::Oracle qw(:ora_types);
   
-  $sql="select username from all_users where username = ?";
+  $SQL="select username from all_users where username = ?";
   #username is a char(8)
-   
-  $sth=$dbh->prepare($sql)";
-   
+  $sth=$dbh->prepare($SQL)";
   $sth->bind_param(1,'bloggs',{ ora_type => ORA_CHAR});
-   
-Will pad bloggs out to 8 chracters and return the username.  
+
+Will pad bloggs out to 8 characters and return the username.  
 
 =back
 
@@ -1425,12 +1463,35 @@ See L</Handling LOBs> for more details.
 See also the LOB tests in 05dbi.t of Oracle::OCI for examples
 of how to use LOB Locators.
 
+=item ora_pers_lob
+
+If 1 and your DBD::Oracle was built using OCI 10.2 or later the L<Data Interface for Persistent LOBs> will be
+used for LOBs.
+
 =item ora_check_sql
 
 If 1 (default), force SELECT statements to be described in prepare().
 If 0, allow SELECT statements to defer describe until execute().
 
 See L</Prepare postponed till execute> for more information.
+
+=item ora_exe_mode
+
+This will set the execute mode of the current statement. Presently only one mode is supported;
+
+  OCI_STMT_SCROLLABLE_READONLY - make result set scrollable
+
+See L</Scrollable Cursors> for more details.
+
+=item ora_prefetch_memory
+
+Sets the memory level for top level rows to be prefetched. Rows up to the specified top level row 
+count C<RowCacheSize> are fetched if it occupies no more than the specified memory usage limit. The default value is 0, 
+which means that memory size is not included in computing the number of rows to prefetch. If
+the C<RowCacheSize> value is set to 0 or a negative number when using this value then only 
+the memory value entered is used to compute the number of rows to prefetch.
+
+See L</Prefetching Rows> for more details.
 
 =back
 
@@ -1455,17 +1516,25 @@ Constants for the Oracle datatypes may be imported using
 Potentially useful values when DBD::Oracle was built using OCI 7 and later:
 
   ORA_VARCHAR2, ORA_STRING, ORA_LONG, ORA_RAW, ORA_LONGRAW,
-  ORA_CHAR, ORA_MLSLABEL, ORA_RSET
+  ORA_CHAR, ORA_MLSLABEL, ORA_RSET   
 
 Additional values when DBD::Oracle was built using OCI 8 and later:
 
-  ORA_CLOB, ORA_BLOB, ORA_NTY, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE
+  ORA_CLOB, ORA_BLOB, ORA_XMLTYPE, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE
+
+Additional values when DBD::Oracle was built using OCI 10.2 and later:
+
+  SQLT_CHR, SQLT_BIN 
+
+See L</Data Interface for Persistent LOBs> for how to use these two values.
 
 See L</Binding Cursors> for the correct way to use ORA_RSET.
 
 See L</Handling LOBs> for how to use ORA_CLOB and ORA_BLOB.
 
 See L</SYS.DBMS_SQL datatypes> for ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE.
+
+See L</Data Interface for Persistent LOBs> for the correct way to use SQLT_CHR and SQLT_BIN.
 
 See L</Other Data Types> for more information.
 
@@ -1530,7 +1599,7 @@ Oracle Clients that use OCI 9.2 do not strip trailing spaces.
 =head2 Padded Char Fields
 
 Oracle Clients after OCI 9.2 will automatically pad CHAR placeholder values to the size of the CHAR.
-As the default placeholder type value in DBD::Oracle is ORA_VARCHAR2 to access this behavior you will 
+As the default placeholder type value in DBD::Oracle is ORA_VARCHAR2 to access this behaviour you will 
 have to change the default placeholder type with L</ora_ph_type> or placeholder 
 type for a particular call with L<DBI/bind> or L<DBI/bind_param_inout>
 with L</ORA_CHAR> or C<ORA_CHARZ>.
@@ -1596,7 +1665,7 @@ See L</table_info()> for more detailed information.
 
 =head2 C<foreign_key_info()>
 
-This method (currently) supports the extended behavior of SQL/CLI, i.e. the
+This method (currently) supports the extended behaviour of SQL/CLI, i.e. the
 result set contains foreign keys that refer to primary B<and> alternate keys.
 The field UNIQUE_OR_PRIMARY distinguishes these keys.
 
@@ -1667,15 +1736,15 @@ many misconceptions about Unicode and you may be holding some of them.
 
 Perl began implementing Unicode with version 5.6, but the implementation
 did not mature until version 5.8 and later. If you plan to use Unicode
-you are I<strongly> urged to use perl 5.8.2 or later and to I<carefully> read
-the perl documentaion on Unicode:
+you are I<strongly> urged to use Perl 5.8.2 or later and to I<carefully> read
+the Perl documentation on Unicode:
 
-   perldoc perluniintro    # in perl 5.8 or later
+   perldoc perluniintro    # in Perl 5.8 or later
    perldoc perlunicode
 
 And then read it again.
 
-Perl's internal unicode format is UTF-8
+Perl's internal Unicode format is UTF-8
 which corresponds to the Oracle character set called AL32UTF8.
 
 =head2 Oracle and Unicode
@@ -1701,7 +1770,8 @@ The default for the database character set is often US7ASCII.
 Although many experienced DBAs will consider an 8bit character set like
 WE8ISO8859P1 or WE8MSWIN1252.  To use any character set with Oracle
 other than US7ASCII, requires that the NLS_LANG environment variable be set.
-See the L<"International NLS / 8-bit text issues"> section below.
+See the L<"Oracle UTF8 is not UTF-8"> section below.
+
 
 You are strongly urged to read the Oracle Internationalization documentation
 specifically with respect the choices and trade offs for creating
@@ -1771,8 +1841,8 @@ until you upgrade.
 =head2 DBD::Oracle and Unicode
 
 DBD::Oracle Unicode support has been implemented for Oracle versions 9
-or greater, and perl version 5.6 or greater (though we I<strongly>
-suggest that you use perl 5.8.2 or later).
+or greater, and Perl version 5.6 or greater (though we I<strongly>
+suggest that you use Perl 5.8.2 or later).
 
 You can check which Oracle version your DBD::Oracle was built with by
 importing the C<ORA_OCI> constant from DBD::Oracle.
@@ -1780,18 +1850,18 @@ importing the C<ORA_OCI> constant from DBD::Oracle.
 B<Fetching Data>
 
 Any data returned from Oracle to DBD::Oracle in the AL32UTF8
-character set will be marked as UTF-8 to ensure correct handling by perl.
+character set will be marked as UTF-8 to ensure correct handling by Perl.
 
 For Oracle to return data in the AL32UTF8 character set the
 NLS_LANG or NLS_NCHAR environment variable I<must> be set as described
 in the previous section.
 
 When fetching NCHAR, NVARCHAR, or NCLOB data from Oracle, DBD::Oracle
-will set the perl UTF-8 flag on the returned data if either NLS_NCHAR
+will set the Perl UTF-8 flag on the returned data if either NLS_NCHAR
 is AL32UTF8, or NLS_NCHAR is not set and NLS_LANG is AL32UTF8.
 
 When fetching other character data from Oracle, DBD::Oracle
-will set the perl UTF-8 flag on the returned data if NLS_LANG is AL32UTF8.
+will set the Perl UTF-8 flag on the returned data if NLS_LANG is AL32UTF8.
 
 B<Sending Data using Placeholders>
 
@@ -1922,7 +1992,7 @@ The usage example is here:
     $sth=$dbh->prepare( $statement );
     
     if( ! defined($sth) ){
-            die "Prapare error: ",$dbh->errstr,"\n";
+            die "Prepare error: ",$dbh->errstr,"\n";
     }
     
     @arr=( 1,"2E0","3.5" );
@@ -1983,7 +2053,7 @@ them as strings and Oracle converts them to the appropriate type,
 such as DATE, when used.
 
 Some of these automatic conversions to and from strings use NLS
-settings to control the formating for output and the parsing for
+settings to control the formatting for output and the parsing for
 input. The most common example is the DATE type. The default NLS
 format for DATE might be DD-MON-YYYY and so when a DATE type is
 fetched that's how Oracle will format the date. NLS settings also
@@ -2199,7 +2269,7 @@ Most of these PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
   #
   # Note that the third parameter to bind_param_inout is the maximum size
   # of the variable. You normally make this slightly larger than necessary.
-  # But note that the perl variable will have that much memory assigned to
+  # But note that the Perl variable will have that much memory assigned to
   # it even if the actual value returned is shorter.
 
   my $test_num = 5;
@@ -2250,6 +2320,18 @@ Oracle 9.2 appears to have a bug where a variable bound
 with bind_param_inout() that isn't assigned to by the executed
 PL/SQL block may contain garbage.
 See L<http://www.mail-archive.com/dbi-users@perl.org/msg18835.html>
+
+=head2 Avoid Using "SQL Call"
+
+Avoid using the "SQL Call" statement with DBD:Oracle as you might find that
+DBD::Oracle will not raise an exception in some case.  Specifically if you use
+"SQL Call" to run a procedure all "No data found" exceptions will be quietly 
+ignored and returned as null. According to Oracle support this is part of the same
+mechanism where;
+
+  select (select * from dual where 0=1) from dual
+  
+returns a null value rather than an exception.
 
 =head1 Private database handle functions
 
@@ -2307,7 +2389,7 @@ Example 1:
   # Put text in the buffer . . .
   $dbh->func( @text, 'dbms_output_put' );
 
-  # . . . and retreive it later
+  # . . . and retrieve it later
   @text = $dbh->func( 'dbms_output_get' );
 
 Example 2:
@@ -2322,7 +2404,7 @@ Example 2:
   });
   $sth->execute;
 
-  # retreive the string
+  # retrieve the string
   $date_string = $dbh->func( 'dbms_output_get' );
 
 
@@ -2393,7 +2475,6 @@ $refresh parameter to it.
 
 =back
 
-
 =head1 Prepare postponed till execute
 
 The DBD::Oracle module can avoid an explicit 'describe' operation
@@ -2410,13 +2491,429 @@ I<an exception is thrown> even if C<RaiseError> is false!
 
 Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
 
+
+=head1 Scrollable Cursors
+
+Oracle supports the concept of a 'Scrollable Cursor' which is defined as a 'Result Set' where
+the rows can be fetched either sequentially or non-sequentially. One can fetch rows forward, 
+backwards, from any given position or the n-th row from the current position in the result set.
+
+Rows are numbered sequentially starting at one and client-side caching of the partial or entire result set
+can improve performance by limiting round trips to the server.
+
+Oracle does not support DML type operations with scrollable cursors so you are limited
+to simple 'Select' operations only. As well you can not use this functionality with remote 
+mapped queries or if the LONG datatype is part of the select list. 
+
+However, LOBSs, CLOBSs, and BLOBs do work as do all the regular bind, and fetch methods.  
+
+Only use scrollable cursors if you really have a good reason to. They do use up considerable 
+more server and client resources and have poorer response times than non-scrolling cursors.
+
+
+=head2 Enabling Scrollable Cursors
+
+To enable this functionality you must first import the 'Fetch Orientation' and the 'Execution Mode' constants by using;
+
+   use DBD::Oracle qw(:ora_fetch_orient :ora_exe_modes);
+  
+Next you will have to tell DBD::Oracle that you will be using scrolling by setting the ora_exe_mode attribute on the
+statement handle to 'OCI_STMT_SCROLLABLE_READONLY' with the prepare method;
+
+  $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY});
+
+When the statement is executed you will then be able to use 'ora_fetch_scroll' method to get a row
+or you can still use any of the other fetch methods but with a poorer response time than if you used a 
+non-scrolling cursor. As well scrollable cursors are compatible with any applicable bind methods.
+
+
+=head2 Scrollable Cursor Methods
+
+The following driver-specific methods are used with scrollable cursors.
+
+=item ora_scroll_position
+
+  $position =  $sth->ora_scroll_position();
+      
+This method returns the current position (row number) attribute of the result set. Prior to the first fetch this value is 0. This is the only time
+this value will be 0 after the first fetch the value will be set, so you can use this value to test if any rows have been fetched.
+The minimum value will always be 1 after the first fetch. The maximum value will always be the total number of rows in the record set. 
+
+=item ora_fetch_scroll
+
+  @ary =  $sth->ora_fetch_scroll($fetch_orient,$fetch_offset);
+
+Works the same as fetchrow_array method however, one passes in a 'Fetch Orientation' constant and a fetch_offset 
+value which will then determine the row that will be fetched. It returns the row as a list containing the field values. 
+Null fields are returned as undef values in the list.
+
+The valid orientation constant and fetch offest values combination are detailed below 
+
+  OCI_FETCH_CURRENT, fetches the current row, the fetch offset value is ignored.
+  OCI_FETCH_NEXT, fetches the next row from the current position, the fetch offset value is ignored.
+  OCI_FETCH_FIRST, fetches the first row, the fetch offset value is ignored.
+  OCI_FETCH_LAST, fetches the last row, the fetch offset value is ignored.
+  OCI_FETCH_PRIOR, fetches the previous row from the current position, the fetch offset value is ignored.
+  OCI_FETCH_ABSOLUTE, fetches the row that is specified by the fetch offset value.
+  OCI_FETCH_RELATIVE, fetches the row relative from the current position as specified by the fetch offset value.
+
+  OCI_FETCH_ABSOLUTE, and a fetch offset value of 1 is equivalent to a OCI_FETCH_FIRST.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value of 0 is equivalent to a OCI_FETCH_CURRENT.
+
+  OCI_FETCH_RELATIVE, and a fetch offset value of 0 is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value of 1 is equivalent to a OCI_FETCH_NEXT.
+  OCI_FETCH_RELATIVE, and a fetch offset value of -1 is equivalent to a OCI_FETCH_PRIOR.
+
+The effect that a ora_fetch_scroll method call has on the current_positon attribute is detailed below.
+
+  OCI_FETCH_CURRENT, has no effect on the current_positon attribute.
+  OCI_FETCH_NEXT, increments current_positon attribute by 1
+  OCI_FETCH_NEXT, when at the last row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT 
+  OCI_FETCH_FIRST, sets the current_positon attribute to 1.
+  OCI_FETCH_LAST, sets the current_positon attribute to the total number of rows in the record set.
+  OCI_FETCH_PRIOR, decrements current_positon attribute by 1.
+  OCI_FETCH_PRIOR, when at the first row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, sets the current_positon attribute to the fetch offest value.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set, does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, sets the current_positon attribute to (current_positon attribute + fetch offset value).
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes the current position less than 1, does not change fetch offest value so it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, does not change fetch offest value so it is equivalent to a OCI_FETCH_CURRENT.
+
+The effects of the differing orientation constants on the first fetch (current_postion attribute at 0) are as follows.
+
+  OCI_FETCH_CURRENT, dose not fetch a row or change the current_positon attribute.
+  OCI_FETCH_FIRST, fetches row 1 and sets the current_positon attribute to 1.
+  OCI_FETCH_LAST, fetches the last row in the record set and sets the current_positon attribute to the total number of rows in the record set.
+  OCI_FETCH_NEXT, equivalent to a OCI_FETCH_FIRST.
+  OCI_FETCH_PRIOR, equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that is less than 1 is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, is equivalent to a OCI_FETCH_CURRENT.
+
+=head2 Scrollable Cursor Usage
+
+Given a simple code like this:
+
+  use DBI;
+  use DBD::Oracle qw(:ora_types :ora_fetch_orient :ora_exe_modes);
+  my $dbh = DBI->connect($dsn, $dbuser, '');
+  my $SQL = "select id,
+                     first_name,
+                     last_name
+                from employee";
+  my $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY});
+  $sth->execute();
+  my $value;
+
+and one assumes that the number of rows returned from the query is 20, the code snippets below will illustrate the use of ora_fetch_scroll
+method;
+
+=item Fetching the Last Row
+
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_LAST,0);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute to will be 20 after this snippet.  This is also a way to get the number of rows in the record set, however,
+if the record set is large this could take some time. 
+
+=item Fetching the Current Row
+
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_CURRENT,0);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute will still be 20 after this snippet.
+
+=item Fetching the First Row
+
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_FIRST,0);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute will be 1 after this snippet.
+
+=item Fetching the Next Row
+
+  for(my $i=0;$i<=3;$i++){
+     $value =  $sth->ora_fetch_scroll(OCI_FETCH_NEXT,0);
+     print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  }
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute will be 5 after this snippet.
+
+=item Fetching the Prior Row
+
+  for(my $i=0;$i<=3;$i++){
+     $value =  $sth->ora_fetch_scroll(OCI_FETCH_PRIOR,0);
+     print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  }
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute will be 1 after this snippet.
+
+=item Fetching the 10th Row
+
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,10);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute will be 10 after this snippet.
+
+=item Fetching the 10th to 14th Row
+
+  for(my $i=10;$i<15;$i++){
+      $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,$i);
+      print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  }
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute will be 14 after this snippet.
+
+=item Fetching the 14th to 10th Row
+
+  for(my $i=14;$i>9;$i--){
+    $value =  $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE,$i);
+    print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  }
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute will be 10 after this snippet.
+
+=item Fetching the 5th Row From the Present Position.
+
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,5);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute will be 15 after this snippet.
+
+=item Fetching the 9th Row Prior From the Present Position
+
+  $value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,-9);
+  print "id=".$value->[0].", First Name=".$value->[1].", Last Name=".$value->[2]."\n";
+  print "current scroll position=".$sth->ora_scroll_position()."\n";
+
+The current_positon attribute will be 6 after this snippet.   
+
+=item Use Finish
+
+  $sth->finish();
+
+When using scrollable cursors it is required that you use the $sth->finish() method when you are done with the cursor as this type of
+cursor has to be explicitly cancelled on the server. If you do not do this you may cause resource problems on your database.  
+
+=head2 Prefetching Rows
+
+One can override the DBD::Oracle's default pre-fetch values by using the DBI database handle attribute C<RowCacheSize> and or the 
+Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improved performance. 
+
+   $dbh->{RowCacheSize} = 10;
+   $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>10000});
+   
+In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle® Call Interface Programmer's Guide,
+suggests a good row cache value for a scrollable cursor is about 20% of expected size of the record set. 
+
+The prefetch settings tell the DBD::Oracle to grab x rows (or x-bytes) when it needs to get new rows. This happens on the first 
+fetch that sets the current_positon to any value other than 0. In the above example if we do a OCI_FETCH_FIRST the first 10 rows are
+loaded into the buffer and DBD::Oracle will not have to go back to the server for more rows. When record 11 is fetched DBD::Oracle
+fetches and returns this row and the next 9 rows are loaded into the buffer. In this case if you fetch backwards from 10 to 1 
+no server round trips are made.
+
+With large record sets it is best not to attempt to go to the last record as this may take some time, A large buffer size might even slow down
+the fetch. If you must get the number of rows in a large record set you might try using an few large OCI_FETCH_ABSOLUTEs and then an OCI_FETCH_LAST,
+this might save some time. So if you had a record set of 10000 rows and you set the buffer to 5000 and did a OCI_FETCH_LAST one would fetch the first 5000 rows into the buffer then the next 5000 rows.  
+If one requires only the first few rows there is no need to set a large prefetch value.  
+
+If the ora_prefetch_memory less than 1 or not present then memory size is not included in computing the 
+number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
+is not included in the computing of the prefetch rows.  
+
+=head1 Data Interface for Persistent LOBs
+
+Oracle 10.2 and later extended the OCI API to work directly with LOB datatypes. In other words you can treat all LOB type data as if it was
+a LONG, LONG RAW, or VARCHAR2. So you can perform INSERT, UPDATE, fetch, bind, and define operations on LOBs using the same techniques 
+you would use on other datatypes that store character or binary data. There are fewer round trips to the server as no 'LOB Locators' are
+used, normally one can get an entire LOB is a single round trip. The data interface is suppose to supports LOBs of any size less than 2GB,
+however it seems there is an practical limit of about 15mb.
+
+=head2 Simple Usage
+
+No special methods are needed to use this interface. To do a select statement all that is required import the 'ora_types' constants with;
+  
+  use DBD::Oracle qw(:ora_types);
+  
+and ensure the set statement handle's prepare method 'ora_pers_lob' attribute is set to '1' and the database 
+handle's 'LongReadLen' attribute is set to a value that will exceed the expected size of the LOB. If the size of the lob exceeds this then DBD::Oracle
+will return a 'ORA-24345: A Truncation' error.  To stop this set the handle's 'LongTruncOk' attribute to '1'.
+
+For example give this table;
+
+  CREATE TABLE test_lob (id NUMBER,
+               clob1 CLOB, 
+               clob2 CLOB, 
+               blob1 BLOB, 
+               blob2 BLOB)
+
+this code;
+
+  $dbh->{LongReadLen} = 2*1024*1024; #2 meg
+  $SQL='select p_id,lob_1,lob_2,blob_2 from test_lobs';
+  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1});
+  $sth->execute();
+  while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
+    print "p_id=".$p_id."\n";
+    print "clob1=".$clob1."\n";
+    print "clob2=".$clob2."\n";
+    print "blob1=".$blob2."\n";
+    print "blob2=".$blob2."\n";
+  }
+
+Will select out all of the LOBs in the table as long as they are all under 2MB in length.  Longer lobs will throw a error. Adding this line;
+
+  $dbh->{LongTruncOk}=0;
+  
+before the execute will return all the lobs but they will only be a maximum of 2MB in size.
+
+=head2 Binding for Updates and Inserts
+
+To bind for updates and inserts all that is required to use this interface is to set the statement handle's prepare method 
+'ora_type' attribute to 'SQLT_CHR' in the case of CLOBs and NCLOBs or 'SQLT_BIN' in the case of BLOBs as in this example for an insert;
+
+  my $in_clob = "<document>\n";
+  $in_clob .= "  <value>$_</value>\n" for 1 .. 10_000;
+  $in_clob .= "</document>\n";
+  my $in_blob ="0101" for 1 .. 10_000;
+
+  $SQL='insert into test_lob3@tpgtest (id,clob1,clob2, blob1,blob2) values(?,?,?,?,?)';
+  $sth=$dbh->prepare($SQL );
+  $sth->bind_param(1,3);
+  $sth->bind_param(2,$in_clob,{ora_type=>SQLT_CHR});
+  $sth->bind_param(3,$in_clob,{ora_type=>SQLT_CHR});
+  $sth->bind_param(4,$in_blob,{ora_type=>SQLT_BIN});
+  $sth->bind_param(5,$in_blob,{ora_type=>SQLT_BIN});
+  $sth->execute();
+  
+So far the only limit reached with this form of insert is the BLOBs must be under 2GB in size.
+
+=head2 Support for Remote LOBs;
+
+The data interface for Persistent LOBs also supports remote LOBs (access over a dblink). Given a database called 'lob_test' that has a 'LINK' defined like this;
+
+  CREATE DATABASE LINK link_test CONNECT TO test_lobs IDENTIFIED BY tester USING 'lob_test';
+  
+to a remote database called 'test_lobs', the following code will work;
+
+  $dbh = DBI->connect('dbi:Oracle:','test@lob_test','test');
+  $dbh->{LongReadLen} = 2*1024*1024; #2 meg
+  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1});
+  $SQL='select p_id,lob_1,lob_2,blob_2 from test_lobs@link_test';
+  $sth=$dbh->prepare($SQL,{ora_pers_lob=>1,ora_check_sql=>0});
+  $sth->execute();
+  while (my ( $p_id,$log,$log2,$log3,$log4 )=$sth->fetchrow()){
+     print "p_id=".$p_id."\n";
+     print "clob1=".$clob1."\n";
+     print "clob2=".$clob2."\n";
+     print "blob1=".$blob2."\n";
+     print "blob2=".$blob2."\n";
+  }
+  
+Below are the limitations of Remote LOBs;
+
+=item Queries involving more than one database are not supported;
+
+so the following returns an error:
+
+  SELECT t1.lobcol, 
+  	 a2.lobcol 
+    FROM t1, 
+         t2.lobcol@dbs2 a2 W
+   WHERE LENGTH(t1.lobcol) = LENGTH(a2.lobcol);
+  
+as does:
+
+     SELECT t1.lobcol 
+       FROM t1@dbs1
+  UNION ALL
+     SELECT t2.lobcol 
+       FROM t2@dbs2;
+
+=item DDL commands are not supported;
+
+so the following returns an error:
+
+  CREATE VIEW v AS SELECT lob_col FROM tab@dbs;  
+
+=item Only binds and defines for data going into remote persistent LOBs are supported. 
+
+so that parameter passing in PL/SQL where CHAR data is bound or defined for remote LOBs is not allowed . 
+
+These statements all produce errors:
+
+  SELECT foo() FROM table1@dbs2;
+  
+  SELECT foo()@dbs INTO char_val FROM DUAL;
+  
+  SELECT XMLType().getclobval FROM table1@dbs2;
+
+=item If the remote object is a view such as
+
+  CREATE VIEW v AS SELECT foo() FROM ...
+
+the following would not work:
+
+  SELECT * FROM v@dbs2;
+
+=item Limited PL/SQL parameter passing
+
+PL/SQL parameter passing is not allowed where the actual argument is a LOB type
+and the remote argument is one of VARCHAR2, NVARCHAR2, CHAR, NCHAR, or RAW.
+
+=item RETURNING INTO does not support implicit conversions between CHAR and CLOB.
+
+so the following returns an error:
+
+  SELECT t1.lobcol as test, a2.lobcol FROM t1, t2.lobcol@dbs2 a2 RETURNING test
+
+=back
+
+=head2 Caveats
+
+So far this is relatively new technology and this is a first attempt to incorporate it into DBD::ORCALE so 
+please report any problems you may have with it.
+
+If you are doing some critical programming I would use the regular LOB functions as they are well tried.
+
+Not all of the interface has been implemented yet, the following are not supported;
+
+  1) Piecewise, and callback binds for INSERT and UPDATE operations.
+  2) Array binds for INSERT and UPDATE operations.
+  3) Piecewise and callback binds for SELECT operation.
+
+
 =head1 Handling LOBs
 
 =head2 Simple Usage
 
 The value of an Oracle LOB column is not the content of the LOB. It's a
 'LOB Locator' which, after being selected or inserted needs extra
-processing to read or write the content of the LOB.
+processing to read or write the content of the LOB. This being said if your 
+LOB column is a NULL LOB then the locator is null and there is no locator for
+DBD::Oracle to work with and it will return a 
+
+  DBD::Oracle::db::ora_lob_read: locator is not of type OCILobLocatorPtr
+  
+error. 
+
+To correct for this you must use an SQL UPDATE statement to reset the 
+LOB column to a non-NULL (or empty) value with an SQL like this;
+
+  UPDATE lob_example 
+     SET bindata=EMPTY_BLOB()
+   WHERE bindata IS NULL.
 
 When fetching LOBs they are, by default, made to look just like LONGs and
 are subject to the LongReadLen and LongTruncOk attributes. Note that
@@ -2523,7 +3020,7 @@ handle are lost, the handle is destroyed and the locators are freed.
 
 B<Warning:> Currently multi-byte character set issues have not been
 fully worked out.  So these methods may not do what you expect if
-either the perl data is utf8 or the CLOB is a multi-byte character set
+either the Perl data is utf8 or the CLOB is a multi-byte character set
 (including uft8). The current behaviour in these situations may not be
 correct and is B<subject to change>. I<Testing and patches are most welcome.>
 
@@ -2597,10 +3094,10 @@ lob_id field values, defined as follows:
 
 Unless enough memory is available to store and bind the
 entire lob data for insert all at once, the lob columns must
-be written iteratively, piece by piece.  In the case of a new row,
+be written interactively, piece by piece.  In the case of a new row,
 this is performed by first inserting a row, with empty values in
 the lob columns, then modifying the row by writing the large data
-iteratively to the lob columns using their LOB locators as handles.
+interactively to the lob columns using their LOB locators as handles.
 
 The insert statement must create token values in the lob
 columns.  Here, we use the empty string for both the binary
@@ -2659,7 +3156,7 @@ can't be used effectively if AutoCommit is enabled).
 
 
 In this example we demonstrate the use of ora_lob_write()
-iteratively to append data to the columns 'bin_data' and
+interactively to append data to the columns 'bin_data' and
 'char_data'.  Had we used ora_lob_append(), we could have
 saved ourselves the trouble of keeping track of the offset
 into the lobs.  The snippet of code beneath the comment
@@ -2928,6 +3425,34 @@ If you have many columns to bind you can use code like this:
   $sth->bind_param_inout(@params+1, \my $new_id, 99);
   $sth->execute;
 
+If you have many rows to insert you can take advantage of Oracle's built in execute array feature
+with code like this:
+
+  my @in_values=('1',2,'3','4',5,'6',7,'8',9,'10');
+  my @out_values;
+  my @status;
+  my $sth = $dbh->prepare(qq{
+        INSERT INTO foo (id, bar)
+        VALUES (foo_id_seq.nextval, ?)
+        RETURNING id INTO ?
+  });
+  $sth->bind_param_array(1,\@in_values);
+  $sth->bind_param_inout_array(2,\@out_values,0,{ora_type => ORA_VARCHAR2});
+  $sth->execute_array({ArrayTupleStatus=>\@status}) or die "error inserting";
+  foreach my $id (@out_values){
+	print 'returned id='.$id.'\n';
+  }
+	
+Which will return all the ids into @out_values. 
+
+Note: 
+
+1) This will only work for numbered placeholders,
+
+2) The third parameter of bind_param_inout_array "maxlen" is required by DBI but not used by DBD::Oracle
+
+3) The "ora_type" attribute is not needed but only ORA_VARCHAR2 will work.
+
 =head1 Returning A Recordset
 
 DBD::Oracle does not currently support binding a PL/SQL table (aka array)
@@ -3058,7 +3583,7 @@ that contains a tnsnames.ora file that points to the port that their
 listener is on.
 
 [Brad Howerter, who supplied this info said: "I've done this to simulate
-running a perl script at the end of the previous month even though it
+running a Perl script at the end of the previous month even though it
 was the 6th of the new month.  I had the dba start up a listener with
 TZ=X+144.  (144 hours = 6 days)"]
 
@@ -3121,8 +3646,8 @@ SQL TABLE;
 
 The following code will access all of the embedded data;
 
-   $sql='select grp_id,grp_name,students as my_students_test from groups';
-   $sth=$dbh->prepare($sql);
+   $SQL='select grp_id,grp_name,students as my_students_test from groups';
+   $sth=$dbh->prepare($SQL);
    $sth->execute();
    while (my ($grp_id,$grp_name,$students)=$sth->fetchrow()){
       print "Group ID#".$grp_id." Group Name =".$grp_name."\n";
@@ -3143,6 +3668,36 @@ So far DBD::Oracle has been tested on a table with 20 embedded Objects, Varrays 
 nested to 10 levels.
 
 Any NULL values found in the embedded object will be returned as 'undef'.
+
+=head1 Support for Insert of XMLType (ORA_XMLTYPE)
+
+Inserting large XML data sets into tables with XMLType fields is now supported by DBD::Oracle. The only special 
+requirement is the use of bind_param() with an attribute hash parameter that specifies ora_type as ORA_XMLTYPE. For
+example with a table like this;
+
+   create table books (book_id number, book_xml XMLType);
+
+one can insert data using this code
+
+   $SQL='insert into books values (1,:p_xml)';
+   $xml= '<Books>
+	  	<Book id=1>
+	  		<Title>Programming the Perl DBI</Title>
+	                <Subtitle>The Cheetah Book</Subtitle>
+	                <Authors>
+	                	<Author>T. Bunce</Author>
+	                	<Author>Alligator Descartes</Author>
+	                </Authors>
+	                
+	        </Book>
+	        <Book id=10000>...
+	    </Books>';
+   my $sth =$dbh-> prepare($SQL);
+   $sth-> bind_param("p_xml", $xml, { ora_type => ORA_XMLTYPE }); 
+   $sth-> execute();
+       
+In the above case we will assume that $xml has 10000 Book nodes and is over 32k in size and is well formed XML. 
+This will also work for XML that is smaller than 32k as well. Attempting to insert malformed XML will cause an error. 
 
 =head1 Oracle Related Links
 
@@ -3202,7 +3757,7 @@ See also L<DBI/ACKNOWLEDGEMENTS>.
 
 As of release 1.17 in February 2006 The Pythian Group, Inc. (L<http://www.pythian.com>)
 are taking the lead in maintaining DBD::Oracle with my assistance and
-gratitude. That frees more of my time to work on DBI for perl 5 and perl 6.
+gratitude. That frees more of my time to work on DBI for Perl 5 and Perl 6.
 
 =head1 COPYRIGHT
 
