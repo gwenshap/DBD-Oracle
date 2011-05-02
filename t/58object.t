@@ -5,26 +5,27 @@ use DBD::Oracle qw(ORA_RSET SQLCS_NCHAR);
 use strict;
 use Data::Dumper;
 
-use Test::More tests => 51;
+use Test::More;
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
 
 $| = 1;
-
-BEGIN {
-	use_ok('DBI');
-}
 
 $ENV{NLS_DATE_FORMAT} = 'YYYY-MM-DD"T"HH24:MI:SS';
 
 # create a database handle
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect($dsn, $dbuser, '',{ RaiseError=>1, 
+my $dbh;
+eval {$dbh = DBI->connect($dsn, $dbuser, '',{ RaiseError=>1,
 					AutoCommit=>1,
 					PrintError => 0,
-					 ora_objects => 1 });
-
+					 ora_objects => 1 })};
+if ($dbh) {
+    plan tests => 50;
+} else {
+    plan skip_all => "Unable to connect to Oracle";
+}
 my ($schema) = $dbuser =~ m{^([^/]*)};
 
 # Test ora_objects flag 
@@ -81,9 +82,9 @@ $dbh->do(qq{ INSERT INTO $table VALUES (1, $super_type(13, 'obj1')) })
             or die $dbh->errstr;
 $dbh->do(qq{ INSERT INTO $table VALUES (2, $sub_type(NULL, 'obj2', 
                     TO_DATE('2004-11-30 14:27:18', 'YYYY-MM-DD HH24:MI:SS'),
-                    12345.6789)) }
+                    '12345.6789')) }
             ) or die $dbh->errstr;
-$dbh->do(qq{ INSERT INTO $table VALUES (3, $sub_type(5, 'obj3', NULL, 777.666)) }
+$dbh->do(qq{ INSERT INTO $table VALUES (3, $sub_type(5, 'obj3', NULL, '777.666')) }
             ) or die $dbh->errstr;
 
 $dbh->do(qq{ CREATE OR REPLACE TYPE $inner_type AS OBJECT (

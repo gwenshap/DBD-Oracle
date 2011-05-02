@@ -174,7 +174,7 @@ sub db_handle
     my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
     my $dbh = DBI->connect($dsn, $dbuser, '', {
         AutoCommit => 1,
-        PrintError => 1,
+        PrintError => 0,
         ora_envhp  => 0, # force fresh environment (with current NLS env vars)
     });
     return $dbh;

@@ -46,7 +46,8 @@ $| = 1;
 my %opts = (
     NAME => 'DBD::Oracle',
     VERSION_FROM => 'Oracle.pm',
-    PREREQ_PM => { "Test::Simple" => 0.40 }, # actually Test::More pkg in T::S dist
+    PREREQ_PM => { "Test::Simple" => 0.90, # actually Test::More pkg in T::S dist
+                   "DBI"          => 1.51},
     EXE_FILES => [ "ora_explain$exe_ext" ],
     OBJECT => '$(O_FILES)',
     DEFINE => '',
@@ -58,16 +59,22 @@ my %opts = (
 	COMPRESS	=> 'gzip -v9', SUFFIX => 'gz',
     },
     META_MERGE => {
-       configure_requires => { DBI => '1.51' }
+       configure_requires => { "DBI" => '1.51' },
+       build_requires => {"DBI" => '1.51',
+                          "ExtUtils::MakeMaker" => 0}
     },
 );
-if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
+my $eumm = $ExtUtils::MakeMaker::VERSION;
+$eumm =~ tr/_//d;
+
+if ($eumm >= 5.43) {
     $opts{AUTHOR} = 'Tim Bunce (dbi-users@perl.org)';
     $opts{ABSTRACT_FROM} = 'Oracle.pm';
     $opts{PREREQ_PM} = { DBI => 1.51 };
     $opts{CAPI} = 'TRUE' if $Config{archname} =~ /-object\b/i;
 }
 
+$opts{LICENSE} = 'perl' if $eumm >= 6.3002;
 $opts{CCFLAGS} = "-P $Config{ccflags}" if $Config{cc} eq 'bcc32';  # force C++
 $opts{LINKTYPE} = 'static' if $Config{dlsrc} =~ /dl_none/;
 

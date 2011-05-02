@@ -19,10 +19,20 @@
 
 DBISTATE_DECLARE;
 
-int describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level );
+int describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level );
 int dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level);
 
 
+
+char *
+dbd_yes_no(int yes_no)
+{
+	dTHX;
+	if (yes_no) {
+		return "Yes";
+	}
+	return "No";
+}
 
 void
 dbd_init_oci(dbistate_t *dbistate)
@@ -40,6 +50,59 @@ dbd_init_oci_drh(imp_drh_t * imp_drh)
 	imp_drh->ora_cache	= perl_get_sv("Oraperl::ora_cache",	 GV_ADDMULTI);
 	imp_drh->ora_cache_o = perl_get_sv("Oraperl::ora_cache_o",	GV_ADDMULTI);
 
+}
+
+char *
+oci_sql_function_code_name(int sqlfncode)
+{
+	dTHX;
+	SV *sv;
+	switch (sqlfncode) {
+		case 1 :	return "CREATE TABLE";
+		case 3 :	return "INSERT";
+		case 4 :	return "SELECT";
+		case 5 :	return "UPDATE";
+		case 8 :	return "DROP TABLE";
+		case 9 :	return "DELETE";
+
+	}
+	sv = sv_2mortal(newSVpv("",0));
+	sv_grow(sv, 50);
+	sprintf(SvPVX(sv),"(UNKNOWN SQL FN Code %d)", sqlfncode);
+	return SvPVX(sv);
+}
+
+char *
+oci_ptype_name(int ptype)
+{
+	dTHX;
+	SV *sv;
+	switch (ptype) {
+		case OCI_PTYPE_UNK:			return "UNKNOWN";
+		case OCI_PTYPE_TABLE:		return "TABLE";
+		case OCI_PTYPE_VIEW:		return "VIEW";
+		case OCI_PTYPE_PROC:		return "PROCEDURE";
+		case OCI_PTYPE_FUNC:		return "FUNCTION";
+		case OCI_PTYPE_PKG:			return "PACKAGE";
+		case OCI_PTYPE_TYPE:		return "USER DEFINED TYPE";
+		case OCI_PTYPE_SYN:			return "SYNONYM";
+		case OCI_PTYPE_SEQ:			return "SEQUENCE";
+		case OCI_PTYPE_COL:			return "COLUMN";
+		case OCI_PTYPE_ARG:			return "ARGUMENT";
+		case OCI_PTYPE_LIST:		return "LIST";
+		case OCI_PTYPE_TYPE_ATTR:	return "USER-DEFINED TYPE'S ATTRIBUTE";
+		case OCI_PTYPE_TYPE_COLL:	return "COLLECTION TYPE'S ELEMENT";
+		case OCI_PTYPE_TYPE_METHOD:	return "USER-DEFINED TYPE'S METHOD";
+		case OCI_PTYPE_TYPE_ARG:	return "USER-DEFINED TYPE METHOD'S ARGUMENT";
+		case OCI_PTYPE_TYPE_RESULT:	return "USER-DEFINED TYPE METHOD'S RESULT";
+		case OCI_PTYPE_SCHEMA:		return "SCHEMA";
+		case OCI_PTYPE_DATABASE:		return "DATABASE";
+
+	}
+	sv = sv_2mortal(newSVpv("",0));
+	sv_grow(sv, 50);
+	sprintf(SvPVX(sv),"(UNKNOWN PTYPE Code %d)", ptype);
+	return SvPVX(sv);
 }
 
 char *
@@ -411,6 +474,31 @@ oci_attr_name(ub4 attr)
 	dTHX;
 	SV *sv;
 	switch (attr) {
+#ifdef ORA_OCI_102
+	case OCI_ATTR_MODULE:                    return "OCI_ATTR_MODULE";        /* module for tracing */
+	case OCI_ATTR_ACTION:                    return "OCI_ATTR_ACTION";        /* action for tracing */
+	case OCI_ATTR_CLIENT_INFO:               return "OCI_ATTR_CLIENT_INFO";               /* client info */
+	case OCI_ATTR_COLLECT_CALL_TIME:         return "OCI_ATTR_COLLECT_CALL_TIME";         /* collect call time */
+	case OCI_ATTR_CALL_TIME:                 return "OCI_ATTR_CALL_TIME";         /* extract call time */
+	case OCI_ATTR_ECONTEXT_ID:               return "OCI_ATTR_ECONTEXT_ID";      /* execution-id context */
+	case OCI_ATTR_ECONTEXT_SEQ:              return "OCI_ATTR_ECONTEXT_SEQ";  /*execution-id sequence num */
+
+
+	/*------------------------------ Session attributes -------------------------*/
+	case OCI_ATTR_SESSION_STATE:             return "OCI_ATTR_SESSION_STATE";             /* session state */
+
+	case OCI_ATTR_SESSION_STATETYPE:         return "OCI_ATTR_SESSION_STATETYPE";        /* session state type */
+	case OCI_SESSION_STATELESS_DEF: 		 return "OCI_SESSION_STATELESS_DEF";                    /* valid state types */
+
+	case OCI_ATTR_SESSION_STATE_CLEARED:     return "OCI_ATTR_SESSION_STATE_CLEARED";     /* session state cleared*/
+	case OCI_ATTR_SESSION_MIGRATED:          return "OCI_ATTR_SESSION_MIGRATED";       /* did session migrate*/
+	case OCI_ATTR_SESSION_PRESERVE_STATE:    return "OCI_ATTR_SESSION_PRESERVE_STATE";    /* preserve session state */
+#endif
+#ifdef ORA_OCI_112
+	case OCI_ATTR_DRIVER_NAME:               return "OCI_ATTR_DRIVER_NAME";               /* Driver Name */
+#endif
+	case OCI_ATTR_CLIENT_IDENTIFIER:         return "OCI_ATTR_CLIENT_IDENTIFIER";   /* value of client id to set*/
+
 	/*=============================Attribute Types===============================*/
 #ifdef ORA_OCI_112
     case OCI_ATTR_PURITY:				return "OCI_ATTR_PURITY"; /* for DRCP session purity */
@@ -877,9 +965,9 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	dTHX;
 	D_imp_dbh_from_sth;
 	sword status 		 = 0;
-	IV  ora_piece_size	= 0;
+	IV  ora_piece_size	 = 0;
 	IV  ora_pers_lob	 = 0;
-	IV  ora_piece_lob	= 0;
+	IV  ora_piece_lob	 = 0;
 	IV  ora_clbk_lob	 = 0;
 	ub4	oparse_lng		 = 1;  /* auto v6 or v7 as suits db connected to	*/
 	int ora_check_sql 	 = 1;	/* to force a describe to check SQL	*/
@@ -974,6 +1062,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCIStmtPrepare");
 		OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
+
 		return 0;
 	}
 
@@ -1457,8 +1546,10 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		OCIDescriptorAlloc_ok(imp_sth->envhp,
 				&phs->desc_h, phs->desc_t);
 	}
+
 	OCIAttrSet_log_stat(phs->desc_h, phs->desc_t,
 			&lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);
+
 	if (status != OCI_SUCCESS)
 		return oci_error(sth, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_LOBEMPTY");
 
@@ -1471,9 +1562,11 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 			if(SvUPGRADE(phs->sv, SVt_PV)){} /* For GCC not to warn on unused result */
 		}
 	}
+
 	phs->indp	= (SvOK(phs->sv)) ? 0 : -1;
 	phs->progv  = (char*)&phs->desc_h;
 	phs->maxlen = sizeof(OCILobLocator*);
+
 	if (phs->is_inout)
 		phs->out_prepost_exec = lob_phs_post_execute;
 	/* accept input LOBs */
@@ -1545,7 +1638,6 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 			}
 		}
 	}
-
 	return 1;
 }
 
@@ -1553,7 +1645,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 #ifdef UTF8_SUPPORT
 ub4
 ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
-  SV *dest_sv, long offset, UV len, long destoffset)
+  SV *dest_sv, long offset, ub4 len, long destoffset)
 {
 	dTHX;
 	ub4 loblen = 0;
@@ -1641,7 +1733,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 	}
 
 	if (dbis->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	blob_read field %d, ftype %d, offset %ld, len %ld, destoffset %ld, retlen %lu\n",
+		PerlIO_printf(DBILOGFP, "	blob_read field %d, ftype %d, offset %ld, len %lu, destoffset %ld, retlen %lu\n",
 			fbh->field_num+1, ftype, offset, len, destoffset, ul_t(amtp));
 
 	SvCUR_set(dest_sv, byte_destoffset+amtp);
@@ -2045,6 +2137,7 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 	text		str_buf[200];
 	double		dnum;
 	size_t		str_len;
+	ub4			ub4_str_len;
 	OCIRaw		*raw 	= (OCIRaw *) 0;
 	OCIString	*vs 	= (OCIString *) 0;
 	ub1			*temp	= (ub1 *)0;
@@ -2068,7 +2161,7 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 		 						fbh->imp_sth->errhp,
 		 						attr_value,
 		 						str_buf,
-		 						200,
+		 						(size_t) 200,
 		 						&str_len,
 							status);
 		str_buf[str_len+1] = '\0';
@@ -2080,9 +2173,9 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 	case OCI_TYPECODE_TIMESTAMP :
 
 
-		str_len = 200;
+		ub4_str_len = 200;
 		OCIDateTimeToText_log_stat(fbh->imp_sth->envhp,
-									fbh->imp_sth->errhp,attr_value,&str_len,str_buf,status);
+									fbh->imp_sth->errhp,attr_value,&ub4_str_len,str_buf,status);
 
 		if (typecode == OCI_TYPECODE_TIMESTAMP_TZ || typecode == OCI_TYPECODE_TIMESTAMP_LTZ){
 			char s_tz_hour[3]="000";
@@ -2104,19 +2197,19 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 			sprintf(s_tz_min,":%02d", tz_minute);
 			strcat((signed char*)str_buf, s_tz_hour);
 			strcat((signed char*)str_buf, s_tz_min);
-			str_buf[str_len+7] = '\0';
+			str_buf[ub4_str_len+7] = '\0';
 
 		} else {
-		  str_buf[str_len+1] = '\0';
+		  str_buf[ub4_str_len+1] = '\0';
 		}
 
 		av_push(list, newSVpv( (char *) str_buf,0));
 		break;
 
 	case OCI_TYPECODE_DATE :						 /* fixed length string*/
-		str_len = 200;
-		OCIDateToText_log_stat(fbh->imp_sth->errhp, (CONST OCIDate *) attr_value,&str_len,str_buf,status);
-		str_buf[str_len+1] = '\0';
+		ub4_str_len = 200;
+		OCIDateToText_log_stat(fbh->imp_sth->errhp, (CONST OCIDate *) attr_value,&ub4_str_len,str_buf,status);
+		str_buf[ub4_str_len+1] = '\0';
 		av_push(list, newSVpv( (char *) str_buf,0));
 		break;
 
@@ -2850,7 +2943,7 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 	}
 
 int
-describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level ) {
+describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 	dTHX;
 	sword status;
 	text *type_name, *schema_name;
@@ -3798,7 +3891,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						aTHX_ sv, fbh->req_type, fbh->bind_flags, NULL);
 						if (sts == 0) {
 							sprintf(errstr,
-								"over/under flow converting column %d to type %ld",
+								"over/under flow converting column %d to type %d",
 								i+1, fbh->req_type);
 							oci_error(sth, imp_sth->errhp, OCI_ERROR, errstr);
 							return Nullav;
@@ -3806,7 +3899,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						}
 						else if (sts == -2) {
 							sprintf(errstr,
-								"unsupported bind type %ld for column %d",
+								"unsupported bind type %d for column %d",
 								fbh->req_type, i+1);
 							return Nullav;
 						}
@@ -3962,6 +4055,8 @@ find_ident_after(char *src, char *after, STRLEN *len, int copy)
 	int seen_key = 0;
 	char *orig = src;
 	char *p;
+
+
 	while(*src){
 		if (*src == '\'') {
 			char delim = *src;
@@ -4035,6 +4130,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	lob_refetch_t *lr = NULL;
 	STRLEN tablename_len;
 	char *tablename;
+	char new_tablename[100];
 	switch (imp_sth->stmt_type) {
 		case OCI_STMT_UPDATE:
 			tablename = find_ident_after(imp_sth->statement,
@@ -4067,7 +4163,6 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	if (status == OCI_SUCCESS) { /* There is a synonym, get the schema */
 		char *syn_schema=NULL;
 		char syn_name[100];
-		char new_tablename[100];
 		ub4  tn_len = 0, syn_schema_len = 0;
 
 		strncpy(syn_name,tablename,strlen(tablename));
@@ -4506,3 +4601,26 @@ ora_free_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	imp_sth->lob_refetch = NULL;
 }
 
+ub4
+ora_db_version(SV *dbh, imp_dbh_t *imp_dbh)
+{
+	dTHX;
+	sword status;
+	text buf[2];
+	ub4 vernum;
+
+	if( imp_dbh->server_version > 0 ) {
+		return imp_dbh->server_version;
+	}
+
+
+	/* XXX should possibly create new session before ending the old so	*/
+	/* that if the new one can't be created, the old will still work.	*/
+	OCIServerRelease_log_stat(imp_dbh->svchp, imp_dbh->errhp, buf, 2,OCI_HTYPE_SVCCTX, &vernum , status);
+	if (status != OCI_SUCCESS) {
+		oci_error(dbh, imp_dbh->errhp, status, "OCISessionServerRelease");
+		return 0;
+	}
+	imp_dbh->server_version = vernum;
+	return vernum;
+}

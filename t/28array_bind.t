@@ -21,7 +21,7 @@ use Devel::Peek;
 use DBI;
 use DBD::Oracle qw(:ora_types ORA_OCI);
 
-use Test::More tests => 15;
+use Test::More;
 
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
@@ -58,7 +58,7 @@ sub db_connect($) {
 
     my $p = {
         AutoCommit => 1,
-        PrintError => 1,
+        PrintError => 0,
         FetchHashKeyName => 'NAME_lc',
         ora_envhp  => 0, # force fresh environment (with current NLS env vars)
     };
@@ -234,10 +234,55 @@ sub test_inout_array_tests($){
 	$dbh->do("drop sequence seq_array_in_out_test") or die $dbh->errstr;
 	
 }
+
+sub test_number_SP($){
+	my $dbh=shift;
+	$dbh->do("
+		create or replace procedure tox_test_proc0(
+			result   in out varchar2,
+			ids      in     SYS.dbms_sql.number_table
+		)
+		as
+		begin
+			result := '';
+			for i in 1..ids.count loop
+				result := result || to_char(ids(i));
+			end loop;
+		end;
+		
+
+
+	");
+   	
+       my $sth = $dbh->prepare("begin tox_test_proc0( ?, ?); end;");
+       
+       
+       my $result = "";
+       my @array = (1, 2, 3, 4, 7);
+       
+       $sth->bind_param_inout(1, \$result, 5);
+       ok ($sth->bind_param(2, \@array, { ora_type => ORA_NUMBER_TABLE, ora_internal_type => SQLT_INT }),'... bind_param_inout_array should bind 12345');
+       $sth->execute() ;
+        cmp_ok($result, '==','12347' , '... we should have 12347 out string');
+ 
+       @array = (3, 4, 5);
+       
+       $sth->bind_param_inout(1, \$result, 3);
+       ok ($sth->bind_param(2, \@array, { ora_type => ORA_NUMBER_TABLE, ora_internal_type => SQLT_INT }),'... bind_param_inout_array should bind 345');
+       $sth->execute() ;
+       cmp_ok($result, '==','345' , '... we should have 345 out string');
+     
+       $dbh->do("drop procedure tox_test_proc0") or warn $dbh->errstr;
+       
+}
 SKIP: {
     $dbh = db_connect(0);
 
-    plan skip_all => "Not connected to oracle" if not $dbh;
+    if ($dbh) {
+        plan tests => 15;
+    } else {
+        plan skip_all => "Unable to connect to Oracle" if not $dbh;
+    }
 
     test_varchar2_table_3_tests($dbh);
     test_number_table_3_tests($dbh);

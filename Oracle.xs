@@ -157,10 +157,10 @@ ora_bind_param_inout_array(sth, param, av_ref, maxlen, attribs)
 	D_imp_sth(sth);
 	SV *av_value;
 	if (!SvROK(av_ref) || SvTYPE(SvRV(av_ref)) != SVt_PVAV)
-	croak("bind_param_inout_array needs a reference to a array value");
+	 	 croak("bind_param_inout_array needs a reference to a array value");
 	av_value = av_ref;
 	if (SvREADONLY(av_value))
-	croak("Modification of a read-only value attempted");
+		croak("Modification of a read-only value attempted");
 	if (attribs) {
 		if (SvNIOK(attribs)) {
 			sql_type = SvIV(attribs);
@@ -199,7 +199,7 @@ ora_fetch(sth)
 	XSRETURN_IV(DBIc_NUM_FIELDS(imp_sth));
 	}
 	if (debug >= 2)
-	PerlIO_printf(DBILOGFP, "	-> ora_fetch\n");
+		PerlIO_printf(DBILOGFP, "	-> ora_fetch\n");
 	av = dbd_st_fetch(sth, imp_sth);
 	if (av) {
 	int num_fields = AvFILL(av)+1;
@@ -216,16 +216,17 @@ ora_fetch(sth)
 		PerlIO_printf(DBILOGFP, "	<- () [0 items]\n");
 	}
 	if (debug >= 2 && SvTRUE(DBIc_ERR(imp_sth)))
-	PerlIO_printf(DBILOGFP, "	!! ERROR: %s %s",
-		neatsvpv(DBIc_ERR(imp_sth),0), neatsvpv(DBIc_ERRSTR(imp_sth),0));
+		PerlIO_printf(DBILOGFP, "	!! ERROR: %s %s",
+			neatsvpv(DBIc_ERR(imp_sth),0), neatsvpv(DBIc_ERRSTR(imp_sth),0));
 
 void
-ora_execute_array(sth, tuples, exe_count, tuples_status, cols=&PL_sv_undef)
-	SV *		sth
-	SV *		tuples
-	IV		 exe_count
-	SV *		tuples_status
-	SV *		cols
+ora_execute_array(sth, tuples, exe_count, tuples_status, err_count, cols=&PL_sv_undef)
+	SV *	sth
+	SV *	tuples
+	IV		exe_count
+	SV *	tuples_status
+	SV *	cols
+	SV *	err_count
 	PREINIT:
 	D_imp_sth(sth);
 	int retval;
@@ -235,7 +236,7 @@ ora_execute_array(sth, tuples, exe_count, tuples_status, cols=&PL_sv_undef)
 	if (DBIc_ROW_COUNT(imp_sth) > 0) /* reset for re-execute */
 		DBIc_ROW_COUNT(imp_sth) = 0;
 	retval = ora_st_execute_array(sth, imp_sth, tuples, tuples_status,
-								  cols, (ub4)exe_count);
+								  cols, (ub4)exe_count,err_count);
 	/* XXX Handle return value ... like DBI::execute_array(). */
 	/* remember that dbd_st_execute must return <= -2 for error */
 	if (retval == 0)			/* ok with no rows affected	 */
@@ -263,10 +264,12 @@ ora_ping(dbh)
 	PREINIT:
 	D_imp_dbh(dbh);
 	sword status;
-#if !defined(ORA_OCI_102)
-	text buf[2];
+#if defined(ORA_OCI_102)
+	ub4 vernum;
 #endif
+ 	text buf[2];
 	CODE:
+	/*when OCIPing not available,*/
 	/*simply does a call to OCIServerVersion which should make 1 round trip*/
 	/*later I will replace this with the actual OCIPing command*/
 	/*This will work if the DB goes down, */
@@ -276,7 +279,13 @@ ora_ping(dbh)
 #if !defined(ORA_OCI_102)
 	OCIServerVersion_log_stat(imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
 #else
+	vernum = ora_db_version(dbh,imp_dbh);
+	/* OCIPing causes server failures if called against server ver < 10.2 */
+	if (((int)((vernum>>24) & 0xFF) < 10 ) || (((int)((vernum>>24) & 0xFF) == 10 ) && ((int)((vernum>>20) & 0x0F) < 2 ))){
+		OCIServerVersion_log_stat(imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
+	} else {
     	OCIPing_log_stat(imp_dbh->svchp,imp_dbh->errhp,status);
+	}
 #endif
 	if (status != OCI_SUCCESS){
 		XSRETURN_IV(0);
@@ -346,7 +355,7 @@ ora_lob_write(dbh, locator, offset, data)
 	ST(0) = &PL_sv_undef;
 	}
 	else {
-	ST(0) = &PL_sv_yes;
+		ST(0) = &PL_sv_yes;
 	}
 
 void
@@ -494,7 +503,7 @@ ora_lob_is_init(dbh, locator)
 
 void
 ora_lob_length(dbh, locator)
-	SV *dbh
+	SV 				*dbh
 	OCILobLocator   *locator
 	PREINIT:
 	D_imp_dbh(dbh);

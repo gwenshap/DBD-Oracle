@@ -7,7 +7,7 @@
 
 require 5.006;
 
-$DBD::Oracle::VERSION = '1.27';
+$DBD::Oracle::VERSION = '1.28';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -271,15 +271,13 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	   $attr->{ora_drcp_incr} = $ENV{ORA_DRCP_INCR}
 	}
 	
-	DBD::Oracle::db::_login($dbh, $dbname, $user, $auth, $attr)
-	    or return undef;
-
-	if ($attr && $attr->{ora_module_name}) {
-	    eval {
-		$dbh->do(q{BEGIN DBMS_APPLICATION_INFO.SET_MODULE(:1,NULL); END;},
-		       undef, $attr->{ora_module_name});
-	    };
+	{
+	   local @SIG{ @{ $attr->{ora_connect_with_default_signals} } }
+          if $attr->{ora_connect_with_default_signals};
+	   DBD::Oracle::db::_login($dbh, $dbname, $user, $auth, $attr)
+	      or return undef;
 	}
+
 	unless (length $user_only) {
 	    $user_only = $dbh->selectrow_array(q{
 		SELECT SYS_CONTEXT('userenv','session_user') FROM DUAL
@@ -350,9 +348,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	return $v;
     }
 
-    sub private_attribute_info {
-        return { ora_max_nested_cursors => undef,
-                 ora_array_chunk_size   => undef,
+    sub private_attribute_info { #this should only be for ones that have setters and getters
+        return { ora_max_nested_cursors	=> undef,
+                 ora_array_chunk_size	=> undef,
                  ora_ph_type		=> undef,
                  ora_ph_csform		=> undef,
                  ora_parse_error_offset => undef,
@@ -363,13 +361,25 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
                  ora_svchp		=> undef,
                  ora_errhp		=> undef,
                  ora_init_mode		=> undef,
-                 ora_charset		=> undef,	
+                 ora_charset		=> undef,
                  ora_ncharset		=> undef,
                  ora_session_mode	=> undef,
                  ora_verbose		=> undef,
                  ora_oci_success_warn	=> undef,
                  ora_objects		=> undef,
-                 ora_ncs_buff_mtpl      => undef,
+                 ora_ncs_buff_mtpl	=> undef,
+                 ora_drcp		=> undef,
+                 ora_drcp_class		=> undef,
+                 ora_drcp_min		=> undef,
+                 ora_drcp_max		=> undef,
+                 ora_drcp_incr		=> undef,
+                 ora_oratab_orahome	=> undef,
+                 ora_module_name	=> undef,
+                 ora_driver_name	=> undef,
+                 ora_client_info	=> undef,
+                 ora_client_identifier	=> undef,
+                 ora_action		=> undef,
+               
                  };
     }
    
@@ -1005,6 +1015,7 @@ SQL
     sub execute_for_fetch {
        my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
        my $row_count = 0;
+       my $err_count = 0;
        my $tuple_count="0E0";
        my $tuple_batch_status;
        my $dbh = $sth->{Database};
@@ -1014,30 +1025,47 @@ SQL
            $tuple_batch_status = [ ];
        }
        
+       my $finished;
        while (1) {
            my @tuple_batch;
            for (my $i = 0; $i < $batch_size; $i++) {
-                push @tuple_batch, [ @{$fetch_tuple_sub->() || last} ];
+               $finished = $fetch_tuple_sub->();
+               push @tuple_batch, [@{$finished || last}];
+
            }
            last unless @tuple_batch;
+           
            my $res = ora_execute_array($sth,
                                            \@tuple_batch,
                                            scalar(@tuple_batch),
-                                           $tuple_batch_status);
-           if(defined($res) && defined($row_count)) {
+                                           $tuple_batch_status,
+                                           $err_count );
+                                           
+           if(defined($res)) { #no error
                 $row_count += $res;
            } else {
                 $row_count = undef;
            }
+           
            $tuple_count+=@$tuple_batch_status;
            push @$tuple_status, @$tuple_batch_status
-           if defined($tuple_status);
+                if defined($tuple_status);
+           
+           last if !$finished;	
+           
        }
+       #error check here
+       return $sth->set_err($DBI::stderr, "executing $tuple_count generated $err_count errors")
+       	   if $err_count;
+                   
        if (!wantarray) {
-	   return undef if !defined $row_count;
-   	   return $tuple_count;
+	   return $tuple_count;
        }
-       return (defined $row_count ? $tuple_count : undef, $row_count);
+
+       return ($tuple_count, defined $row_count ? $row_count : undef);
+            
+       
+       
     }
 
     sub private_attribute_info {
@@ -1046,19 +1074,8 @@ SQL
 		ora_rowid		=> undef,
 		ora_est_row_width	=> undef,
 		ora_type		=> undef,
-		ora_field		=> undef,
-		ora_csform		=> undef,
-		ora_maxdata_size	=> undef,
-		ora_parse_lang		=> undef,
-		ora_placeholders	=> undef,
-		ora_auto_lob		=> undef,
-		ora_check_sql		=> undef,
-		ora_row_cache_off	=> undef,
-		ora_prefetch_rows	=> undef,
-		ora_prefetch_memory	=> undef,
-		};
+    };
    }
-   
 }
 
 1;
@@ -1092,7 +1109,7 @@ access to Oracle databases.
 =head1 Which version DBD::Oracle is for me?
 
 From version 1.25 onwards DBD::Oracle will only support Oracle clients 9.2 or greater and it will
-be dropping support for ProC connections in 1.26. Sorry for this it was just getting to hard to 
+be dropping support for ProC connections in 1.29. Sorry for this it was just getting to hard to 
 maintain the code base for an ever shrinking user base. This is especially so with the many new functions 
 being introduced in 10g and 11g.
 
@@ -1124,18 +1141,23 @@ Note that one can still connect to any Oracle version with the older DBD::Oracle
 
 So to make a short story a little longer;
 
-  1) If you are using Oracle 7 or early 8 DB and you can manage to get a 9 client and you can use any DBD::Oracle version.
+  1) If you are using Oracle 7 or early 8 DB and you can manage to get a 9 client and you can use
+     any DBD::Oracle version.
   2) If you have to use an Oracle 7 client then DBD::Oracle 1.17 should work
-  3) Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might go with 1.18.
-  4) For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your patch-set, If you run into trouble go with 1.19
+  3) Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might
+     go with 1.18.
+  4) For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your 
+     patch-set, If you run into trouble go with 1.19
   5) After 9.2 you can use any version you want.
-  6) For you Luddites out there ORAPERL still works and is still included but not updated or supported anymore and will be removed in 1.27.
-  7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 and even get to 10. 
-     I am not sure what the 11g client can connect to.
-  8) DBD::Oracle still has the code in place for ProC. But good luck trying to get it to work with any of the instant clients 
-     as Oracle no longer ships the correct .mk files.  I was unable to get it to work with Oracle 11+ as it ships with only 
-     part of the full ProC install.  You may have to get a full version of ProC from Oracle to get it to compile. It is also slated
-     to be removed in 1.27
+  6) For you Luddites out there ORAPERL still works and is still included but not updated or 
+     supported anymore and will be removed in 1.29.
+  7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 
+     and even get to 10. I am not sure what the 11g client can connect to.
+  8) DBD::Oracle still has the code in place for ProC. But good luck trying to get it to work 
+     with any of the instant clients as Oracle no longer ships the correct .mk files.  I was 
+     unable to get it to work with Oracle 11+ as it ships with only part of the full ProC install.
+     You may have to get a full version of ProC from Oracle to get it to compile. It is also 
+     slated to be removed in 1.29
 
 =head1 CONNECTING TO ORACLE
 
@@ -1382,7 +1404,9 @@ All of which are demonstrated below;
   
   $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1})
   
-  $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1, ora_drcp_class=>'my_app', ora_drcp_min=>10})
+  $dbh = DBI->connect('dbi:Oracle:DB','username','password',{ora_drcp=>1,
+                                                             ora_drcp_class=>'my_app',
+                                                             ora_drcp_min  =>10})
  
   $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=ORCL;port=1521;SERVER=POOLED', 'scott/tiger', '')
 
@@ -1656,7 +1680,55 @@ to the SET_MODULE() function in the C<DBMS_APPLICATION_INFO> PL/SQL
 package. This can be used to identify the application to the DBA for
 monitoring and performance tuning purposes. For example:
 
-  DBI->connect($dsn, $user, $passwd, { ora_module_name => $0 });
+  my $dbh = DBI->connect($dsn, $user, $passwd, { ora_module_name => $0 });
+  
+  $dbh{ora_module_name} = $y; 
+
+=item ora_driver_name
+
+For 11g and later you can now set the name of the driver layer using OCI.
+PERL, PERL5, ApachePerl so on. Names starting with "ORA" are reserved. You
+can enter up to 8 characters.  If none is enter then this will default to
+DBDOxxxx where xxxx is the current version number. This value can be 
+retrieved on the server side using V$SESSION_CONNECT_INFO or 
+GV$SESSION_CONNECT_INFO
+
+
+  my $dbh = DBI->connect($dsn, $user, $passwd, { ora_driver_name => 'ModPerl_1' });
+
+  $dbh{ora_driver_name} = $q;
+
+=item ora_client_info
+
+When passed in on the connection attributes it can specify any info you want
+onto the session up to 64 bytes. This value can be 
+retrieved on the server side using V$SESSION view.
+
+  my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_info => 'Remote2' });
+
+  $dbh{ora_client_info} = "Remote2";
+
+=item ora_client_identifier
+
+When passed in on the connection attributes it specifies the user identifier 
+in the session handle. Most useful for web app as it can pass in the session
+user name which might be different than the connection user name. Can be up 
+to 64 bytes long do not to include the password for security reasons and the
+first character of the identifier should not be ':'. This value can be 
+retrieved on the server side using V$SESSION view. 
+
+  my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_identifier => $some_web_user });
+
+  $dbh{ora_client_identifier} = $local_user;
+
+=item ora_action
+
+You can set this value to anything you want up to 32 bytes. This value can be 
+retrieved on the server side using V$SESSION view.
+
+   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_action => "Login"});
+   
+   $dbh{ora_action} = "New Long Query 22";
 
 =item ora_dbh_share
 
@@ -1669,12 +1741,12 @@ to a already shared scalar which is initialized to an empty string.
   our $orashr : shared = '' ;
 
   $dbh = DBI->connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
-  
-=item ora_context
+
+=item ora_context -->deprecated will be removed in 1.29
 
 Use this attribute to send a pointer to a ProC connection when the your dbname is set to extproc. 
 
-=item ora_use_proc_connection
+=item ora_use_proc_connection -->deprecated will be removed in 1.29
 
 This attribute allows to create a DBI handle for an existing SQLLIB
 database connection. This can be used to share database connections
@@ -1824,12 +1896,28 @@ bind values in its C<execute_for_fetch> implementation. This attribute
 sets the number of rows to buffer at a time (default value is 1000).
 
 The C<execute_for_fetch> function will collect (at most) this many
-rows in an array, send them of to the DB for execution, then go back
+rows in an array, send them off to the DB for execution, then go back
 to collect the next chunk of rows and so on. This attribute can be
 used to limit or extend the number of rows processed at a time.
 
 Note that this attribute also applies to C<execute_array>, since that
 method is implemented using C<execute_for_fetch>.
+
+=item ora_connect_with_default_signals
+
+Sometimes the Oracle client seems to change some of the signal handlers
+of the process during the connect phase.  For instance, some users have
+observed Perl's default C<$SIG{INT}> handler being ignored after 
+connecting to an Oracle database.  If this causes problems in your 
+application, set this attribute to an array reference of signals you 
+would like to be localized during the connect process.  Once the connect
+is complete, the signal handlers should be returned to their previous state.
+
+For example:
+
+  $dbh = DBI->connect ($dsn, $user, $passwd,
+                       {ora_connect_with_default_signals => [ 'INT' ] });
+
 
 =back
 
@@ -1845,7 +1933,7 @@ L<DBI/prepare> database handle method.
 Set to false to disable processing of placeholders. Used mainly for loading a
 PL/SQL package that has been I<wrapped> with Oracle's C<wrap> utility.
 
-=item ora_parse_lang
+=item ora_parse_lang -->deprecated will be removed in 1.29
 
 Tells the connected database how to interpret the SQL statement.
 If 1 (default), the native SQL version for the database is used.
@@ -1853,7 +1941,7 @@ Other recognized values are 0 (old V6, treated as V7 in OCI8),
 2 (old V7), 7 (V7), and 8 (V8).
 All other values have the same effect as 1.
 
-=item ora_auto_lob
+=item ora_auto_lob 
 
 If true (the default), fetching retrieves the contents of the CLOB or
 BLOB column in most circumstances.  If false, fetching retrieves the
@@ -2215,7 +2303,7 @@ An identifier is passed I<as is>, i.e. as the user provides or
 Oracle returns it.
 See L</table_info()> for more detailed information.
 
-It is possiable with Oracle to make the names of the various DB objects (table,column,index etc)
+It is possible with Oracle to make the names of the various DB objects (table,column,index etc)
 case sensitive. 
 
   alter table bloggind add ("Bla_BLA" NUMBER)
@@ -3063,13 +3151,16 @@ Null fields are returned as undef values in the list.
 
 The valid orientation constant and fetch offset values combination are detailed below 
 
-  OCI_FETCH_CURRENT, fetches the current row, the fetch offset value is ignored.
-  OCI_FETCH_NEXT, fetches the next row from the current position, the fetch offset value is ignored.
-  OCI_FETCH_FIRST, fetches the first row, the fetch offset value is ignored.
-  OCI_FETCH_LAST, fetches the last row, the fetch offset value is ignored.
-  OCI_FETCH_PRIOR, fetches the previous row from the current position, the fetch offset value is ignored.
+  OCI_FETCH_CURRENT,  fetches the current row, the fetch offset value is ignored.
+  OCI_FETCH_NEXT,     fetches the next row from the current position, the fetch offset value
+                      is ignored.
+  OCI_FETCH_FIRST,    fetches the first row, the fetch offset value is ignored.
+  OCI_FETCH_LAST,     fetches the last row, the fetch offset value is ignored.
+  OCI_FETCH_PRIOR,    fetches the previous row from the current position, the fetch offset
+                      value is ignored.
   OCI_FETCH_ABSOLUTE, fetches the row that is specified by the fetch offset value.
-  OCI_FETCH_RELATIVE, fetches the row relative from the current position as specified by the fetch offset value.
+  OCI_FETCH_RELATIVE, fetches the row relative from the current position as specified by the 
+                      fetch offset value.
 
   OCI_FETCH_ABSOLUTE, and a fetch offset value of 1 is equivalent to a OCI_FETCH_FIRST.
   OCI_FETCH_ABSOLUTE, and a fetch offset value of 0 is equivalent to a OCI_FETCH_CURRENT.
@@ -3081,30 +3172,47 @@ The valid orientation constant and fetch offset values combination are detailed 
 The effect that a ora_fetch_scroll method call has on the current_positon attribute is detailed below.
 
   OCI_FETCH_CURRENT, has no effect on the current_positon attribute.
-  OCI_FETCH_NEXT, increments current_positon attribute by 1
-  OCI_FETCH_NEXT, when at the last row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT 
-  OCI_FETCH_FIRST, sets the current_positon attribute to 1.
-  OCI_FETCH_LAST, sets the current_positon attribute to the total number of rows in the record set.
-  OCI_FETCH_PRIOR, decrements current_positon attribute by 1.
-  OCI_FETCH_PRIOR, when at the first row in the record set does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_NEXT,    increments current_positon attribute by 1
+  OCI_FETCH_NEXT,    when at the last row in the record set does not change current_positon
+                     attribute, it is equivalent to a OCI_FETCH_CURRENT 
+  OCI_FETCH_FIRST,   sets the current_positon attribute to 1.
+  OCI_FETCH_LAST,    sets the current_positon attribute to the total number of rows in the 
+                     record set.
+  OCI_FETCH_PRIOR,   decrements current_positon attribute by 1.
+  OCI_FETCH_PRIOR,   when at the first row in the record set does not change current_positon 
+                     attribute, it is equivalent to a OCI_FETCH_CURRENT.
+  
   OCI_FETCH_ABSOLUTE, sets the current_positon attribute to the fetch offset value.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set, does not change current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, sets the current_positon attribute to (current_positon attribute + fetch offset value).
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes the current position less than 1, does not change fetch offset value so it is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, does not change fetch offset value so it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 does not change 
+                      current_positon attribute, it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in
+                      the record set, does not change current_positon attribute, it is 
+                      equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, sets the current_positon attribute to (current_positon attribute + 
+                      fetch offset value).
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes the current position less than 1, 
+                      does not change fetch offset value so it is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records
+                      in the record set, does not change fetch offset value so it is equivalent
+                      to a OCI_FETCH_CURRENT.
 
 The effects of the differing orientation constants on the first fetch (current_postion attribute at 0) are as follows.
 
   OCI_FETCH_CURRENT, dose not fetch a row or change the current_positon attribute.
-  OCI_FETCH_FIRST, fetches row 1 and sets the current_positon attribute to 1.
-  OCI_FETCH_LAST, fetches the last row in the record set and sets the current_positon attribute to the total number of rows in the record set.
-  OCI_FETCH_NEXT, equivalent to a OCI_FETCH_FIRST.
-  OCI_FETCH_PRIOR, equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of records in the record set is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value that is less than 1 is equivalent to a OCI_FETCH_CURRENT.
-  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number of records in the record set, is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_FIRST,   fetches row 1 and sets the current_positon attribute to 1.
+  OCI_FETCH_LAST,    fetches the last row in the record set and sets the current_positon
+                     attribute to the total number of rows in the record set.
+  OCI_FETCH_NEXT,    equivalent to a OCI_FETCH_FIRST.
+  OCI_FETCH_PRIOR,   equivalent to a OCI_FETCH_CURRENT.
+  
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is less than 1 is equivalent to a 
+                      OCI_FETCH_CURRENT.
+  OCI_FETCH_ABSOLUTE, and a fetch offset value that is greater than the number of 
+                      records in the record set is equivalent to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that is less than 1 is equivalent 
+                      to a OCI_FETCH_CURRENT.
+  OCI_FETCH_RELATIVE, and a fetch offset value that makes it greater than the number
+                      of records in the record set, is equivalent to a OCI_FETCH_CURRENT.
 
 =back
 
@@ -3222,7 +3330,7 @@ The current_positon attribute will be 6 after this snippet.
   $sth->finish();
 
 When using scrollable cursors it is required that you use the $sth->finish() method when you are done with the cursor as this type of
-cursor has to be explicitly canceled on the server. If you do not do this you may cause resource problems on your database.  
+cursor has to be explicitly cancelled on the server. If you do not do this you may cause resource problems on your database.  
 
 =back
 
@@ -3351,7 +3459,8 @@ This should greatly increase your ability to select very large CLOBs or NCLOBs, 
 
 You can tune this value by setting ora_oci_success_warn which will display the following
 
-  OCILobRead field 2 of 3 SUCCESS: csform 1 (SQLCS_IMPLICIT), LOBlen 10240(characters), LongReadLen 20(characters), BufLen 80(characters), Got 28(characters)
+  OCILobRead field 2 of 3 SUCCESS: csform 1 (SQLCS_IMPLICIT), LOBlen 10240(characters), LongReadLen 
+  20(characters), BufLen 80(characters), Got 28(characters)
 
 In the case above the query Got 28 characters (well really only 20 characters of 28 bytes) so we could use ora_ncs_buff_mtpl=>2 (20*2=40) thus saving 40bytes of memory.
 

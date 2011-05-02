@@ -50,7 +50,17 @@ struct imp_dbh_st {
 	ub4			pool_min;
 	ub4			pool_max;
 	ub4			pool_incr;
+	char		*driver_name;/*driver name user defined*/
+	ub4			driver_namel;
 #endif
+    char		*client_info;  /*user defined*/
+    ub4			client_infol;
+	char		*module_name; /*module user defined */
+	ub4			module_namel;
+	char		*client_identifier;  /*user defined*/
+    ub4			client_identifierl;
+    char		*action;  /*user defined*/
+    ub4			actionl;
 	int proc_handles;		   /* If true, srvhp, svchp, and authp handles
 								   are owned by ProC and must not be freed. */
 	int RowCacheSize; /* both of these are defined by DBI spec*/
@@ -60,7 +70,7 @@ struct imp_dbh_st {
 	int parse_error_offset;	/* position in statement of last error */
 	int max_nested_cursors;	 /* limit on cached nested cursors per stmt */
 	int array_chunk_size;  /* the max size for an array bind */
-
+    ub4 server_version; /* version of Oracle server */
 };
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
@@ -331,14 +341,18 @@ char *oci_define_options _((ub4 options));
 char *oci_hdtype_name _((ub4 hdtype));
 char *oci_attr_name _((ub4 attr));
 char *oci_exe_mode _((ub4 mode));
+char *dbd_yes_no _((int yes_no));
 char *oci_col_return_codes _((int rc));
 char *oci_csform_name _((ub4 attr));
+char *oci_sql_function_code_name _((int sqlfncode));
+char *oci_ptype_name _((int ptype));
+
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 int dbd_rebind_ph_nty _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 int ora_st_execute_array _((SV *sth, imp_sth_t *imp_sth, SV *tuples,
-							SV *tuples_status, SV *columns, ub4 exe_count));
+							SV *tuples_status, SV *columns, ub4 exe_count, SV *err_count));
 
 
 SV * ora_create_xml _((SV *dbh, char *source));
@@ -370,7 +384,7 @@ void * oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags);
 void fb_ary_free(fb_ary_t *fb_ary);
 void rs_array_init(imp_sth_t *imp_sth);
 
-
+ub4 ora_db_version _((SV *dbh, imp_dbh_t *imp_dbh));
 
 /* These defines avoid name clashes for multiple statically linked DBD's	*/
 

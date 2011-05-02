@@ -19,7 +19,9 @@ SKIP: {
 	if ORA_OCI() < 9.0 and !$ENV{DBD_ALL_TESTS};
 
     $dbh = db_handle();	# just to check connection and db NCHAR character set
-    plan skip_all => "Not connected to oracle" if not $dbh;
+    
+    
+    plan skip_all => "Unable to connect to Oracle" if not $dbh;
     plan skip_all => "Database NCHAR character set is not Unicode" if not db_nchar_is_utf($dbh) ;
     $dbh->disconnect();
 

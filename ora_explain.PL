@@ -1573,7 +1573,7 @@ __END__
 
 =head1 NAME
 
-explain, ora_explain - Visualise Oracle query plans
+explain, ora_explain - deprecated (Will be removed from DBD::Oracle in 1.29) Visualise Oracle query plans
 
 =head1 SYNOPSIS
 

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
-use Test::More tests => 12;
+use Test::More;
 use DBD::Oracle qw(:ora_types);
 use DBI;
 
@@ -12,8 +12,17 @@ my $dbh;
 $| = 1;
 SKIP: {
 
-    $dbh = db_handle();
-    plan skip_all => "Not connected to oracle" if not $dbh;
+    my $dsn = oracle_test_dsn();
+    my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
+    
+    $dbh = DBI->connect($dsn, $dbuser, '',{
+                               PrintError => 0,
+                       });
+    if ($dbh) {
+        plan tests => 12;
+    } else {
+        plan skip_all => "Unable to connect to Oracle";
+    }
 
     my $table = table();
     drop_table($dbh);

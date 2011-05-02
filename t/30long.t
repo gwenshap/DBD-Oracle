@@ -23,8 +23,6 @@ my $tests = @test_sets * $tests_per_set-1;
 #very odd little thing that took a while to figure out.
 #Seems I now have 479 tests which is 9 more so 96 test then -1 to round it off
 
-plan tests => $tests;
-
 $| = 1;
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $table = table();
@@ -42,7 +40,21 @@ my $sz = 8;
 
 my($p1, $p2, $tmp, @tmp);
 
-my $dbh = db_handle() or BAILOUT("Can't connect to database: $DBI::errstr");
+#my $dbh = db_handle();
+
+
+ $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
+  my $dsn = oracle_test_dsn();  
+ my  $dbh = DBI->connect($dsn, $dbuser, '',{
+                               PrintError => 0,
+                       });
+
+if ($dbh) {
+    plan tests => $tests;
+} else {
+    plan skip_all => "Unable to connect to Oracle";
+}
+
 my $ora_server_version = $dbh->func("ora_server_version");
 diag("ora_server_version: @$ora_server_version\n");
 show_db_charsets($dbh) if $dbh;
