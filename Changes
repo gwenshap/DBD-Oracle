@@ -1,14 +1,28 @@
-=head1 Changes in DBD-Oracle 1.18 (scn rev 6697)
+=head1 Changes in DBD-Oracle 1.19 (svn rev 8002) 3rd November 2006
+
+  Fixed execute_array to comply with DBI standard from Martin J. Evans, Xho Jingleheimerschmidt and others 
+  Fixed execute_array so it will not throw a Perl warning on undef values in Tuples from John Scoles
+  Fixed execute_array so it will take the ora_array_chunk_size DB handle attribute
+  Fixed some typos in code and READMEs from John Scoles
+  Fixed a few other little bugs dealing with  compatibility with Oracle 8
+  Changes to README from Karl Auer 
+  Suppress warning in 26exe_array.t from Philip Garrett
+  Added support for array context aware execute_for_fetch from Martin J. Evans 
+  Fixed Makefile.PL for an incompatibility with ExtUtils::MM_Unix v1.50 (invoked byExtUtils::MakeMaker) from Dennis McRitchie
+  Updated POD to reflect that OCI after 9.2 no longer strips trialing spaces
+  
+  
+=head1 Changes in DBD-Oracle 1.18 (svn rev 6697)
 
   Added support for native Oracle Array interface thanks Kristian Nielsen 
   Added suppot for LOB Locators from Jeffrey Klein.
   Updated README.win32.txt for Oracle 10xe and new Visual C++ version
-  Updated README.win32.txt for work-araound for UTF8 bug
+  Updated README.lunix.txt for work-araound for UTF8 bug
   Fixed a number of compile warings  
   
 please enjoy.
 
-=head1 Changes in DBD-Oracle 1.17 (scn rev 3726)
+=head1 Changes in DBD-Oracle 1.17 (svn rev 3726)
   
   Updated README.win32.txt fixed some typos
   Fixed expanded support for Lobs support from Jeffrey Klein

@@ -1,5 +1,0 @@
-LIBRARY "Oracle"
-EXPORTS
-  boot_DBD__Oracle
-  _boot_DBD__Oracle = boot_DBD__Oracle
-  

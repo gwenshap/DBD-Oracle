@@ -122,6 +122,31 @@ Windows platform having no Oracle or other development environment installed.
 
 20) You should now be able to run DBD-Oracle on you system
 
+09/30 2006 from asu <asng@onlinehome.de> 
+
+DBD::Oracle 1.18a
+
+Linux, Debian unstable (
+DBI: 1.52
+perl v5.8.8 built for i486-linux-gnu-thread-multi
+)
+
+Oracle Instant client (10.1.0.5)
+
+The problem is in Makefile.PL. In line 130 the function find_oracle_home
+is used to guess a value form $ORACLE_HOME if it is not set explicitely.
+This value is used in line 138 to setup the environment (regardless
+which client is used).
+
+in line 1443 (sub get_client_version) sqlplus is used to get the
+version string, but for the oracle instant client you must not set
+$ORACLE_HOME (it will generate an error "SP2-0642: SQL*Plus internal
+error state 2165, context 4294967295:0:0")
+
+A solution that worked for me was to set
+local $ENV{ORACLE_HOME} = '';
+in line 1463 immediately before sqlplus is called (but I cannot tell if
+this fails for full client installations)
 
 
 11/30/05 -- John Scoles <scoles@pythian.com>
