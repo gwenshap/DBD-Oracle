@@ -1,17 +1,5 @@
 #!perl -w
-
-sub ok ($$;$) {
-    my($n, $ok, $warn) = @_;
-    ++$t;
-    die "sequence error, expected $n but actually $t"
-    if $n and $n != $t;
-    ($ok) ? print "ok $t\n"
-	  : print "# failed test $t at line ".(caller)[2]."\nnot ok $t\n";
-	if (!$ok && $warn) {
-		$warn = $DBI::errstr || "(DBI::errstr undefined)" if $warn eq '1';
-		warn "$warn\n";
-	}
-}
+use Test::More;
 
 use DBI;
 use DBD::Oracle qw(ORA_RSET);
@@ -26,44 +14,39 @@ my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect($dsn, $dbuser, '', { PrintError => 0 });
 
-unless ($dbh) {
-	warn "Unable to connect to Oracle as $dbuser ($DBI::errstr)\nTests skipped.\n";
-	print "1..0\n";
-	exit 0;
+if ($dbh) {
+    plan tests=> 16;
+} else {
+    plan skip_all =>"Unable to connect to Oracle as $dbuser ($DBI::errstr)\n";
 }
-
-my $tests = 16;
-
-print "1..$tests\n";
 
 # ref cursors may be slow due to oracle bug 3735785
 # believed fixed in
-#	 9.2.0.6 (Server Patch Set) 
-#	10.1.0.4 (Server Patch Set) 
+#	 9.2.0.6 (Server Patch Set)
+#	10.1.0.4 (Server Patch Set)
 #	10.2.0.1 (Base Release)
 
-ok( 1,
-  my $outer = $dbh->prepare(q{
+my $outer = $dbh->prepare(q{
     SELECT object_name, CURSOR(SELECT object_name FROM dual)
-    FROM all_objects WHERE rownum <= 5
-  })
-);
-ok( 2, $outer->{ora_types}[1] == ORA_RSET);
-ok( 3, $outer->execute);
-ok( 4, my @row1 = $outer->fetchrow_array);
+    FROM all_objects WHERE rownum <= 5});
+ok($outer, 'prepare select');
+
+ok( $outer->{ora_types}[1] == ORA_RSET, 'set ORA_RSET');
+ok( $outer->execute, 'outer execute');
+ok( my @row1 = $outer->fetchrow_array, 'outer fetchrow');
 my $inner1 = $row1[1];
-ok( 5, ref $inner1 eq 'DBI::st');
-ok( 6, $inner1->{Active});
-ok( 7, my @row1_1 = $inner1->fetchrow_array);
-ok( 8, $row1[0] eq $row1_1[0]);
-ok( 9, $inner1->{Active});
-ok(10, my @row2 = $outer->fetchrow_array);
-ok(11, !$inner1->{Active});
-ok(12, !$inner1->fetch);
-ok(13, $dbh->err == -1);
-ok(14, $dbh->errstr =~ / defunct /);
-ok(15, $outer->finish);
-ok(16, $dbh->{ActiveKids} == 0);
+is( ref $inner1, 'DBI::st', 'inner DBI::st');
+ok( $inner1->{Active}, 'inner Active');
+ok( my @row1_1 = $inner1->fetchrow_array, 'inner fetchrow_array');
+is( $row1[0], $row1_1[0], 'rows equal');
+ok( $inner1->{Active}, 'inner Active');
+ok(my @row2 = $outer->fetchrow_array, 'outer fetchrow_array');
+ok(!$inner1->{Active}, 'inner not Active');
+ok(!$inner1->fetch, 'inner fetch finished');
+is($dbh->err, -1, 'err = -1');
+like($dbh->errstr, qr/ defunct /, 'defunct');
+ok($outer->finish, 'outer finish');
+is($dbh->{ActiveKids}, 0, 'ActiveKids');
 
 
 #########################################################################
@@ -78,7 +61,7 @@ sub timed_fetch {
   my $tm_start = DBI::dbi_time();
   $row_count++ while $rs->fetch;
   my $elapsed = DBI::dbi_time() - $tm_start;
-  print "Fetched $row_count rows ($caption): $elapsed secs.\n";
+  diag("Fetched $row_count rows ($caption): $elapsed secs.\n");
   return $elapsed;
 }
 

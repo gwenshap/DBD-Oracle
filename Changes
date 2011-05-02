@@ -1,4 +1,33 @@
+=head1 Changes in DBD-Oracle 1.22(svn rev 11618)  2008 
+  Patch to remove compiler warnings from H.Merijn Brand
+  Patch to Makfile for 64bit boxes from Alex Laslavic
+  Added OCILobGetLength to lob functions from Milo van der Leij
+  Updated readmes to state the test user has to have create, call and drop a procedure privileges by John Scoles suggested by Gisle Aas  
+  Patch to Makfile to prevent the installation of the lib/DBD/mkta.pl fil from Gisle Aas  
+  Added new Test 31lob_extended.t for use of LOBs when returned via stored procedures with bind_param_inout from Martin Evans 
+  Update to connection part of POD from  John Scoles
+  Fix to test suite to bring it up to standard from Martin Evans
+  Fix for memory hemorrhage in bind_param_inout_array found by Ricky Egeland, Fix by John Scoles
+  Fix for a typo in oracle.xs from Milo van der Leij 
+  Fix for bugs on SPs with Lobs reported by Martin Evans, Fix by J Scoles
+  Changed the way Ping works rather than using prepare and execute it now makes a single round trip call to DB by John Scoles
+  Fix for rt.cpan.org Ticket #=37501 fail HP-UX Itanium 11.31 makefile also added the OS and version to the output of the Makefile.PL for easier debugging. from John Scoles and Rich Roemer 
+  Added a number of internal functions for decoding OCI debug values from John Scoles
+  Fix for  hpux 11.23 linker error unrecognized argument on the Makefile from someone on CPAN forum
+  Added fetch by piece for lobs, fixed persistent lobs and expansed thier usage for LONG and LONG RAW and changed to pod to reflect the changes from John Scoles
+  Added comment to POD on case sensitivity of ORACLE environment variables suggested by Gerhard Lausser
+  Added patch to fix a number of harmless, but annoying, GCC warnings from Eric Simon
+  Added (finally) ora_verbose for DBD only tracking from John Scoles and thanks to H.Merijn Brand
+  Fix for rt.cpan.org Ticket #=32396 from John Scoles
+  Fix for memory leak that snuck into 1.21 from John Scoles
+  Fix for rt.cpan.org Ticket #=36069: Problem with synonym from John Scoles
+  Fix for rt.cpan.org Ticket #=28811 ORA_CHAR(s) not returning correct length in functions and procedures from John Scoles
+  Makefile.PL now working without flags for Linux 11.1.0.6 instant client and regular client from John Scoles, Andy Sautins, H.Merijn Brand, Nathan Vonnahme and Karun Dutt
+  Fixed how persistent lob fetch works now uses callback correctly, from John Scoles & Darren Kipp
+
+  
 =head1 Changes in DBD-Oracle 1.21(svn rev 11067) 11th April 2008 
+ 
   Added Notes to README.win32.txt on installing Instant Client 11.1.0.6.0 from John Scoles
   Added the oci_typecode_name method to get the name rather than just the number of an OCI_TYPECODE from John Scoles
   Fixed a unreported bug with Embedded Objects from John Scoles

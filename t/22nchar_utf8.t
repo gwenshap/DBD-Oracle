@@ -24,14 +24,14 @@ SKIP: {
 
     plan skip_all => "Not connected to oracle" if not $dbh;
     plan skip_all => "Database NCHAR character set is not Unicode" if not db_nchar_is_utf($dbh) ;
-    print "testing utf8 with nchar columns\n" ;
+    diag("testing utf8 with nchar columns\n");
 
     show_db_charsets( $dbh );
     my $tdata = test_data( 'wide_nchar' );
 
     if ( $dbh->ora_can_unicode & 1 ) {
         push( @{$tdata->{rows}} ,extra_wide_rows() ) ;
-        print " --- added 2 rows with extra wide chars to test data\n" ;
+        diag(" --- added 2 rows with extra wide chars to test data\n");
     }
 
     my $testcount = 0 #create table
@@ -39,7 +39,7 @@ SKIP: {
                   + select_test_count( $tdata ) * 1;
                   ;
 
-    plan tests => $testcount; 
+    plan tests => $testcount;
     show_test_data( $tdata ,0 );
     drop_table($dbh);
     create_table( $dbh, $tdata );

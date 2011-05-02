@@ -1,8 +1,22 @@
 Changes
+dbdimp.c
+dbdimp.h
+dbivport.h
+hints/dgux.pl
+hints/macos_bundle.syms
+hints/macos_lib.syms
+hints/macos_syms.pl
+hints/svr4.pl
+lib/DBD/Oracle/GetInfo.pm
+Makefile.PL
 MANIFEST
 META.yml			Module meta-data (added by MakeMaker)
-Makefile.PL
-Oracle.ex/README
+mk.pm
+mkta.pl
+oci.def				OCI.DLL export declarations
+oci8.c
+ocitrace.h
+ora_explain.PL
 Oracle.ex/bind.pl
 Oracle.ex/commit.pl
 Oracle.ex/curref.pl
@@ -11,11 +25,13 @@ Oracle.ex/japh
 Oracle.ex/mktable.pl
 Oracle.ex/oradump.pl
 Oracle.ex/proc.pl
+Oracle.ex/README
 Oracle.ex/sql
 Oracle.ex/tabinfo.pl
 Oracle.h
 Oracle.pm
 Oracle.xs
+oraperl.ph Old oraperl file included for completeness of emulation
 Oraperl.pm
 README
 README-files/hpux/Conf-Lincoln-1.06
@@ -32,8 +48,9 @@ README-files/hpux/Conf-Merijn-588-11.11-gcc64
 README-files/hpux/Conf-Merijn-588-11.23-gcc64
 README-files/hpux/Conf-Mike
 README-files/hpux/Conf-Roger
-README-files/hpux/Makefile-Lincoln
 README-files/hpux/libjava.eml
+README-files/hpux/Makefile-Lincoln
+README.64bit.txt
 README.aix.txt
 README.clients.txt
 README.explain.txt
@@ -48,21 +65,6 @@ README.sec.txt
 README.vms.txt
 README.win32.txt
 README.wingcc.txt			Notes about building with mingw32 and cygwin32
-Todo
-dbdimp.c
-dbdimp.h
-dbivport.h
-hints/dgux.pl
-hints/macos_bundle.syms
-hints/macos_lib.syms
-hints/macos_syms.pl
-hints/svr4.pl
-lib/DBD/Oracle/GetInfo.pm
-oci.def				OCI.DLL export declarations
-oci8.c
-ocitrace.h
-ora_explain.PL
-oraperl.ph			Old oraperl file included for completeness of emulation
 t/01base.t
 t/10general.t
 t/12impdata.t
@@ -81,6 +83,7 @@ t/26exe_array.t
 t/28array_bind.t
 t/30long.t
 t/31lob.t
+t/31lob_extended.t
 t/32xmltype.t
 t/34pres_lobs.t
 t/40ph_type.t
@@ -93,4 +96,5 @@ t/70meta.t
 t/80ora_charset.t
 t/nchar_test_lib.pl
 test.pl
+Todo
 typemap

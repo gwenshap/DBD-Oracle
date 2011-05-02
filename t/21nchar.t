@@ -19,8 +19,9 @@ SKIP: {
     $dbh = db_handle();
     plan skip_all => "Not connected to oracle" if not $dbh;
 
-    print STDERR " Database and client versions and character sets:\n";
-    show_db_charsets( $dbh, \*STDERR );	# STDERR so we can see it in initial bug reports
+    diag("testing control and 8 bit chars:\n") ;
+    diag(" Database and client versions and character sets:\n");
+    show_db_charsets( $dbh);
 
     plan skip_all => "Oracle charset tests unreliable for Oracle 8 client"
 	if ORA_OCI() < 9.0 and !$ENV{DBD_ALL_TESTS};
@@ -37,7 +38,6 @@ SKIP: {
     set_nls_nchar( $ncharset ,1 ); 
     $dbh = db_handle();
 
-    print "testing control and 8 bit chars:\n" ;
     my $tdata = test_data( 'narrow_nchar' );
     my $testcount = 0 #create table
                   + insert_test_count( $tdata )

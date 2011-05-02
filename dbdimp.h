@@ -1,5 +1,6 @@
 /*
    Copyright (c) 1994-2006 Tim Bunce
+   Copyright (c) 2006-2008 John Scoles (The Pythian Group), Canada
 
    See the COPYRIGHT section in the Oracle.pm file for terms.
 
@@ -68,9 +69,13 @@ struct imp_sth_st {
     OCISvcCtx		*svchp;	/* copy of dbh pointer	*/
     OCIStmt			*stmhp;	/* oci statement  handle */
     OCIDescribe 	*dschp; /* oci describe handle */
+    int             is_child;  /* if this is child from a ref cursor or SP*/
    	ub2 			stmt_type;	/* OCIAttrGet OCI_ATTR_STMT_TYPE	*/
     U16				auto_lob;	/* use auto lobs*/
     int				pers_lob;   /*use dblink for lobs only for 10g Release 2. or later*/
+    int				clbk_lob;   /*use dblink for lobs only for 10g Release 2. or later*/
+    int             piece_lob;  /*use piece fetch for lobs*/
+	ub4				piece_size; /*used in callback to set the size of the piece to get*/
     int  			has_lobs;   /* Statement has bound LOBS*/
 
     lob_refetch_t *lob_refetch;
@@ -120,9 +125,12 @@ struct imp_sth_st {
 
 typedef struct fb_ary_st fb_ary_t;    /* field buffer array	*/
 struct fb_ary_st { 	/* field buffer array EXPERIMENTAL	*/
-    ub2  bufl;		/* length of data buffer		*/
+    ub4  bufl;		/* length of data buffer		*/
+    ub4  cb_bufl;	/* length of piece of data fetched in callback.*/
+    ub4  piece_count;/*# of pieces retrieved*/
     sb2  *aindp;	/* null/trunc indicator variable	*/
     ub1  *abuf;		/* data buffer (points to sv data)	*/
+    ub1  *cb_abuf;	/*yet another buffer for picewise callbacks this means I only need to allocate memory once a prepare rather than at each fetch*/
     ub2  *arlen;	/* length of returned data		*/
     ub2  *arcode;	/* field level error status		*/
 };
@@ -157,6 +165,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     OCIDefine 	*defnp;
     void 		*desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4  		desc_t;	/* OCI type of descriptor		*/
+    ub4 		define_mode; /*the normal case for a define*/
     int  		(*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
     void 		(*fetch_cleanup) _((SV *sth, imp_fbh_t *fbh));
     ub2  		dbtype;	/* actual type of field (see ftype)	*/
@@ -172,15 +181,20 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     ub2  		csid;		/* OCI_ATTR_CHARSET_ID			*/
     ub1  		csform;	/* OCI_ATTR_CHARSET_FORM		*/
 
-    sb4  		disize;	/* max display/buffer size		*/
+    ub4  		disize;	/* max display/buffer size		*/
+    ub4			piece_size; /*used in callback to set the size of the piece to get*/
+
     char 		*bless;	/* for Oracle::OCI style handle data	*/
     void 		*special;	/* hook for special purposes (LOBs etc)	*/
-
+    int			pers_lob;   /*for persistant lobs 10g Release 2. or later*/
+    int			clbk_lob;   /*for persistant lobs 10g Release 2. or later*/
+    int         piece_lob;  /*use piecewise fetch for lobs*/
     /* Our storage space for the field data as it's fetched	*/
     sword  		ftype;	/* external datatype we wish to get	*/
     fb_ary_t 	*fb_ary ;	/* field buffer array			*/
     /* if this is an embedded object we use this */
     fbh_obj_t   *obj;
+
 
  };
 
@@ -236,6 +250,7 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 /* ------ define functions and external variables ------ */
 
 extern int ora_fetchtest;
+extern int dbd_verbose;
 
 extern ub2 charsetid;
 extern ub2 ncharsetid;
@@ -261,7 +276,9 @@ void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
 void ora_free_fbh_contents _((imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
-fb_ary_t *fb_ary_alloc _((int bufl, int size));
+fb_ary_t *fb_ary_alloc _((ub4 bufl, int size));
+fb_ary_t *fb_ary_cb_alloc _((ub4 piece_size,ub4 max_len, int size));
+
 int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
 
 void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
@@ -275,8 +292,15 @@ int pp_rebind_ph_rset_in _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 int oci_error_err _((SV *h, OCIError *errhp, sword status, char *what, sb4 force_err));
 #define oci_error(h, errhp, status, what) oci_error_err(h, errhp, status, what, 0)
 char *oci_stmt_type_name _((int stmt_type));
+char *oci_typecode_name _((int typecode));
+char *sql_typecode_name _((int dbtype));
 char *oci_status_name _((sword status));
-char * oci_hdtype_name _((ub4 hdtype));
+char *oci_mode _((ub4  mode));
+char *oci_bind_options _((ub4 options));
+char *oci_define_options _((ub4 options));
+char *oci_hdtype_name _((ub4 hdtype));
+char *oci_exe_mode _((ub4 mode));
+char *oci_col_return_codes _((int rc));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 int dbd_rebind_ph_nty _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
@@ -304,13 +328,14 @@ sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 sb4 dbd_phs_out _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
              dvoid **bufpp, ub4 **alenpp, ub1 *piecep,
              dvoid **indpp, ub2 **rcodepp));
+sb4 presist_lob_fetch_cbk _((dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
+                      ub4 **alenpp, ub1 *piecep, dvoid **indpp, ub2 **rcpp));
 int dbd_rebind_ph_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 void * oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags);
 void * oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags);
 void fb_ary_free(fb_ary_t *fb_ary);
 
-#include "ocitrace.h"
 
 
 
@@ -339,6 +364,7 @@ void fb_ary_free(fb_ary_t *fb_ary);
 #define dbd_st_FETCH_attrib	ora_st_FETCH_attrib
 #define dbd_describe		ora_describe
 #define dbd_bind_ph		    ora_bind_ph
+#include "ocitrace.h"
 
 /* end */
 

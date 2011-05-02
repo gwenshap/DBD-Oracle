@@ -1,17 +1,5 @@
 #!perl -w
-
-sub ok ($$;$) {
-    my($n, $ok, $warn) = @_;
-    ++$t;
-    die "sequence error, expected $n but actually $t"
-    if $n and $n != $t;
-    ($ok) ? print "ok $t\n"
-	  : print "# failed test $t at line ".(caller)[2]."\nnot ok $t\n";
-	if (!$ok && $warn) {
-		$warn = $DBI::errstr || "(DBI::errstr undefined)" if $warn eq '1';
-		warn "$warn\n";
-	}
-}
+use Test::More;
 
 use strict;
 use DBI qw(neat);
@@ -23,27 +11,6 @@ require 'nchar_test_lib.pl';
 
 $| = 1;
 $^W = 1;
-
-my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dsn = oracle_test_dsn();
-my $dbh = DBI->connect($dsn, $dbuser, '', {
-	AutoCommit => 0,
-	PrintError => 1,
-	FetchHashKeyName => 'NAME_lc',
-});
-
-unless($dbh) {
-	warn "Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n";
-	print "1..0\n";
-	exit 0;
-}
-
-eval {
-    require Data::Dumper;
-    $Data::Dumper::Useqq = $Data::Dumper::Useqq =1;
-    $Data::Dumper::Terse = $Data::Dumper::Terse =1;
-    $Data::Dumper::Indent= $Data::Dumper::Indent=1;
-};
 
 # XXX ought to extend tests to check 'blank padded comparision semantics'
 my @tests = (
@@ -61,7 +28,27 @@ my @tests = (
 $tests = 3;
 $_->{SKIP} or $tests+=8 for @tests;
 
-print "1..$tests\n";
+my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
+my $dsn = oracle_test_dsn();
+my $dbh = DBI->connect($dsn, $dbuser, '', {
+	AutoCommit => 0,
+	PrintError => 1,
+	FetchHashKeyName => 'NAME_lc',
+});
+
+if ($dbh) {
+    plan tests => $tests;
+} else {
+    plan skip_all =>
+        "Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n";
+}
+
+eval {
+    require Data::Dumper;
+    $Data::Dumper::Useqq = $Data::Dumper::Useqq =1;
+    $Data::Dumper::Terse = $Data::Dumper::Terse =1;
+    $Data::Dumper::Indent= $Data::Dumper::Indent=1;
+};
 
 my ($sth,$tmp);
 my $table = "dbd_ora__drop_me" . ($ENV{DBD_ORACLE_SEQ}||'');
@@ -72,7 +59,7 @@ eval {
   $dbh->do("DROP TABLE $table");
 };
 
-ok(0, $dbh->do("CREATE TABLE $table (name VARCHAR2(2), vc VARCHAR2(20), c CHAR(20))"));
+ok($dbh->do("CREATE TABLE $table (name VARCHAR2(2), vc VARCHAR2(20), c CHAR(20))"), 'create test table');
 
 my $val_with_trailing_space = "trailing ";
 my $val_with_embedded_nul = "embedded\0nul";
@@ -82,67 +69,65 @@ for my $test_info (@tests) {
 
   my $ph_type = $test_info->{type} || die;
   my $name    = $test_info->{name} || die;
-  print "#\n";
-  print "# testing @{[ %$test_info ]} ...\n";
-  print "#\n";
-  if ($test_info->{SKIP}) {
-    print "# skipping tests\n";
-    foreach (1..12) { ok(0,1) }
-    next;
-  }
+  diag("\n");
+  diag("testing @{[ %$test_info ]} ...\n");
+  diag("\n");
 
-  $dbh->{ora_ph_type} =  $ph_type;
-  ok(0, $dbh->{ora_ph_type} == $ph_type );
+ SKIP: {
+      skip "skipping tests", 12 if ($test_info->{SKIP});
 
-  $sth = $dbh->prepare("INSERT INTO $table(name,vc,c) VALUES (?,?,?)");
-  $sth->trace($test_info->{ti}) if $test_info->{ti};
-  $sth->execute("ts", $val_with_trailing_space, $val_with_trailing_space);
-  $sth->execute("en", $val_with_embedded_nul,   $val_with_embedded_nul);
-  $sth->execute("es", '', ''); # empty string
-  $sth->trace(0) if $test_info->{ti};
+      $dbh->{ora_ph_type} =  $ph_type;
+      ok($dbh->{ora_ph_type} == $ph_type, 'set ora_ph_type');
 
-  $dbh->trace($test_info->{ts}) if $test_info->{ts};
-  $tmp = $dbh->selectall_hashref(qq{
+      $sth = $dbh->prepare("INSERT INTO $table(name,vc,c) VALUES (?,?,?)");
+      $sth->trace($test_info->{ti}) if $test_info->{ti};
+      $sth->execute("ts", $val_with_trailing_space, $val_with_trailing_space);
+      $sth->execute("en", $val_with_embedded_nul,   $val_with_embedded_nul);
+      $sth->execute("es", '', ''); # empty string
+      $sth->trace(0) if $test_info->{ti};
+
+      $dbh->trace($test_info->{ts}) if $test_info->{ts};
+      $tmp = $dbh->selectall_hashref(qq{
 	SELECT name, vc, length(vc) as len, nvl(vc,'ISNULL') as isnull, c
-	FROM $table
-  }, "name");
-  ok(0, keys(%$tmp) == 3);
-  $dbh->trace(0) if $test_info->{ts};
-  $dbh->rollback;
+	FROM $table}, "name");
+      ok(keys(%$tmp) == 3, 'right keys');
+      $dbh->trace(0) if $test_info->{ts};
+      $dbh->rollback;
 
-  delete $_->{name} foreach values %$tmp;
-  print Data::Dumper::Dumper($tmp);
+      delete $_->{name} foreach values %$tmp;
+      diag(Data::Dumper::Dumper($tmp));
 
-  # check trailing_space behaviour
-  my $expect = $val_with_trailing_space;
-  $expect =~ s/\s+$// if $test_info->{chops_space};
-  my $ok = ($tmp->{ts}->{vc} eq $expect);
-  if (!$ok && $ph_type==1 && $name eq 'VARCHAR2') {
-    warn " Placeholder behaviour for ora_type=1 (the default) varies with Oracle version.\n";
-    warn " Oracle 7 didn't strip trailing spaces, Oracle 8 did, until 9.2.x\n";
-    warn " Your system doesn't. If that seems odd, let us know.\n";
-    $ok = 1;
-  }
-  ok(0, $ok, sprintf(" using ora_type %d expected %s but got %s for $name",
-		$ph_type, neat($expect), neat($tmp->{ts}->{vc})) );
+      # check trailing_space behaviour
+      my $expect = $val_with_trailing_space;
+      $expect =~ s/\s+$// if $test_info->{chops_space};
+      my $ok = ($tmp->{ts}->{vc} eq $expect);
+      if (!$ok && $ph_type==1 && $name eq 'VARCHAR2') {
+          warn " Placeholder behaviour for ora_type=1 VARCHAR2 (the default) varies with Oracle version.\n";
+          warn " Oracle 7 didn't strip trailing spaces, Oracle 8 did, until 9.2.x\n";
+          warn " Your system doesn't. If that seems odd, let us know.\n";
+          $ok = 1;
+      }
+      ok($ok, sprintf(" using ora_type %d expected %s but got %s for $name",
+                      $ph_type, neat($expect), neat($tmp->{ts}->{vc})) );
 
-  # check embedded nul char behaviour
-  $expect = $val_with_embedded_nul;
-  $expect =~ s/\0.*// unless $test_info->{embed_nul};
-  ok(0, $tmp->{en}->{vc} eq $expect, sprintf(" expected %s but got %s for $name",
+      # check embedded nul char behaviour
+      $expect = $val_with_embedded_nul;
+      $expect =~ s/\0.*// unless $test_info->{embed_nul};
+      is($tmp->{en}->{vc}, $expect, sprintf(" expected %s but got %s for $name",
 		neat($expect),neat($tmp->{en}->{vc})) );
 
-  # check empty string is NULL (irritating Oracle behaviour)
-  ok(0, !defined $tmp->{es}->{vc});
-  ok(0, !defined $tmp->{es}->{c});
-  ok(0, !defined $tmp->{es}->{len});
-  ok(0, $tmp->{es}->{isnull} eq 'ISNULL');
+      # check empty string is NULL (irritating Oracle behaviour)
+      ok(!defined $tmp->{es}->{vc}, 'vc defined');
+      ok(!defined $tmp->{es}->{c}, 'c defined');
+      ok(!defined $tmp->{es}->{len}, 'len defined');
+      is($tmp->{es}->{isnull}, 'ISNULL', 'ISNULL');
 
-  exit 1 if $test_info->{ti} || $test_info->{ts};
+      exit 1 if $test_info->{ti} || $test_info->{ts};
+  }
 }
 
-ok(0, $dbh->do("DROP TABLE $table"));
-ok(0, $dbh->disconnect );
+ok($dbh->do("DROP TABLE $table"), 'drop table');
+ok($dbh->disconnect, 'disconnect');
 
 
 __END__

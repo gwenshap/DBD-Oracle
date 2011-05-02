@@ -43,7 +43,7 @@ DBD::Oracle  --  an Oracle interface for Perl 5.
     Build, test and install Perl 5 (at least 5.6.1)
     It is very important to TEST it and INSTALL it!
 
-    Build, test and install the DBI module (at least DBI 1.21).
+    Build, test and install the DBI module (at least DBI 1.51).
     It is very important to TEST it and INSTALL it!
 
     Remember to *read* the DBI README file and this one CAREFULLY!
@@ -57,7 +57,12 @@ DBD::Oracle  --  an Oracle interface for Perl 5.
           your configuration and DBD::Oracle determine your Oracle version.
 
     For full Oracle installs: that usually includes Pro*C and SQL*Net.
-    (That's not very specific because it varies between Oracle releases.)
+    (That's not very specific because it varies between Oracle releases.).  
+    As of release 1.22 support of Oracle clients before 9 was dropped.
+    The main reason for this is that next few versions of DBD::Oracle will introduce a number of new features
+    whicht will required a great deal of extra coding to make the OCI 8 work. 
+    As well it is getting harder to find an Oracle client 8 to test against as well
+    Oracle no longer supports clients before 9.
 
     The ORACLE_HOME environment variable must point to the Oracle Home
     used to create DBD::Oracle. (Not essential under MS Windows).
@@ -105,8 +110,10 @@ The supplied tests will connect to the database using the value of the
 ORACLE_USERID environment variable to supply the username/password.
 So you should set that to a valid user (e.g. 'scott/tiger') and ensure that
 this user has sufficient privileges to create, insert into, select from and 
-drop a table, and is able to select from systemtables like 'v$sessions'.
-Using 'system/manager' might work but is not recommended! See also
+drop a table,  is also able to create, call and drop a procedure  and is able to select from 
+systemtables like 'v$sessions'. Using 'system/manager' might work but is not
+recommended! See also
+
 README.login.txt.
 
     make test

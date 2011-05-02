@@ -19,7 +19,7 @@ package Oraperl;
 
 require 5.004;
 
-use DBI 1.21;
+use DBI 1.22;
 use Exporter;
 
 $VERSION = substr(q$Revision: 1.44 $, 10);
@@ -868,6 +868,7 @@ my assistance and gratitude.
 =head1 COPYRIGHT
 
 Copyright (c) 1994-2006 Tim Bunce. Ireland.
+Copyright (c) 2006-2008 John Scoles (The Pythian Group). Canada.
 
 The DBD::Oracle module is free open source software; you can
 redistribute it and/or modify it under the same terms as Perl 5.

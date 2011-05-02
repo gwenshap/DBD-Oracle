@@ -34,8 +34,24 @@ unless (defined &{"utf8::is_utf8"}) {
     filehandle with an encoding, see open and perlfunc/binmode.
 =cut
 eval { binmode STDOUT, ':utf8' }; # Fails for perl 5.6
-print "Can't set binmode(STDOUT, ':utf8'): $@" if $@;
+diag("Can't set binmode(STDOUT, ':utf8'): $@") if $@;
+eval { binmode STDERR, ':utf8' }; # Fails for perl 5.6
+diag("Can't set binmode(STDERR, ':utf8'): $@") if $@;
 
+# Test::More duplicates STDOUT/STDERR at the start but does not copy the IO
+# layers from our STDOUT/STDERR. As a result any calls to Test::More::diag
+# with utf8 data will show warnings. Similarly, if we pass utf8 into
+# Test::More::pass, ok, etc etc. To get around this we specifically tell
+# Test::More to use our newly changed STDOUT and STDERR for failure_output
+# and output.
+my $tb = Test::More->builder;
+binmode($tb->failure_output, ':utf8');
+binmode($tb->output, ':utf8');
+
+# disable diag unless TEST_VERBOSE is set.
+if (!exists($ENV{TEST_VERBOSE})) {
+    $tb->no_diag(1);
+}
 sub long_test_cols
 {
    my ($type) = @_ ;
@@ -172,8 +188,9 @@ sub show_test_data
 	my $v = $$recR[0];
         my $byte_string = byte_string($v);
         my $nice_string = nice_string($v);
-        printf( "row: %3d: nice_string=%s byte_string=%s (%s, %s)\n",
-                $cnt, $nice_string, $byte_string, $v, DBI::neat($v));
+        my $out = sprintf( "row: %3d: nice_string=%s byte_string=%s (%s, %s)\n",
+                           $cnt, $nice_string, $byte_string, $v, DBI::neat($v));
+        diag($out);
     }
     return $cnt;
 }
@@ -347,7 +364,7 @@ sub cmp_ok_byte_nice {
     return $ok1 && $ok2;
 }
 
-sub create_table 
+sub create_table
 {
     my ($dbh,$tdata,$drop) = @_;
     my $tcols = $tdata->{cols};
@@ -366,10 +383,12 @@ sub create_table
         $dbh->do(qq{ drop table $table });
         warn "Unexpectedly had to drop old test table '$table'\n" unless $dbh->err;
         $dbh->do($sql);
+    } elsif ($dbh->err) {
+        return;
     } else {
        #$sql =~ s/ \( */(\n\t/g;
        #$sql =~ s/, */,\n\t/g;
-       print "$sql\n" ;
+       diag("$sql\n") ;
     }
     return $table;
 #    ok( not $dbh->err, "create table $table..." );
@@ -379,18 +398,20 @@ sub create_table
 
 sub show_db_charsets
 {
-    my ( $dbh, $fh ) = @_;
-    $fh ||= \*STDOUT;
+    my ( $dbh) = @_;
+    my $out;
     my $ora_server_version = join ".", @{$dbh->func("ora_server_version")||[]};
     my $paramsH = $dbh->ora_nls_parameters();
-    printf $fh "Database $ora_server_version CHAR set is %s (%s), NCHAR set is %s (%s)\n",
+    $out = sprintf "Database $ora_server_version CHAR set is %s (%s), NCHAR set is %s (%s)\n",
 	$paramsH->{NLS_CHARACTERSET}, 
 	db_ochar_is_utf($dbh) ? "Unicode" : "Non-Unicode",
 	$paramsH->{NLS_NCHAR_CHARACTERSET},
 	db_nchar_is_utf($dbh) ? "Unicode" : "Non-Unicode";
+    diag($out);
     my $ora_client_version = ORA_OCI();
-    printf $fh "Client $ora_client_version NLS_LANG is '%s', NLS_NCHAR is '%s'\n",
+    $out = sprintf "Client $ora_client_version NLS_LANG is '%s', NLS_NCHAR is '%s'\n",
 	ora_env_var("NLS_LANG") || "<unset>", ora_env_var("NLS_NCHAR") || "<unset>";
+    diag($out);
 }
 sub db_ochar_is_utf { return shift->ora_can_unicode & 2 }
 sub db_nchar_is_utf { return shift->ora_can_unicode & 1 }
@@ -424,9 +445,9 @@ sub set_nls_nchar
     # see comments in dbdimp.c for details.
     DBD::Oracle::ora_cygwin_set_env('NLS_NCHAR', $ENV{NLS_NCHAR}||'')
 	if $^O eq 'cygwin';
-    print defined ora_env_var("NLS_NCHAR") ?	# defined?
+    diag(defined ora_env_var("NLS_NCHAR") ?	# defined?
         "set \$ENV{NLS_NCHAR}=$cset\n" :
-        "set \$ENV{NLS_LANG}=undef\n"		# XXX ?
+        "set \$ENV{NLS_LANG}=undef\n")		# XXX ?
             if defined $verbose;
 }
 
@@ -435,10 +456,10 @@ sub set_nls_lang_charset
     my ($lang,$verbose) = @_;
     if ( $lang ) {
         $ENV{NLS_LANG} = "AMERICAN_AMERICA.$lang";
-        print "set \$ENV{NLS_LANG}=AMERICAN_AMERICA.$lang\n" if ( $verbose );
+        diag("set \$ENV{NLS_LANG}=AMERICAN_AMERICA.$lang\n") if ( $verbose );
     } else {
         $ENV{NLS_LANG} = "";	# not the same as set_nls_nchar() above which uses undef
-        print "set \$ENV{NLS_LANG}=''\n" if ( $verbose );
+        diag("set \$ENV{NLS_LANG}=''\n") if ( $verbose );
     }
     # Special treatment for environment variables under Cygwin -
     # see comments in dbdimp.c for details.
@@ -503,4 +524,3 @@ select $cols from $table;
 
 
 1;
-
