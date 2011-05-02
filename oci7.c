@@ -1,5 +1,5 @@
 /*
-   $Id: oci7.c,v 1.12 2001/06/05 22:53:37 timbo Exp $
+   $Id: oci7.c,v 1.13 2001/08/07 00:25:37 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -330,7 +330,7 @@ dbd_st_fetch(sth, imp_sth)
 		sv_setiv(DBIc_ERR(imp_sth), 0);	/* ensure errno set to 0 here	*/
 		if (debug >= 3)
 		    fprintf(DBILOGFP, "    dbd_st_fetch no-more-data, rc=%d, rpc=%ld\n",
-			imp_sth->cda->rc, imp_sth->cda->rpc);
+			imp_sth->cda->rc, (long)imp_sth->cda->rpc);
 	    }
 	    /* further fetches without an execute will arrive back here	*/
 	    return Nullav;
@@ -429,7 +429,7 @@ dbd_st_fetch(sth, imp_sth)
 		}
 	    }
 	    else {
-		SvOK_off(sv);	/* set field that caused error to undef	*/
+		(void*)SvOK_off(sv);	/* set field that caused error to undef	*/
 	    }
 	    ++err;	/* 'fail' this fetch but continue getting fields */
 	    /* Some should probably be treated as warnings but	*/
@@ -441,7 +441,7 @@ dbd_st_fetch(sth, imp_sth)
 
 	if (debug >= 5)
 	    fprintf(DBILOGFP, "        %d (rc=%d, otype %d, len %lu): %s\n",
-		i, rc, fbh->dbtype, datalen, neatsvpv(sv,0));
+		i, rc, fbh->dbtype, (unsigned long)datalen, neatsvpv(sv,0));
     }
 
     /* update cache counters */

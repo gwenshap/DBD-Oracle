@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.64 2001/06/06 00:46:39 timbo Exp $
+   $Id: dbdimp.c,v 1.66 2001/08/07 00:25:37 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -737,7 +737,10 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
     ub2 **alen_ptr_ptr;
 {
     STRLEN value_len;
-    int at_exec = (phs->desc_h == NULL);
+    int at_exec = 0;
+#ifdef OCI_V8_SYNTAX
+    at_exec = (phs->desc_h == NULL);
+#endif
 
     if (!SvPOK(phs->sv)) {	/* normalizations for special cases	*/
 	if (SvOK(phs->sv)) {	/* ie a number, convert to string ASAP	*/
@@ -786,7 +789,7 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 	phs->indp  = 0;
     }
     else {	/* it's null but point to buffer incase it's an out var	*/
-	phs->progv = NULL;
+	phs->progv = (phs->is_inout) ? SvPVX(phs->sv) : NULL;
 	phs->indp  = -1;
 	value_len  = 0;
     }
@@ -795,7 +798,7 @@ dbd_rebind_ph_char(sth, imp_sth, phs, alen_ptr_ptr)
 	phs->progv = SvPV(phs->sv, value_len);
     }
     phs->sv_type = SvTYPE(phs->sv);	/* part of mutation check	*/
-    phs->maxlen  = SvLEN(phs->sv)-1;	/* avail buffer space		*/
+    phs->maxlen  = ((IV)SvLEN(phs->sv))-1; /* avail buffer space (64bit safe) */
     if (phs->maxlen < 0)		/* can happen with nulls	*/
 	phs->maxlen = 0;
 
@@ -1020,7 +1023,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
     phs_t *phs;
 {
     ub2 *alen_ptr = NULL;
-	int done = 0;
+    int done = 0;
 
     switch (phs->ftype) {
 #ifdef OCI_V8_SYNTAX
@@ -1074,7 +1077,7 @@ dbd_rebind_ph(sth, imp_sth, phs)
 			(dvoid *)phs, dbd_phs_in,
 			(dvoid *)phs, dbd_phs_out, status);
 	    if (status != OCI_SUCCESS) {
-		oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
+		oci_error(sth, imp_sth->errhp, status, "OCIBindDynamic");
 		return 0;
 	    }
 	}
@@ -1088,9 +1091,11 @@ dbd_rebind_ph(sth, imp_sth, phs)
 		    phs->name, phs->maxlen, MINSWORDMAXVAL);
 
     if (obndra(imp_sth->cda, (text *)phs->name, -1,
-	    (ub1*)phs->progv, (sword)SvCUR(phs->sv), /* cast reduces max size */
+	    (ub1*)phs->progv,
+	    phs->maxlen ? (sword)phs->maxlen : (sword)1, /* else bind "" fails   */
 	    (sword)phs->ftype, -1,
-	    &phs->indp, alen_ptr, &phs->arcode, 0, (ub4 *)0,
+	    &phs->indp, alen_ptr, &phs->arcode,
+	    0, (ub4 *)0,
 	    (text *)0, -1, -1)) {
 	D_imp_dbh_from_sth;
 	ora_error(sth, imp_dbh->lda, imp_sth->cda->rc, "obndra failed");
@@ -1238,6 +1243,57 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
 }
 
 
+/* --- functions to 'complete' the fetch of a value --- */
+
+void
+dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
+{
+    /* XXX doesn't check arcode for error, caller is expected to */
+    if (phs->indp == 0) {                       /* is okay      */
+	SvPOK_only(sv);
+	SvCUR_set(sv, phs->alen);
+	*SvEND(sv) = '\0';
+	if (debug >= 2)
+	    fprintf(DBILOGFP, "       out %s = %s (arcode %d, ind %d, len %d)\n",
+		phs->name, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen);
+    }
+    else
+    if (phs->indp > 0 || phs->indp == -2) {     /* truncated    */
+	SvPOK_only(sv);
+	SvCUR(sv) = phs->alen;
+	*SvEND(sv) = '\0';
+	if (debug >= 2)
+	    fprintf(DBILOGFP,
+		"       out %s = %s\t(TRUNCATED from %d to %ld, arcode %d)\n",
+		phs->name, neatsvpv(sv,0), phs->indp, (long)phs->alen, phs->arcode);
+    }
+    else
+    if (phs->indp == -1) {                      /* is NULL      */
+	(void)SvOK_off(phs->sv);
+	if (debug >= 2)
+	    fprintf(DBILOGFP,
+		"       out %s = undef (NULL, arcode %d)\n",
+		phs->name, phs->arcode);
+    }
+    else
+	croak("panic dbd_phs_sv_complete: %s bad indp %d, arcode %d", phs->name, phs->indp, phs->arcode);
+}
+
+void
+dbd_phs_avsv_complete(phs_t *phs, I32 index, I32 debug)
+{
+    AV *av = (AV*)SvRV(phs->sv);
+    SV *sv = *av_fetch(av, index, 1);
+    dbd_phs_sv_complete(phs, sv, 0);
+    if (debug >= 2)
+	fprintf(DBILOGFP, "       out '%s'[%ld] = %s (arcode %d, ind %d, len %d)\n",
+		phs->name, (long)index, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen);
+}
+
+
+/* --- */
+
+
 int
 dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count) */
     SV *sth;
@@ -1311,13 +1367,14 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	    else {
  		/* String may have grown or shrunk since it was bound	*/
  		/* so tell Oracle about it's current length		*/
+		ub2 prev_alen = phs->alen;
 		phs->alen = (SvOK(sv)) ? SvCUR(sv) + phs->alen_incnull : 0+phs->alen_incnull;
 		if (debug >= 2)
  		    fprintf(DBILOGFP,
- 		        "      with %s = '%.*s' (len %ld/%ld, indp %d, otype %d, ptype %d)\n",
+ 		        "      with %s = '%.*s' (len %ld(%ld)/%ld, indp %d, otype %d, ptype %d)\n",
  			phs->name, (int)phs->alen,
 			(phs->indp == -1) ? "" : SvPVX(sv),
-			(long)phs->alen, (long)phs->maxlen, phs->indp,
+			(long)phs->alen, (long)prev_alen, (long)phs->maxlen, phs->indp,
 			phs->ftype, (int)SvTYPE(sv));
 	    }
 	}
@@ -1408,7 +1465,7 @@ dbd_st_execute(sth, imp_sth)	/* <= -2:error, >=0:ok row count, (-1=unknown count
 	fprintf(DBILOGFP,
 	    "    dbd_st_execute complete (rc%d, w%02x, rpc%ld, eod%d, out%d)\n",
 		imp_sth->cda->rc,  imp_sth->cda->wrn,
-		row_count, imp_sth->eod_errno,
+		(long)row_count, imp_sth->eod_errno,
 		imp_sth->has_inout_params);
 #endif
 

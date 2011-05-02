@@ -4,6 +4,7 @@ Makefile.PL
 Oracle.ex/Readme
 Oracle.ex/bind.pl
 Oracle.ex/commit.pl
+Oracle.ex/curref.pl
 Oracle.ex/ex.pl
 Oracle.ex/japh
 Oracle.ex/mktable.pl

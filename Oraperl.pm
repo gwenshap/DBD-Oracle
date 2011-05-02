@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.40 2001/06/05 22:46:50 timbo Exp $
+# $Id: Oraperl.pm,v 1.41 2001/08/06 21:58:29 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -13,7 +13,7 @@
 #
 #       use Oraperl;
 # or
-#       eval 'use Oraperl; 1' || die $@ if $] >= 5;
+#       eval 'use Oraperl; 1;' || die $@ if $] >= 5;
 #
 # The second form allows oraperl scripts to be used with
 # both oraperl and perl 5.
@@ -25,7 +25,7 @@ require 5.002;
 use DBI 0.84;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.40 $, 10);
+$VERSION = substr(q$Revision: 1.41 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -239,7 +239,7 @@ Oraperl - Perl access to Oracle databases for old oraperl scripts
 
 =head1 SYNOPSIS
 
-  eval 'use Oraperl; 1' || die $@ if $] >= 5;  # ADD THIS LINE TO OLD SCRIPTS
+  eval 'use Oraperl; 1;' || die $@ if $] >= 5;  # ADD THIS LINE TO OLD SCRIPTS
 
   $lda = &ora_login($system_id, $name, $password)
   $csr = &ora_open($lda, $stmt [, $cache])
@@ -289,7 +289,7 @@ Oraperl;>> in each file or package. If you need to make the scripts work
 with both the perl4 oraperl and perl5 you should add add the following
 text instead:
 
-  eval 'use Oraperl; 1' || die $@ if $] >= 5;
+  eval 'use Oraperl; 1;' || die $@ if $] >= 5;
 
 =head2 Principal Functions
 
