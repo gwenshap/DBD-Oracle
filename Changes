@@ -1,3 +1,8 @@
+Changes in DBD::Oracle 1.06 14th July 2000
+
+  Fixed ora_ph_type attribute to allow 96 or 97.
+  Fixed compile failure with Oracle 7.
+
 Changes in DBD::Oracle 1.05 13th July 2000
 
   Added $dbh->{ora_ph_type} attribute to define default bind type:
