@@ -1,3 +1,7 @@
+=head1 Changes in DBD-Oracle 1.27 (svn rev 14583)
+
+  This version removes ‘PERL_POLLUTE’ and adds in PL_ where required so it will be fully compatible with Perl 5.13
+
 =head1 Changes in DBD-Oracle 1.26 (svn rev 14411)
 
   Manual re-release of 1.25 with changes to file permissions.

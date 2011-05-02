@@ -347,7 +347,7 @@ oci_hdtype_name(ub4 hdtype)
 #endif
 	}
 	sv = sv_2mortal(newSViv((IV)hdtype));
-	return SvPV(sv,na);
+	return SvPV(sv,PL_na);
 }
 
 /*used to look up the name of a csform value
@@ -368,7 +368,7 @@ oci_csform_name(ub4 attr)
 	}
 
 	sv = sv_2mortal(newSViv((IV)attr));
-	return SvPV(sv,na);
+	return SvPV(sv,PL_na);
 }
 
 /*used to look up the name of a OCI_DTYPE_PARAM Attribute Types
@@ -399,7 +399,7 @@ oci_dtype_attr_name(ub4 attr)
 	}
 
 	sv = sv_2mortal(newSViv((IV)attr));
-	return SvPV(sv,na);
+	return SvPV(sv,PL_na);
 
 }
 
@@ -691,7 +691,7 @@ oci_attr_name(ub4 attr)
 
 	}
 	sv = sv_2mortal(newSViv((IV)attr));
-	return SvPV(sv,na);
+	return SvPV(sv,PL_na);
 }
 
 /*used to look up the name of a fetchtype constant
@@ -712,7 +712,7 @@ oci_fetch_options(ub4 fetchtype)
 		case OCI_FETCH_RELATIVE:	return "OCI_FETCH_RELATIVE";
 	}
 	sv = sv_2mortal(newSViv((IV)fetchtype));
-	return SvPV(sv,na);
+	return SvPV(sv,PL_na);
 }
 
 
@@ -799,7 +799,7 @@ oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 		errcode = (status != 0) ? status : -10000;
 
 	sv_setiv(errcode_sv, errcode);
-	DBIh_SET_ERR_SV(h, imp_xxh, errcode_sv, errstr_sv, &sv_undef, &sv_undef);
+	DBIh_SET_ERR_SV(h, imp_xxh, errcode_sv, errstr_sv, &PL_sv_undef, &PL_sv_undef);
 	return 0; /* always returns 0 */
 
 }
@@ -827,7 +827,7 @@ ora_sql_error(imp_sth_t *imp_sth, char *msg)
 	sv_insert(sqlsv, parse_error_offset, 0, "<*>", 3);
 	sv_catsv(msgsv, sqlsv);
 	sv_catpv(msgsv, "'");
-	return SvPV(msgsv,na);
+	return SvPV(msgsv,PL_na);
 #else
 	imp_sth = imp_sth; /* not unused */
 	return msg;
@@ -1465,7 +1465,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	if (!SvPOK(phs->sv)) {	 /* normalizations for special cases	 */
 		if (SvOK(phs->sv)) {	/* ie a number, convert to string ASAP  */
 			if (!(SvROK(phs->sv) && phs->is_inout))
-				sv_2pv(phs->sv, &na);
+				sv_2pv(phs->sv, &PL_na);
 		}
 		else { /* ensure we're at least an SVt_PV (so SvPVX etc work)	 */
 			if(SvUPGRADE(phs->sv, SVt_PV)){} /* For GCC not to warn on unused result */
@@ -2337,7 +2337,7 @@ id only shows you examples with the C struct built in and only a single record. 
 				}
 
 				if (attr_null_status==OCI_IND_NULL){
-					 av_push(list,  &sv_undef);
+					 av_push(list,  &PL_sv_undef);
 				} else {
 					if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
 
@@ -2374,7 +2374,7 @@ id only shows you examples with the C struct built in and only a single record. 
 						/*not really an error just no data
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterCreate");*/
 						status = OCI_SUCCESS;
-						av_push(list,  &sv_undef);
+						av_push(list,  &PL_sv_undef);
 						return 0;
 					}
 					for(eoc = FALSE;!OCIIterNext(fbh->imp_sth->envhp, fbh->imp_sth->errhp, itr,
@@ -2383,7 +2383,7 @@ id only shows you examples with the C struct built in and only a single record. 
 					{
 
 						if (*element_null==OCI_IND_NULL){
-							av_push(list,  &sv_undef);
+							av_push(list,  &PL_sv_undef);
 						} else {
 							if (obj->element_typecode == OCI_TYPECODE_OBJECT || obj->element_typecode == OCI_TYPECODE_VARRAY || obj->element_typecode== OCI_TYPECODE_TABLE || obj->element_typecode== OCI_TYPECODE_NAMEDCOLLECTION){
 								fld->value = newAV();
@@ -2892,7 +2892,7 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,int level ) {
 	obj->full_type_name = newSVpv((char*)schema_name, schema_namel);
 	sv_catpvn(obj->full_type_name, ".", 1);
 	sv_catpvn(obj->full_type_name, (char*)type_name, type_namel);
-	obj->type_name = (text*)SvPV(obj->full_type_name,na);
+	obj->type_name = (text*)SvPV(obj->full_type_name,PL_na);
 
 	/*we need to know its type code*/
 
@@ -3457,7 +3457,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				p = "Field %d has an Oracle type (%d) which is not explicitly supported%s";
 				if (DBIS->debug >= 1 || dbd_verbose >= 3 )
 					PerlIO_printf(DBILOGFP, p, i, fbh->dbtype, "\n");
-				if (dowarn)
+				if (PL_dowarn)
 					warn(p, i, fbh->dbtype, "");
 				break;
 		}
@@ -4201,7 +4201,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		int matched = 0;
 		phs_t *phs = (phs_t*)(void*)SvPVX(sv);
 
-		if (sv == &sv_undef || !phs)
+		if (sv == &PL_sv_undef || !phs)
 			croak("panic: unbound params");
 
 		if (phs->ftype != SQLT_CLOB && phs->ftype != SQLT_BLOB)
@@ -4212,9 +4212,9 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		while( (sv = hv_iternextsv(lob_cols_hv, &p, &j)) != NULL ) {
 			char sql_field[200];
 			if (phs->ora_field) {	/* must match this phs by field name	*/
-				char *ora_field_name = SvPV(phs->ora_field,na);
+				char *ora_field_name = SvPV(phs->ora_field,PL_na);
 				if (SvCUR(phs->ora_field) != SvCUR(sv)
-					|| ibcmp(ora_field_name, SvPV(sv,na), (I32)SvCUR(sv) ) )
+					|| ibcmp(ora_field_name, SvPV(sv,PL_na), (I32)SvCUR(sv) ) )
 					continue;
 			}
 			else {			/* basic dumb match by type		*/
