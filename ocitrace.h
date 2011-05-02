@@ -37,12 +37,51 @@
 */
 
 
+#define OCISessionRelease_log_stat(svchp, errhp,stat)\
+	stat =OCISessionRelease(svchp, errhp, NULL, (ub4)0, OCI_DEFAULT);\
+	(DBD_OCI_TRACEON) \
+					? PerlIO_printf(DBD_OCI_TRACEFP,\
+						 "%sOCISessionRelease(svchp=%p)=%s\n",\
+						 OciTp, svchp,oci_status_name(stat)),stat \
+	: stat
+#define OCISessionPoolDestroy_log_stat(ph, errhp,stat )\
+	stat =OCISessionPoolDestroy(ph, errhp,OCI_DEFAULT);\
+	(DBD_OCI_TRACEON) \
+				? PerlIO_printf(DBD_OCI_TRACEFP,\
+					 "%sOCISessionPoolDestroy(ph=%p)=%s\n",\
+					 OciTp, ph,oci_status_name(stat)),stat \
+	: stat
+#define OCISessionGet_log_stat(envhp, errhp, sh, ah,pn,pnl,stat)\
+	stat =OCISessionGet(envhp, errhp, sh, ah,pn,pnl,NULL,0, NULL, NULL, NULL, OCI_SESSGET_SPOOL);\
+	(DBD_OCI_TRACEON) \
+				? PerlIO_printf(DBD_OCI_TRACEFP,\
+					 "%sOCISessionGet(envhp=%p,sh=%p,ah=%p,pn=%p,pnl=%d)=%s\n",\
+					 OciTp, envhp,sh,ah,pn,pnl,oci_status_name(stat)),stat \
+	: stat
+
+#define OCISessionPoolCreate_log_stat(envhp,errhp,ph,pn,pnl,dbn,dbl,sn,sm,si,un,unl,pw,pwl,stat)\
+    stat =OCISessionPoolCreate(envhp,errhp,ph,pn,pnl,dbn,dbl,sn,sm,si,un,unl,pw,pwl,OCI_DEFAULT);\
+    (DBD_OCI_TRACEON) \
+				? PerlIO_printf(DBD_OCI_TRACEFP,\
+					 "%sOCISessionPoolCreate(envhp=%p,ph=%p,pn=%p,pnl=%p,min=%d,max=%d,incr=%d, un=%s,unl=%d,pw=%s,pwl=%d)=%s\n",\
+					 OciTp, envhp,ph,pn,pnl,sn,sm,si,un,unl,pw,pwl,oci_status_name(stat)),stat \
+	: stat
+
+#if defined(ORA_OCI_102)
+#define OCIPing_log_stat(sc,errhp,stat)\
+	stat =OCIPing(sc,errhp,OCI_DEFAULT);\
+	(DBD_OCI_TRACEON) \
+			? PerlIO_printf(DBD_OCI_TRACEFP,\
+				 "%sOCIPing(%p)=%s\n",\
+				 OciTp, sc,oci_status_name(stat)),stat \
+	: stat
+#endif
 
 #define OCIServerVersion_log_stat(sc,errhp,b,bl,ht,stat)\
 	stat =OCIServerVersion(sc,errhp,b,bl,ht);\
 	(DBD_OCI_TRACEON) \
 			? PerlIO_printf(DBD_OCI_TRACEFP,\
-				 "%sCIServerVersion_log_stat(%p,%s)=%s\n",\
+				 "%sOCIServerVersion_log_stat(%p,%s)=%s\n",\
 				 OciTp, sc,b,oci_status_name(stat)),stat \
 	: stat
 
@@ -80,12 +119,12 @@
 				 OciTp,	(void*)svchp,(void*)envhp, src_type, src_ptr,oci_status_name(stat)),stat \
 	: stat
 
-#define OCILobLocatorIsInit_log_stat(envhp,errhp,loc,is_init,stat)\
-	stat =OCILobLocatorIsInit (envhp,errhp,loc,is_init );\
+#define OCILobLocatorIsInit_log_stat(envhp,errhp,loc,is_initp,stat)\
+	stat =OCILobLocatorIsInit (envhp,errhp,loc,is_initp );\
 	(DBD_OCI_TRACEON) \
 			? PerlIO_printf(DBD_OCI_TRACEFP,\
 				 "%sOCILobLocatorIsInit_log_stat(%p,%p,%p,%d)=%s\n",\
-				 OciTp, (void*)envhp, (void*)errhp,loc,is_init,oci_status_name(stat)),stat \
+				 OciTp, (void*)envhp, (void*)errhp,loc,*is_initp,oci_status_name(stat)),stat \
 	: stat
 
 #define OCIObjectPin_log_stat(envhp,errhp,or,ot,stat)\
@@ -353,13 +392,6 @@
 	stat=OCIHandleFree(	(hp), (t));				\
 	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
 		"%sHandleFree(%p,%s)=%s\n",OciTp,(void*)hp,oci_hdtype_name(t),		\
-		oci_status_name(stat)),stat : stat
-
-#define OCIInitialize_log_stat(md,cp,mlf,rlf,mfp,stat)				 \
-	stat=OCIInitialize(md,cp,mlf,rlf,mfp);				\
-	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
-		"%sInitialize(with mode =%s %lu,%p,%p,%p,%p)=%s\n",				\
-		OciTp, oci_mode(md),ul_t(md),(void*)cp,(void*)mlf,(void*)rlf,(void*)mfp,	\
 		oci_status_name(stat)),stat : stat
 
 #define OCILobGetLength_log_stat(sh,eh,lh,l,stat)						\

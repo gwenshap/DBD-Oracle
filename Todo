@@ -1,10 +1,14 @@
 [ In no particular order ]
 
 Seems this file has been neglected for quite a while so I will try to keep it up to date for now
+
+For release 1.26 or later
 
-For release 1.23 or later
-
-Drop support for early 9 versions namely support for NEW_OCI_INIT (get rid of the old code in here)
+Add support for TAF
+Add support for New Lob Functions
+Add support for Statement Cacheing
+Add support for callbacks??
+Drop support for ProC connections
 
 For release 1.22 or later
 

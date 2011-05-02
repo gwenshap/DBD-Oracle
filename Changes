@@ -1,21 +1,42 @@
+=head1 Changes in DBD-Oracle 1.26 (svn rev 14411)
+
+  Manual re-release of 1.25 with changes to file permissions.
+
+=head1 Changes in DBD-Oracle 1.25(svn rev 14411)
+  
+  Added support for the OCIPing by John Scoles
+  Spell checked the pod (the first time in a while me thinks) updated the todo By John Scoles
+  Added support for DCRP (Database Resident Connection Pooling) by John Scoles with Luben Karavelov
+  Fix for odd error with Ping from Tom Payerle
+  Removed the NEW_OCI_INIT compile directive and the deprecated OCIInitialize calls
+  Fix for rt.cpan.org Ticket #=57256 :  Double free problem in dbdimp.c by John Scoles
+  Fix for invalid format in trace of OCILobLocatorIsInit_log_stat reported by Martin Evans Fixed by John Scoles
+  Fix for very odd UNKNOWN OCI STATUS 1041 (OCILobFreeTemporary) on disconnect reported by John Parker and Bob Mcgowan fixed by John Scoles 
+  Fix for rt.cpan.org Ticket #=55445: get_info(28) SQL_IDENTIFIER_CASE seems to return the wrong value from Martin J Evans and a bunch of re jigging from John Scoles
+  Patch for PL/SQL: numeric or value error: character string buffer too small from Scott T. Hildreth
+  Fix for rt.cpan.org Ticket #=51594 type_info and type_info_all miss vital information from John Scoles
+  Added ora_lob_is_init function by John Scoles
+  Fix for rt.cpan.org Ticket #=55031 Ubuntu Server  Building with Oracle XE under 32-bit from Brian Candler 
+  Fix for rt.cpan.org Ticket #=56810 bug with multiple nested cursor from John Scoles 
+  Fix for bug found only on Big-Endian hardware reported by Timothy Everett and others from Charles Jardine 
+  Fix for memory leak when using prepared_cached and lobs reported by Mark Bobak and Martin Evans found and fixed by John Scoles and a test from Martin Evans 
+  Added more entries to the Readmes from John Scoles
+  
 =head1 Changes in DBD-Oracle 1.24_01(svn rev 14060)
 
   This release has been prepared specifically for the 'Debian' http://www.debian.org project.  It contains no changes
   to functionality or usage.  The following has been changed
   
   Fixed some formatting and typos in Pod from Julián Patiño
-  
   The Copyright terms for ora_explain have changed and now read as follows:
+    You may distribute under the terms of either the GNU General Public
+    License or the Artistic License, as specified in the Perl README file.
   
-  You may distribute under the terms of either the GNU General Public
-  License or the Artistic License, as specified in the Perl README file.
-  
+=head1 Changes in DBD-Oracle 1.24(svn rev 13793)
 
-=head1 Changes in DBD-Oracle 1.24(svn rev 13790)
-
-  Extened precision for OCIDateTimeToText to 6 instead of 0 for embedded types from John Scoles
-  Extened support of Oracle Embedded objects from Charles Jardine
-  Added support for RowsInCache as RO and RowCacheSize as a setable value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans 
+  Extended precision for OCIDateTimeToText to 6 instead of 0 for embedded types from John Scoles
+  Extended support of Oracle Embedded objects from Charles Jardine
+  Added support for RowsInCache as RO and RowCacheSize as a set-able value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans 
   Added extended support for 64 bit clients in Makefile.PL from Ralph Doncaster
   Added extended nvarchar support from Jan Mach
   Added support for the TYPE attribute on bind_col and the new DBI bind_col attributes StrictlyTyped and DiscardString from Martin J. Evans 
@@ -61,6 +82,7 @@
   Fix for rt.cpan.org Ticket #=38749 Warning of a NULL column in an aggregate function also added ora_oci_success_warn to display silent OCI warnings from John Scoles
   Patch for UTF8 check on execute_array from David Mansfield and a little by John Scoles
   
+  
 =head1 Changes in DBD-Oracle 1.22(svn rev 11618)  1st Aug 2008 
 
   Patch to remove compiler warnings from H.Merijn Brand
@@ -88,7 +110,8 @@
   Fix for rt.cpan.org Ticket #=28811 ORA_CHAR(s) not returning correct length in functions and procedures from John Scoles
   Makefile.PL now working without flags for Linux 11.1.0.6 instant client and regular client from John Scoles, Andy Sautins, H.Merijn Brand, Nathan Vonnahme and Karun Dutt
   Fixed how persistent lob fetch works now uses callback correctly, from John Scoles & Darren Kipp
- 
+
+  
 =head1 Changes in DBD-Oracle 1.21(svn rev 11067) 11th April 2008 
  
   Added Notes to README.win32.txt on installing Instant Client 11.1.0.6.0 from John Scoles
