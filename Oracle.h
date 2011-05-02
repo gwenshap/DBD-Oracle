@@ -67,6 +67,7 @@ int	 dbd_db_login  _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, cha
 int	 dbd_db_do _((SV *sv, char *statement));
 int	 dbd_db_commit     _((SV *dbh, imp_dbh_t *imp_dbh));
 int	 dbd_db_rollback   _((SV *dbh, imp_dbh_t *imp_dbh));
+int dbd_st_bind_col(SV *sth, imp_sth_t *imp_sth, SV *col, SV *ref, IV type, SV *attribs);
 int	 dbd_db_disconnect _((SV *dbh, imp_dbh_t *imp_dbh));
 void dbd_db_destroy    _((SV *dbh, imp_dbh_t *imp_dbh));
 int	 dbd_db_STORE_attrib _((SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv));
@@ -109,10 +110,13 @@ ub4	 ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *
 #define ORA_MLSLABEL		105
 #define ORA_CLOB 			112
 #define ORA_BLOB			113
+#define ORA_BFILE			114
 #define ORA_RSET			116
 #define ORA_VARCHAR2_TABLE	201
 #define ORA_NUMBER_TABLE	202
 #define ORA_XMLTYPE			108
+
+
 
 
 /* other Oracle not in noraml API defines
@@ -126,9 +130,9 @@ They will be added when needed
 
 */
 
-sword  OCIXMLTypeCreateFromSrc(/*_ OCISvcCtx *svchp, OCIError *errhp,
+sword  OCIXMLTypeCreateFromSrc( OCISvcCtx *svchp, OCIError *errhp,
                      OCIDuration dur, ub1 src_type, dvoid *src_ptr,
-                     sb4 ind, OCIXMLType **retInstance _*/);
+                     sb4 ind, OCIXMLType **retInstance );
 
 
 /* end of Oracle.h */

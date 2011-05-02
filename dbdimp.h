@@ -41,7 +41,8 @@ struct imp_dbh_st {
 	OCISession	*authp;
 	int proc_handles;		   /* If true, srvhp, svchp, and authp handles
 								   are owned by ProC and must not be freed. */
-	int RowCacheSize;
+	int RowCacheSize; /* both of these are defined by DBI spec*/
+	int RowsInCache;	/* this vaue is RO and cannot be set*/
 	int ph_type;		/* default oratype for placeholders */
 	ub1 ph_csform;		/* default charset for placeholders */
 	int parse_error_offset;	/* position in statement of last error */
@@ -78,7 +79,7 @@ struct imp_sth_st {
 	ub4				piece_size;	/*used in callback to set the size of the piece to get*/
 	int				has_lobs;	/*Statement has bound LOBS */
     int				ret_lobs;	/*Statement returns LOBS */
-	lob_refetch_t	*lob_refetch;
+ 	lob_refetch_t	*lob_refetch;
 	int				nested_cursor;	/* cursors fetched from SELECTs */
 	AV				*bind_tuples;	/* Bind tuples in array execute, or NULL */
 	int				rowwise;		/* If true, bind_tuples is list of */
@@ -111,13 +112,18 @@ struct imp_sth_st {
 	int 			fetch_orient;
 	int				fetch_offset;
 	int				fetch_position;
-	int 			prefetch_memory;   /* OCI_PREFETCH_MEMORY*/
+	int 			prefetch_memory;	/* OCI_PREFETCH_MEMORY*/
+	int				prefetch_rows;		/* OCI_PREFETCH_ROWS */
 	/* array fetch: state variables */
-	bool			rs_array_on;		   /* if array to be used */
-	int				rs_array_size;		 /* array size */
-	int				rs_array_num_rows;	 /* num rows in last fetch */
-	int				rs_array_idx;		  /* index of current row */
-	sword			rs_array_status;	   /* status of last fetch */
+	int				row_cache_off;
+	int 			rs_fetch_count;		/*fetch count*/
+	int				rs_array_size;		/*array size local value for RowCacheSize as I do not want to change RowCacheSize */
+	int				rs_array_num_rows;	/* num rows in last fetch */
+	int				rs_array_idx;		/* index of current row */
+	sword			rs_array_status;	/* status of last fetch */
+	int 			RowCacheSize; 		/* both of these are defined by DBI spec*/
+	int 			RowsInCache;		/* this vaue is RO and cannot be set*/
+
 };
 #define IMP_STH_EXECUTING	0x0001
 
@@ -148,8 +154,9 @@ struct fbh_obj_st {  /* embedded object or table will work recursively*/
 	OCITypeCode 	element_typecode;	/*if collection this is its element's OCI_ATTR_TYPECODE*/
 	OCIRef			*obj_ref;			/*if an embeded object this is ref handle to its TDO*/
 	OCIInd			*obj_ind;			/*Null indictator for object */
- 	OCIComplexObject *obj_value;		/*the actual value from the DB*/
- 	OCIType			*obj_type;		 	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
+	OCIComplexObject *obj_value;		/*the actual value from the DB*/
+	OCIType			*obj_type;		 	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
+	ub1				is_final_type;		/*object's OCI_ATTR_IS_FINAL_TYPE*/
 	fbh_obj_t		*fields;			/*one object for each field/property*/
 	int				field_count;		/*The number of fields Not really needed but nice to have*/
 	fbh_obj_t		*next_subtype;		/*There is strored information about subtypes for inteherited objects*/
@@ -181,16 +188,20 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
 	ub1			len_char_used;	/* OCI_ATTR_CHAR_USED			*/
 	ub2			len_char_size;	/* OCI_ATTR_CHAR_SIZE			*/
 	ub2			csid;		/* OCI_ATTR_CHARSET_ID			*/
-	ub1			csform;	/* OCI_ATTR_CHARSET_FORM		*/
-	ub4			disize;	/* max display/buffer size		*/
+	ub1			csform;		/* OCI_ATTR_CHARSET_FORM		*/
+	ub4			disize;		/* max display/buffer size		*/
 	ub4			piece_size; /*used in callback to set the size of the piece to get*/
-	char		*bless;	/* for Oracle::OCI style handle data	*/
+	char		*bless;		/* for Oracle::OCI style handle data	*/
 	void		*special;	/* hook for special purposes (LOBs etc)	*/
 	int			pers_lob;   /*for persistant lobs 10g Release 2. or later*/
 	int			clbk_lob;   /*for persistant lobs 10g Release 2. or later*/
 	int			piece_lob;  /*use piecewise fetch for lobs*/
+
 	/* Our storage space for the field data as it's fetched	*/
-	sword		ftype;	/* external datatype we wish to get	*/
+
+	sword		ftype;		/* external datatype we wish to get	*/
+	IV			req_type;	/* type passed to bind_col */
+	UV			bind_flags;	/* flags passed to bind_col */
 	fb_ary_t	*fb_ary ;	/* field buffer array			*/
 	/* if this is an embedded object we use this */
 	fbh_obj_t	*obj;
@@ -253,6 +264,7 @@ extern int ora_fetchtest;
 extern int dbd_verbose;
 extern int oci_warn;
 extern int ora_objects;
+extern int ora_ncs_buff_mtpl;
 
 extern ub2 charsetid;
 extern ub2 ncharsetid;
@@ -306,8 +318,10 @@ char *oci_mode _((ub4  mode));
 char *oci_bind_options _((ub4 options));
 char *oci_define_options _((ub4 options));
 char *oci_hdtype_name _((ub4 hdtype));
+char *oci_attr_name _((ub4 attr));
 char *oci_exe_mode _((ub4 mode));
 char *oci_col_return_codes _((int rc));
+char *oci_csform_name _((ub4 attr));
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 int dbd_rebind_ph_nty _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
@@ -328,6 +342,7 @@ char *ora_env_var(char *name, char *buf, unsigned long size);
 
 #ifdef __CYGWIN32__
 void ora_cygwin_set_env(char *name, char *value);
+
 #endif /* __CYGWIN32__ */
 
 sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
@@ -342,7 +357,7 @@ int dbd_rebind_ph_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 void * oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags);
 void * oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags);
 void fb_ary_free(fb_ary_t *fb_ary);
-
+void rs_array_init(imp_sth_t *imp_sth);
 
 
 
@@ -371,6 +386,7 @@ void fb_ary_free(fb_ary_t *fb_ary);
 #define dbd_st_FETCH_attrib	ora_st_FETCH_attrib
 #define dbd_describe		ora_describe
 #define dbd_bind_ph			ora_bind_ph
+#define dbd_st_bind_col		ora_st_bind_col
 #include "ocitrace.h"
 
 /* end */

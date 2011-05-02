@@ -1,8 +1,8 @@
 #!perl -w
 
 ## ----------------------------------------------------------------------------
-## 26exe_array.t
-## By Martin Evans, The Pythian Group
+## 31lob_extended.t
+## By John Scoles, The Pythian Group
 ## ----------------------------------------------------------------------------
 ##  This run through some bugs that have been found in earlier versions of DBD::Oracle
 ##  Checks to ensure that these bugs no longer come up
@@ -38,7 +38,7 @@ if ($dbh) {
 my ($table, $data0, $data1) = setup_test($dbh);
 
 #
-# bug in DBD::0.21 where if ora_auto_lobs is set and we attempt to
+# bug in DBD::Oracle 1.21 where if ora_auto_lobs is not set and we attempt to
 # fetch from a table containing lobs which has more than one row
 # we get a segfault. This was due to prefetching more than one row.
 #
@@ -50,7 +50,7 @@ my ($table, $data0, $data1) = setup_test($dbh);
     eval {$sth1 = $dbh->prepare(
         q/begin p_DBD_Oracle_drop_me(?); end;/, {ora_auto_lob => 0});
       };
-    ok(!$@, "$testname prepare call proc");
+    ok(!$@, "$testname - prepare call proc");
     my $sth2;
     ok($sth1->bind_param_inout(1, \$sth2, 500, {ora_type => ORA_RSET}),
        "$testname - bind out cursor");
@@ -175,13 +175,14 @@ END {
         eval {$dbh->do(q/drop procedure p_DBD_Oracle_drop_me/);};
         if ($@) {
             warn("procedure p_DBD_Oracle_drop_me possibly not dropped" .
-                     "- check\n") if $dbh->err ne '4043';
+                     "- check - $@\n") if $dbh->err ne '4043';
         } else {
             diag("procedure p_DBD_Oracle_drop_me dropped");
         }
         eval {drop_table($dbh);};
         if ($@) {
-            warn("table $table possibly not dropped - check\n")
+            warn("table $table possibly not dropped - check - $@\n")
+
                 if $dbh->err ne '942';
         } else {
             diag("table $table dropped");

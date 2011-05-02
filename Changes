@@ -1,3 +1,26 @@
+=head1 Changes in DBD-Oracle 1.24(svn rev 13793)
+  Extended precision for OCIDateTimeToText to 6 instead of 0 for embedded types from John Scoles
+  Extended support of Oracle Embedded objects from Charles Jardine
+  Added support for RowsInCache as RO and RowCacheSize as a set-able value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans 
+  Added extended support for 64 bit clients in Makefile.PL from Ralph Doncaster
+  Added extended nvarchar support from Jan Mach
+  Added support for the TYPE attribute on bind_col and the new DBI bind_col attributes StrictlyTyped and DiscardString from Martin J. Evans 
+  Added ora_ncs_buff_mtpl and environment var ORA_DBD_NCS_BUFFER so we can control the size of the buffer when doing nclob reads
+  Fix for rt.cpan.org Ticket #=49741 Oracle.h has commented out params in OCIXMLTypeCreateFromSrc from Kartik Thakore 
+  Added from rt.cpan.org Ticket #=49436 Patch to add support for a few Oracle data types to type_info_all from David Hull 
+  Added from rt.cpan.org Ticket #=49435 Patch to add support for a few Oracle data types to dbd_describe from David Hull 
+  Fix for rt.cpan.org Ticket #=49331 Bad code example in POD from John Scoles
+  Added support for looking up OCI_DTYPE_PARAM Attributes
+  Added support for looking up csform values 
+  Fix for rt.cpan.org Ticket #=46763,46998 enhancement -Rowcache size is now being properly implemented with row fetch buffer from John Scoles 
+  Fix for rt.cpan.org Ticket #=46438 enhancement -Errors returned by procedures are now unicode strings from Martin Evans, John Scoles and Tim Bunce
+  Fix for rt.cpan.org Ticket #=47503 bugfix - using more than 1 LOB in insert broken from APLA
+  Fix for rt.cpan.org Ticket #=46613 bugfix - sig-abort on nested objects with ora_objects=1 from TomasP
+  Fix for rt.cpan.org Ticket #=46661 DBD::Oracle hangs when insert/update with LOB and quoted table name from APLA
+  Fix for rt.cpan.org Ticket #=46246 fetching from nested cursor (returned from procedure) leads to application crash (abort) from John Scoles
+  Fix for rt.cpan.org Ticket #=46016  LOBs bound with ora_field broken from RKITOVER
+  Fix for bug in 58object.t when test run as externally identified user from Charles Jardine
+
 =head1 Changes in DBD-Oracle 1.23(svn rev 12724)
   Fix from rt.cpan.org ticket #=44788 bool in_lite should be char in_literal 
   Fix for UTF8 and blobs by John Scoles with Milo van der Leij

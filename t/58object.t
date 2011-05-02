@@ -5,7 +5,7 @@ use DBD::Oracle qw(ORA_RSET SQLCS_NCHAR);
 use strict;
 use Data::Dumper;
 
-use Test::More tests => 34;
+use Test::More tests => 51;
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
 
@@ -36,13 +36,26 @@ cmp_ok($dbh->{ora_objects}, 'eq', '0', 'ora_objects flag is set to 0');
 # check that our db handle is good
 isa_ok($dbh, "DBI::db");
 
+
+ok( $schema = $dbh->selectrow_array(
+  "select sys_context('userenv', 'current_schema') from dual"
+), 'Fetch current schema name');
+ 
+
 my $obj_prefix = "dbd_test_";
 my $super_type = "${obj_prefix}_type_A";
 my $sub_type = "${obj_prefix}_type_B";
 my $table = "${obj_prefix}_obj_table";
+my $outer_type = "${obj_prefix}_outer_type";
+my $inner_type = "${obj_prefix}_inner_type";
+my $list_type = "${obj_prefix}_list_type";
+my $nest_table = "${obj_prefix}_nest_table";
+my $list_table = "${obj_prefix}_list_table";
 
 sub drop_test_objects {
-    for my $obj ("TABLE $table", "TYPE $sub_type", "TYPE $super_type") {
+    for my $obj ("TABLE $list_table", "TABLE $nest_table",
+                 "TYPE $list_type", "TYPE $outer_type", "TYPE $inner_type",
+                 "TABLE $table", "TYPE $sub_type", "TYPE $super_type") {
         #do not warn if already there
         eval {
             local $dbh->{PrintError} = 0;
@@ -72,6 +85,30 @@ $dbh->do(qq{ INSERT INTO $table VALUES (2, $sub_type(NULL, 'obj2',
             ) or die $dbh->errstr;
 $dbh->do(qq{ INSERT INTO $table VALUES (3, $sub_type(5, 'obj3', NULL, 777.666)) }
             ) or die $dbh->errstr;
+
+$dbh->do(qq{ CREATE OR REPLACE TYPE $inner_type AS OBJECT (
+                num     INTEGER,
+                name    VARCHAR2(20)
+            ) FINAL }) or die $dbh->errstr;
+$dbh->do(qq{ CREATE OR REPLACE TYPE $outer_type AS OBJECT (
+                num     INTEGER,
+                obj     $inner_type
+            ) FINAL }) or die $dbh->errstr;
+$dbh->do(qq{ CREATE OR REPLACE TYPE $list_type AS
+                            TABLE OF $inner_type }) or die $dbh->errstr;
+$dbh->do(qq{ CREATE TABLE $nest_table(obj $outer_type) }) or die $dbh->errstr;
+$dbh->do(qq{ INSERT INTO $nest_table VALUES($outer_type(91, $inner_type(1, 'one'))) }
+            ) or die $dbh->errstr;
+$dbh->do(qq{ INSERT INTO $nest_table VALUES($outer_type(92, $inner_type(0, null))) }
+            ) or die $dbh->errstr;
+$dbh->do(qq{ INSERT INTO $nest_table VALUES($outer_type(93, null)) }
+            ) or die $dbh->errstr;
+
+$dbh->do(qq{ CREATE TABLE $list_table ( id INTEGER, list $list_type )
+               NESTED TABLE list STORE AS ${list_table}_list }) or die $dbh->errstr;
+$dbh->do(qq{ INSERT INTO $list_table VALUES(81,$list_type($inner_type(null, 'listed'))) }
+            ) or die $dbh->errstr;
+
 
 # Test old (backward compatible) interface 
 
@@ -145,6 +182,42 @@ my $expected_hash = {
 is_deeply($obj->attr_hash, $expected_hash, 'DBD::Oracle::Object->attr_hash');
 is_deeply($obj->attr, $expected_hash, 'DBD::Oracle::Object->attr');
 is($obj->attr("NAME"), 'obj3', 'DBD::Oracle::Object->attr("NAME")');
+
+# try the list table
+$sth = $dbh->prepare("select * from $list_table");
+ok ($sth, 'new: Prepare select with nested table of objects');
+ok ($sth->execute(), 'new: Execute (nested table)');
+
+@row1 = $sth->fetchrow();
+ok (scalar @row1, 'new: Fetch first row (nested table)');
+is_deeply($row1[1]->[0]->attr, {NUM=>undef, NAME=>'listed'},
+           'Check propertes of first (and only) item in nested table');
+
+ok (!$sth->fetchrow(), 'new: No more rows expected (nested table)');
+
+#try the nested table
+$sth = $dbh->prepare("select * from $nest_table");
+ok ($sth, 'new: Prepare select with nested object');
+ok ($sth->execute(), 'new: Execute (nested object)');
+
+@row1 = $sth->fetchrow();
+ok (scalar @row1, 'new: Fetch first row (nested object)');
+is($row1[0]->attr->{NUM}, '91', 'Check obj.num');
+is_deeply($row1[0]->attr->{OBJ}->attr, {NUM=>'1', NAME=>'one'}, 'Check obj.obj');
+
+@row2 = $sth->fetchrow();
+ok (scalar @row2, 'new: Fetch second row (nested object)');
+is($row2[0]->attr->{NUM}, '92', 'Check obj.num');
+is_deeply($row2[0]->attr->{OBJ}->attr, {NUM=>'0', NAME=>undef}, 'Check obj.obj');
+
+@row3 = $sth->fetchrow();
+ok (scalar @row3, 'new: Fetch third row (nested object)');
+is_deeply($row3[0]->attr, {NUM=>'93', OBJ=>undef}, 'Check obj');
+
+ok (!$sth->fetchrow(), 'new: No more rows expected (nested object)');
+
+#print STDERR Dumper(\@row1, \@row2, \@row3);
+
 
 #cleanup 
 &drop_test_objects;
