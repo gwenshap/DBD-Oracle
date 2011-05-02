@@ -1111,14 +1111,9 @@ You have an old copy which you should delete when installing this one.\n";
 	$self->{PM}->{'oraperl.ph'} = '$(INST_LIB)/oraperl.ph';
 
 	eval {	# This chunk is for Oracle::OCI
-	    require Data::Dumper; # dups just to avoid compiler typo warnings
-	    local $Data::Dumper::Useqq = 1;
-	    local $Data::Dumper::Terse = 1;
-	    local $Data::Dumper::Indent= 1;
-	    local $Data::Dumper::Useqq = 1;
-	    local $Data::Dumper::Terse = 1;
-	    local $Data::Dumper::Indent= 1;
-	    print main::MK_PM Data::Dumper->Dump([\%opts, $self], [qw(dbd_oracle_mm_opts dbd_oracle_mm_self)]);
+	    require Data::Dumper;
+	    print main::MK_PM Data::Dumper->Purity(1)->Terse(0)->Indent(1)->Useqq(1)
+		->Dump([\%opts, $self], [qw(dbd_oracle_mm_opts dbd_oracle_mm_self)]);
 	};
 	if ($@) {
 	    warn "Can't dump config to mk.pm so you won't be able to build Oracle::OCI later if you wanted to: $@\n";
