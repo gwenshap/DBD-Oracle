@@ -1,5 +1,5 @@
 /*
-   $Id: oci8.c,v 1.22 2000/07/13 22:42:02 timbo Exp $
+   $Id: oci8.c,v 1.25 2001/06/06 00:49:36 timbo Exp $
 
    Copyright (c) 1998  Tim Bunce
 
@@ -79,55 +79,68 @@ oci_stmt_type_name(int stmt_type)
 }
 
 
+sb4
+oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
+{
+    text errbuf[1024];
+    ub4 recno = 0;
+    sb4 errcode = 0;
+    sb4 eg_errcode = 0;
+    sword eg_status;
+
+    if (!errhp) {
+	sv_catpv(errstr, oci_status_name(status));
+	if (what) {
+	    sv_catpv(errstr, " ");
+	    sv_catpv(errstr, what);
+	}
+	return status;
+    }
+
+    while( ++recno
+	&& OCIErrorGet_log_stat(errhp, recno, (text*)NULL, &eg_errcode, errbuf,
+	    (ub4)sizeof(errbuf), OCI_HTYPE_ERROR, eg_status) != OCI_NO_DATA
+	&& eg_status != OCI_INVALID_HANDLE
+	&& recno < 100
+    ) {
+	if (debug >= 4 || recno>1/*XXX temp*/)
+	    fprintf(DBILOGFP, "    OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
+		what, (long)recno,
+		    (eg_status==OCI_SUCCESS) ? "ok" : oci_status_name(eg_status),
+		    status, (long)eg_errcode, errbuf);
+	errcode = eg_errcode;
+	sv_catpv(errstr, (char*)errbuf);
+	if (*(SvEND(errstr)-1) == '\n')
+	    --SvCUR(errstr);
+    }
+    if (what || status != OCI_ERROR) {
+	sv_catpv(errstr, (debug<0) ? " (" : " (DBD ");
+	sv_catpv(errstr, oci_status_name(status));
+	if (what) {
+	    sv_catpv(errstr, ": ");
+	    sv_catpv(errstr, what);
+	}
+	sv_catpv(errstr, ")");
+    }
+    return errcode;
+}
+
+
 int
 oci_error(SV *h, OCIError *errhp, sword status, char *what)
 {
     D_imp_xxh(h);
+    sb4 errcode = 0;
     SV *errstr = DBIc_ERRSTR(imp_xxh);
+
     sv_setpv(errstr, "");
-    if (errhp) {
-	text errbuf[1024];
-	sb4 errcode = 0;
-	ub4 recno = 0;
-	sb4 eg_errcode = 0;
-	sword eg_status;
-	while( ++recno
-	    && OCIErrorGet_log_stat(errhp, recno, (text*)NULL, &eg_errcode, errbuf,
-		(ub4)sizeof(errbuf), OCI_HTYPE_ERROR, eg_status) != OCI_NO_DATA
-	    && eg_status != OCI_INVALID_HANDLE
-	    && recno < 100
-	) {
-	    if (DBIS->debug >= 4 || recno>1/*XXX temp*/)
-		fprintf(DBILOGFP, "    OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
-		    what, (long)recno,
-			(eg_status==OCI_SUCCESS) ? "ok" : oci_status_name(eg_status),
-			status, (long)eg_errcode, errbuf);
-	    errcode = eg_errcode;
-	    sv_catpv(errstr, (char*)errbuf);
-	    if (*(SvEND(errstr)-1) == '\n')
-		--SvCUR(errstr);
-	}
-	if (what || status != OCI_ERROR) {
-	    sv_catpv(errstr, " (DBD ");
-	    sv_catpv(errstr, oci_status_name(status));
-	    if (what) {
-		sv_catpv(errstr, ": ");
-		sv_catpv(errstr, what);
-	    }
-	    sv_catpv(errstr, ")");
-	}
-	/* DBIc_ERR *must* be SvTRUE (for RaiseError etc), some	*/
-	/* errors, like OCI_INVALID_HANDLE, don't set errcode.	*/
-	if (errcode == 0)
-	    errcode = (status != 0) ? status : -10000;
-	sv_setiv(DBIc_ERR(imp_xxh), (IV)errcode);
-    }
-    else {
-	sv_setiv(DBIc_ERR(imp_xxh), (IV)status);
-	sv_catpv(errstr, oci_status_name(status));
-	sv_catpv(errstr, " ");
-	sv_catpv(errstr, what);
-    }
+    errcode = oci_error_get(errhp, status, what, errstr, DBIS->debug);
+
+    /* DBIc_ERR *must* be SvTRUE (for RaiseError etc), some	*/
+    /* errors, like OCI_INVALID_HANDLE, don't set errcode.	*/
+    if (errcode == 0)
+	errcode = (status != 0) ? status : -10000;
+    sv_setiv(DBIc_ERR(imp_xxh), (IV)errcode);
     DBIh_EVENT2(h,
 	(status == OCI_SUCCESS_WITH_INFO) ? WARN_event : ERROR_event,
 	DBIc_ERR(imp_xxh), errstr);
@@ -168,6 +181,33 @@ ora_sql_error(imp_sth_t *imp_sth, char *msg)
 }
 
 
+void *
+oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags)
+{
+     switch(handle_type) {
+     case OCI_HTYPE_ENV:	return imp_dbh->envhp;
+     case OCI_HTYPE_ERROR:	return imp_dbh->errhp;
+     case OCI_HTYPE_SERVER:	return imp_dbh->srvhp;
+     case OCI_HTYPE_SVCCTX:	return imp_dbh->svchp;
+     case OCI_HTYPE_SESSION:	return imp_dbh->authp;
+     }
+     croak("Can't get OCI handle type %d from DBI database handle", handle_type);
+}
+
+void *
+oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags)
+{
+     switch(handle_type) {
+     case OCI_HTYPE_ENV:	return imp_sth->envhp;
+     case OCI_HTYPE_ERROR:	return imp_sth->errhp;
+     case OCI_HTYPE_SERVER:	return imp_sth->srvhp;
+     case OCI_HTYPE_SVCCTX:	return imp_sth->svchp;
+     case OCI_HTYPE_STMT:	return imp_sth->stmhp;
+     }
+     croak("Can't get OCI handle type %d from DBI statement handle", handle_type);
+}
+
+
 int
 dbd_st_prepare(sth, imp_sth, statement, attribs)
     SV *sth;
@@ -190,6 +230,7 @@ dbd_st_prepare(sth, imp_sth, statement, attribs)
     }
 
     imp_sth->done_desc = 0;
+    imp_sth->get_oci_handle = (void*)oci_st_handle;
 
     if (DBIc_COMPAT(imp_sth)) {
 	static SV *ora_pad_empty;
@@ -278,39 +319,141 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
     *indpp  = &phs->indp;
     *piecep = OCI_ONE_PIECE;
     if (DBIS->debug >= 3)
- 	fprintf(DBILOGFP, "       dbd_phs_in  '%s' (%ld,%ld): len %2ld, ind %d%s\n",
+ 	fprintf(DBILOGFP, "       in  '%s' [%ld,%ld]: len %2ld, ind %d%s\n",
 		phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
 		(phs->desc_h) ? " via descriptor" : "");
     if (index > 0 || iter > 0)
-	croak("Arrays and multiple iterations not currently supported by DBD::Oracle");
+	croak("Arrays and multiple iterations not currently supported by DBD::Oracle (in %d/%d)", index,iter);
     return OCI_CONTINUE;
 }
 
+/*
+``Binding and Defining''
+
+Binding RETURNING...INTO variables
+
+As mentioned in the previous section, an OCI application implements the placeholders in the RETURNING clause as
+pure OUT bind variables. An application must adhere to the following rules when working with these bind variables: 
+
+  1.Bind RETURNING clause placeholders in OCI_DATA_AT_EXEC mode using OCIBindByName() or
+    OCIBindByPos(), followed by a call to OCIBindDynamic() for each placeholder. 
+
+    Note: The OCI only supports the callback mechanism for RETURNING clause binds. The polling mechanism is
+    not supported. 
+
+  2.When binding RETURNING clause placeholders, you must supply a valid out bind function as the ocbfp
+    parameter of the OCIBindDynamic() call. This function must provide storage to hold the returned data. 
+  3.The icbfp parameter of OCIBindDynamic() call should provide a "dummy" function which returns NULL values
+    when called. 
+  4.The piecep parameter of OCIBindDynamic() must be set to OCI_ONE_PIECE. 
+  5.No duplicate binds are allowed in a DML statement with a RETURNING clause (i.e., no duplication between bind
+    variables in the DML section and the RETURNING section of the statement). 
+
+When a callback function is called, the OCI_ATTR_ROWS_RETURNED attribute of the bind handle tells the
+application the number of rows being returned in that particular iteration. Thus, when the callback is called the first
+time in a particular iteration (i.e., index=0), the user can allocate space for all the rows which will be returned for that
+bind variable. When the callback is called subsequently (with index>0) within the same iteration, the user can merely
+increment the buffer pointer to the correct memory within the allocated space to retrieve the data. 
+
+Every bind handle has a OCI_ATTR_MAXDATA_SIZE attribute. This attribute specifies the number of bytes to be
+allocated on the server to accommodate the client-side bind data after any necessary character set conversions. 
+
+    Note: Character set conversions performed when data is sent to the server may result in the data expanding or
+    contracting, so its size on the client may not be the same as its size on the server. 
+
+An application will typically set OCI_ATTR_MAXDATA_SIZE to the maximum size of the column or the size of the
+PL/SQL variable, depending on how it is used. Oracle issues an error if OCI_ATTR_MAXDATA_SIZE is not a large
+enough value to accommodate the data after conversion, and the operation will fail. 
+*/
+
 sb4
-dbd_phs_out(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
-	     dvoid **bufpp, ub4 **alenpp, ub1 *piecep,
-	     dvoid **indpp, ub2 **rcodepp)
+dbd_phs_out(dvoid *octxp, OCIBind *bindp,
+	ub4 iter,	/* execution itteration (0...)	*/
+	ub4 index,	/* array index (0..)		*/
+	dvoid **bufpp,	/* A pointer to a buffer to write the bind value/piece.	*/
+	ub4 **alenpp,	/* A pointer to a storage for OCI to fill in the size	*/
+			/* of the bind value/piece after it has been read.	*/
+	ub1 *piecep,	/* */
+	dvoid **indpp,	/* Return a pointer to contain the indicator value which either an sb2	*/
+			/* value or a pointer to an indicator structure for named data types.	*/
+	ub2 **rcodepp)	/* Returns a pointer to contains the return code.	*/
 {
-    phs_t *phs = octxp;
+    phs_t *phs = octxp;	/* context */
+    /*imp_sth_t *imp_sth = phs->imp_sth;*/
+
     if (phs->desc_h) {
 	*bufpp  = phs->desc_h;
 	phs->alen = 0;
     }
     else {
-	*bufpp  = SvPVX(phs->sv);
-	phs->alen = SvLEN(phs->sv);	/* max buffer size now, actual data len later */
+	SV *sv = phs->sv;
+	if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
+	    if (index > 0)	/* finish-up handling previous element */
+		dbd_phs_avsv_complete(phs, index-1, DBIS->debug);
+	    sv = *av_fetch((AV*)SvRV(sv), index, 1);
+	    if (!SvOK(sv))
+		sv_setpv(sv,"");
+	}
+	*bufpp = SvGROW(sv, ((phs->maxlen < 28) ? 28 : phs->maxlen)+1/*for null*/);
+	phs->alen = SvLEN(sv);	/* max buffer size now, actual data len later */
     }
     *alenpp = &phs->alen;
     *indpp  = &phs->indp;
     *rcodepp= &phs->arcode;
     if (DBIS->debug >= 3)
- 	fprintf(DBILOGFP, "       dbd_phs_out '%s' (%ld,%ld): len %2ld, piece %d%s\n",
+ 	fprintf(DBILOGFP, "       out '%s' [%ld,%ld]: alen %2ld, piece %d%s\n",
 		phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), *piecep,
 		(phs->desc_h) ? " via descriptor" : "");
-    if (index > 0 || iter > 0)
-	croak("Arrays and multiple iterations not currently supported by DBD::Oracle");
+    if (iter > 0)
+	warn("Multiple iterations not currently supported by DBD::Oracle (out %d/%d)", index,iter);
     *piecep = OCI_ONE_PIECE;
     return OCI_CONTINUE;
+}
+
+
+void
+dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
+{
+    /* XXX doesn't check arcode for error, caller is expected to */
+    if (phs->indp == 0) {                       /* is okay      */
+	SvPOK_only(sv);
+	SvCUR_set(sv, phs->alen);
+	*SvEND(sv) = '\0';
+	if (debug >= 2)
+	    fprintf(DBILOGFP, "       out '%s' = %s (arcode %d, ind %d, len %d)\n",
+		phs->name, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen);
+    }
+    else
+    if (phs->indp > 0 || phs->indp == -2) {     /* truncated    */
+	SvPOK_only(sv);
+	SvCUR(sv) = phs->alen;
+	*SvEND(sv) = '\0';
+	if (debug >= 2)
+	    fprintf(DBILOGFP,
+		"       out %s = %s\t(TRUNCATED from %d to %ld, arcode %d)\n",
+		phs->name, neatsvpv(sv,0), phs->indp, (long)phs->alen, phs->arcode);
+    }
+    else
+    if (phs->indp == -1) {                      /* is NULL      */
+	(void)SvOK_off(phs->sv);
+	if (debug >= 2)
+	    fprintf(DBILOGFP,
+		"       out %s = undef (NULL, arcode %d)\n",
+		phs->name, phs->arcode);
+    }
+    else
+	croak("panic dbd_phs_sv_complete: %s bad indp %d, arcode %d", phs->name, phs->indp, phs->arcode);
+}
+
+void
+dbd_phs_avsv_complete(phs_t *phs, I32 index, I32 debug)
+{
+    AV *av = (AV*)SvRV(phs->sv);
+    SV *sv = *av_fetch(av, index, 1);
+    dbd_phs_sv_complete(phs, sv, 0);
+    if (debug >= 2)
+	fprintf(DBILOGFP, "       out '%s'[%ld] = %s (arcode %d, ind %d, len %d)\n",
+		phs->name, (long)index, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen);
 }
 
 
@@ -322,6 +465,18 @@ fetch_func_varfield(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
     ub4 datalen = *(ub4*)p;     /* XXX alignment ? */
     p += 4;
     sv_setpvn(dest_sv, p, (STRLEN)datalen);
+    return 1;
+}
+
+
+static int
+fetch_func_nty(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
+{
+    fb_ary_t *fb_ary = fbh->fb_ary;
+    char *p = (char*)&fb_ary->abuf[0];
+    ub4 datalen = *(ub4*)p;     /* XXX alignment ? */
+    warn("fetch_func_nty unimplemented");
+    SvOK_off(dest_sv);
     return 1;
 }
 
@@ -551,7 +706,7 @@ fetch_func_autolob(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
 	else {
 	    char buf[300];
 	    sprintf(buf,"fetching field %d of %d. LOB value truncated from %ld to %ld. %s",
-		    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), ul_t(amtp), ul_t(amtp),
+		    fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth), ul_t(loblen), ul_t(amtp),
 		    "DBI attribute LongReadLen too small and/or LongTruncOk not set");
 	    oci_error(sth, NULL, OCI_ERROR, buf);
 	    sv_setiv(DBIc_ERR(imp_sth), (IV)24345); /* appropriate ORA error number */
@@ -598,12 +753,9 @@ fetch_func_autolob(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
 static int
 fetch_func_loblocator(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv)
 {
-	/*
+    /* See the Oracle::OCI module for how to actually use this! */
     OCILobLocator *lobl = (OCILobLocator*)fbh->desc_h;
-    sword status;
-	*/
-    sv_setsv(dest_sv, &sv_no);
-    croak("LOB Locators are not directly accessible yet.");
+    sv_setref_pv(dest_sv, "OCILobLocatorPtr", (void*)lobl);
     return 1;
 }
 
@@ -705,8 +857,6 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 
 	case   2:				/* NUMBER	*/
-		if (!fbh->prec)	  /* is 0 for FLOATing point	*/
-		     fbh->prec = 38;	 	 /* max prec	*/
 		fbh->disize = 130+3;	/* worst case! 1**-130	*/
 		avg_width = 4;     /* > approx +/- 1_000_000 ?  */
 		break;
@@ -748,17 +898,47 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
 		break;
 
-	case 105:				/* MLSLABEL	*/
 	case 108:				/* User Defined	*/
+	{
+		OCIParam *parmp = 0;
+		OCIRef  *type_ref = 0;
+		/*OCIType *addr_tdo = 0;*/
+		OCIDescribe *dschp = 0;
+
+		return oci_error(h, NULL, OCI_ERROR,
+			"Named types are not currently supported by DBD::Oracle");
+
+		fbh->ftype  = fbh->dbtype;
+		fbh->disize = fbh->dbsize;
+		fbh->fetch_func = fetch_func_nty;
+		OCIHandleAlloc_ok(imp_sth->envhp, &dschp, OCI_HTYPE_DESCRIBE, status);
+		OCIDescribeAny_log_stat(imp_sth->svchp, imp_sth->errhp, (text *)"MYTYPE", strlen("MYTYPE"),
+			OCI_OTYPE_NAME, OCI_DEFAULT, OCI_PTYPE_TYPE, dschp, status);
+		if (status != OCI_SUCCESS) {
+			sword free_status;
+			OCIHandleFree_log_stat(dschp, OCI_HTYPE_DESCRIBE, free_status);
+			return oci_error(h, imp_sth->errhp, status, "OCIDescribeAny(OCI_PTYPE_TYPE)/prepare NTY fetch");
+		}
+		OCIAttrGet_log_stat(fbh->desc_h, OCI_HTYPE_DESCRIBE,
+			&parmp, 0, (ub4)OCI_ATTR_PARAM, imp_sth->errhp, status);
+		OCIAttrGet_log_stat(parmp, OCI_DTYPE_PARAM,
+			&type_ref, 0, OCI_ATTR_REF_TDO, imp_sth->errhp, status);
+		croak("Named types are not currently supported by DBD::Oracle");
+	}
+
+		break;
+
+
+	case 105:				/* MLSLABEL	*/
 	case 111:				/* REF		*/
 	default:
 		/* XXX unhandled type may lead to errors or worse */
 		fbh->disize = fbh->dbsize;
-		p = "Field %d has an Oracle type (%d) which is not explicitly supported";
+		p = "Field %d has an Oracle type (%d) which is not explicitly supported%s";
 		if (DBIS->debug >= 1)
-		    fprintf(DBILOGFP, p, i, fbh->dbtype);
+		    fprintf(DBILOGFP, p, i, fbh->dbtype, "\n");
 		if (dowarn)
-		    warn(p, i, fbh->dbtype);
+		    warn(p, i, fbh->dbtype, "");
 		break;
 	}
 	if (fbh->ftype == 5)
@@ -836,6 +1016,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	if (status != OCI_SUCCESS) {
 	    oci_error(h, imp_sth->errhp, status, "OCIDefineByPos");
 	    return 0;
+	}
+
+	if (fbh->ftype == 108) {
+		warn("OCIDefineObject call needed");
 	}
 
     }
@@ -1186,7 +1370,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	fprintf(DBILOGFP, "       lob refetch from table %s, %d columns:\n",
 	    tablename, numcols);
 
-    for (i = 1; i <= numcols; i++) {
+    for (i = 1; i <= (long)numcols; i++) {
 	OCIParam *colhd;
 	ub2 col_dbtype;
 	char *col_name;
@@ -1372,6 +1556,8 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
     OCIError *errhp = imp_sth->errhp;
     ub4 rowid_iter = 0;
     lob_refetch_t *lr;
+    D_imp_dbh_from_sth;
+    SV *dbh = (SV*)DBIc_MY_H(imp_dbh);
 
     if (row_count == 0)
 	return 1;	/* nothing to do */
@@ -1415,6 +1601,9 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	    return oci_error(sth, errhp, status, "OCILobTrim/OCILobWrite/LOB refetch");
 	}
     }
+
+    if (DBIc_has(imp_dbh,DBIcf_AutoCommit))
+	dbd_db_commit(dbh, imp_dbh);
 
     return 1;
 }

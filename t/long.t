@@ -8,6 +8,8 @@ use strict;
 # Search for 'ocibug' to find code related to OCI LONG bugs.
 #
 
+sub ok ($$;$);
+
 $| = 1;
 my $t = 0;
 my $failed = 0;
@@ -32,6 +34,23 @@ unless(create_table("lng LONG")) {
     exit 0;
 }
 
+sub array_test {
+    return 0;
+    eval {
+    $dbh->{RaiseError}=1;
+    $dbh->trace(3);
+    my $sth = $dbh->prepare_cached(qq{
+       UPDATE $table set idx=idx+1 RETURNING idx INTO ?
+    });
+    my ($a,$b);
+    $a=[];
+    $sth->bind_param_inout(1,\$a, 2);
+    $sth->execute;
+    print "a=$a\n";
+    print "a=@$a\n";
+    };
+    die "RETURNING array: $@";
+}
 
 my @test_sets = (
 	[ "LONG",	undef ],
@@ -49,7 +68,7 @@ my $sz = 8;
 
 my $tests;
 my $tests_per_set = 35;
-$tests = @test_sets * $tests_per_set;
+$tests = @test_sets * $tests_per_set + 3;
 print "1..$tests\n";
 
 my($sth, $p1, $p2, $tmp, @tmp);
@@ -57,6 +76,19 @@ my($sth, $p1, $p2, $tmp, @tmp);
 
 foreach (@test_sets) {
     run_long_tests( @$_ );
+}
+
+if (ORA_OCI >= 8) {
+    print " --- testing ora_auto_lob to access raw LobLocator\n";
+    # reuse the current test table, which has a BLOB field
+    # for a quick test of auto_lob...
+    my $lob_locator = $dbh->selectrow_array("select lng from $table", { ora_auto_lob=>0 });
+    ok(0, $lob_locator, "lob_locator false");
+    ok(0, ref $lob_locator eq 'OCILobLocatorPtr', ref $lob_locator);
+    ok(0, $$lob_locator, "lob_locator deref ptr false");
+}
+else {
+    ok(0, 1) for (1..3);
 }
 
 
@@ -96,12 +128,13 @@ if (!create_table("lng $type_name", 1)) {
 
 print " --- insert some $type_name data\n";
 ok(0, $sth = $dbh->prepare("insert into $table values (?, ?, SYSDATE)"), 1);
-$sth->bind_param(2, undef, { ora_type => $type_num }) or die $DBI::errstr
+$sth->bind_param(2, undef, { ora_type => $type_num }) or die "$type_name: $DBI::errstr"
     if $type_num;
 ok(0, $sth->execute(40, $long_data0), 1);
 ok(0, $sth->execute(41, $long_data1), 1);
 ok(0, $sth->execute(42, $long_data2), 1);
 
+array_test();
 
 print " --- fetch $type_name data back again -- truncated - LongTruncOk == 1\n";
 $dbh->{LongReadLen} = 20;

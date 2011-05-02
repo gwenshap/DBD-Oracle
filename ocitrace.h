@@ -44,13 +44,13 @@
 	  OciTp, (void*)th,ul_t(ht),(void*)ah,pul_t(sp),ul_t(at),(void*)eh,\
 	  oci_status_name(stat)),stat : stat
 
-#define OCIAttrGet_parmdp(imp_sth, parmdp, p, l, a, stat)              \
+#define OCIAttrGet_parmdp(imp_sth, parmdp, p1, l, a, stat)              \
 	OCIAttrGet_log_stat(parmdp, OCI_DTYPE_PARAM,			\
-		(void*)(p), (l), (a), imp_sth->errhp, stat)
+		(void*)(p1), (l), (a), imp_sth->errhp, stat)
 
-#define OCIAttrGet_stmhp_stat(imp_sth, p, l, a, stat)                  \
+#define OCIAttrGet_stmhp_stat(imp_sth, p1, l, a, stat)                  \
 	OCIAttrGet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,		\
-		(void*)(p), (l), (a), imp_sth->errhp, stat)
+		(void*)(p1), (l), (a), imp_sth->errhp, stat)
 
 #define OCIAttrSet_log_stat(th,ht,ah,s,a,eh,stat)                      \
 	stat=OCIAttrSet(th,ht,ah,s,a,eh);				\
@@ -59,11 +59,11 @@
 	  OciTp, (void*)th,(ht),(void*)(ah),ul_t(s),ul_t(a),(void*)eh,	\
 	  oci_status_name(stat)),stat : stat
 
-#define OCIBindByName_log_stat(sh,bp,eh,p,pl,v,vs,dt,in,al,rc,mx,cu,md,stat)  \
-	stat=OCIBindByName(sh,bp,eh,p,pl,v,vs,dt,in,al,rc,mx,cu,md);	\
+#define OCIBindByName_log_stat(sh,bp,eh,p1,pl,v,vs,dt,in,al,rc,mx,cu,md,stat)  \
+	stat=OCIBindByName(sh,bp,eh,p1,pl,v,vs,dt,in,al,rc,mx,cu,md);	\
 	(DBD_OCI_TRACEON) ? fprintf(DBD_OCI_TRACEFP,			\
 	  "%sBindByName(%p,%p,%p,\"%s\",%ld,%p,%ld,%u,%p,%p,%p,%lu,%p,%lu)=%s\n",\
-	  OciTp, (void*)sh,(void*)bp,(void*)eh,p,sl_t(pl),(void*)(v),	\
+	  OciTp, (void*)sh,(void*)bp,(void*)eh,p1,sl_t(pl),(void*)(v),	\
 	  sl_t(vs),(ub2)(dt),(void*)(in),(ub2*)(al),(ub2*)(rc),		\
 	  ul_t((mx)),pul_t((cu)),ul_t((md)),				\
 	  oci_status_name(stat)),stat : stat
@@ -76,11 +76,11 @@
 	  (void*)ocx,(void*)cbo,					\
 	  oci_status_name(stat)),stat : stat
 
-#define OCIDefineByPos_log_stat(sh,dp,eh,p,vp,vs,dt,ip,rp,cp,m,stat)   \
-	stat=OCIDefineByPos(sh,dp,eh,p,vp,vs,dt,ip,rp,cp,m);		\
+#define OCIDefineByPos_log_stat(sh,dp,eh,p1,vp,vs,dt,ip,rp,cp,m,stat)   \
+	stat=OCIDefineByPos(sh,dp,eh,p1,vp,vs,dt,ip,rp,cp,m);		\
 	(DBD_OCI_TRACEON) ? fprintf(DBD_OCI_TRACEFP,			\
 	  "%sDefineByPos(%p,%p,%p,%lu,%p,%ld,%u,%p,%p,%p,%lu)=%s\n",	\
-	  OciTp, (void*)sh,(void*)dp,(void*)eh,ul_t((p)),(void*)(vp),	\
+	  OciTp, (void*)sh,(void*)dp,(void*)eh,ul_t((p1)),(void*)(vp),	\
 	  sl_t(vs),(ub2)dt,(void*)(ip),(ub2*)(rp),(ub2*)(cp),ul_t(m),	\
 	  oci_status_name(stat)),stat : stat
 
@@ -92,11 +92,11 @@
 	  (ub1)opt,(ub1)il,(ub1)ot,(void*)dh,				\
 	  oci_status_name(stat)),stat : stat
 
-#define OCIDescriptorAlloc_ok(envhp, p, t)                             \
+#define OCIDescriptorAlloc_ok(envhp, p1, t)                             \
 	if (DBD_OCI_TRACEON) fprintf(DBD_OCI_TRACEFP,			\
 	  "%sDescriptorAlloc(%p,%p,%lu,0,0)\n",        			\
-	  OciTp,(void*)envhp,(void*)(p),ul_t(t));			\
-	if (OCIDescriptorAlloc((envhp), (void**)(p), (t), 0, 0)==OCI_SUCCESS);	\
+	  OciTp,(void*)envhp,(void*)(p1),ul_t(t));			\
+	if (OCIDescriptorAlloc((envhp), (void**)(p1), (t), 0, 0)==OCI_SUCCESS);	\
 	else croak("OCIDescriptorAlloc (type %ld) failed",t)
 
 #define OCIDescriptorFree_log(d,t)                                     \
@@ -125,8 +125,8 @@
 	  OciTp, (void*)ph,(void*)hp,ul_t(t),ul_t(xs),(void*)ump,	\
 	  oci_status_name(stat)),stat : stat
 
-#define OCIHandleAlloc_ok(envhp, p, t, stat)                           \
-	OCIHandleAlloc_log_stat((envhp),(void**)(p),(t),0,0, stat);	\
+#define OCIHandleAlloc_ok(envhp, p1, t, stat)                           \
+	OCIHandleAlloc_log_stat((envhp),(void**)(p1),(t),0,0, stat);	\
 	if (stat==OCI_SUCCESS) ;					\
 	else croak("OCIHandleAlloc (type %lu) failed",ul_t(t))
 
@@ -165,12 +165,12 @@
 	  OciTp, (void*)sv,(void*)eh,(void*)lh,ul_t(l),			\
 	  oci_status_name(stat)),stat : stat
 
-#define OCILobWrite_log_stat(sv,eh,lh,am,of,bp,bl,p,cx,cb,csi,csf,stat) \
-	stat=OCILobWrite(sv,eh,lh,am,of,bp,bl,p,cx,cb,csi,csf);		\
+#define OCILobWrite_log_stat(sv,eh,lh,am,of,bp,bl,p1,cx,cb,csi,csf,stat) \
+	stat=OCILobWrite(sv,eh,lh,am,of,bp,bl,p1,cx,cb,csi,csf);		\
 	(DBD_OCI_TRACEON) ? fprintf(DBD_OCI_TRACEFP,			\
 	  "%sLobWrite(%p,%p,%p,%p,%lu,%p,%lu,%u,%p,%p,%u,%u)=%s\n",	\
 	  OciTp, (void*)sv,(void*)eh,(void*)lh,pul_t(am),ul_t(of),	\
-	  (void*)bp,ul_t(bl),(ub1)p,					\
+	  (void*)bp,ul_t(bl),(ub1)p1,					\
 	  (void*)cx,(void*)cb,(ub2)csi,(ub1)csf,			\
 	  oci_status_name(stat)),stat : stat
 
