@@ -6,7 +6,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.19';
+$DBD::Oracle::VERSION = '1.20';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -21,7 +21,8 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	ora_types => [ qw(
 	    ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
 	    ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
-	    ORA_CLOB ORA_BLOB ORA_RSET
+	    ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
+	    SQLT_INT SQLT_FLT
 	) ],
         ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
     );
@@ -31,7 +32,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
     my $Revision = substr(q$Revision: 1.103 $, 10);
 
-    require_version DBI 1.28;
+    require_version DBI 1.51;
 
     bootstrap DBD::Oracle $VERSION;
 
@@ -60,15 +61,13 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	DBD::Oracle::dr::init_oci($drh) ;
 	$drh->STORE('ShowErrorStatement', 1);
 
-	if ($DBI::VERSION >= 1.37) {
-	    DBD::Oracle::db->install_method("ora_lob_read");
-	    DBD::Oracle::db->install_method("ora_lob_write");
-	    DBD::Oracle::db->install_method("ora_lob_append");
-	    DBD::Oracle::db->install_method("ora_lob_trim");
-	    DBD::Oracle::db->install_method("ora_lob_length");
-	    DBD::Oracle::db->install_method("ora_nls_parameters");
-	    DBD::Oracle::db->install_method("ora_can_unicode");
-	}
+        DBD::Oracle::db->install_method("ora_lob_read");
+        DBD::Oracle::db->install_method("ora_lob_write");
+        DBD::Oracle::db->install_method("ora_lob_append");
+        DBD::Oracle::db->install_method("ora_lob_trim");
+        DBD::Oracle::db->install_method("ora_lob_length");
+        DBD::Oracle::db->install_method("ora_nls_parameters");
+        DBD::Oracle::db->install_method("ora_can_unicode");
 
 	$drh;
     }
@@ -239,6 +238,10 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	$dbh;
     }
+    
+     sub private_attribute_info {
+            return { ora_home_key=>undef};
+    }
 
 }
 
@@ -290,6 +293,25 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	return $v;
     }
 
+    sub private_attribute_info {
+        return { ora_max_nested_cursors => undef,
+                 ora_array_chunk_size   => undef,
+                 ora_ph_type		=> undef,
+                 ora_ph_csform		=> undef,
+                 ora_parse_error_offset => undef,
+                 ora_dbh_share		=> undef,
+                 ora_use_proc_connection=> undef,
+                 ora_envhp		=> undef,
+                 ora_context		=> undef,
+                 ora_svchp		=> undef,
+                 ora_errhp		=> undef,
+                 ora_init_mode		=> undef,
+                 ora_charset		=> undef,	
+                 ora_ncharset		=> undef,
+                 ora_session_mode	=> undef,
+                 };
+    }
+   
 
     sub table_info {
 	my($dbh, $CatVal, $SchVal, $TblVal, $TypVal) = @_;
@@ -835,7 +857,7 @@ SQL
     sub execute_for_fetch {
        my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
        my $row_count = 0;
-       my $tuple_count=0;
+       my $tuple_count="0E0";
        my $tuple_batch_status;
        my $dbh = $sth->{Database};
        my $batch_size =($dbh->{'ora_array_chunk_size'}||= 1000);
@@ -871,6 +893,22 @@ SQL
        return (defined $row_count ? $tuple_count : undef, $row_count);
     }
 
+    sub private_attribute_info {
+        return { ora_lengths 		=> undef,
+                 ora_types   		=> undef,
+                 ora_rowid		=> undef,
+                 ora_est_row_width	=> undef,
+                 ora_type               => undef,
+                 ora_field              => undef,
+                 ora_csform		=> undef,
+                 ora_maxdata_size	=> undef,
+                 ora_parse_lang		=> undef,
+                 ora_placeholders	=> undef,
+                 ora_auto_lob		=> undef,
+                 ora_check_sql		=> undef
+                 };
+    }
+   
 }
 
 1;
@@ -907,14 +945,14 @@ and sometimes complex ways of specifying and connecting to databases.
 (James Taylor and Lane Sharman have contributed much of the text in
 this section.)
 
-=head2 Connecting without environment variables or tnsname.ora file
+=head2 Connecting without environment variables or tnsnames.ora file
 
 If you use the C<host=$host;sid=$sid> style syntax, for example:
 
   $dbh = DBI->connect("dbi:Oracle:host=myhost.com;sid=ORCL", $user, $passwd);
 
 then DBD::Oracle will construct a full connection descriptor string
-for you and Oracle will not need to consult the tnsname.ora file.
+for you and Oracle will not need to consult the tnsnames.ora file.
 
 If a C<port> number is not specified then the descriptor will try both
 1526 and 1521 in that order (e.g., new then old).  You can check which
@@ -1131,14 +1169,24 @@ Thanks to Mark Dedlow for this information.
 
   ORA_VARCHAR2 ORA_STRING ORA_NUMBER ORA_LONG ORA_ROWID ORA_DATE
   ORA_RAW ORA_LONGRAW ORA_CHAR ORA_CHARZ ORA_MLSLABEL ORA_NTY
-  ORA_CLOB ORA_BLOB ORA_RSET
-
+  ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
+  SQLT_INT SQLT_FLT
+ 
 =item SQLCS_IMPLICIT
 
 =item SQLCS_NCHAR
 
 SQLCS_IMPLICIT and SQLCS_NCHAR are I<character set form> values.
 See notes about Unicode elsewhere in this document.
+
+=item SQLT_INT
+
+=item SQLT_FLT
+
+These types are used only internally, and may be specified as internal
+bind type for ORA_NUMBER_TABLE. See notes about ORA_NUMBER_TABLE elsewhere
+in this document
+
 
 =item ORA_OCI
 
@@ -1257,6 +1305,17 @@ The OCI environment is what holds information about the client side
 context, such as the local NLS environment. So by altering %ENV and
 setting ora_envhp to 0 you can create connections with different
 NLS settings. This is most useful for testing.
+
+=item ora_charset, ora_ncharset
+
+For oracle versions >= 9.2 you can specify the client charset and
+ncharset with the ora_charset and ora_ncharset attributes.  You
+still need to pass C<ora_envhp = 0> for all but the first connect.
+
+These attributes override the settings from environment variables.
+
+  $dbh = DBI->connect ($dsn, $user, $passwd,
+                       {ora_charset => 'AL32UTF8'});
 
 =back
 
@@ -1400,11 +1459,13 @@ Potentially useful values when DBD::Oracle was built using OCI 7 and later:
 
 Additional values when DBD::Oracle was built using OCI 8 and later:
 
-  ORA_CLOB, ORA_BLOB, ORA_NTY
+  ORA_CLOB, ORA_BLOB, ORA_NTY, ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE
 
 See L</Binding Cursors> for the correct way to use ORA_RSET.
 
 See L</Handling LOBs> for how to use ORA_CLOB and ORA_BLOB.
+
+See L</SYS.DBMS_SQL datatypes> for ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE.
 
 See L</Other Data Types> for more information.
 
@@ -1426,6 +1487,18 @@ Character set names can't be used currently.
 Specify the integer OCI_ATTR_MAXDATA_SIZE for the bind value. 
 May be needed if a character set conversion from client to server
 causes the data to use more space and so fail with a truncation error.
+
+=item ora_maxarray_numentries
+
+Specify the maximum number of array entries to allocate. Used with
+ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE. Define the maximum number of
+array entries Oracle can pass back to you in OUT variable of type
+TABLE OF ... .
+
+=item ora_internal_type
+
+Specify internal data representation. Currently is supported only for
+ORA_NUMBER_TABLE.
 
 =back
 
@@ -1762,6 +1835,144 @@ character set is AL32UTF8.
 
 The only multi-byte Oracle character set supported by DBD::Oracle is
 "AL32UTF8" (and "UTF8"). Single-byte character sets should work well.
+
+=head1 SYS.DBMS_SQL datatypes
+
+DBD::Oracle has built-in support for B<SYS.DBMS_SQL.VARCHAR2_TABLE>
+and B<SYS.DBMS_SQL.NUMBER_TABLE> data types. The simple example is here:
+
+    my $statement='
+    DECLARE
+    	tbl	SYS.DBMS_SQL.VARCHAR2_TABLE;
+    BEGIN
+    	tbl := :mytable;
+    	:cc := tbl.count();
+    	tbl(1) := \'def\';
+    	tbl(2) := \'ijk\';
+    	:mytable := tbl;
+    END;
+    ';
+
+    my $sth=$dbh->prepare( $statement );
+
+    my @arr=( "abc" );
+
+    $sth->bind_param_inout(":mytable", \@arr, 10, {
+            ora_type => ORA_VARCHAR2_TABLE,
+            ora_maxarray_numentries => 100
+    } ) );
+    $sth->bind_param_inout(":cc", \$cc, 100 ) );
+    $sth->execute();
+    print	"Result: cc=",$cc,"\n",
+    	"\tarr=",Data::Dumper::Dumper(\@arr),"\n";
+
+=over
+
+=item OCI_VARCHAR2_TABLE
+
+SYS.DBMS_SQL.VARCHAR2_TABLE object is always bound to array reference.
+( in bind_param() and bind_param_inout() ). When you bind array, you need
+to specify full buffer size for OUT data. So, there are two parameters:
+I<max_len> (specified as 3rd argument of bind_param_inout() ),
+and I<ora_maxarray_numentries>. They define maximum array entry length and
+maximum rows, that can be passed to Oracle and back to you. In this
+example we send array with 1 element with length=3, but allocate space for 100
+Oracle array entries with maximum length 10 of each. So, you can get no more
+than 100 array entries with length <= 10. 
+
+If you set I<max_len> to zero, maximum array entry length is calculated
+as maximum length of entry of array bound. If 0 < I<max_len> < length( $some_element ),
+truncation occur.
+
+If you set I<ora_maxarray_numentries> to zero, current (at bind time) bound
+array length is used as maximum. If 0 < I<ora_maxarray_numentries> < scalar(@array),
+not all array entries are bound.
+
+=item OCI_NUMBER_TABLE
+
+SYS.DBMS_SQL.NUMBER_TABLE object handling is much alike ORA_VARCHAR2_TABLE.
+The main difference is internal data representation. Currently 2 types of
+bind is allowed : as C-integer, or as C-double type. To select one of them,
+you may specify additional bind parameter I<ora_internal_type> as either
+B<SQLT_INT> or B<SQLT_FLT> for C-integer and C-double types.
+Integer size is architecture-specific and is usually 32 or 64 bit.
+Double is standard IEEE 754 type.
+
+I<ora_internal_type> defaults to double (SQLT_FLT).
+
+I<max_len> is ignored for OCI_NUMBER_TABLE.
+
+Currently, you cannot bind full native Oracle NUMBER(38). If you really need,
+send request to dbi-dev list.
+
+The usage example is here:
+
+    $statement='
+    DECLARE
+            tbl     SYS.DBMS_SQL.NUMBER_TABLE;
+    BEGIN
+            tbl := :mytable;
+            :cc := tbl(2);
+            tbl(4) := -1;
+            tbl(5) := -2;
+            :mytable := tbl;
+    END;
+    ';
+    
+    $sth=$dbh->prepare( $statement );
+    
+    if( ! defined($sth) ){
+            die "Prapare error: ",$dbh->errstr,"\n";
+    }
+    
+    @arr=( 1,"2E0","3.5" );
+    
+    # note, that ora_internal_type defaults to SQLT_FLT for ORA_NUMBER_TABLE .
+    if( not $sth->bind_param_inout(":mytable", \@arr, 10, {
+                    ora_type => ORA_NUMBER_TABLE,
+                    ora_maxarray_numentries => (scalar(@arr)+2),
+                    ora_internal_type => SQLT_FLT
+              } ) ){
+            die "bind :mytable error: ",$dbh->errstr,"\n";
+    }
+    $cc=undef;
+    if( not $sth->bind_param_inout(":cc", \$cc, 100 ) ){
+            die "bind :cc error: ",$dbh->errstr,"\n";
+    }
+    
+    if( not $sth->execute() ){
+            die "Execute failed: ",$dbh->errstr,"\n";
+    }
+    print   "Result: cc=",$cc,"\n",
+            "\tarr=",Data::Dumper::Dumper(\@arr),"\n";
+
+The result is like:
+
+    Result: cc=2
+            arr=$VAR1 = [
+              '1',
+              '2',
+              '3.5',
+              '-1',
+              '-2'
+            ];
+
+If you change bind type to B<SQLT_INT>, like:
+
+    ora_internal_type => SQLT_INT
+
+you get:
+
+    Result: cc=2
+            arr=$VAR1 = [
+              1,
+              2,
+              3,
+              -1,
+              -2
+            ];
+
+=back
 
 =head1 Other Data Types
 
@@ -2851,15 +3062,97 @@ running a perl script at the end of the previous month even though it
 was the 6th of the new month.  I had the dba start up a listener with
 TZ=X+144.  (144 hours = 6 days)"]
 
+=head1 Object & Collection Data Types 
+
+Oracle databases allow for the creation of object oriented like user-defined types.  
+There are two types of objects, Embedded--an object stored in a column of a regular table 
+and REF--an object that uses the REF retrieval mechanism. 
+
+DBD::Oracle supports only the 'selection' of embedded objects of the following types OBJECT, VARRAY
+and TABLE in any combination. Support is seamless and recursive, meaning you 
+need only supply a simple SQL statement to get all the values in an embedded object 
+as an array of scalars. 
+
+For example, given this type and table;
+
+  CREATE OR REPLACE TYPE  "PHONE_NUMBERS" as varray(10) of varchar(30);
+  
+  CREATE TABLE  "CONTACT" 
+     (	"COMPANYNAME" VARCHAR2(40), 
+  	"ADDRESS" VARCHAR2(100), 
+  	"PHONE_NUMBERS"  "PHONE_NUMBERS" 
+   )
+
+The code to access all the data in the table could be something like this;
+
+   my $sth = $dbh->prepare('SELECT * FROM CONTACT');
+   $sth->execute;
+   while ( my ($company, $address, $phone) = $sth->fetchrow()) {
+        print "Company: ".$company."\n";
+        print "Address: ".$address."\n";
+        print "Phone #: ";
+        
+        foreach my $items (@$phone){
+           print $items.", ";
+        }
+        print "\n";
+   }
+
+Note that values in PHONE_NUMBERS are returned as an array reference '@$phone'.
+
+As stated before DBD::Oracle will automatically drill into the embedded object and extract 
+all of the data as reference arrays of scalars. The example below has OBJECT type embedded in a TABLE type embedded in an
+SQL TABLE;
+
+   CREATE OR REPLACE TYPE GRADELIST AS TABLE OF NUMBER;
+
+   CREATE OR REPLACE TYPE STUDENT AS OBJECT(
+       NAME          VARCHAR2(60),
+       SOME_GRADES   GRADELIST);
+
+   CREATE OR REPLACE TYPE STUDENTS_T AS TABLE OF STUDENT;
+
+   CREATE TABLE GROUPS( 
+       GRP_ID        NUMBER(4),
+       GRP_NAME      VARCHAR2(10),
+       STUDENTS      STUDENTS_T)
+     NESTED TABLE STUDENTS STORE AS GROUP_STUDENTS_TAB
+      (NESTED TABLE SOME_GRADES STORE AS GROUP_STUDENT_GRADES_TAB);
+
+The following code will access all of the embedded data;
+
+   $sql='select grp_id,grp_name,students as my_students_test from groups';
+   $sth=$dbh->prepare($sql);
+   $sth->execute();
+   while (my ($grp_id,$grp_name,$students)=$sth->fetchrow()){
+      print "Group ID#".$grp_id." Group Name =".$grp_name."\n";
+      foreach my $student (@$students){
+         print "Name:".$student->[0]."\n";
+         print "Marks:";
+         foreach my $grades (@$student->[1]){
+            foreach my $marks (@$grades){
+               print $marks.",";     
+            }
+         }
+         print "\n";
+      }
+      print "\n";
+   }
+
+So far DBD::Oracle has been tested on a table with 20 embedded Objects, Varrays and Tables 
+nested to 10 levels.
+
+Any NULL values found in the embedded object will be returned as 'undef'.
 
 =head1 Oracle Related Links
 
+=head2 Oracle Instant Client
+
+  http://www.oracle.com/technology/tech/oci/instantclient/index.html
+  
 =head2 Oracle on Linux
 
-  http://www.datamgmt.com/maillist.html
   http://www.eGroups.com/list/oracle-on-linux
-  http://www.wmd.de/wmd/staff/pauck/misc/oracle_on_linux.html
-  ftp://oracle-ftp.oracle.com/server/patch_sets/LINUX
   http://www.ixora.com.au/
 
 =head2 Free Oracle Tools and Links

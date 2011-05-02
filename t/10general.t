@@ -5,6 +5,8 @@ use Test::More;
 use DBI;
 use Oraperl;
 use Config;
+use DBD::Oracle qw(ORA_OCI);
+
 
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
@@ -23,13 +25,16 @@ unless($dbh) {
 }
 
 my($sth, $p1, $p2, $tmp);
-
 SKIP: {
 	skip "not unix-like", 2 unless $Config{d_semctl};
+	skip "solaris with OCI>9.x", 2 unless ($^O eq "solaris") and (scalar(ORA_OCI) ge 10);
+	
 	# basic check that we can fork subprocesses and wait for the status
 	# after having connected to Oracle
+	
 	is system("exit 1;"), 1<<8, 'system exit 1 should return 256';
 	is system("exit 0;"),    0, 'system exit 0 should return 0';
+        
 }
 
 
