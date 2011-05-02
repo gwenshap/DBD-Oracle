@@ -1,3 +1,28 @@
+Compiler: all these examples use xlc_r, except the first which uses gcc.
+
+--------------------------------------------------------------------------------------
+The following setup worked to build on AIX 5.2:
+gcc-3.3.2 (32-bit) (configure opts [ --with-ld=/usr/ccs/bin/ld --with-as=/usr/ccs/bin/as])
+Oracle-9.2.0 ( full install w/32bit support)
+perl-5.8.3 (built with above gcc/latest stable as of March 2004)
+Followed the directions from Rafael's email below, only set ORACLE_HOME, (and
+the appropriate test environmentals).
+1) build perl-5.8.3 with gcc
+2) install DBI
+3) ORACLE_HOME="your oracle home"
+   ORACLE_USERID..
+   ORACLE_SID ..
+   (I ignored ORACCENV, didn't use it.)
+4) install DBD::Oracle, after perl Makefile.PL, edit the created Makefile,
+changing references to Oracle's ../lib to ../lib32. and change crt0_64.o to
+crt0_r.o. Remove the -q32 and/or -q64 options from the list of libraries to
+link with.
+5) make should be clean, make test should pass.
+This setup worked with 8.1.7 w/32 bit support, and with 9.2.0 w/ 32-bit support.
+--Adrian Terranova
+peril99@yahoo.com
+
+--------------------------------------------------------------------------------------
 From: Rafael Caceres <rcaceres@m1.aasa.com.pe>
 Date: 22 Jul 2003 10:05:20 -0500
 Message-Id: <1058886321.1066.13.camel@rcaceres.aasa.com.pe>
@@ -95,3 +120,33 @@ with
    LDFLAGS32=-b32
 
 Have fun: KC.
+--------------------------------------------------------------------------------------
+
+Date: Wed, 30 Jun 2004 23:34:24 -0500
+From: "SCHULTZ, DARYLE (SBCSI)" <ds8183@sbc.com>
+
+Got it to work.  Using dbd 1.16
+
+Perl 5.8.4 built like this, with Visual Age 6.0:
+
+config_args='-Dcc=xlc_r -Dusenm -Dprefix=/appl/datasync/work/perl5
+-Dusethreads -Duse64bitall -des'
+==============================================
+
+Used DBI 1.42
+=============================================
+Added this to top of Oracle.h:
+#define A_OSF
+
+#include <oratypes.h>
+=======================
+Set LIBPATH to point to 64bit Oracle libs first.
+export LIBPATH=$ORACLE_HOME/lib:$ORACLE_HOME/lib32:/usr/lib
+
+Use:   perl Makefile.PL -nob
+
+Change all references in Makefile  of LD_RUN_PATH to be LIBPATH.
+Change nothing else, left all flags in Makefile, including -q64.
+Passed make, and all tests.
+
+--------------------------------------------------------------------------------------

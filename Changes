@@ -1,3 +1,73 @@
+=head1 Changes in DBD-Oracle 1.16 (svn rev 515)   22nd October 2004
+
+  NOTE:
+  This release has major changes to Unicode support. See below.
+  It no longer supports the old Oracle 7 OCI interface.
+  It requires DBI >= 1.38 for some of the tests if using Perl 5.6.
+  It no longer supports Perl 5.5 or earlier.
+
+  Fixed placeholder names to be case insensitive thanks to Charles Jardine.
+  Fixed some LOB test problems with Oracle 8.1.7 by implementing ora_lob_append
+    with OCILobGetLength() and OCILobWrite(), instead of buggy OCILobWriteAppend(),
+    if the Oracle client version is < 9.0. Thanks to Jeff Urlwin.
+  Fixed handling of temporary LOBs thanks to Chris Donnelly.
+  Fixed memory leaks in auto LOB refetch code thanks to Dongqiang Bai.
+  Fixed reporting of length truncated in error message thanks to Jeff Urlwin.
+  Fixed column_info() to handle TIMESTAMP and INTERVAL datatypes
+    for Oracle >= 8 thanks to Stephen Clouse.
+  Fixed STORE to cache attribute value in handle cache.
+  Fixed seg fault returning LOB Locators reported by Raj Chandran.
+  Fixed binding to allow overloaded scalars (not for 'inout' params).
+  Fixed setting of $DBI::err to 0 triggering PrintWarn in DBI >= 1.41.
+  Fixed some edge cases in row cache sizing.
+  Fixed truncation error fetching very small numbers (1 ^ -130).
+  Fixed Oraperl to not enable PrintError or AutoCommit (broken since 1.13).
+
+  Changed some utf8 internals for LOBs.
+  Changed ORA_OCI constant from being just 7 or 8 to being a dualvar:
+    in numeric context returns the major.minor version number (8.1, 9.2 etc)
+    in string context it returns the full "major.minor.foo.bar" version string.
+  Changed some SUCCESS_WITH_INFO situtions to be treated as a "warning"
+    by setting $DBI::err to "0" (and so trigger PrintWarn in DBI >= 1.43)
+    eg "ORA-28011: the account will expire soon; change your password now"
+    and package compilation errors.
+
+  Added automatic support for UTF-8 for both NLS_LANG and NLS_NCHAR
+    Many thanks to Lincoln Baxter who did most of the hard work and testing
+    and to Jeff Urlwin and others who also helped out.
+    Perl 5.8.x and Oracle 9+ are highly recommended if you want to use Unicode.
+    See POD for more information and documentation.
+  Added support for "... RETURNING lob_locator_column INTO ?"
+    using $sth->bind_param_inout(2, \$loc, 0, {ora_type => ORA_BLOB});
+  Added bind_param() ora_csform, ora_csid, and ora_maxdata_size attributes.
+  Added bind_param() support for SQL_BLOB & SQL_CLOB thanks to Stephen Clouse.
+  Added $dbh->ora_can_unicode and $dbh->ora_nls_parameters thanks to Andy Hassall.
+
+  Documentation changes:
+    Corrected typo in ora_lob_read() example thanks to Johannes Wierny.
+    Corrected LOB example thanks to Sascha Pfalz and Thomas Upton.
+    Updated README.macosx thanks to Hilmar Lapp.
+    Updated README.hpux thanks to Gram Ludlow and Lincoln Baxter.
+    Added $dbh->reauthenticate($user,$pass) docs thanks to Andy Hassall.
+    Added $dbh->{ora_parse_error_offset} docs thanks to Andy Hassall.
+    Added gcc example to README.aix thanks to Adrian Terranova.
+    Added INSERT ... RETURNING ... example prompted by Steven Lembark.
+
+  Build Changes:
+    Fixed build32/build64 Makefile.PL bug spotted by Sean Kelly.
+    Fixed Oracle version detection on clients thanks to Marko Asplund.
+    Fixed Oracle 10 version detection on clients thanks to Andy Hassall.
+    Fixed HP-UX 64bit build issues thanks to Weiguo Sun.
+    Fixed VMS build issues thanks to Jakob Snoer.
+    Fixed suprious warning from Makefile.PL thanks to Marko Asplund.
+    Fixed compiler warnings thanks to Robert Baron.
+    Fixed oci.def for Cygwin by adding OCILobWriteAppend thanks to Gert-Jan Paulissen.
+    Changed to use ANSI C prototypes thanks to Steffen Goeldner.
+    Changed to not warn if ORACLE_HOME env var is not defined
+      as it's not used with Oracle's new 'Instant Client'.
+    Added Test::More as a prerequisite module.
+    Added many Unicode related tests thanks to Lincoln Baxter.
+
 =head1 Changes in DBD-Oracle 1.15   27th January 2004
 
   NOTE: DBD::Oracle now requires DBI version 1.28 (June 2002) or later.
@@ -799,7 +869,7 @@
   Reworked logging to use DBILOGFP macro.
   Now test code added to loop through logon/prep/fin/logoff.
   
-=head1 Changes in DBD::Oracle 0.18:
+=head1 Changes in DBD::Oracle 0.18, 17th June 1995
 
   Makefile.PL: HPUX now builds with LINKTYPE=static automatically.
   Fixed errors on logout/global destruction.
@@ -811,4 +881,71 @@
      'readblob' =>   {'U'=>[4,5,'$field, $offset, $len [, \\$buf]']},
   in order to access the new readblob method.)
 
+=head1 Changes in DBD::Oracle 0.17, 9th June 1995
+
+  Further enhancements to proc.mk parsing (this should fix
+    the bug introduced in the last version which required the
+    manual editing of -lora etc into the link line).
+  Automatic use of proc16.mk if proc.mk not found.
+  Automatic use of -Xa if compiler is 'clcc' (CenterLine).
+  Further migration of code from Oracle.xs to dbdimp.c. This is
+    not complete but may give you a flavor of my current direction.
+  Fixed more warnings from pedantic compilers.
+  [Released with DBI 0.56]
+
+=head1 Changes in DBD::Oracle 0.16, 25 May 1995
+
+  Makefile.PL more robust and flexible.
+  Code restructured - much more still to do.
+  Changes to ora_do. It's probably still not right.
+  [Released with DBI 0.55]
+
+=head1 Changes in DBD::Oracle 0.15, 25 Apr 1995
+
+  Fixed all known build problems/core dumps/truncated data etc.
+  Returns undef for NULLS.
+  Bind vars still not supported (soon I hope).
+  Bind vars produce errors rather than being ignored.
+  Login usage of ORACLE_SID and TWO_TASK slightly revised.
+  test.pl now uses ORACLE_SID, TWO_TASK and ORACLE_USER if defined.
+
+=head1 Changes in DBD::Oracle 0.14, 5 Apr 1995
+
+  Fixed assorted build and core-dump problems.
+
+=head1 Changes in DBD::Oracle 0.13, 8th March 1995
+
+  "Another alpha release but hey, guess what, this one actually allows
+  you to fetch data :-)"
+
+=head1 Changes in DBD::Oracle 0.12, 1st March 1995
+
+  "For DBD::Oracle I have implemented a fairly radical way to deal with
+  the nightmare of Oracle OCI makefiles.  Rather than try to maintain a
+  *large* and complicated set of Makefile macros the DBD::Oracle
+  Makefile.PL now actually extracts the macros which oracle itself uses
+  from $ORACLE_HOME/rdbms/lib/oracle.mk!  (The horses mouth, so to speak.)"
+  [Released with DBI 0.53]
+
+=head1 Changes in DBD::Oracle 0.11, 24th Feb 1995
+
+  "The first fruits of that work are now available for the brave (or
+  foolhardy).  Take note: this very much *unsupported* *alpha* software
+  (it does not even fetch records from oracle yet). Feel free to ftp it
+  but don't expect to do anything very useful with it."
+  Also first release of the Oraperl emulation module:
+  "Yes, that's real oraperl code and it works! The only addition is
+  the 'use DBD::Oraperl' line."
+  [Released with DBI 0.51]
+
+=head1 ANCIENT HISTORY
+
+12th Oct 1994: First public release of the DBI module.
+               (for Perl 5.000-beta-3h)
+
+19th Sep 1994: DBperl project renamed to DBI.
+
+29th Sep 1992: DBperl project started.
+
 =cut
+

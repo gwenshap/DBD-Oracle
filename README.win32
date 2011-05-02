@@ -4,6 +4,12 @@ PPM package manager to install a pre-built version of DBD::Oracle.
 If you built Perl with gcc, read README.wingcc as well as this file.
 
 --- other information, some of which is out of date ---
+4/27/04 -- Jeff Urlwin
+
+Do not untar this distribution in a directory with spaces.  This will not work.
+
+i.e. C:\Program Files\ORacle\DBD Oracle Distribution is bad while
+c:\dev\dbd-oracle-1.15 is good ;)
 
 9/14/02 -- Michael Chase
 

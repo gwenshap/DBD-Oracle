@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.47 2004/01/10 08:52:28 timbo Exp $
+   $Id: dbdimp.h,v 1.48 2004/02/02 08:10:17 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -38,32 +38,12 @@
 #endif
 
 
-/* This is slightly backwards because we want to auto-detect OCI8  */
-/* and thus the existance of oci.h while still working for Oracle7 */
-#include <oratypes.h>
-#include <ocidfn.h>
-
-#if defined(SQLT_NTY) && !defined(NO_OCI8)	/* === use Oracle 8 === */
-
 /* ori.h uses 'dirty' as an arg name in prototypes so we use this */
 /* hack to prevent ori.h being read (since we don't need it)	  */
 #define ORI_ORACLE
-
 #include <oci.h>
-
-#else						/* === use Oracle 7 === */
-
-#ifdef CAN_PROTOTYPE
-# include <ociapr.h>
-#else
-# include <ocikpr.h>
-#endif
-
-#ifndef HDA_SIZE
-#define HDA_SIZE 512
-#endif
-
-#endif						/* === ------------ === */
+#include <oratypes.h>
+#include <ocidfn.h>
 
 /* ------ end of Oracle include files ------ */
 
@@ -76,11 +56,9 @@ typedef struct imp_fbh_st imp_fbh_t;
 
 struct imp_drh_st {
     dbih_drc_t com;		/* MUST be first element in structure	*/
-#ifdef OCI_V8_SYNTAX
     OCIEnv *envhp;
     int proc_handles;           /* If true, the envhp handle is owned by ProC
                                    and must not be freed. */
-#endif
     SV *ora_long;
     SV *ora_trunc;
     SV *ora_cache;
@@ -98,7 +76,6 @@ struct imp_dbh_st {
     SV *                shared_dbh_priv_sv ;
 #endif
 
-#ifdef OCI_V8_SYNTAX
     void *(*get_oci_handle) _((imp_dbh_t *imp_dbh, int handle_type, int flags));
     OCIEnv *envhp;		/* copy of drh pointer	*/
     OCIError *errhp;
@@ -107,15 +84,9 @@ struct imp_dbh_st {
     OCISession *authp;
     int proc_handles;           /* If true, srvhp, svchp, and authp handles
                                    are owned by ProC and must not be freed. */
-#else
-    Lda_Def ldabuf;
-    Lda_Def *lda;		/* points to ldabuf	*/
-    ub1     hdabuf[HDA_SIZE];
-    ub1     *hda;		/* points to hdabuf	*/
-#endif
-
     int RowCacheSize;
     int ph_type;		/* default oratype for placeholders */
+    ub1 ph_csform;		/* default charset for placeholders */
     int parse_error_offset;	/* position in statement of last error */
 };
 
@@ -129,7 +100,6 @@ typedef struct lob_refetch_st lob_refetch_t;
 struct imp_sth_st {
     dbih_stc_t com;		/* MUST be first element in structure	*/
 
-#ifdef OCI_V8_SYNTAX
     void *(*get_oci_handle) _((imp_sth_t *imp_sth, int handle_type, int flags));
     OCIEnv	*envhp;		/* copy of dbh pointer	*/
     OCIError	*errhp;		/* copy of dbh pointer	*/
@@ -140,10 +110,6 @@ struct imp_sth_st {
     U16		auto_lob;
     int  	has_lobs;
     lob_refetch_t *lob_refetch;
-#else
-    Cda_Def *cda;	/* normally just points to cdabuf below */
-    Cda_Def cdabuf;
-#endif
     int  	disable_finish; /* fetched cursors can core dump in finish */
 
     /* Input Details	*/
@@ -186,30 +152,28 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     int field_num;	/* 0..n-1		*/
 
     /* Oracle's description of the field	*/
-#ifdef OCI_V8_SYNTAX
     OCIParam  *parmdp;
     OCIDefine *defnp;
     void *desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4   desc_t;	/* OCI type of descriptorh		*/
     int  (*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
-    ub2  dbsize;
+
     ub2  dbtype;	/* actual type of field (see ftype)	*/
+    ub2  dbsize;
     ub2  prec;		/* XXX docs say ub1 but ub2 is needed	*/
     sb1  scale;
     ub1  nullok;
+    char *name;
+    SV   *name_sv;	/* only set for OCI8			*/
+    /* OCI docs say OCI_ATTR_CHAR_USED is ub4, they're wrong	*/
+    ub1  len_char_used;	/* OCI_ATTR_CHAR_USED			*/
+    ub2  len_char_size;	/* OCI_ATTR_CHAR_SIZE			*/
+    ub2  csid;		/* OCI_ATTR_CHARSET_ID			*/
+    ub1  csform;	/* OCI_ATTR_CHARSET_FORM		*/
+
+    sb4  disize;	/* max display/buffer size		*/
     char *bless;	/* for Oracle::OCI style handle data	*/
     void *special;	/* hook for special purposes (LOBs etc)	*/
-#else
-    sb4  dbsize;
-    sb2  dbtype;	/* actual type of field (see ftype)	*/
-    sb2  prec;
-    sb2  scale;
-    sb2  nullok;
-    sb4  cbufl;		/* length of select-list item 'name'	*/
-#endif
-    SV   *name_sv;	/* only set for OCI8			*/
-    char *name;
-    sb4  disize;	/* max display/buffer size		*/
 
     /* Our storage space for the field data as it's fetched	*/
     sword ftype;	/* external datatype we wish to get	*/
@@ -225,19 +189,18 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
     SV	*sv;		/* the scalar holding the value		*/
     int sv_type;	/* original sv type at time of bind	*/
+    ub2 csid_orig;	/* original oracle default csid 	*/
+    ub2 csid;		/* 0 for automatic			*/
+    ub1 csform;		/* 0 for automatic			*/
+    ub4 maxdata_size;	/* set OCI_ATTR_MAXDATA_SIZE if >0	*/
     bool is_inout;
 
     IV  maxlen;		/* max possible len (=allocated buffer)	*/
-    sb4 maxlen_bound;	/* and Oracle bind has been called	*/
 
-#ifdef OCI_V8_SYNTAX
     OCIBind *bndhp;
     void *desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4   desc_t;	/* OCI type of desc_h			*/
     ub4   alen;
-#else
-    ub2   alen;		/* effective length ( <= maxlen )	*/
-#endif
     ub2 arcode;
 
     sb2 indp;		/* null indicator			*/
@@ -254,14 +217,29 @@ struct phs_st {  	/* scalar placeholder EXPERIMENTAL	*/
 
 extern int ora_fetchtest;
 
-#ifdef UTF8_SUPPORT
-extern int cs_is_utf8;
-#endif
+extern ub2 charsetid;
+extern ub2 ncharsetid;
+extern ub2 utf8_csid;
+extern ub2 al32utf8_csid;
+extern ub2 al16utf16_csid;
+
+#define CS_IS_UTF8( cs ) \
+   (  ( cs == utf8_csid ) || ( cs == al32utf8_csid ) )
+
+#define CS_IS_UTF16( cs ) ( cs == al16utf16_csid )
+
+#define CSFORM_IMPLIED_CSID(csform) \
+    ((csform==SQLCS_NCHAR) ? ncharsetid : charsetid)
+
+#define CSFORM_IMPLIES_UTF8(csform) \
+    CS_IS_UTF8( CSFORM_IMPLIED_CSID( csform ) )
+
 
 void dbd_init_oci _((dbistate_t *dbistate));
 void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
-void dbd_fbh_dump _((imp_fbh_t *fbh, int i, int aidx));
+void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
 void ora_free_fbh_contents _((imp_fbh_t *fbh));
+void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
 int calc_cache_rows _((int num_fields, int est_width, int cache_rows, int has_longs));
 fb_ary_t *fb_ary_alloc _((int bufl, int size));
@@ -275,9 +253,8 @@ int pp_rebind_ph_rset_in _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 #define OTYPE_IS_LONG(t)  ((t)==8 || (t)==24 || (t)==94 || (t)==95)
 
-#ifdef OCI_V8_SYNTAX
-
-int oci_error _((SV *h, OCIError *errhp, sword status, char *what));
+int oci_error_err _((SV *h, OCIError *errhp, sword status, char *what, sb4 force_err));
+#define oci_error(h, errhp, status, what) oci_error_err(h, errhp, status, what, 0)
 char *oci_stmt_type_name _((int stmt_type));
 char *oci_status_name _((sword status));
 char * oci_hdtype_name _((ub4 hdtype));
@@ -288,6 +265,8 @@ void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
 int post_execute_lobs _((SV *sth, imp_sth_t *imp_sth, ub4 row_count));
 ub4 ora_parse_uid _((imp_dbh_t *imp_dbh, char **uidp, char **pwdp));
 char *ora_sql_error _((imp_sth_t *imp_sth, char *msg));
+char *ora_env_var(char *name, char *buf, unsigned long size);
+
 
 sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
               dvoid **bufpp, ub4 *alenp, ub1 *piecep, dvoid **indpp));
@@ -298,12 +277,7 @@ int dbd_rebind_ph_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
 void * oci_db_handle(imp_dbh_t *imp_dbh, int handle_type, int flags);
 void * oci_st_handle(imp_sth_t *imp_sth, int handle_type, int flags);
-
-#else	/* is OCI 7 */
-
-void ora_error _((SV *h, Lda_Def *lda, int rc, char *what));
-
-#endif /* OCI_V8_SYNTAX */
+void fb_ary_free(fb_ary_t *fb_ary);
 
 #include "ocitrace.h"
 

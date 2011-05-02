@@ -14,7 +14,7 @@ sub ok ($$;$) {
 }
 
 use DBI;
-use DBD::Oracle qw(ORA_RSET);
+use DBD::Oracle qw(ORA_RSET SQLCS_NCHAR);
 use strict;
 
 $| = 1;
@@ -184,7 +184,7 @@ ok(0, $csr->bind_param_inout(':arg', \$p1, 20), 1);
 #	ORA-06502: PL/SQL: numeric or value error
 #	ORA-06512: at line 3 (DBD ERROR: OCIStmtExecute)
 $tmp = $csr->execute;
-#$tmp = undef if DBD::Oracle::ORA_OCI()==8; # because BindByName given huge max len
+#$tmp = undef if DBD::Oracle::ORA_OCI()>=8; # because BindByName given huge max len
 ok(0, !defined $tmp, 1);
 # rebind with more space - and it should work
 ok(0, $csr->bind_param_inout(':arg', \$p1, 200), 1);
@@ -272,7 +272,6 @@ if (1) {
     ok(0, "@r" eq "@s2", "\nref=(@r),\nsql=(@s2)");
 }
 
-# --- test ping
 print "test bind_param_inout of param that's not assigned to in executed statement\n";
 # See http://www.mail-archive.com/dbi-users@perl.org/msg18835.html
 if (1) {
@@ -298,6 +297,45 @@ ok(0, $p3 eq 'Y');
 print "After p1=[$p1] p2=[$p2] p3=[$p3]\n" ;
 }
 
+SKIP: {
+    sub skip { ok(0,1) for (1..$_[1]); print "$_[0]\n"; local $^W; last SKIP };
+
+    print "test nvarchar2 arg passing to functions\n";
+    # http://www.nntp.perl.org/group/perl.dbi.users/24217
+    my $ora_server_version = $dbh->func("ora_server_version");
+    skip "Client/server version < 9.0", 15
+	if DBD::Oracle::ORA_OCI() < 9.0 || $ora_server_version < 9.8;
+    my $func_name = "dbd_oracle_nvctest".($ENV{DBD_ORACLE_SEQ}||'');
+    $dbh->do(qq{
+	CREATE OR REPLACE FUNCTION $func_name(arg nvarchar2, arg2 nvarchar2)
+	RETURN int IS
+	BEGIN
+	  if arg is null or arg2 is null then
+	     return -1;
+	  else
+	     return 1;
+	  end if;
+	END;
+    }) or skip("Can't create a function ($DBI::errstr)", 15);
+    my $sth = $dbh->prepare(qq{SELECT $func_name(?, ?) FROM DUAL}, {
+	# Oracle 8 describe fails with ORA-06553: PLS-561: charset mismatch
+	ora_check_sql => 0,
+    });
+    ok(0, $sth, sprintf("Can't prepare select from function (%s)",$DBI::errstr||''));
+    skip("Can't select from function ($DBI::errstr)", 14) unless $sth;
+    for (1..2) {
+	ok(0, $sth->bind_param(1, "foo", { ora_csform => SQLCS_NCHAR }));
+	ok(0, $sth->bind_param(2, "bar", { ora_csform => SQLCS_NCHAR }));
+	ok(0, $sth->execute());
+	ok(0, my($returnVal) = $sth->fetchrow_array);
+	ok(0, $returnVal eq "1");
+    }
+    ok(0, $sth->execute("baz",undef));
+    ok(0, my($returnVal) = $sth->fetchrow_array);
+    ok(0, $returnVal eq "-1");
+    ok(0, $dbh->do(qq{drop function $func_name}));
+}
+
 
 # --- To do
     #   test NULLs at first bind
@@ -305,13 +343,14 @@ print "After p1=[$p1] p2=[$p2] p3=[$p3]\n" ;
     #   returning NULLs
     #   multiple params, mixed types and in only vs inout
 
-# --- test ping
+
+print "test ping\n";
 ok(0,  $dbh->ping);
 $dbh->disconnect;
 ok(0, !$dbh->ping);
 
 exit 0;
-BEGIN { $tests = 67 }
+BEGIN { $tests = 82 }
 # end.
 
 __END__

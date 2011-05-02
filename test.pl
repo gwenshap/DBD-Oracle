@@ -2,11 +2,10 @@
 
 use ExtUtils::testlib;
 
-die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
+die "Use 'perl -Mblib test.pl' or 'make test' to run test.pl\n"
+    unless "@INC" =~ /\bblib\b/;
 
-# $Id: test.pl,v 1.8 2004/01/10 08:52:28 timbo Exp $
-#
-# Copyright (c) 1995-1998, Tim Bunce
+# Copyright (c) 1995-2004, Tim Bunce
 #
 # You may distribute under the terms of either the GNU General Public
 # License or the Artistic License, as specified in the Perl README file.
@@ -16,38 +15,30 @@ die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 # XXX  TEST FRAMEWORKS AND IS IN *NO WAY* A TO BE USED AS A STYLE GUIDE!
 # XXX
 
-require 'getopts.pl';
-
 $| = 1;
-print q{Oraperl test application $Revision: 1.8 $}."\n";
 
-$SIG{__WARN__} = sub {
-	($_[0] =~ /^(Bad|Duplicate) free/)
-		? warn "\n*** Read the README file about Bad free() warnings!\n": warn @_;
-};
-
+use Getopt::Long;
 use Config;
-my $os = $Config{osname};
-$opt_d = 0;		# debug
-$opt_l = 0;		# log
-$opt_n = 5;		# num of loops
-$opt_m = 0;		# do mem leek test
-$opt_c = undef;		# set RowCacheSize for some tests
-$opt_p = 1;		# do perf test
-$opt_f = 0;		# do fetch test
-&Getopts('md:n:f:c:lp ') || die "Invalid options\n";
 
-$ENV{PERL_DBI_DEBUG} = 2 if $opt_d;
-#$ENV{ORACLE_HOME} ||= '/usr/oracle' unless ($^O eq 'MSWin32');
+my $os = $Config{osname};
+
+GetOptions(
+	'm!'	=> \my $opt_m,	# do mem leak test
+	'n=i'	=> \my $opt_n,	# num loops for some tests
+	'c=i'	=> \my $opt_c,	# RowCacheSize for some tests
+	'f=i'	=> \my $opt_f,	# fetch test
+	'p!'	=> \my $opt_p,	# perf test
+) or die;
+$opt_n ||= 5;
 
 $dbname = $ARGV[0] || '';	# if '' it'll use TWO_TASK/ORACLE_SID
 $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 
-eval 'use Oraperl; 1' || die $@ if $] >= 5;
+use Oraperl;
 
-&test_extfetch_perf($opt_f) if $opt_f;
+exit test_extfetch_perf($opt_f) if $opt_f;
 
-&test_leak(100) if $opt_m;
+exit test_leak(10 * $opt_n) if $opt_m;
 
 print "\n\nExtra tests. These are less formal and you need to read the output\n";
 print "to see if it looks reasonable and matches what the tests says is expected.\n";
@@ -99,9 +90,6 @@ printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os 
     &ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
 }
 $start = time;
-
-rename("test.log","test.olog") if $opt_l;
-eval 'DBI->_debug_dispatch(3,"test.log");' if $opt_l;
 
 &test_intfetch_perf() if $opt_p;
 
@@ -195,13 +183,15 @@ sub test1 {
 
 
 sub test2 {		# also used by test_leak()
-    my $skip_sth = shift;
+    my $execute_sth = shift;
     my $dbh = DBI->connect("dbi:Oracle:$dbname", $dbuser, '', { RaiseError=>1 });
-    unless ($skip_sth) {
+    if ($execute_sth) {
 	my $sth = $dbh->prepare("select 42,'foo',sysdate from dual where ? >= 1");
-	$sth->execute(1);
-	my @row = $sth->fetchrow_array;
-	$sth->finish;
+	while ($execute_sth-- > 0) {
+	    $sth->execute(1);
+	    my @row = $sth->fetchrow_array;
+	    $sth->finish;
+	}
     }
     $dbh->disconnect;
 }
@@ -211,13 +201,13 @@ sub test_leak {
     local($count) = @_;
     local($ps) = (-d '/proc') ? "ps -lp " : "ps -l";
     local($i) = 0;
-    my $skip_sth = 0;
-    print "\nMemory leak test:".($skip_sth ? " (no prepare's)" : "")."\n";
+    my $execute_sth = 100;
+    print "\nMemory leak test: (execute $execute_sth):\n";
     while(++$i <= $count) {
-	system("echo $i; $ps$$") if (($i % 10) == 0);
-	&test2($skip_sth);
+	&test2($execute_sth);
+	system("echo $i; $ps$$") if (($i % 10) == 1);
     }
-    system("echo $i; $ps$$") if (($i % 10) == 0);
+    system("echo $i; $ps$$");
     print "Done.\n\n";
 }
 

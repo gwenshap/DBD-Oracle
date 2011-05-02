@@ -20,7 +20,10 @@ be used with mod_perl and Apache.
 
 See Appendices for exact build configurations used by me an others.
 
-=head1  First things First
+For HPUX 11 on Itanium see also
+http://www.nntp.perl.org/group/perl.dbi.users/23840
+
+=head1  First things First:  Introduction
 
 The reason you are even reading this file is because you want to connect 
 to an Oracle database from your perl program using the DBD::Oracle DBI 
@@ -34,6 +37,30 @@ can connect to the target database using SQL*Plus (or any other Oracle
 supplied tool).  The (gory) details of the install are beyond the scope of
 this document, some information can be found in the section
 L<Compiling on a Client Machine>, or see your friendly Oracle DBA.
+
+One final remark, 3 years after this was first written.  This has been
+updated numberous times over the years.  And some of the new biuld
+recipe's see simpler than some of the original instructions in this file.
+
+I think one reason the recipe is getting simpler may be that the build
+hints, in the base perl build have gotten more right, as we have moved
+from perl 5.6.1 to the 5.8.4 (now the stable version).  Its too bad they don't
+include the +z switch (at least for when the compiler is the softbench C
+compiler for the bundled C compiler.
+
+Someday, if I ever find myself building on HP again I should probably
+update as many of these recipes (that I can test) by trying to remove 
+more of the special case stuff I have in my build scripts now.  
+Gram Ludlows's build for the default bundled C compiler shows that a lot
+of this may no longer be necessary.
+
+On the other hand, it would be bad if we deleted information that others
+might need, so I err on the side of too much, in the hope that the
+person who really needs the information, will not have to look beyond
+this file.
+
+   -- Lincoln
+
 
 =head1  Build your own Perl
  
@@ -112,8 +139,11 @@ cleanly using the HP softbench compiler, and Oracle 8.0.5 (32bit), and
 Oracle 8.1.6, 8.1.7 (64 bit).  Oracle 8.1.5 will probably work as well.
 
 Oracle 8.1.7.4 (32bit) with DBI-1.35 and DBD-Oracle-1.13 has been proven
-to work on HP-UX 11.00 (64bit) with Perl 5.6.1, Perl 5.8.0, and Perl 5.9.0,
-using the guidelines in this document for both HP-C-ANSI-C and gcc-3.2.
+to work on HP-UX 11.00 (64bit) with Perl 5.6.1, Perl 5.8.x 
+using the guidelines in this document for both HP-C-ANSI-C and gcc-3.2. Later 
+versions have been proven to work as well.  Current DBI-1.42 and DBD-Oracle-1.16
+have been proven to work.  This Oracle 9.2 client (at least) should be used if you 
+plan to do work with Unicode.  See the DBD-Oracle POD/Man documentation.
 
 =head2 gcc Compiler
 
@@ -128,7 +158,7 @@ to get working executables, and their explanations shed much light on
 the issues.
 
 Waldemar's build is described in L<Appendix B>, and Michael's is 
-described in L<Appendix C>.
+described in L<Appendix D>.
 
 While I have not reproduced either of these configurations, I 
 believe the information is complete enough (particularly in the
@@ -139,6 +169,13 @@ the makefile in Appendix A, which uses gcc to build Perl and the
 DBI/DBD-Oracle interfaces, I will be happy to include it in the next
 README.
 
+=head2 The "default" built in compiler 64bit build (/usr/bin/cc)
+
+And now, at long last, we have a recipe for building perl and DBD-Oracle
+using the default bundled C compiler.  Please see the Appendix C build
+instructions provided by Gram Ludlow, using the default /usr/bin/cc
+bundled compiler.
+   
 =head2 Just tell me the recipe...
 
 If you are using the softbench compiler, just copy and modify my makefile.
@@ -526,9 +563,8 @@ caused problems on HP (the user 'www' may need to be created)
 
 The following folks contributed to this README:
 
-   Lincoln A. Baxter <lbaxter@fleetcc.com>
-                    or labaxter@comcast.net>
-   Jay Strauss <me@heyjay.com>
+   Lincoln A. Baxter <lab@lincolnbaxter.com.Fix.This>
+   Jay Strauss <me@heyjay.com.Fix.This>
    Roger Foskett <Roger.Foskett@icl.com.Fix.This>
    Weiguo Sun <wesun@cisco.com.Fix.This>
    Tony Foiani <anthony_foiani@non.hp.com.Fix.This>
@@ -537,14 +573,14 @@ The following folks contributed to this README:
    Waldemar Zurowski <bilbek0@poczta.onet.pl.Fix.This>
    Michael Schuh <Michael.Schuh@airborne.com.Fix.This>
    H.Merijn Brand <h.m.brand@hccnet.nl.Fix.This>
+   Gram M. Ludlow <LUDLOW_GRAM_M@cat.com.Fix.This>
 
 And probably others unknown to me.
 
 =head1 AUTHOR
 
    Lincoln A. Baxter
-   Application Development and Support, Fleet Credit Card Services
-   lbaxter@fleetcc.com or labaxter@comcast.net
+   <lab@lincolnbaxter.com.Fix.This> 
 
 =head1 Appendix A (Lincoln's makefile)
 
@@ -861,7 +897,79 @@ document.  Using LD_PRELOAD is probably a fragile solution at best.  Better
 to do what Waldemar actually did, which is to include libjava in the extra
 link options.
   
-=head1 Appendix C (Miscellaneous links which might be useful)
+=head1 Appendix C (64 bit build with /usr/bin/cc -- bundled C compiler)
+
+Gram M. Ludlow writes:
+
+I recently had a problem with Oracle 9 64-bit on HPUX 11i. We have another
+application that required SH_LIBARY_PATH to point to the 64-bit libraries,
+which "broke" the Oraperl module. So I did some research and successfully
+recompiled and re-installed with the most recent versions of everything
+(perl, DBI, DBD) that works with 64-bit shared libraries. This is the error
+we were getting (basically)
+"/usr/lib/dld.sl: Bad magic number for shared library:
+/ora1/app/oracle/product/9.2.0.1.0/lib32"
+
+Here is my step-by-step instructions, pretty much what you have but
+streamlined for this particular case.
+
+Required software:
+
+   HPUX 11.11 (11i) PA-RISC
+   perl 5.8.4 source
+   DBI-1.42 source
+   DBD-Oracle-1.16 source
+   Oracle 9.2.0.1.0 installation
+
+=over
+
+=item Step 1: Compiling Perl
+
+This compiles PERL using the default HPUX cc compiler. The important things
+to note here are the configure parameters. the only non-default option to
+take is to add "+z" to the additional cc flags step.
+
+   gunzip perl-5.8.4.tar.gz
+   tar -xf perl-5.8.4.tar
+   cd perl-5.8.4
+   ./Configure -Ubincompat5005 -Duselargefiles -A prepend:libswanted='cl pthread ' -Duse64bitall
+
+Any additional cc flags?
+Add +z to beginning of list, include all other options.
+
+   make;make test
+   
+98% of tests should succeed. If less, something is wrong.
+
+=item Step 2: DBI
+
+   gunzip DBI-1.42.tar.gz
+   tar -xvf DBI-1.42.tar
+   cd DBI-1.42
+   perl Makefile.PL
+   make;make test
+   make install
+
+Step 3: Install DBD-Oracle
+
+First, set the following environment variables specific you your Oracle
+installation:
+
+   export ORACLE_USERID=user/pass
+   export ORACLE_HOME=/oracle/product/9.2.0.1.0
+   export ORACLE_SID=orap1
+
+Then unpack and build:
+
+   gunzip DBD-Oracle-1.16.tar.gz
+   tar -xvf DBD-Oracle-1.16.tar
+   cd DBD-Oracle-1.16
+   perl Makefile.PL -l
+   make;make test
+   make install
+
+
+=head1 Appendix D (Miscellaneous links which might be useful)
 
 Michael Schuh writes:
 
@@ -964,7 +1072,7 @@ This is a not from from the SAS support people documenting the LhtStrInsert()
 and LhtStrCreate() undefined symbols errors, and how to fix them in the
 Oracle makefiles.
 
-=head1 Appendix D (Perl Configuration Dumps)
+=head1 Appendix E (Perl Configuration Dumps)
 
 The following to sections provide full dumps of perl -V for three
 versions of Perl that were successfully built and linked on
@@ -1107,7 +1215,7 @@ DBD-Oracle and HP-UX 11 trials...
 L<http://www.geocrawler.com/search/?config=183&words=Roger+Foskett>
 
 
-=head1 Appendix E (Why Dynamic Linking)
+=head1 Appendix F (Why Dynamic Linking)
 
 Some one posted to the DBI email list the following question:
 
@@ -1147,7 +1255,7 @@ tested.
 
 =back
 
-=head1 Appendix F (RE problem with libjava.sl)
+=head1 Appendix G (RE problem with libjava.sl)
 
 The following is a message I received from Jon Stevenson concerning a 
 problem with the libjava.sl.  Note that the gcc build described in

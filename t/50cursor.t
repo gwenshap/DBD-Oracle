@@ -82,21 +82,14 @@ foreach ( 1 .. $limit ) {
 	push @cursors, $cursor;
 }
 
-if (DBD::Oracle::ORA_OCI() == 8 ) {
-	print "closing cursors\n";
-	my $close_cursor = $dbh->prepare( qq{ BEGIN CLOSE :kursor; END; } );
-	ok(0, $close_cursor);
-	foreach ( 1 .. @cursors ) {
-		print "closing cursor $_\n";
-		my $cursor = $cursors[$_-1];
-		ok(0, $close_cursor->bind_param( ":kursor", $cursor, { ora_type => ORA_RSET }));
-		ok(0, $close_cursor->execute);
-	}
-}
-else {
-	warn " explicit cursor closing skipped due to known DBD::Oracle bug with OCI7\n";
-	ok(0,1);
-	foreach ( 1 .. @cursors ) { ok(0,1); ok(0,1); }
+print "closing cursors\n";
+my $close_cursor = $dbh->prepare( qq{ BEGIN CLOSE :kursor; END; } );
+ok(0, $close_cursor);
+foreach ( 1 .. @cursors ) {
+	print "closing cursor $_\n";
+	my $cursor = $cursors[$_-1];
+	ok(0, $close_cursor->bind_param( ":kursor", $cursor, { ora_type => ORA_RSET }));
+	ok(0, $close_cursor->execute);
 }
 
 $dbh->disconnect;

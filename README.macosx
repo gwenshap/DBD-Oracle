@@ -1,49 +1,280 @@
 These instructions allow for the compilation and successful testing of 
 DBD::Oracle on MacOS X 10.2.4 using Oracle 9iR2 DR (Release 9.2.0.1.0).
 
-MacOS X DBD::Oracle has only been tested using Perl 5.8.0 - please refer to:
+MacOS X DBD::Oracle has been tested (and used) under Jaguar (10.2.x)
+and Panther (10.3.x). Jaguar comes with a Perl version of 5.6.0.,
+which I can report to work with DBD::Oracle 1.14 and higher once you
+take certain steps (see below). You may want to install a later perl,
+e.g., Perl 5.8.x. Please refer to:
 
 	Installing Perl 5.8 on Jaguar
 	http://developer.apple.com/internet/macosx/perl.html
 
 for Perl 5.8.0 installation instructions.
 
+DBD::Oracle is likely to not install out of the box on MacOS X
+10.2. nor on 10.3. Manual but different changes will most likely be
+required on both versions. 
 
-1) Install Oracle exactly per Oracle documentation. If you change 
+The key problem on 10.2. is a symbol clash (caused by a function
+poll() named identically) between the IO library in at least Perl
+5.6.0 (which is the version that comes with 10.2) and the Oracle
+client library in 9iR2 developer's release for MacOS X. The symptom is
+that your build appears to compile fine but then fails in the link
+stage. If you are running a (possibly self-installed) version of Perl
+other than 5.6.0, there's a chance that you are not affected by the
+symbol clash. So, try to build first without any special measures, and
+only resort to the instructions below if your build fails in the link
+stage with a duplicate symbol error. Note: if it fails to even
+compile, solve that problem first since it is not due to the symbol
+clash.
+
+The key problem on 10.3 is that the default perl that comes with the
+system is compiled with multi-threading turned on, which at least with
+the 9iR2 developer's release exposes a memory leak. Your DBD::Oracle
+build will compile, test, and install fine, but if you execute the
+same prepared statement multiple times, the process will quickly run
+up hundreds of megabytes of RAM, and depending on how much memory you
+have it will die sooner or later.
+
+======================================================================
+Instructions for 10.2.x (Jaguar) 
+
+1) Install Oracle exactly per Oracle documentation. If you change
 install locations, then you'll need to modify paths accordingly.
 
-2) Make a backup copy of the $ORACLE_HOME/lib/libclntsh.dylib.9.0 file
-since we're about to modify that library.  Note that the ".9.0" suffix
-of the file name is version dependent, and that you want to work with
-the file itself rather than the symbolic link called libclntsh.dylib.
+2) There are two ways to remedy the symbol clash. Either edit the
+symbol table of the Oracle client library
+$ORACLE_HOME/lib/libclntsh.dylib.9.0 such that the symbol _poll is no
+longer exported. Alternatively, download, patch, and re-install the
+perl IO modules. I could not successfully repeat the report for the
+former, but I did succeed by doing the latter. Instructions for both
+follow nonetheless.
 
-As user 'oracle' execute the following command to fix namespace
-collisions in Oracle's dynamic libraries.
+  2a) SKIP IF YOU WANT TO OR HAVE SUCCESSFULLY TRIED 2b).  Make a
+    backup copy of the $ORACLE_HOME/lib/libclntsh.dylib.9.0 file, or
+    the file this name points to, since we're about to modify that
+    library.  Note that the ".9.0" suffix of the file name is version
+    dependent, and that you want to work with the file pointed to
+    through one or a series of symbolic links rather than any of the
+    symbolic links (e.g., one will be called libclntsh.dylib).
 
-   nmedit -R ./hints/macos_lib.syms $ORACLE_HOME/lib/libclntsh.dylib.9.0
+    As user 'oracle' execute the following command to fix namespace
+    collisions in Oracle's dynamic libraries.
 
-   *** Recall the above caveats regarding the file name.
+    nmedit -R ./hints/macos_lib.syms $ORACLE_HOME/lib/libclntsh.dylib.9.0
 
-3) Install the module DBI as per its instructions.
+    *** Recall the above caveats regarding the file name.
+
+    The problem with this is that the version of nm that comes with
+    Jaguar doesn't support the -R flag. I'd be grateful to anyone who
+    can suggest how to edit the symbol table of libraries on MacOS X.
+  
+  2b) SKIP IF YOU WANT TO OR HAVE SUCCESSFULLY TRIED 2a). In this
+    variant, we will patch the Perl IO modules to change the name of
+    the poll() function, as that is where it is defined. In this case,
+    we do not need to do anything with the Oracle libraries. Follow
+    these steps:
+
+    - Download the module IO (IO.pm) from CPAN and unpack it. Check
+      the documentation as to whether the version is compatible with
+      your version of Perl; I used v1.20 with Perl 5.6.0 and had
+      success.
+
+    - The files IO.xs, poll.c, and poll.h need to be patched. Apply
+      the following patches, e.g., by cutting and pasting the marked
+      section into a file perlio.patch and using that file as input
+      for patch:
+
+      $ patch -p0 < perlio.patch
+
+      The patch will basically rename the C implementation of poll()
+      to io_poll(). The other patches were necessary to make v1.20
+      compile with Perl 5.6.0; they may not be necessary with other
+      versions of IO and Perl, respectively.
+
++=+=+=+=+=+=+= Cut after this line
+diff -c ../IO-orig/IO-1.20/IO.xs ./IO.xs
+*** ../IO-orig/IO-1.20/IO.xs	Mon Jul 13 23:36:24 1998
+--- ./IO.xs	Sat May 10 15:20:02 2003
+***************
+*** 205,211 ****
+  	    ST(0) = sv_2mortal(newSVpv((char*)&pos, sizeof(Fpos_t)));
+  	}
+  	else {
+! 	    ST(0) = &sv_undef;
+  	    errno = EINVAL;
+  	}
+  
+--- 205,211 ----
+  	    ST(0) = sv_2mortal(newSVpv((char*)&pos, sizeof(Fpos_t)));
+  	}
+  	else {
+! 	    ST(0) = &PL_sv_undef;
+  	    errno = EINVAL;
+  	}
+  
+***************
+*** 249,255 ****
+  	    SvREFCNT_dec(gv);   /* undo increment in newRV() */
+  	}
+  	else {
+! 	    ST(0) = &sv_undef;
+  	    SvREFCNT_dec(gv);
+  	}
+  
+--- 249,255 ----
+  	    SvREFCNT_dec(gv);   /* undo increment in newRV() */
+  	}
+  	else {
+! 	    ST(0) = &PL_sv_undef;
+  	    SvREFCNT_dec(gv);
+  	}
+  
+***************
+*** 272,278 ****
+  	i++;
+  	fds[j].revents = 0;
+      }
+!     if((ret = poll(fds,nfd,timeout)) >= 0) {
+  	for(i=1, j=0 ; j < nfd ; j++) {
+  	    sv_setiv(ST(i), fds[j].fd); i++;
+  	    sv_setiv(ST(i), fds[j].revents); i++;
+--- 272,278 ----
+  	i++;
+  	fds[j].revents = 0;
+      }
+!     if((ret = io_poll(fds,nfd,timeout)) >= 0) {
+  	for(i=1, j=0 ; j < nfd ; j++) {
+  	    sv_setiv(ST(i), fds[j].fd); i++;
+  	    sv_setiv(ST(i), fds[j].revents); i++;
+diff -c ../IO-orig/IO-1.20/poll.c ./poll.c
+*** ../IO-orig/IO-1.20/poll.c	Wed Mar 18 21:34:00 1998
+--- ./poll.c	Sat May 10 14:28:22 2003
+***************
+*** 35,41 ****
+  # define POLL_EVENTS_MASK (POLL_CAN_READ | POLL_CAN_WRITE | POLL_HAS_EXCP)
+  
+  int
+! poll(fds, nfds, timeout)
+  struct pollfd *fds;
+  unsigned long nfds;
+  int timeout;
+--- 35,41 ----
+  # define POLL_EVENTS_MASK (POLL_CAN_READ | POLL_CAN_WRITE | POLL_HAS_EXCP)
+  
+  int
+! io_poll(fds, nfds, timeout)
+  struct pollfd *fds;
+  unsigned long nfds;
+  int timeout;
+diff -c ../IO-orig/IO-1.20/poll.h ./poll.h
+*** ../IO-orig/IO-1.20/poll.h	Wed Apr 15 20:33:02 1998
+--- ./poll.h	Sat May 10 14:29:11 2003
+***************
+*** 44,50 ****
+  #define	POLLHUP		0x0010
+  #define	POLLNVAL	0x0020
+  
+! int poll _((struct pollfd *, unsigned long, int));
+  
+  #ifndef HAS_POLL
+  #  define HAS_POLL
+--- 44,50 ----
+  #define	POLLHUP		0x0010
+  #define	POLLNVAL	0x0020
+  
+! int io_poll _((struct pollfd *, unsigned long, int));
+  
+  #ifndef HAS_POLL
+  #  define HAS_POLL
++=+=+=+=+=+=+= Cut to the previous line
+
+    - compile and install as you usually would, making sure that
+      existing but conflicting modules get removed:
+
+      $ perl Makefile.PL
+      $ make
+      $ make test
+      $ make install UNINST=1
+
+    - You are done. Continue with 3).
+
+3) Install the module DBI as per its instructions, if you haven't
+   already done so.
 
 4) Install the DBD::Oracle module.
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+      $ perl Makefile.PL
+      $ make
+      $ make test
+      $ make install
 
-5) If you have any problems then follow the instructions in the README.
-   Please post details of any problems (or changes you needed to make) to
-   dbi-users@perl.org and CC them to me at brooksch@mac.com on MacOSX 
-   specific problems.
+======================================================================
+Instructions for 10.3.x (Panther) 
 
-Original instructions thanks to:
+Note in advance. If you all you use DBD::Oracle for on MacOSX is
+development and test scripts that don't involve running the same query
+multiple times or many queries within the same perl process, the
+memory leak will most likely never affect you in a serious way. In
+this case I wouldn't bother and just go ahead, build and install
+DBD::Oracle straightforwardly without any special measures.
+
+Otherwise read on.
+
+1) Until the reason for the memory leak has been found and fixed, you
+   need to remove the condition that exposes it. Apparently, this is
+   multi-threading being enabled in Perl. The Perl 5.8.1RC3 that comes
+   with Panther was compiled with multi-threading enabled, and AFAIK
+   it cannot be turned off at runtime. Note that the problem is
+   independent of whether you run multiple concurrent threads or not.
+
+   Therefore, the solution is to build your own perl. I leave it up to
+   you whether you want to replace the system perl or not. At least
+   Perl 5.8.x comes with instructions as to how to replace the system
+   perl on MacOS X, and what the caveats and risks are. I used 5.8.4,
+   installed in /usr/local, and it worked perfectly fine.
+
+   The key when configuring your custom build of perl is to disable
+   multi-threading (usethreads, useithreads, and usemultiplicity
+   options). More precisely, do not enable them, as they are disabled
+   by default, at least up to version 5.8.5. You can check whether
+   threads are enabled or not by passing -V to ther Perl interpreter:
+
+   $ /path/to/your/perl -V | grep usethreads
+
+   You need to see a line saying, among other things,
+   usethreads=undef. If you see usethreads=define then multi-threading
+   is enabled.
+
+2) If you choose not to replace the system perl, make sure that when
+   you build DBI and DBD::Oracle you provide the full path to your own
+   perl when running Makefile.PL, like so (assuming you installed in
+   /usr/local, which is the default):
+
+   $ /usr/local/bin/perl Makefile.PL
+
+   Also, every time you run a DBD::Oracle script, you must use the
+   full path too, unless your custom-built perl comes before the
+   system perl in the PATH environment. The easiest way to ensure you
+   are using the right perl is to uninstall DBI from the system perl
+   if you did install it under that as well.
+
+3) Continue with 3) as in instructions for Jaguar (making path
+   substitutions for perl as discussed in 2).
+======================================================================
+
+If you have any problems then follow the instructions in the
+README. Please post details of any problems (or changes you needed to
+make) to dbi-users@perl.org and CC them to brooksch@mac.com on MacOSX
+specific problems. Rewrite of part of this readme, Panther
+instructions, and the Perl IO patch is credit to Hilmar Lapp, hlapp at
+gmx.net.
+
+Earlier and original instructions thanks to:
 	Andy Lester <andy@petdance.com>
 	Steve Sapovits <sapovitss@gsicommerce.com>
 	Tom Mornini <tmornini@infomania.com>
-
--Brook Schofield <brooksch@mac.com>
 
 
 Date: Tue, 15 Apr 2003 16:02:17 +1000
@@ -91,5 +322,4 @@ cheers
 Danial
 
 PS: Personal replies please, I have not subscribed to this list.
-
 

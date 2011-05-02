@@ -89,6 +89,7 @@ OCILobLocatorIsInit
 OCILobRead
 OCILobTrim
 OCILobWrite
+OCILobWriteAppend
 OCILogoff
 OCILogon
 OCINumberAbs
@@ -366,3 +367,8 @@ orol
 ortgcty
 osetpi
 osql3
+OCINlsEnvironmentVariableGet
+OCIEnvNlsCreate
+OCINlsCharSetNameToId
+OCILobIsTemporary
+OCILobFreeTemporary

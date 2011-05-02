@@ -19,6 +19,8 @@
 
 #include "dbdimp.h"
 
+#include "dbivport.h"
+
 #include <dbd_xsh.h>		/* installed by the DBI module	*/
 
 /* These prototypes are for dbdimp.c funcs used in the XS file          */ 
@@ -55,7 +57,8 @@ int	 dbd_bind_ph  _((SV *sth, imp_sth_t *imp_sth,
 int	 dbd_db_login6 _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, char *pwd, SV *attr));
 int    dbd_describe _((SV *sth, imp_sth_t *imp_sth));
 ub4    ora_blob_read_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
-                   long offset, long len, long destoffset));
-ub4    ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv, long offset, long len, long destoffset));
+                   long offset, UV len, long destoffset));
+ub4    ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
+		   long offset, UV len, long destoffset));
 
 /* end of Oracle.h */

@@ -3,7 +3,11 @@
 use DBI;
 use DBD::Oracle qw(:ora_types ORA_OCI);
 use Data::Dumper;
+use Math::BigInt;
 use strict;
+
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
 
 sub ok ($$;$);
 
@@ -11,9 +15,8 @@ $| = 1;
 my $t = 0;
 my $failed = 0;
 my %ocibug;
-my $table = "dbd_ora__drop_me";
+my $table = "dbd_ora__drop_me" . ($ENV{DBD_ORACLE_SEQ}||'');
 
-my $utf8_test = ($] >= 5.006) && ($ENV{NLS_LANG} && $ENV{NLS_LANG} =~ m/utf8$/i);
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', {
@@ -27,7 +30,12 @@ unless($dbh) {
     exit 0;
 }
 
-unless(create_table("str CHAR(10)")) {
+my $utf8_test = ($] >= 5.006)
+	&& client_ochar_is_utf8() # for correct output (utf8 bind vars should be fine regardless)
+	&& ($dbh->ora_can_unicode() & 2);
+print "Including unicode test\n" if $utf8_test;
+
+unless(create_test_table("str CHAR(10)", 1)) {
     warn "Unable to create test table ($DBI::errstr)\nTests skiped.\n";
     print "1..0\n";
     exit 0;
@@ -63,15 +71,14 @@ sub run_select_tests {
   
   my $data0;
   if ($utf8_test) {
-    $data0 = eval q{ "0\x{263A}xyX" };
+    $data0 = eval q{ "0\x{263A}xyX" }; #this includes the smiley from perlunicode (lab) BTW: it is busted
   } else {
     $data0 = "0\177x\0X";
   }
   my $data1 = "1234567890";
   my $data2 = "2bcdefabcd";
-  my $data3 = "2bcdefabcd12345";
   
-  if (!create_table("lng $type_name", 1)) {
+  if (!create_test_table("lng $type_name", 1)) {
     # typically OCI 8 client talking to Oracle 7 database
     warn "Unable to create test table for '$type_name' data ($DBI::err). Tests skipped.\n";
     foreach (1..$tests_per_set) { ok(0, 1) }
@@ -81,10 +88,11 @@ sub run_select_tests {
   print " --- insert some $type_name data\n";
   ok(0, $sth = $dbh->prepare("insert into $table values (?, ?, SYSDATE)"), 1);
   ok(0, $sth->execute(40, $data0), 1);
-  ok(0, $sth->execute(41, $data1), 1);
+  ok(0, $sth->execute(Math::BigInt->new(41), $data1), 1); # bind an overloaded value
   ok(0, $sth->execute(42, $data2), 1);
-  ok(0, !$sth->execute(43, $data3), 1);
-  
+
+  print " --- try to insert a string that's too long\n";
+  ok(0, !$sth->execute(43, "12345678901234567890"), 1);
   
   print " --- fetch $type_name data back again\n";
   
@@ -102,6 +110,24 @@ sub run_select_tests {
   
 } # end of run_select_tests
 
+
+if (0) { # UNION ALL causes Oracle 9 (not 8) to describe col1 as zero length
+# causing "ORA-24345: A Truncation or null fetch error occurred" error
+# Looks like an Oracle bug
+$dbh->trace(9);
+ok 0, $sth = $dbh->prepare(qq{
+	SELECT :HeadCrncy FROM DUAL
+	UNION ALL
+	SELECT :HeadCrncy FROM DUAL
+});
+$dbh->trace(0);
+ok 0, $sth->execute("EUR");
+ok 0, $tmp = $sth->fetchall_arrayref;
+use Data::Dumper;
+die Dumper $tmp;
+}
+
+
 # $dbh->{USER} is just there so it works for old DBI's before Username was added
 my @pk = $dbh->primary_key(undef, $dbh->{USER}||$dbh->{Username}, uc $table);
 print "primary_key($table): ".Dumper(\@pk);
@@ -117,7 +143,7 @@ END {
 
 # ----
 
-sub create_table {
+sub create_test_table {
     my ($fields, $drop) = @_;
     my $sql = qq{create table $table (
 	idx integer,
