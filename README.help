@@ -15,10 +15,18 @@ use and it's also important to use the same compiler that was used to
 build the Perl you are using.
 
 -------------------------------------------------------------------------------
-Assorted runtime problems are caused by Oracle version mismatches:
+Assorted runtime problems...
 
-If you have problems then ensure that the version of Oracle you are
-talking to is the same one you used to build your DBD::Oracle module.
+Ensure that the version of Oracle you are talking to is the same one
+you used to build your DBD::Oracle module.
+
+Try building perl with 'usemymalloc' disabled.
+Try building perl with 'threads' enabled (esp for Oracle >= 8.1.6).
+
+Try removing "-lthread" from $ORACLE_HOME/lib/ldflags and/or
+$ORACLE_HOME/lib/sysliblist just for the duration of the DBD::Oracle build
+(but I can't really recommend this approach as it may cause subtle
+problems later)
 
 -------------------------------------------------------------------------------
 Bad free() warnings:
@@ -122,7 +130,15 @@ to enforce this in oraxlc
 Thanks to Goran Thyni <goran@bildbasen.kiruna.se> for this information.
 
 -------------------------------------------------------------------------------
+AIX - core dump on disconnect (SIGILL signal)
+
+Try setting BEQUEATH_DETACH=YES in SQLNET.ORA and restarting Oracle instance.
+See 'Hang during "repetitive connect/open/close/disconnect" test' below.
+
+-------------------------------------------------------------------------------
 HP-UX: General
+
+Read README.hpux. Then read it again.
 
 HP's bundled C compiler is dumb. Very dumb. You're almost bound to have
 problems if you use it - you'll certainly need to do a 'static link'
@@ -285,7 +301,14 @@ the wrong version of mergelib (The X11R6 one) instead of the one in
 $ORACLE_HOME/bin.  Try a more limited path and reinstall Oracle again.
 
 -------------------------------------------------------------------------------
-Environment: SGI IRIX 6  - Mark Duffield <duffield@ariad.com>
+Environment: SGI IRIX
+
+From Dennis Box <dbox@fndapl.fnal.gov>:
+
+Details instructions are available from http://misdev.fnal.gov/~dbox/n32/
+(To build IRIX n32 format using the Oracle n32 toolkit.)
+
+From Mark Duffield <duffield@ariad.com>:  (possibly now out of date)
 
 Oracle only supports "-32" and "-mips2" compilation flags, not "-n32".
 Configure and build perl with -32 flag (see perl hints/irix_6.sh file
@@ -305,6 +328,8 @@ compiled and linked "-32".  I understand that Oracle is working on a 64bit
 versions of V7.3.3 for SGI (or MIPS ABI as they call it), but I don't have
 any firm dates.
 
+You may also need to use perl Makefile.PL -p.
+
 -------------------------------------------------------------------------------
 Environment:  64-bit platforms (DEC Alpha, OSF, SGI/IRIX64 v6.4)
 
@@ -317,11 +342,11 @@ complain to Oracle about bugs in their header files on 64 bit systems.
 Link errors or test core dumps
 
 Try each of these in turn (follow each with a make && make test):
-	perl Makefile.PL -b
+	perl Makefile.PL -nob
 	perl Makefile.PL -c
 	perl Makefile.PL -l
 	perl Makefile.PL -n LIBCLNTSH
-let me know if this helps.
+let me know if any of these help.
 
 -------------------------------------------------------------------------------
 Some runtime problems might be related to perl's malloc.
@@ -329,6 +354,43 @@ Some runtime problems might be related to perl's malloc.
 This is a long shot. If all else fails and perl -V:usemymalloc says
 usemymalloc='y' then try rebuilding perl using Configure -Uusemymalloc.
 If this does fix it for you then please let me know.
+
+===============================================================================
+Hang during "repetitive connect/open/close/disconnect" test:
+
+From: "Alexi S. Lookin" <aslookin@alfabank.ru>
+
+In short,  this problem was solved after addition of parameter
+BEQUEATH_DETACH=YES in SQLNET.ORA and restarting Oracle instance.
+
+Browsed Net8 doc (A67440-01 Net8 Admin Guide for Oracle 8.1.5,
+Feb.1999) and found some mention of inadequate bequeath behaviour when
+disconnecting bequeath session, and some solution for this problem at
+page 10-15 (may vary at any other release) :
+
+"p.10-15
+Child Process Termination
+
+Since the client application spawns a server process internally through
+the Bequeath protocol as a child process, the client application
+becomes responsible for cleaning up the child process when it
+completes. When the server process completes its connection
+responsibilities, it becomes a defunct process. Signal handlers are
+responsible for cleaning up these defunct processes. Alternatively, you
+may configure your client SQLNET.ORA file to pass this process to the
+UNIX init process by disabling signal handlers.
+
+Use the Net8 Assistant to configure a client to disable the UNIX signal
+handler. The SQLNET.ORA parameter set to disable is as follows:
+    bequeath_detach=yes
+
+This parameter causes all child processes to be passed over to the UNIX
+init process (pid = 1). The init process automatically checks for
+"defunct" child processes and terminates them.
+
+Bequeath automatically chooses to use a signal handler in tracking
+child process status changes. If your application does not use any
+signal handling, then this default does not affect you."
 
 ===============================================================================
 

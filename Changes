@@ -1,3 +1,45 @@
+Changes in DBD::Oracle 1.09 27th August 2001
+
+  Changed behaviour when OCIStmtExecute() returns OCI_SUCCESS_WITH_INFO:
+    used to be treated as OCI_SUCCESS, now also sets $DBI::err/$DBI::errstr
+    and will therefore trigger RaiseError/PrintError if they are set.
+  Fixed ins/upd of LOBs in views thanks to Tom Moore.
+  Fixed reading of CLOBs in wide characters sets.
+  Fixed 'inherited AUTOLOAD for non-method DBD::Oracle::ORA_OCI' problem.
+  Workaround very long column names causing failure thanks to Martin Busik.
+  Added $dbh->primary_key_info() thanks to Steffen Goeldner.
+  Added $sth->cancel method thanks to Fredrik Sjoholm.
+  Added mention to registry to login failed hint thanks to Tim Callaghan.
+  Changed type_info_all VARCHAR2 max length to 4000 if using OCI8.
+  Removed use of perl global PL_no_modify to avoid linkage problems.
+  Old OCI7 API:
+    Fixed OCI7 memory leak from statement handles thanks to Bret Haeler.
+    Fixed OCI7 PRECISION for RAW data types thanks to J.D. Laub.
+    Fixed old OCI7 LONG buffer overwrite bug thanks to Bruce Templeton.
+      (I thought I'd done this before but perhaps now it's done right.)
+  Build:
+    Fixed default build to set LD_RUN_PATH at build time. Yeah.
+    Fixed parsing of Oracle's .mk files to handle += (appending values).
+    Fixed detection of 'OCI' dire for Win32 Oracle >=8.1 thanks to many.
+    Improved test for gcc in Makefile.PL thanks to Ian Kallen.
+    Improved build rule detection thanks to Jonathan Segal.
+    Don't merge text from Oracle's .mk into generated Makefile (use -f to reenable).
+    Fixed bad test in plsql.t so shouldn't give false negatives.
+    Added t/ph_type.t to test placeholder type issues thanks to James Jurach.
+    Retested for perl 5.4.4 for possibly the last time. You have been warned.
+      In future I'll only be testing on perl >= 5.5.3 and >=5.6.1.
+  Documentation:
+    Documented workaround for hang in "repetitive connect" test thanks to Alexi Lookin.
+      Short version: add bequeath_detach=yes to sqlnet.ora file.
+    Documented ora_oratab_orahome connect attribute (Oracle OCI 7 only).
+    Documented ora_module_name connect attribute thanks to Renzo Toma.
+    Added IRIX linking advice into README.help thanks to Dennis Box.
+    Added AIX core dump on disconnect advice into README.help.
+    Added docs on how Oracle determines the timezone thanks to Brad Howerter.
+    Added 'return cursor function' example to docs thanks to Michael A. Chase
+    Added more notes to README.java thanks to Peter Ludemann and Dave C.
+    Added more notes to README.login thanks to Geoff Young.
+
 Changes in DBD::Oracle 1.08 7th August 2001
 
   Fix Oracle 7 build broken in previous release.

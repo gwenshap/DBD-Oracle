@@ -4,7 +4,7 @@ use ExtUtils::testlib;
 
 die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 
-# $Id: test.pl,v 1.2 1999/06/08 00:15:02 timbo Exp $
+# $Id: test.pl,v 1.4 2001/08/29 19:38:31 timbo Exp $
 #
 # Copyright (c) 1995-1998, Tim Bunce
 #
@@ -19,7 +19,7 @@ die "Use 'make test' to run test.pl\n" unless "@INC" =~ /\bblib\b/;
 require 'getopts.pl';
 
 $| = 1;
-print q{Oraperl test application $Revision: 1.2 $}."\n";
+print q{Oraperl test application $Revision: 1.4 $}."\n";
 
 $SIG{__WARN__} = sub {
 	($_[0] =~ /^(Bad|Duplicate) free/)
@@ -103,6 +103,7 @@ eval 'DBI->_debug_dispatch(3,"test.log");' if $opt_l;
 &test1();
 
 print "\nTesting repetitive connect/open/close/disconnect:\n";
+print "If this test hangs then read the README.help file.\n";
 print "Expect sequence of digits, no other messages:\n";
 #DBI->internal->{DebugDispatch} = 2;
 foreach(1..$opt_n) { print "$_ "; &test2(); }
@@ -147,16 +148,17 @@ sub test1 {
 	local($csr) = &ora_open($lda,
 	    "select to_number('7.2', '9D9',
 			'NLS_NUMERIC_CHARACTERS =''.,'''
-		    )		num_t,
-		    SYSDATE	date_t,
-		    USER	char_t,
-		    ROWID	rowid_t,
-		    NULL	null_t
+		    )			num_t,
+		    SYSDATE		date_t,
+		    USER		char_t,
+		    ROWID		rowid_t,
+		    HEXTORAW('7D')      raw_t,
+		    NULL		null_t
 	    from dual") || die "ora_open: $ora_errno: $ora_errstr\n";
 	$csr->{RaiseError} = 1;
 
 	print "Fields:    ",scalar(&ora_fetch($csr)),"\n";
-	die "ora_fetch in scalar context error" unless &ora_fetch($csr)==5;
+	die "ora_fetch in scalar context error" unless &ora_fetch($csr)==6;
 	print "Names:     ",DBI::neat_list([&ora_titles($csr)],	0,"\t"),"\n";
 	print "Lengths:   ",DBI::neat_list([&ora_lengths($csr)],0,"\t"),"\n";
 	print "OraTypes:  ",DBI::neat_list([&ora_types($csr)],	0,"\t"),"\n";
@@ -170,8 +172,8 @@ sub test1 {
 	print "Data rows:\n";
 	#$csr->debug(2);
 	while(@fields = $csr->fetchrow_array) {
-	    die "ora_fetch returned ".@fields." fields instead of 5!"
-		    if @fields != 5;
+	    die "ora_fetch returned ".@fields." fields instead of 6!"
+		    if @fields != 6;
 	    die "Perl list/scalar context error" if @fields==1;
 	    print "    fetch: ", DBI::neat_list(\@fields),"\n";
 	}

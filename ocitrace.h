@@ -52,11 +52,11 @@
 	OCIAttrGet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,		\
 		(void*)(p1), (l), (a), imp_sth->errhp, stat)
 
-#define OCIAttrSet_log_stat(th,ht,ah,s,a,eh,stat)                      \
-	stat=OCIAttrSet(th,ht,ah,s,a,eh);				\
+#define OCIAttrSet_log_stat(th,ht,ah,s1,a,eh,stat)                      \
+	stat=OCIAttrSet(th,ht,ah,s1,a,eh);				\
 	(DBD_OCI_TRACEON) ? fprintf(DBD_OCI_TRACEFP,			\
 	  "%sAttrSet(%p,%u,%p,%lu,%lu,%p)=%s\n",			\
-	  OciTp, (void*)th,(ht),(void*)(ah),ul_t(s),ul_t(a),(void*)eh,	\
+	  OciTp, (void*)th,(ht),(void*)(ah),ul_t(s1),ul_t(a),(void*)eh,	\
 	  oci_status_name(stat)),stat : stat
 
 #define OCIBindByName_log_stat(sh,bp,eh,p1,pl,v,vs,dt,in,al,rc,mx,cu,md,stat)  \
@@ -204,11 +204,11 @@
 	  OciTp, (void*)sh,(void*)eh,ul_t(nr),(ub2)or,ul_t(md),		\
 	  oci_status_name(stat)),stat : stat
 
-#define OCIStmtPrepare_log_stat(sh,eh,s,sl,l,m,stat)                   \
-	stat=OCIStmtPrepare(sh,eh,s,sl,l,m);				\
+#define OCIStmtPrepare_log_stat(sh,eh,s1,sl,l,m,stat)                   \
+	stat=OCIStmtPrepare(sh,eh,s1,sl,l,m);				\
 	(DBD_OCI_TRACEON) ? fprintf(DBD_OCI_TRACEFP,			\
 	  "%sStmtPrepare(%p,%p,'%s',%lu,%lu,%lu)=%s\n",			\
-	  OciTp, (void*)sh,(void*)eh,s,ul_t(sl),ul_t(l),ul_t(m),	\
+	  OciTp, (void*)sh,(void*)eh,s1,ul_t(sl),ul_t(l),ul_t(m),	\
 	  oci_status_name(stat)),stat : stat
 
 #define OCIServerDetach_log_stat(sh,eh,md,stat)                        \

@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.88 2001/08/07 00:25:37 timbo Exp $
+# $Id: Makefile.PL,v 1.93 2001/08/29 19:38:31 timbo Exp $
 
 ##
 ##  You should not need to edit this file.
@@ -12,7 +12,6 @@ use Getopt::Long;
 use Config;
 use Cwd;
 use File::Find;
-use Data::Dumper;
 use strict;
 
 # This DBI must be installed before we can build a DBD.
@@ -40,6 +39,7 @@ my $os = $^O;
 my $osvers = $Config{osvers};
 $osvers =~ s/^\s*(\d+\.\d+).*/$1/;	# drop sub-sub-version: 2.5.1 -> 2.5
 my $exe_ext = ($os eq 'VMS') ? '.pl' : '';
+my $BELL = "\a";
 
 my %opts = (
     NAME => 'DBD::Oracle',
@@ -63,11 +63,12 @@ if ($ExtUtils::MakeMaker::VERSION >= 5.43) {
 
 $opts{LINKTYPE} = 'static' if $Config{dlsrc} =~ /dl_none/;
 
-my(@MK, %MK, $MK, %MK_expanding);	# parsed macros from Oracle's makefiles
+my(@MK, %MK, $MK_TEXT, %MK_expanding);	# parsed macros from Oracle's makefiles
 my %mk_target_deps;
 my %mk_target_rules;
 
 # Options (rarely needed)
+# to turn off an option prefix with 'no', ie 'perl Makefile.PL -nob'
 $::opt_b = 1;	# try to use Oracle's own 'build' rule
 $::opt_m = 0;	# path to proc.mk or oracle.mk file to read
 $::opt_p = '';	# alter preference for oracle.mk over proc
@@ -80,8 +81,9 @@ $::opt_S = '';	# Find a symbol in oracle & system libs, Don't build a Makefile
 $::opt_v = 0;	# be more verbose
 $::opt_d = 0;	# much more verbose for debugging
 $::opt_8 = 0;	# disable use of OCI 8 (where available)
+$::opt_f = 0;	# include text of oracle's .mk file within generated Makefile
 
-GetOptions(qw(b! v! d! g! p! l! c! 8! m=s n=s s=s S=s))
+GetOptions(qw(b! v! d! g! p! l! c! 8! f! m=s n=s s=s S=s))
 	or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
@@ -117,7 +119,7 @@ die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   on this machine (or a compatible archtecture).
   See the README.clients file for more information.
   ABORTED!
-} unless -d $OH;
+} unless (($os eq 'VMS') ? -d $OH : -d "$OH/lib/.");
 
 print "Using Oracle in $OH\n";
 
@@ -145,13 +147,16 @@ if ($os ne 'VMS' and $os ne 'MSWin32' and -x "$OH/orainst/inspdver") {
 	sleep 5;
     }
 }
+# hack up a simple floating point form of the version: 8.1.6 => 8.106
+($inspdver{rdbms_ver} = $inspdver{RDBMS}) =~ s/^(\d+\.\d+)\.(\d+)/${1}0$2/;
+
 
 my @h_dirs = find_headers();
 unless (@h_dirs) {
     print "I can't find the header files I need in your Oracle installation.\n";
     print "You probably need to install some more Oracle components.\n";
     print "I'll keep going, but the compile will probably fail.\n";
-    print "See README.clients for more information.\a\n";
+    print "See README.clients for more information.$BELL\n";
     sleep 5;
 }
 
@@ -238,10 +243,7 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
     print "Found direct-link candidates: @_\n";
     my $lib = ("@_" =~ m:lib(cl(ie)?ntsh)\.:) ? $1 : "oracle";
     $linkwith_msg = "-l$lib.";
-    my $syslibs =   (-f "$OH/lib/sysliblist")
-	    ? read_file("$OH/lib/sysliblist")
-	    : read_file("$OH/rdbms/lib/sysliblist");
-    $syslibs =~ s/-l:lib(\w+).(sl|a)\b/-l$1/g if $os eq 'hpux';
+    my $syslibs = read_sysliblist();
     print "Oracle sysliblist: $syslibs\n";
     $opts{LIBS} = [ "-L$OH/lib -l$lib $syslibs" ];
     $opts{dynamic_lib} = { OTHERLDFLAGS => "$::opt_g" };
@@ -251,9 +253,11 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
 else {	# --- trawl the guts of Oracle's make files looking the how it wants to link
 
     my @ora_libs = <$OH/lib/lib*>;
-    warn "\nYou don't seem to have many Oracle libraries installed. If the"
-	."\nbuild fails you probably need to install more Oracle software.\n\n"
-	if @ora_libs < 6; # just a helpful hint
+    if (@ora_libs < 6) { # just a helpful hint
+	warn "\nYou don't seem to have many Oracle libraries installed. If the"
+	    ."\nbuild fails you probably need to install more Oracle software.\n\n";
+	sleep 6;
+    }
 
     # can we give the shared library a helping hand?
     my @shared = grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } @ora_libs;
@@ -274,20 +278,24 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 
     if ($mk_target_rules{build} && $::opt_b) {
 	print "\n";
+	print "Attempting to discover Oracle OCI build rules...\n";
 	my $rules = join "\n", '', @{ $mk_target_rules{build} };
-	# create object file to keep 'make $mkfile' happy
-	my $DBD_ORA_OBJ = "DBD_ORA_OBJ.o";
-	open DBD_ORA_OBJ, ">$DBD_ORA_OBJ"
-	    or die "Can't create temporary $DBD_ORA_OBJ file in current directory: $!\n";
-	close DBD_ORA_OBJ;
-	my $make = "$Config{make} -f $mkfile build "
-		."ECHODO=true ECHO=echo GENCLNTSH='echo genclntsh' "
-		."EXE=DBD_ORA_EXE OBJS=$DBD_ORA_OBJ";
-	print "Discovering Oracle OCI build rules...\n";
+	# create dummy C file to keep 'make $mkfile' happy
+	my $DBD_ORA_OBJ = 'DBD_ORA_OBJ';
+        open DBD_ORA_C, ">$DBD_ORA_OBJ.c"
+	    or die "Can't create temporary $DBD_ORA_OBJ.c file in current directory: $!\n";
+        print DBD_ORA_C "int main() { return 1; }\n";
+        close DBD_ORA_C;
+	sleep 2; #
+	system("make $DBD_ORA_OBJ.o CC='$Config{cc}'");
+	my $make = "$Config{make} -f $mkfile build"
+		." ECHODO=true ECHO=echo GENCLNTSH='echo genclntsh' CC=echo"
+		." OPTIMIZE= CCFLAGS="
+		." EXE=DBD_ORA_EXE OBJS=$DBD_ORA_OBJ.o";
 	print "by executing:\n$make\n" if $::opt_v;
 	my @cmds = map { chop; $_ } grep { !m/^\s*$/ } `$make 2>&1`;
 	warn "Warning: Oracle build rule discovery failed ($?)\n" if $?;
-	unlink $DBD_ORA_OBJ;
+	unlink "$DBD_ORA_OBJ.c", "$DBD_ORA_OBJ.o";
 	my $prev = '';
 	@cmds = grep { my $skip = $prev eq "echo $_"; $prev=$_; !$skip } @cmds;
 	my @prolog; push @prolog, shift @cmds while @cmds && $cmds[0] !~ /DBD_ORA_EXE/;
@@ -299,7 +307,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	if (@cmds == 1) {
 	    my $build = $cmds[0];
 	    $build =~ s/^\s*(true\s+)?(\S+)\s*//;	# remove 'true' and compiler/linker
-	    $build =~ s/$DBD_ORA_OBJ//;		# remove dummy object file
+	    $build =~ s/$DBD_ORA_OBJ.o//;		# remove dummy object file
 	    $build =~ s/\S+\s+DBD_ORA_EXE//;	# remove dummy exe file and preceding flag
 	    $linkwith = $build;
 	    # delete problematic crt?.o on solaris
@@ -312,46 +320,50 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 	print "\n";
     }
     else {
-	print "Oracle $mkfile doesn't define a 'build' rule.\n" if $::opt_b;
+	print "Warning: Oracle $mkfile doesn't define a 'build' rule.\n" if $::opt_b;
 	$::opt_b = 0;
+	print "\n";
+	print "Warning: I will now try to guess how to build and link DBD::Oracle for you.$BELL\n";
+	print "         This kind of guess work is very error prone and Oracle-version sensitive.\n";
+	print "         It is possible that it won't be supported in future versions of DBD::Oracle.\n";
+	print "         *PLEASE* notify dbi-users abut exactly _why_ you had to build it this way.\n";
+	print "\n";
+	sleep 6;
     }
 
-    $linkwith =~ s/-Y P,/-YP,/g if $Config{'cc'} =~ /gcc/;
+    $linkwith =~ s/-Y P,/-YP,/g if $Config{gccversion};
     $linkwith =~ s:-R /:-R/:g if $os eq 'solaris';
 
-    #modifications by lbaxter@fleetcc.com
+    # modifications by lbaxter@fleetcc.com
     if ( ($os eq 'hpux') && ($osvers > 10) && ($Config{'cc'} eq 'cc') )
     {
-        #these get dragged in from demo_rdbms.mk where Oralce uses 
-        #the linker bitches about them not being valid options
-        #in this context
+        # these get dragged in from demo_rdbms.mk where Oralce uses 
+        # the linker bitches about them not being valid options
+        # in this context
         $linkwith =~ s/-Wl,\+[sn]//g;
 
-        #Oracle 8.0.5 drags in these which also cause link errors:
-        #this produces a good link with the 32bit version of oracle
-        #(64bit version of 8.0.5 fails to link)
-        #someone else will have to hack that one out
+        # Oracle 8.0.5 drags in these which also cause link errors:
+        # this produces a good link with the 32bit version of oracle
+        # (64bit version of 8.0.5 fails to link)
+        # someone else will have to hack that one out
         $linkwith =~ s/\+D[AS]2\.0[W]* / /g;
 
-        #A number of folks have had to add this library to resolve
-        #undefined symbol errors reported at runtime by ld.sl (the 
-        #library loader) libqsmashr defines LhrStringInsert()...
-        #other libraries may have to be added (Lincoln Baxter <lbaxter@fleetcc.com>)
-        #we check for the library's existence first... (8.0.5 does not have it)
-        if ( -r "$OH/lib/libqsmashr.sl" )
-        {
+        # A number of folks have had to add this library to resolve
+        # undefined symbol errors reported at runtime by ld.sl (the 
+        # library loader) libqsmashr defines LhrStringInsert()...
+        # other libraries may have to be added (Lincoln Baxter <lbaxter@fleetcc.com>)
+        # we check for the library's existence first... (8.0.5 does not have it)
+        if ( -r "$OH/lib/libqsmashr.sl" ) {
            $linkwith =~ s/$/ -lqsmashr/ if ( $linkwith !~ m/-lqsmshr/ );
         }
 
-        if (($linkwith !~ m/-lcl/) || ($linkwith !~ m/-lpthread/))
-        {
+        if (($linkwith !~ m/-lcl/) || ($linkwith !~ m/-lpthread/)) {
             print "Warning: Oracle is built with multi-threading libraries\n"
                 . "         You will most likely need to rebuild perl from sources\n"
                 . "         with the following libraries: -lcl -lpthread\n" ;
         }
 
-        if ( ($Config{'cc'} eq 'cc') && ($Config{'ccflags'} !~ m/\+z/ ) )
-        {
+        if ( ($Config{'cc'} eq 'cc') && ($Config{'ccflags'} !~ m/\+z/ ) ) {
             print "Warning: perl was not built with +z in ccflags\n"
                 . "         You may need to rebuild perl from sources\n"
                 . "         See instructions in README.hpux\n" ;
@@ -408,67 +420,66 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 
 # --- Handle special cases ---
 
+$opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{gccversion} eq 'gcc';
+
+$opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
+
+$opts{DEFINE} .= ' -DNO_OCI8' if $::opt_8;
+
+# Set some private WriteMakefile options if this is 'me' :-)
+if ($ENV{LOGNAME} eq 'timbo'){  # a reasonable guess
+    $BELL = "<BELL>";
+    $opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith -Wtraditional'
+	. ' -Wbad-function-cast -Wcast-qual' if $Config{gccversion};
+    $::opt_g = '-g';
+    $opts{dynamic_lib}->{OTHERLDFLAGS} = "$::opt_g ".($opts{dynamic_lib}->{OTHERLDFLAGS}||'');
+}
+
 # HP-UX 9 cannot link a non-PIC object file into a shared library.
 # Since the # .a libs that Oracle supplies contain non-PIC object
 # files, we sadly have to build static on HP-UX 9 :(
 if ($os eq 'hpux') {
-    print "***\a\n";
-	$osvers =~ s/^[a-z]\.//;	# Sigh... 'b.11.0' etc
+    print "***$BELL\n";
+    $osvers =~ s/^[a-z]\.//;	# Sigh... 'b.11.0' etc
     if ($osvers < 10) {
-	print "*** Warning: Forced to build static not dynamic on $os $osvers.\a\n";
+	print "*** Warning: Forced to build static not dynamic on $os $osvers.$BELL\n";
 	$opts{LINKTYPE} = 'static';
     }
     else {
 	print "*** Warning: If you have trouble, see README.hpux...\n"
 	     ."    you may have to build your own perl, or go hunting for libraries\n";
     }
-    print "***\a\n";
+    print "***$BELL\n";
     sleep 3;
-    # see const_cccmd for -Aa to -Ae flag change
-}
-
-if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
-    print "\n\n";
-    print "Warning: You will probably need to rebuild perl using the xlc_r compiler.\a\n";
-    print "         You may also need do: ORACCENV='cc=xlc_r'; export ORACCENV\n";
-    print "         Also see the README about the -p option\n";
-    sleep 6;
-}
-
-$opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{cc} eq 'gcc';
-
-$opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
-
-$opts{DEFINE} .= ' -DNO_OCI8' if $::opt_8;
-
-$opts{DEFINE} .= ' $(HP64DEFINES)' if ($os eq "hpux" and $Config{archname} =~ /-thread\b/i 
-      and $Config{ccflags} =~ /\+DD64\b/);
-
-print "WARNING: Your GNU C compiler is very old. Please upgrade.\n"
-    if ($Config{gccversion} and $Config{gccversion} =~ m/^(1|2\.[1-5])/);
-
-# Set some private WriteMakefile options if this is 'me' :-)
-if ($ENV{S_ARCH_SW} && $ENV{LOGNAME} eq 'timbo'){  # a reasonable guess
-    $opts{DEFINE} .= ' -Wcast-align -Wconversion -Wpointer-arith -Wtraditional'
-	. ' -Wbad-function-cast -Wcast-qual' if $Config{cc} eq 'gcc';
-    $::opt_g = '-g';
-    $opts{dynamic_lib}->{OTHERLDFLAGS} ||= '';
-    $opts{dynamic_lib}->{OTHERLDFLAGS} .= " $::opt_g";
-}
-
-if ($opts{LINKTYPE} && $opts{LINKTYPE} eq 'static') {
-    print "** Note: DBD::Oracle will be built *into* a NEW perl binary. You MUST use that new perl.\n";
-    print "         See README and Makefile.PL for more information.\a\n";
+    $opts{DEFINE} .= ' $(HP64DEFINES)'
+        if ($Config{archname} =~ /-thread\b/i and $Config{ccflags} =~ /\+DD64\b/);
+    # see also const_cccmd for -Aa to -Ae flag change
 }
 
 
-# --- final information dumps and generation of the Makefile
+# --- check for Test::Harness bug 
+
+eval { package WAIT; require 'wait.ph' };
+if (!$@ && !defined(&WAIT::WCOREDUMP)) { 
+    print "\n";
+    print "You have a wait.ph file generated by perl h2ph utility.\n";
+    print "It does not define a WCOREDUMP function. That's probably an error.\n";
+    print "If a DBD::Oracle test fails then you will probably see a message\n";
+    print "from Test::Harness about WCOREDUMP being undefined. You can either ignore\n";
+    print "it or try to fix your wait.ph file. The message does not reflect the\n";
+    print "cause of the test failure, it's just a problem interpreting the failure.\n";
+    print "\n";
+} 
+
+
+# --- display summary information
 
 # log key platform information to help others help you quickly if needed
 print "\n";
 print "System: perl$] @Config{qw(myuname)}\n";
-print "Compiler: @Config{qw(cc optimize ccflags)}\n";
-print "Linker:   ". (find_bin('ld')||"not found") ."\n" unless $os eq 'VMS';
+print "Compiler:   @Config{qw(cc optimize ccflags)}\n";
+print "Linker:     ". (find_bin('ld')||"not found") ."\n" unless $os eq 'VMS';
+print "Sysliblist: ".read_sysliblist()."\n";
 print "Oracle makefiles would have used these definitions but we override them:\n"
 	if $MK{CFLAGS} || $MK{LDFLAGS} || $MK{LDSTRING};
 print "  CC:       $MK{CC}\n\n"	if $MK{CC};
@@ -489,28 +500,51 @@ print "           [".mkvar('LDSTRING',0,1,0)."]\n\n" if $MK{LDSTRING};
 print "\nLinking with $linkwith_msg\n" if $linkwith_msg;
 print "\n";
 
+# --- display extra notes and warnings
+
+if ($os eq 'aix' and $osvers >= 4 and $Config{cc} ne 'xlc_r') {
+    print "\n\n";
+    print "Warning: You will probably need to rebuild perl using the xlc_r compiler.$BELL\n";
+    print "         You may also need do: ORACCENV='cc=xlc_r'; export ORACCENV\n";
+    print "         Also see the README about the -p option\n";
+    sleep 5;
+}
+
+if ($inspdver{rdbms_ver} >= 8.106 && $Config{archname} !~ /-thread\b/i) {
+    print "\n";
+    print "Warning: If you have problems you may need to rebuild perl with threading enabled.$BELL\n";
+    sleep 5;
+}
+
+if ($Config{usemymalloc} eq 'y') {
+    print "\n";
+    print "Warning: If you have problems you may need to rebuild perl with -Uusemymalloc.$BELL\n";
+    sleep 5;
+}
+
+print "Warning: Your GNU C compiler is very old. Please upgrade.\n"
+    if ($Config{gccversion} and $Config{gccversion} =~ m/^(1|2\.[1-5])/);
+
+if ($opts{LINKTYPE} && $opts{LINKTYPE} eq 'static') {
+    print "** Note: DBD::Oracle will be built *into* a NEW perl binary. You MUST use that new perl.\n";
+    print "         See README and Makefile.PL for more information.$BELL\n";
+}
+
+
+# --- write the name file etc ---
+
 # create this before WriteMakefile so MakeMaker knows it's here
 open(MK_PM, ">mk.pm") or die "Unable to create mk.pm: $!";
 
+print "\n";
 WriteMakefile(%opts);
 
-# deal with Test::Harness bug 
-eval { package WAIT; require 'wait.ph' };
-if (!$@ && !defined(&WAIT::WCOREDUMP)) { 
-    print "\n";
-    print "You have a wait.ph file generated by perl h2ph utility.\n";
-    print "It does not define a WCOREDUMP function. That's probably an error.\n";
-    print "If a DBD::Oracle test fails then you will probably see a message\n";
-    print "from Test::Harness about WCOREDUMP being undefined. You can either ignore\n";
-    print "it or try to fix your wait.ph file. The message does not reflect the\n";
-    print "cause of the test failure, it's just a problem interpreting the failure.\n";
-    print "\n";
-} 
-
-print "\n***  If you have problems, read the README and README.help files   ***\n";
-print   "     (Of course, you have read README by now anyway, haven't you?)\n\n";
-
 check_security() unless $os eq 'VMS' or $os eq 'MSWin32' or $os =~ /cygwin/i;
+
+print "\n";
+print "***  If you have problems...\n";
+print "     read all the log printed above, and the README and README.help files.\n";
+print "     (Of course, you have read README by now anyway, haven't you?)\n\n";
 
 exit 0;
 
@@ -603,74 +637,17 @@ sub win32_oracle_home {
 }
 
 
+sub read_sysliblist {
+    my $syslibs = (-f "$OH/lib/sysliblist")
+	? read_file("$OH/lib/sysliblist")
+	: (-f "$OH/rdbms/lib/sysliblist") ? read_file("$OH/rdbms/lib/sysliblist") : '';
+    $syslibs =~ s/-l:lib(\w+).(sl|a)\b/-l$1/g if $os eq 'hpux';
+    return $syslibs;
+}
+
+
 # =====================================================================
 
-
-sub MY::post_initialize {
-    my $self = shift;
-
-    if (-f "$Config{installprivlib}/DBD/Oraperl.pm"){ # very old now
-	print "
-Please note: the Oraperl.pm installation location has changed.
-It was: $Config{installprivlib}/DBD/Oraperl.pm
-Is now: $Config{installprivlib}/Oraperl.pm
-You have an old copy which you should delete when installing this one.\n";
-    }
-
-    if ($Config{privlibexp} ne $Config{sitelibexp}) {
-        print "
-Warning: By default new modules are installed into your 'site_lib'
-directories. Since site_lib directories come after the normal library
-directories you must delete any old DBD::Oracle files and directories from
-your 'privlib' and 'archlib' directories and their auto subdirectories.
-";
-	if ( $os ne 'VMS' ) {
-	    my ( $sl_exp, $sa_exp, $pl_exp, $al_exp, %old );
-	    ( $sl_exp = $Config{sitelibexp} )  =~ s:\\:/:g; 
-	    ( $sa_exp = $Config{sitearchexp} ) =~ s:\\:/:g; 
-	    ( $pl_exp = $Config{privlibexp} )  =~ s:\\:/:g; 
-	    ( $al_exp = $Config{archlibexp} )  =~ s:\\:/:g; 
-	    my $wanted = sub {
-		$File::Find::prune = ($File::Find::name eq $sl_exp ||
-				      $File::Find::name eq $sa_exp ) && -d $_;
-		$old{$File::Find::name} = 1
-		    if ! $File::Find::prune && /^Oracle/;
-	    };
-	    find( $wanted, $pl_exp, $al_exp );
-	    print "Here's a list of probable old files and directories:\n ",
-		join( "\n ", sort keys %old ), "\n" if keys %old;
-	    print "\n";
-	}
-    }
-
-    print "\nNote: \$ORACLE_HOME/lib must be added to your $need_ldlp_env environment variable\n",
-	  "before running \"make test\" and whenever DBD::Oracle is used.\n\n"
-	if $need_ldlp_env && ($ENV{$need_ldlp_env}||'') !~ m:\Q$OH/lib\b:;
-
-    # Ensure Oraperl.pm and oraperl.ph are installed into top lib dir
-    $self->{PM}->{'Oraperl.pm'} = '$(INST_LIB)/Oraperl.pm';
-    $self->{PM}->{'oraperl.ph'} = '$(INST_LIB)/oraperl.ph';
-
-    # This chunk is for Oracle::OCI
-    local $Data::Dumper::Indent = 1;
-    local $Data::Dumper::Purity = 1;
-    local $Data::Dumper::Useqq  = 1;
-    print MK_PM Data::Dumper->Dump([\%opts, $self], [qw(dbd_oracle_mm_opts dbd_oracle_mm_self)]);
-    close MK_PM or die "Error closing mk.pm: $!\n";
-    foreach (qw(mk.pm Oracle.h dbdimp.h ocitrace.h)) {
-	$self->{PM}->{$_} = '$(INST_ARCHAUTODIR)/'.$_;
-    }
-
-    # Add $linkwith to EXTRALIBS for those doing static linking
-    $self->{EXTRALIBS} .= " -L\$(LIBHOME) $linkwith";
-
-    '';
-}
-
-
-sub MY::postamble {
-	return dbd_postamble(@_);
-}
 
 
 sub del_crtobj {
@@ -805,7 +782,7 @@ sub fetch_oci_macros {
 
         if (m!^([-\w/+.\$()\s]+)\s*:+\s*([^=]*)!) {     # skip targets
             my @tgts = split(/ /, $1);  # multiple target names in Oracle9i's demo_rdbms.mk
-	    $mk_target_deps{$_} = $2 || '' for (@tgts);
+	    for (@tgts) { $mk_target_deps{$_} = $2 || '' }
 	    my @rules;
             while (@lines && $lines[0] =~ m!^\t! && chomp $lines[0]) {
                 my $tmp_line = shift @lines;
@@ -817,7 +794,7 @@ sub fetch_oci_macros {
 		push @rules, $tmp_line;
 		#print "target @tgts => $mk_target_deps{$tgt} => @{$mk_target_rules{$tgt}}\n";
             }  
-	    push @{ $mk_target_rules{$_} ||= [] }, @rules for (@tgts);
+	    for (@tgts) { push @{ $mk_target_rules{$_} ||= [] }, @rules }
             next;
         }
 
@@ -833,13 +810,21 @@ sub fetch_oci_macros {
 	# We always store values into %MK before checking %edit
 	# %edit can edit this in addition to $_ if needed.
 	my $name;
-	if (m/^\s*(\w+)\s*=\s*/) {
+	if (m/^\s*(\w+)\s*(\+?)=\s*/) {
 	    $name = $1;
-	    if ($MK{$name} && $MK{$name} ne $') {
-		print "$name macro redefined by Oracle\n from $MK{$name}\n   to $'\n"
+	    my $append = $2;
+	    my $value  = $';
+	    $value =~ s/^\@`/`/;
+	    if ($append) {
+		my $expanded = expand_mkvars($value, 0, 1);
+		print "Appending '$expanded' to $name\n";# if $verbose;
+		$value = $MK{$name} ? "$MK{$name} $expanded" : $expanded;
+	    }
+	    elsif ($MK{$name} && $MK{$name} ne $value) {
+		print "$name macro redefined by Oracle\n from $MK{$name}\n   to $value\n"
 			if $::opt_v;
 	    }
-	    $MK{$name} = $';
+	    $MK{$name} = $value;
 	    $MK{$name} =~ s/^([^#]*)#.*/$1/; # remove comments
 
 	    if (exists $edit{$name}) {
@@ -916,7 +901,7 @@ sub fetch_oci_macros {
 	die "ERROR parsing $file: Unable to determine what to link with.\n"
 	."Please send me copies of these files (one per mail message):\n@mkfiles\n";
     }
-    $MK = join("\n", @MK);
+    $MK_TEXT = join("\n", @MK);
     return $linkvia;
 }
 
@@ -1075,11 +1060,83 @@ sub symbol_search {
 {
     package MY; # SUPER needs package context, $self is not sufficient
 
+    use strict;
+    use Config;
+
+
+    sub post_initialize {
+	my $self = shift;
+
+	if (-f "$Config{installprivlib}/DBD/Oraperl.pm"){ # very old now
+	    print "
+Please note: the Oraperl.pm installation location has changed.
+It was: $Config{installprivlib}/DBD/Oraperl.pm
+Is now: $Config{installprivlib}/Oraperl.pm
+You have an old copy which you should delete when installing this one.\n";
+	}
+
+	print "\nNote: \$ORACLE_HOME/lib must be added to your $need_ldlp_env environment variable\n",
+	      "before running \"make test\" and whenever DBD::Oracle is used.\n\n"
+	    if $need_ldlp_env && ($ENV{$need_ldlp_env}||'') !~ m:\Q$OH/lib\b:;
+
+	# Ensure Oraperl.pm and oraperl.ph are installed into top lib dir
+	$self->{PM}->{'Oraperl.pm'} = '$(INST_LIB)/Oraperl.pm';
+	$self->{PM}->{'oraperl.ph'} = '$(INST_LIB)/oraperl.ph';
+
+	eval {	# This chunk is for Oracle::OCI
+	    require Data::Dumper; # dups just to avoid compiler typo warnings
+	    local $Data::Dumper::Useqq = 1;
+	    local $Data::Dumper::Terse = 1;
+	    local $Data::Dumper::Indent= 1;
+	    local $Data::Dumper::Useqq = 1;
+	    local $Data::Dumper::Terse = 1;
+	    local $Data::Dumper::Indent= 1;
+	    print main::MK_PM Data::Dumper->Dump([\%opts, $self], [qw(dbd_oracle_mm_opts dbd_oracle_mm_self)]);
+	};
+	if ($@) {
+	    warn "Can't dump config to mk.pm so you won't be able to build Oracle::OCI later if you wanted to: $@\n";
+	    print main::MK_PM qq{die "You need to reinstall DBD::Oracle after installing Data::Dumper\n"; };
+	}
+	close main::MK_PM or die "Error closing mk.pm: $!\n";
+
+	foreach (qw(mk.pm Oracle.h dbdimp.h ocitrace.h)) {
+	    $self->{PM}->{$_} = '$(INST_ARCHAUTODIR)/'.$_;
+	}
+
+	# Add $linkwith to EXTRALIBS for those doing static linking
+	$self->{EXTRALIBS} .= " -L\$(LIBHOME) $linkwith";
+
+	'';
+    }
+
+
+    sub postamble {
+	    return main::dbd_postamble(@_);
+    }
+
+
+    sub const_loadlibs {
+	my $self = shift;
+	local($_) = $self->SUPER::const_loadlibs(@_);
+	# edit LD_RUN_PATH ...
+	my ($ldrp) = m/^LD_RUN_PATH=(.*)/m;
+	# remove redundant /lib or /usr/lib as it can cause problems
+	$ldrp =~ s!:(/usr)?/lib$!!;
+	# if it's empty then set it manually
+	$ldrp ||= "$OH/lib:$OH/rdbms/lib";
+	# stitch it back in
+	s/^LD_RUN_PATH=(.*)/LD_RUN_PATH=$ldrp/m;
+	my $env = $ENV{LD_RUN_PATH};
+	print "Ignoring LD_RUN_PATH='$env' in environment\n" if $env;
+	print "LD_RUN_PATH=$ldrp\n";
+	return $_;
+    }
+
 
     sub post_constants {
 	my $self = shift;
+	return '' unless $::opt_f;
 	# Oracle Definitions, based on $(ORACLE_HOME)/proc/lib/proc.mk
-	# Please let me know if this does, or does not, work for you.
 	'
 ###################################################################
 #
@@ -1087,7 +1144,7 @@ ORACLE_HOME = '.$OH.'
 
 # The following text has been extracted from '.join("\n#\t", '', @mkfiles).'
 
-'.$MK.'
+'.$MK_TEXT.'
 
 # End of extract from '."@mkfiles".'
 #
@@ -1190,10 +1247,10 @@ sub check_security {
     return unless @bad;
 
     print "\n";
-    warn "WARNING - YOUR ORACLE INSTALLATION HAS A SECURITY PROBLEM.\a\n";
-    warn "Read the README.sec file for more information and patch details.\a\n";
-    warn "This is just a warning. It does not affect DBD::Oracle in any way.\n";
-    sleep 5;
+    warn "***  WARNING - YOUR ORACLE INSTALLATION HAS A SECURITY PROBLEM.$BELL\n";
+    warn "     Read the README.sec file for more information and patch details.$BELL\n";
+    warn "     This is just a warning. It does not affect DBD::Oracle in any way.\n\n";
+    sleep 6;
 }
 
 __END__

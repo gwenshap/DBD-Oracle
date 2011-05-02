@@ -68,6 +68,7 @@ eval {
 	$dbh->do("some invalid sql statement");
 };
 ok(0, $@    =~ /DBD::Oracle::db do failed:/, "eval error: ``$@'' expected 'do failed:'");
+#print "''$warn''";
 ok(0, $warn =~ /DBD::Oracle::db do failed:/, "warn error: ``$warn'' expected 'do failed:'");
 $dbh->{RaiseError} = 0;
 

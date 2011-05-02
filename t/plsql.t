@@ -234,21 +234,23 @@ $dbh->{PrintError} = 0;
 # --- test cursor variables
 if (1) {
     my $cur_query = q{
-	SELECT object_name, owner FROM all_objects
-	WHERE object_name LIKE :p1 and ROWNUM <= 3
+	SELECT object_name, owner
+	FROM all_objects
+	WHERE object_name LIKE :p1
+	ORDER BY object_name
     };
     my $cur1 = 42;
     #$dbh->trace(4);
     my $parent = $dbh->prepare(qq{
 	BEGIN OPEN :cur1 FOR $cur_query; END;
     });
-    ok(0, $parent);
+    ok(0, $parent, $DBI::errstr);
     ok(0, $parent->bind_param(":p1", "V%"));
     ok(0, $parent->bind_param_inout(":cur1", \$cur1, 0, { ora_type => ORA_RSET } ));
     ok(0, $parent->execute());
     my @r;
     push @r, @tmp while @tmp = $cur1->fetchrow_array;
-    ok(0, @r == 3*2, "rows: ".@r);
+    ok(0, @r>0, "rows: ".@r);
     #$dbh->trace(0); $parent->trace(0);
 
     # compare results with normal execution of query

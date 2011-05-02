@@ -1,5 +1,5 @@
 
-#   $Id: Oracle.pm,v 1.84 2001/08/07 00:25:37 timbo Exp $
+#   $Id: Oracle.pm,v 1.89 2001/08/29 19:38:31 timbo Exp $
 #
 #   Copyright (c) 1994,1995,1996,1997,1998,1999 Tim Bunce
 #
@@ -10,7 +10,7 @@
 
 require 5.003;
 
-$DBD::Oracle::VERSION = '1.08';
+$DBD::Oracle::VERSION = '1.09';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -32,7 +32,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
     Exporter::export_ok_tags('ora_types');
 
 
-    my $Revision = substr(q$Revision: 1.84 $, 10);
+    my $Revision = substr(q$Revision: 1.89 $, 10);
 
     require_version DBI 1.02;
 
@@ -70,12 +70,12 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	undef $Win32::TieRegistry::Registry if $Win32::TieRegistry::Registry;
     }
 
-	#sub AUTOLOAD {
-	#	(my $constname = $AUTOLOAD) =~ s/.*:://;
-	#	my $val = constant($constname);
-	#	*$AUTOLOAD = sub { $val };
-	#	goto &$AUTOLOAD;
-	#}
+    sub AUTOLOAD {
+    	(my $constname = $AUTOLOAD) =~ s/.*:://;
+    	my $val = constant($constname);
+    	*$AUTOLOAD = sub { $val };
+    	goto &$AUTOLOAD;
+    }
 
 }
 
@@ -232,7 +232,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 			$ENV{ORACLE_SID}  = $dbname;
 			delete $ENV{TWO_TASK};
 			if ($attr && $attr->{ora_oratab_orahome}) {
-			    warn "Changing $ORACLE_ENV for $dbname to $dbhome (to match oratab entry)"
+			    $drh->trace_msg("Changing $ORACLE_ENV for $dbname to $dbhome (to match oratab entry)")
 				if ($ENV{$ORACLE_ENV} and $dbhome ne $ENV{$ORACLE_ENV});
 			    $ENV{$ORACLE_ENV} = $dbhome;
 			}
@@ -264,7 +264,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	if ($attr && $attr->{ora_module_name}) {
 	    eval {
-		$dbh->do(q{BEGIN DBMS_APPLICATION_NAME.SET_MODULE(:1,NULL); END;},
+		$dbh->do(q{BEGIN DBMS_APPLICATION_INFO.SET_MODULE(:1,NULL); END;},
 		       undef, $attr->{ora_module_name});
 	    };
 	}
@@ -409,6 +409,34 @@ SQL
 	$sth;
 }
 
+    sub primary_key_info {
+	my($dbh, $attr) = @_;
+	my $Sql = <<'SQL';
+SELECT *
+  FROM
+(
+  SELECT NULL              TABLE_CAT
+       , c.OWNER           TABLE_SCHEM
+       , c.TABLE_NAME      TABLE_NAME
+       , c.COLUMN_NAME     COLUMN_NAME
+       , c.POSITION        KEY_SEQ
+       , c.CONSTRAINT_NAME PK_NAME
+    FROM ALL_CONSTRAINTS   p
+       , ALL_CONS_COLUMNS  c
+   WHERE p.OWNER           = c.OWNER
+     AND p.TABLE_NAME      = c.TABLE_NAME
+     AND p.CONSTRAINT_NAME = c.CONSTRAINT_NAME
+     AND p.CONSTRAINT_TYPE = 'P'
+)
+ WHERE TABLE_SCHEM = ?
+   AND TABLE_NAME  = ?
+ ORDER BY TABLE_SCHEM, TABLE_NAME, KEY_SEQ
+SQL
+	my $sth = $dbh->prepare($Sql) or return undef;
+	$sth->execute(@$attr{'TABLE_SCHEM','TABLE_NAME'}) or return undef;
+	$sth;
+}
+
     sub type_info_all {
 	my ($dbh) = @_;
 	my $names = {
@@ -432,6 +460,7 @@ SQL
 	    NUM_PREC_RADIX	=>17,
 	};
 	# Based on the values from Oracle 8.0.4 ODBC driver
+	my $varchar2_maxlen = (DBD::Oracle::ORA_OCI()>=8) ? 4000 : 2000;
 	my $ti = [
 	  $names,
           [ 'LONG RAW', -4, '2147483647', '\'', '\'', undef, 1, '0', '0',
@@ -452,10 +481,10 @@ SQL
           [ 'DOUBLE', 8, 15, undef, undef, undef, 1, '0', 3,
             '0', '0', '0', undef, undef, undef, 8, undef, 10
           ],
-          [ 'DATE', 11, 19, '\'', '\'', undef, 1, '0', 3,
+          [ 'DATE', 9, 19, '\'', '\'', undef, 1, '0', 3,
             undef, '0', '0', undef, '0', '0', 11, undef, undef
           ],
-          [ 'VARCHAR2', 12, 2000, '\'', '\'', 'max length', 1, 1, 3,
+          [ 'VARCHAR2', 12, $varchar2_maxlen, '\'', '\'', 'max length', 1, 1, 3,
             undef, '0', '0', undef, undef, undef, 12, undef, undef
           ]
         ];
@@ -782,6 +811,10 @@ Thanks to Mark Dedlow for this information.
 
 =head2 Connect Attributes
 
+=over 4
+
+=item ora_session_mode
+
 The ora_session_mode attribute can be used to connect with SYSDBA
 authorization and SYSOPER authorization.
 
@@ -789,6 +822,24 @@ authorization and SYSOPER authorization.
   $mode = 4;	# SYSOPER
   DBI->connect($dsn, $user, $passwd, { ora_session_mode => $mode });
 
+=item ora_oratab_orahome
+
+Passing a true value for the ora_oratab_orahome attribute will make
+DBD::Oracle change $ENV{ORACLE_HOME} to make the Oracle home directory
+specified in the C</etc/oratab> file I<if> the database to connect to
+is specified as a SID that exists in the oratab file, and DBD::Oracle was
+built to use the Oracle 7 OCI API (not Oracle 8).
+
+=item ora_module_name
+
+After connecting to the database the value of this attribute is passed
+to the SET_MODULE() function in the C<DBMS_APPLICATION_INFO> PL/SQL
+package. This can be used to identify the application to the DBA for
+monitoring and performance tuning purposes. For example:
+
+  DBI->connect($dsn, $user, $passwd, { ora_module_name => $0 });
+
+=back
 
 =head1 Metadata
 
@@ -830,6 +881,22 @@ characters, ...). Such an identifier is case-sensitive (if not all
 upper case). Oracle stores and returns it as given.
 C<table_info()> has no special quote handling, neither adds nor
 removes quotes.
+
+=head2 C<primary_key_info()>
+
+Oracle does not support catalogs so TABLE_CAT is ignored as
+selection criterion.
+The TABLE_CAT field of a fetched row is always NULL (undef).
+See L</table_info()> for more detailed information.
+
+If the primary key constraint was created without an identifier,
+PK_NAME contains a system generated name with the form SYS_Cn.
+
+The result set is ordered by TABLE_SCHEM, TABLE_NAME, KEY_SEQ.
+
+An identifier is passed I<as is>, i.e. as the user provides or
+Oracle returns it.
+See L</table_info()> for more detailed information.
 
 
 =head1 International NLS / 8-bit text issues
@@ -1214,6 +1281,12 @@ then you need to tell it which field each LOB param relates to:
 
   $sth->bind_param($idx, $value, { ora_type=>ORA_CLOB, ora_field=>'foo' });
 
+There's curently no direct way to write a LOB in chunks using DBD::Oracle.
+However, it is possible (though inefficient), using DBMS_LOB.WRITEAPPEND in PL/SQL.
+
+To INSERT a LOB, you need UPDATE privilege.
+
+
 =head2 Binding Cursors
 
 Cursors can now be returned from PL/SQL blocks. Either from stored
@@ -1241,6 +1314,18 @@ If you don't do that you'll get an error from the C<execute()> like:
 "ORA-06550: line X, column Y: PLS-00306: wrong number or types of
 arguments in call to ...".
 
+Here's an alternative form using a function that returns a cursor:
+
+  $sth1 = $dbh->prepare(q{
+    CREATE OR REPLACE FUNCTION sp_ListEmp RETURN types.cursorType
+    AS l_cursor types.cursorType;
+    BEGIN
+      OPEN l_cursor FOR select ename, empno from emp order by ename;
+      RETURN l_cursor;
+    END;
+  });
+  $sth2 = $dbh->prepare(q{BEGIN :cursor := sp_ListEmp; END;});
+
 To close the cursor you (currently) need to do this:
 
   $sth3 = $dbh->prepare("BEGIN CLOSE :cursor END");
@@ -1249,6 +1334,24 @@ To close the cursor you (currently) need to do this:
 
 See the C<curref.pl> script in the Oracle.ex directory in the DBD::Oracle
 source distribution for a complete working example.
+
+=head1 Timezones
+
+If TWO_TASK isn't set, Oracle uses the TZ variable from the local environment.
+ 
+If TWO_TASK IS set, Oracle uses the TZ variable of the listener process
+running on the server.
+
+You could have multiple listeners, each with their own TZ, and assign
+users to the appropriate listener by setting TNS_ADMIN to a directory
+that contains a tnsnames.ora file that points to the port that their
+listener is on.
+
+[Brad Howerter, who supplied this info said: I've done this to simulate
+running a perl script at the end of the previous month even though it
+was the 6th of the new month.  I had the dba start up a listener with
+TZ=X+144.  (144 hours = 6 days)]
+
 
 =head1 Oracle Related Links
 
