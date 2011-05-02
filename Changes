@@ -1,7 +1,21 @@
-=head1 Changes in DBD-Oracle 1.24(svn rev 13793)
-  Extended precision for OCIDateTimeToText to 6 instead of 0 for embedded types from John Scoles
-  Extended support of Oracle Embedded objects from Charles Jardine
-  Added support for RowsInCache as RO and RowCacheSize as a set-able value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans 
+=head1 Changes in DBD-Oracle 1.24_01(svn rev 14060)
+
+  This release has been prepared specifically for the 'Debian' http://www.debian.org project.  It contains no changes
+  to functionality or usage.  The following has been changed
+  
+  Fixed some formatting and typos in Pod from Julián Patiño
+  
+  The Copyright terms for ora_explain have changed and now read as follows:
+  
+  You may distribute under the terms of either the GNU General Public
+  License or the Artistic License, as specified in the Perl README file.
+  
+
+=head1 Changes in DBD-Oracle 1.24(svn rev 13790)
+
+  Extened precision for OCIDateTimeToText to 6 instead of 0 for embedded types from John Scoles
+  Extened support of Oracle Embedded objects from Charles Jardine
+  Added support for RowsInCache as RO and RowCacheSize as a setable value on the Statement Handle. So it would comply with DBI spec By John Scoles with thanks to Martin J. Evans 
   Added extended support for 64 bit clients in Makefile.PL from Ralph Doncaster
   Added extended nvarchar support from Jan Mach
   Added support for the TYPE attribute on bind_col and the new DBI bind_col attributes StrictlyTyped and DiscardString from Martin J. Evans 
@@ -22,6 +36,7 @@
   Fix for bug in 58object.t when test run as externally identified user from Charles Jardine
 
 =head1 Changes in DBD-Oracle 1.23(svn rev 12724)
+
   Fix from rt.cpan.org ticket #=44788 bool in_lite should be char in_literal 
   Fix for UTF8 and blobs by John Scoles with Milo van der Leij
   Fix for some warnings and one bug in ocitrace.h from Charles Jardine
@@ -46,8 +61,8 @@
   Fix for rt.cpan.org Ticket #=38749 Warning of a NULL column in an aggregate function also added ora_oci_success_warn to display silent OCI warnings from John Scoles
   Patch for UTF8 check on execute_array from David Mansfield and a little by John Scoles
   
-  
 =head1 Changes in DBD-Oracle 1.22(svn rev 11618)  1st Aug 2008 
+
   Patch to remove compiler warnings from H.Merijn Brand
   Patch to Makfile for 64bit boxes from Alex Laslavic
   Added OCILobGetLength to lob functions from Milo van der Leij
@@ -73,8 +88,7 @@
   Fix for rt.cpan.org Ticket #=28811 ORA_CHAR(s) not returning correct length in functions and procedures from John Scoles
   Makefile.PL now working without flags for Linux 11.1.0.6 instant client and regular client from John Scoles, Andy Sautins, H.Merijn Brand, Nathan Vonnahme and Karun Dutt
   Fixed how persistent lob fetch works now uses callback correctly, from John Scoles & Darren Kipp
-
-  
+ 
 =head1 Changes in DBD-Oracle 1.21(svn rev 11067) 11th April 2008 
  
   Added Notes to README.win32.txt on installing Instant Client 11.1.0.6.0 from John Scoles
