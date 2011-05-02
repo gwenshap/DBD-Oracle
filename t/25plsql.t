@@ -17,10 +17,14 @@ use DBI;
 use DBD::Oracle qw(ORA_RSET SQLCS_NCHAR);
 use strict;
 
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
+
 $| = 1;
 
+my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '', { PrintError => 0 });
+my $dbh = DBI->connect($dsn, $dbuser, '', { PrintError => 0 });
 
 unless($dbh) {
 	warn "Unable to connect to Oracle ($DBI::errstr)\nTests skiped.\n";
@@ -304,7 +308,7 @@ SKIP: {
     # http://www.nntp.perl.org/group/perl.dbi.users/24217
     my $ora_server_version = $dbh->func("ora_server_version");
     skip "Client/server version < 9.0", 15
-	if DBD::Oracle::ORA_OCI() < 9.0 || $ora_server_version < 9.8;
+	if DBD::Oracle::ORA_OCI() < 9.0 || $ora_server_version->[0] < 9;
     my $func_name = "dbd_oracle_nvctest".($ENV{DBD_ORACLE_SEQ}||'');
     $dbh->do(qq{
 	CREATE OR REPLACE FUNCTION $func_name(arg nvarchar2, arg2 nvarchar2)

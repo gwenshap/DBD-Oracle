@@ -14,6 +14,9 @@ sub ok ($$;$) {
 }
 
 use DBI;
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
+
 $| = 1;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
@@ -32,7 +35,8 @@ if ($uid1 eq $uid2) {
     give_up("ORACLE_USERID_2 not unique.\nTests skipped.\n")
 }
 
-my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '');
+my $dsn = oracle_test_dsn();
+my $dbh = DBI->connect($dsn, $dbuser, '');
 
 unless($dbh) {
     give_up("Unable to connect to Oracle ($DBI::errstr)\nTests skipped.\n");

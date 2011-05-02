@@ -1,12 +1,7 @@
 /*
-   $Id: Oracle.h,v 1.19 2003/09/29 21:13:03 timbo Exp $
+   Copyright (c) 1994-2006  Tim Bunce
 
-   Copyright (c) 1994,1995  Tim Bunce
-
-   You may distribute under the terms of either the GNU General Public
-   License or the Artistic License, as specified in the Perl README file,
-   with the exception that it cannot be placed on a CD-ROM or similar media 
-   for commercial distribution without the prior approval of the author.
+   See the COPYRIGHT section in the Oracle.pm file for terms.
 
 */
 

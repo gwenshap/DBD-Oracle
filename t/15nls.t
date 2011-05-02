@@ -5,16 +5,20 @@ use warnings;
 use DBI;
 use Test::More;
 
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
+
 my $testcount = 9;
 plan tests => $testcount;
 
 $| = 1;
 
+my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 
 SKIP :
 {
-    my $dbh = DBI->connect('dbi:Oracle:', $dbuser, '',
+    my $dbh = DBI->connect($dsn, $dbuser, '',
 			   {
 			    AutoCommit => 1,
 			    PrintError => 1,

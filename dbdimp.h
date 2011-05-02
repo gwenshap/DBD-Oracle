@@ -1,12 +1,7 @@
 /*
-   $Id: dbdimp.h,v 1.48 2004/02/02 08:10:17 timbo Exp $
+   Copyright (c) 1994-2006 Tim Bunce
 
-   Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
-
-   You may distribute under the terms of either the GNU General Public
-   License or the Artistic License, as specified in the Perl README file,
-   with the exception that it cannot be placed on a CD-ROM or similar media
-   for commercial distribution without the prior approval of the author.
+   See the COPYRIGHT section in the Oracle.pm file for terms.
 
 */
 
@@ -88,6 +83,7 @@ struct imp_dbh_st {
     int ph_type;		/* default oratype for placeholders */
     ub1 ph_csform;		/* default charset for placeholders */
     int parse_error_offset;	/* position in statement of last error */
+    int max_nested_cursors;     /* limit on cached nested cursors per stmt */
 };
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
@@ -110,7 +106,7 @@ struct imp_sth_st {
     U16		auto_lob;
     int  	has_lobs;
     lob_refetch_t *lob_refetch;
-    int  	disable_finish; /* fetched cursors can core dump in finish */
+    int  	nested_cursor;  /* cursors fetched from SELECTs */
 
     /* Input Details	*/
     char      *statement;	/* sql (see sth_scan)		*/
@@ -157,6 +153,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
     void *desc_h;	/* descriptor if needed (LOBs etc)	*/
     ub4   desc_t;	/* OCI type of descriptorh		*/
     int  (*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
+    void (*fetch_cleanup) _((SV *sth, imp_fbh_t *fbh));
 
     ub2  dbtype;	/* actual type of field (see ftype)	*/
     ub2  dbsize;
@@ -241,7 +238,6 @@ void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
 void ora_free_fbh_contents _((imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
-int calc_cache_rows _((int num_fields, int est_width, int cache_rows, int has_longs));
 fb_ary_t *fb_ary_alloc _((int bufl, int size));
 int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
 
@@ -267,6 +263,9 @@ ub4 ora_parse_uid _((imp_dbh_t *imp_dbh, char **uidp, char **pwdp));
 char *ora_sql_error _((imp_sth_t *imp_sth, char *msg));
 char *ora_env_var(char *name, char *buf, unsigned long size);
 
+#ifdef __CYGWIN32__
+void ora_cygwin_set_env(char *name, char *value);
+#endif /* __CYGWIN32__ */
 
 sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
               dvoid **bufpp, ub4 *alenp, ub1 *piecep, dvoid **indpp));

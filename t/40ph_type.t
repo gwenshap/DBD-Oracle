@@ -18,11 +18,14 @@ use DBI qw(neat);
 use DBD::Oracle qw(ORA_OCI);
 use vars qw($tests);
 
+unshift @INC ,'t';
+require 'nchar_test_lib.pl';
+
 $| = 1;
 $^W = 1;
 
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dsn    = $ENV{ORACLE_DSN}    || 'dbi:Oracle:';
+my $dsn = oracle_test_dsn();
 my $dbh = DBI->connect($dsn, $dbuser, '', {
 	AutoCommit => 0,
 	PrintError => 1,
@@ -42,17 +45,21 @@ eval {
     $Data::Dumper::Indent= $Data::Dumper::Indent=1;
 };
 
-# XXX ought to extend test to check 'blank padded comparision semantics'
-my @tests = ( # skip=1 to skip, ti=N to trace insert, ts=N to trace select
-  { type=>97, name=>"CHARZ",    chops_space=>0, embed_nul=>0, skip=>1, ti=>8 },
-  { type=> 5, name=>"STRING",   chops_space=>0, embed_nul=>0, skip=>1, ti=>8 },	# old Oraperl
-  { type=>96, name=>"CHAR",     chops_space=>0, embed_nul=>1, skip=>0 },
-  { type=> 1, name=>"VARCHAR2", chops_space=>1, embed_nul=>1, skip=>0 },	# current DBD::Oracle
-#  { type=> 2, name=>"NVARCHAR2", chops_space=>1, embed_nul=>1, skip=>0 },	# LAB NVARCHAR nope not here
+# XXX ought to extend tests to check 'blank padded comparision semantics'
+my @tests = (
+  # type: oracle internal type to use for placeholder values
+  # name: oracle name for type above
+  # chops_space: set true if type trims trailing space characters
+  # embed_nul:   set true if type allows embedded nul characters
+  # (also SKIP=1 to skip test, ti=N to trace insert, ts=N to trace select)
+  { type=> 1, name=>"VARCHAR2", chops_space=>1, embed_nul=>1, },	# current DBD::Oracle
+  { type=> 5, name=>"STRING",   chops_space=>0, embed_nul=>0, SKIP=>1, ti=>8 }, # old Oraperl
+  { type=>96, name=>"CHAR",     chops_space=>0, embed_nul=>1, },
+  { type=>97, name=>"CHARZ",    chops_space=>0, embed_nul=>0, SKIP=>1, ti=>8 },
 );
 
 $tests = 3;
-$_->{skip} or $tests+=8 for @tests;
+$_->{SKIP} or $tests+=8 for @tests;
 
 print "1..$tests\n";
 
@@ -71,14 +78,14 @@ my $val_with_trailing_space = "trailing ";
 my $val_with_embedded_nul = "embedded\0nul";
 
 for my $test_info (@tests) {
-  next if $test_info->{skip};
+  next if $test_info->{SKIP};
 
   my $ph_type = $test_info->{type} || die;
   my $name    = $test_info->{name} || die;
   print "#\n";
   print "# testing @{[ %$test_info ]} ...\n";
   print "#\n";
-  if ($test_info->{skip}) {
+  if ($test_info->{SKIP}) {
     print "# skipping tests\n";
     foreach (1..12) { ok(0,1) }
     next;

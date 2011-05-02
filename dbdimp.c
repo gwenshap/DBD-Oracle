@@ -1,19 +1,21 @@
 /*
    vim: sw=4:ts=8
-   $Id: dbdimp.c,v 1.83 2004/02/26 01:32:01 timbo Exp $
+   dbdimp.c
 
-   Copyright (c) 1994-2004  Tim Bunce  Ireland
+   Copyright (c) 1994-2006  Tim Bunce  Ireland
 
-   You may distribute under the terms of either the GNU General Public
-   License or the Artistic License, as specified in the Perl README file,
-   with the exception that it cannot be placed on a CD-ROM or similar media
-   for commercial distribution without the prior approval of the author.
+   See the COPYRIGHT section in the Oracle.pm file for terms.
 
 */
 
 #ifdef WIN32
 #define strcasecmp strcmpi
 #endif
+
+#ifdef __CYGWIN32__
+#include "w32api/windows.h"
+#include "w32api/winbase.h"
+#endif /* __CYGWIN32__ */
 
 #include "Oracle.h"
 
@@ -44,9 +46,6 @@ ub2 ncharsetid = 0;
 ub2 utf8_csid = 871;
 ub2 al32utf8_csid = 873;
 ub2 al16utf16_csid = 2000;
-
-static int ora_login_nomsg;	/* don't fetch real login errmsg if true  */
-static int ora_sigchld_restart = 1;
 
 typedef struct sql_fbh_st sql_fbh_t;
 struct sql_fbh_st {
@@ -101,17 +100,39 @@ ora_env_var(char *name, char *buf, unsigned long size)
     return buf;
 }
 
+#ifdef __CYGWIN32__
+/* Under Cygwin there are issues with setting environment variables
+ * at runtime such that Windows-native libraries loaded by a Cygwin
+ * process can see those changes.
+ * 
+ * Cygwin maintains its own cache of environment variables, and also
+ * only writes to the Windows environment using the "_putenv" win32
+ * call. This call writes to a Windows C runtime cache, rather than
+ * the true process environment block.
+ *
+ * In order to change environment variables so that the Oracle client
+ * DLL can see the change, the win32 function SetEnvironmentVariable
+ * must be called. This function gives an interface to that API.
+ * 
+ * It is only available when building under Cygwin, and is used by
+ * the testsuite.
+ *
+ * Whilst it could be called by end users, it should be used with
+ * caution, as it bypasses the environment variable conversions that
+ * Cygwin typically performs.
+ */
+void
+ora_cygwin_set_env(char *name, char *value)
+{
+    SetEnvironmentVariable(name, value);
+}
+#endif /* __CYGWIN32__ */
+
 void
 dbd_init(dbistate_t *dbistate)
 {
-    char *p;
     DBIS = dbistate;
     dbd_init_oci(dbistate);
-
-    if ((p=getenv("DBD_ORACLE_LOGIN_NOMSG")))
-	ora_login_nomsg = atoi(p);
-    if ((p=getenv("DBD_ORACLE_SIGCHLD")))
-	ora_sigchld_restart = atoi(p);
 }
 
 
@@ -170,10 +191,14 @@ oratype_bind_ok(int dbtype) /* It's a type we support for placeholders */
     case  2:	/* NVARCHAR2	*/
     case  5:	/* STRING	*/
     case  8:	/* LONG		*/
+    case 21:	/* BINARY FLOAT os-endian */
+    case 22:	/* BINARY DOUBLE os-endian */
     case 23:	/* RAW		*/
     case 24:	/* LONG RAW	*/
     case 96:	/* CHAR		*/
     case 97:	/* CHARZ	*/
+    case 100:	/* BINARY FLOAT oracle-endian */
+    case 101:	/* BINARY DOUBLE oracle-endian */
     case 106:	/* MLSLABEL	*/
     case 102:	/* SQLT_CUR	OCI 7 cursor variable	*/
     case 112:	/* SQLT_CLOB / long	*/
@@ -279,8 +304,6 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		
 	if (shared_dbh_len == sizeof (imp_dbh_t)) {
 	    /* initialize from shared data */
-            int o = DBH_DUP_OFF ;
-            int l = DBH_DUP_LEN ;
             memcpy (((char *)imp_dbh) + DBH_DUP_OFF, ((char *)shared_dbh) + DBH_DUP_OFF, DBH_DUP_LEN) ;
 	    shared_dbh -> refcnt++ ;
 	    imp_dbh -> shared_dbh_priv_sv = shared_dbh_priv_sv ;
@@ -427,7 +450,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			charsetid, ncharsetid, status );
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, NULL, status,
-                    "OCIEnvNlsCreate (check ORACLE_HOME and NLS settings etc.)");
+                    "OCIEnvNlsCreate. Check ORACLE_HOME env var, NLS settings, permissions, etc.");
                 return 0;
             }
                 
@@ -444,7 +467,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	    OCIInitialize_log_stat(init_mode, 0, 0,0,0, status);
 	    if (status != OCI_SUCCESS) {
 		oci_error(dbh, NULL, status,
-		    "OCIInitialize. Check ORACLE_HOME and NLS settings etc.");
+		    "OCIInitialize. Check ORACLE_HOME env var, Oracle NLS settings, permissions etc.");
 		return 0;
 	    }
 
@@ -766,6 +789,9 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
     else if (kl==12 && strEQ(key, "RowCacheSize")) {
 	imp_dbh->RowCacheSize = SvIV(valuesv);
     }
+    else if (kl==22 && strEQ(key, "ora_max_nested_cursors")) {
+	imp_dbh->max_nested_cursors = SvIV(valuesv);
+    }
     else if (kl==11 && strEQ(key, "ora_ph_type")) {
         if (SvIV(valuesv)!=1 && SvIV(valuesv)!=5 && SvIV(valuesv)!=96 && SvIV(valuesv)!=97)
 	    warn("ora_ph_type must be 1 (VARCHAR2), 5 (STRING), 96 (CHAR), or 97 (CHARZ)");
@@ -803,6 +829,9 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
     }
     else if (kl==12 && strEQ(key, "RowCacheSize")) {
 	retsv = newSViv(imp_dbh->RowCacheSize);
+    }
+    else if (kl==22 && strEQ(key, "ora_max_nested_cursors")) {
+	retsv = newSViv(imp_dbh->max_nested_cursors);
     }
     else if (kl==11 && strEQ(key, "ora_ph_type")) {
 	retsv = newSViv(imp_dbh->ph_type);
@@ -954,44 +983,6 @@ dbd_preparse(imp_sth_t *imp_sth, char *statement)
 	    PerlIO_printf(DBILOGFP, "    dbd_preparse scanned %d distinct placeholders\n",
 		(int)DBIc_NUM_PARAMS(imp_sth));
     }
-}
-
-
-int
-calc_cache_rows(int num_fields, int est_width, int cache_rows, int has_longs)
-{
-    /* Use guessed average on-the-wire row width calculated above	*/
-    /* and add in overhead of 5 bytes per field plus 8 bytes per row.	*/
-    /* The n*5+8 was determined by studying SQL*Net v2 packets.		*/
-    /* It could probably benefit from a more detailed analysis.		*/
-    est_width += num_fields*5 + 8;
-
-    if (has_longs)			/* override/disable caching	*/
-	cache_rows = 1;			/* else read_blob can't work	*/
-
-    else if (cache_rows < 1) {		/* automatically size the cache	*/
-	int txfr_size;
-	/*  0 == try to pick 'optimal' cache for this query (default)	*/
-	/* <0 == base cache on target transfer size of -n bytes.	*/
-	if (cache_rows == 0) {
-	    /* Oracle packets on ethernet have max size of around 1460.	*/
-	    /* We'll aim to fill our row cache with around 10 per go.	*/
-	    /* Using 10 means any 'runt' packets will have less impact.	*/
-	    txfr_size = 10 * 1460;	/* default transfer/cache size	*/
-	}
-	else {	/* user is specifying desired transfer size in bytes	*/
-	    txfr_size = -cache_rows;
-	}
-	cache_rows = txfr_size / est_width;	/* maybe 1 or 0	*/
-	/* To ensure good performance with large rows (near or larger	*/
-	/* than our target transfer size) we set a minimum cache size.	*/
-	if (cache_rows < 6)	/* is cache a 'useful' size?	*/
-	    cache_rows = (cache_rows>0) ? 6 : 4;
-    }
-    if (cache_rows > 32767)	/* keep within Oracle's limits  */
-	cache_rows = 32767;
-
-    return cache_rows;
 }
 
 
@@ -1172,7 +1163,6 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
     if (pre_exec) {	/* pre-execute - allocate a statement handle */
 	dSP;
 	D_imp_dbh_from_sth;
-	SV *sth_i;
 	HV *init_attr = newHV();
 	int count;
 	sword status;
@@ -1213,7 +1203,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 	SPAGAIN;
 	if (count != 2)
 	    croak("panic: DBI::_new_sth returned %d values instead of 2", count);
-	sth_i = POPs;			/* discard inner handle */
+	(void)POPs;			/* discard inner handle */
 	sv_setsv(phs->sv, POPs); 	/* save outer handle */
 	SvREFCNT_dec(init_attr);
 	PUTBACK;
@@ -1326,12 +1316,18 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
     csform = phs->csform;
 
-    if (SvUTF8(phs->sv) && !csform) {
-    	/* try to default the csform to avoid translation through non-unicode */
-	/* given Oracle policy that NCHAR==Unicode this should be fine */
-	csform = SQLCS_NCHAR;
-    	/* in some cases this isn't right for LOBs but those are rare and */
-	/* the application can use an explicit ora_csform bind attribute. */
+    if (!csform && SvUTF8(phs->sv)) {
+    	/* try to default csform to avoid translation through non-unicode */
+	if (CSFORM_IMPLIES_UTF8(SQLCS_NCHAR))		/* prefer NCHAR */
+	    csform = SQLCS_NCHAR;
+	else if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT))
+	    csform = SQLCS_IMPLICIT;
+	/* else leave csform == 0 */
+	if (trace_level)
+	    PerlIO_printf(DBILOGFP, "       rebinding %s with UTF8 value %s", phs->name,
+		(csform == SQLCS_NCHAR)    ? "so setting csform=SQLCS_IMPLICIT" :
+		(csform == SQLCS_IMPLICIT) ? "so setting csform=SQLCS_NCHAR" :
+		    "but neither CHAR nor NCHAR are unicode\n");
     }
 
     if (csform) {
@@ -1610,6 +1606,15 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 	PerlIO_printf(DBILOGFP, "    dbd_st_execute %s (out%d, lob%d)...\n",
 	    oci_stmt_type_name(imp_sth->stmt_type), outparams, imp_sth->has_lobs);
 
+    /* Don't attempt execute for nested cursor. It would be meaningless,
+       and Oracle code has been seen to core dump */
+    if (imp_sth->nested_cursor) {
+	oci_error(sth, NULL, OCI_ERROR,
+	    "explicit execute forbidden for nested cursor");
+	return -2;
+    }
+
+
     if (outparams) {	/* check validity of bind_param_inout SV's	*/
 	int i = outparams;
 	while(--i >= 0) {
@@ -1798,6 +1803,9 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
     dTHR;
     D_imp_dbh_from_sth;
     sword status;
+    int num_fields = DBIc_NUM_FIELDS(imp_sth);
+    int i;
+
 
     if (DBIc_DBISTATE(imp_sth)->debug >= 6)
         PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_finish\n");
@@ -1812,8 +1820,10 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
     /* Turn off ACTIVE here regardless of errors below.		*/
     DBIc_ACTIVE_off(imp_sth);
 
-    if (imp_sth->disable_finish)	/* see ref cursors	*/
-	return 1;
+    for(i=0; i < num_fields; ++i) {
+	imp_fbh_t *fbh = &imp_sth->fbh[i];
+	if (fbh->fetch_cleanup) fbh->fetch_cleanup(sth, fbh);
+    }
 
     if (dirty)			/* don't walk on the wild side	*/
 	return 1;
@@ -1884,14 +1894,23 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
     sword status;
     dTHX ;
 
+    /* Don't free the OCI statement handle for a nested cursor. It will
+       be reused by Oracle on the next fetch. Indeed, we never
+       free these handles. Experiment shows that Oracle frees them
+       when they are no longer needed.
+    */
+
     if (DBIc_DBISTATE(imp_sth)->debug >= 6)
 	PerlIO_printf(DBIc_LOGPIO(imp_sth), "    dbd_st_destroy %s\n",
-	 (dirty) ? "(OCIHandleFree skipped during global destruction)" : "");
+	 (dirty) ? "(OCIHandleFree skipped during global destruction)" :
+	 (imp_sth->nested_cursor) ?"(OCIHandleFree skipped for nested cursor)" : "");
 
     if (!dirty) { /* XXX not ideal, leak may be a problem in some cases */
-	OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
-	if (status != OCI_SUCCESS)
-	    oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
+	if (!imp_sth->nested_cursor) {
+	    OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
+	    if (status != OCI_SUCCESS)
+	        oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
+	}
     }
 
     /* Free off contents of imp_sth	*/
@@ -2094,6 +2113,15 @@ ora2sql_type(imp_fbh_t* fbh) {
             sql_fbh.dbtype = SQL_DECIMAL; /* better: SQL_NUMERIC */
         }
         break;
+#ifdef SQLT_IBDOUBLE
+    case SQLT_BDOUBLE:
+    case SQLT_BFLOAT:
+    case SQLT_IBDOUBLE:
+    case SQLT_IBFLOAT:
+               sql_fbh.dbtype = SQL_DOUBLE;
+               sql_fbh.prec   = 126;
+               break;
+#endif
     case SQLT_CHR:  sql_fbh.dbtype = SQL_VARCHAR;       break;
     case SQLT_LNG:  sql_fbh.dbtype = SQL_LONGVARCHAR;   break; /* long */
     case SQLT_DAT:  sql_fbh.dbtype = SQL_TYPE_TIMESTAMP;break;

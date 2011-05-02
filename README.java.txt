@@ -1,4 +1,4 @@
-README.java
+README.java.txt
 
 This file relates to a specific problem on Solaris platforms
 for Oracle 8.1.6 (and possibly later versions) where loading

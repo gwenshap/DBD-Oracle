@@ -8,6 +8,7 @@ my $sql_driver_ver = sprintf $fmt, split (/\./, "$DBD::Oracle::VERSION.0.0.0.0.0
 
 sub sql_dbms_version {
     my $dbh = shift;
+    local $^W; # for ora_server_version having too few parts
     return sprintf $fmt, @{DBD::Oracle::db::ora_server_version($dbh)};
 }
 sub sql_data_source_name {

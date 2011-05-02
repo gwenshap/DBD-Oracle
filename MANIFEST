@@ -18,21 +18,20 @@ Oracle.pm
 Oracle.xs
 Oraperl.pm
 README
-README.aix
-README.clients
-README.explain
-README.help
-README.hpux
-README.java
-README.linux
-README.login
-README.longs
-README.macosx
-README.sec
-README.utf8
-README.vms
-README.win32
-README.wingcc			Notes about building with mingw32 and cygwin32
+README.aix.txt
+README.clients.txt
+README.explain.txt
+README.help.txt
+README.hpux.txt
+README.java.txt
+README.linux.txt
+README.login.txt
+README.longs.txt
+README.macosx.txt
+README.sec.txt
+README.vms.txt
+README.win32.txt
+README.wingcc.txt			Notes about building with mingw32 and cygwin32
 Todo
 dbdimp.c
 dbdimp.h
@@ -64,6 +63,7 @@ t/30long.t
 t/31lob.t
 t/40ph_type.t
 t/50cursor.t
+t/55nested.t
 t/60reauth.t
 t/70meta.t
 t/nchar_test_lib.pl

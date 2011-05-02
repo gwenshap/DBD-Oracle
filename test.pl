@@ -29,7 +29,10 @@ GetOptions(
 	'f=i'	=> \my $opt_f,	# fetch test
 	'p!'	=> \my $opt_p,	# perf test
 ) or die;
-$opt_n ||= 5;
+$opt_n ||= 10;
+
+# skip this old set of half-baked oddities if ORACLE_DSN env var is set
+exit 0 if $ENV{ORACLE_DSN};
 
 $dbname = $ARGV[0] || '';	# if '' it'll use TWO_TASK/ORACLE_SID
 $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
@@ -40,15 +43,12 @@ exit test_extfetch_perf($opt_f) if $opt_f;
 
 exit test_leak(10 * $opt_n) if $opt_m;
 
-print "\n\nExtra tests. These are less formal and you need to read the output\n";
-print "to see if it looks reasonable and matches what the tests says is expected.\n";
-
 &ora_version;
 
 my @data_sources = DBI->data_sources('Oracle');
-print "Data sources:\n\t", join("\n\t",@data_sources),"\n\n";
+print "Data sources:\n\t", join("\n\t",@data_sources),"\n";
 
-print "\nConnecting\n",
+print "Connecting\n",
       " to '$dbname' (from command line, else uses ORACLE_SID or TWO_TASK - recommended)\n";
 print " as '$dbuser' (via ORACLE_USERID env var or default - recommend name/passwd\@dbname)\n";
 printf("(ORACLE_SID='%s', TWO_TASK='%s')\n", $ENV{ORACLE_SID}||'', $ENV{TWO_TASK}||'');
@@ -89,32 +89,22 @@ printf("(LOCAL='%s', REMOTE='%s')\n", $ENV{LOCAL}||'', $ENV{REMOTE}||'') if $os 
     #test_auto_reprepare($l);
     &ora_logoff($l)	|| warn "ora_logoff($l): $ora_errno: $ora_errstr\n";
 }
-$start = time;
 
 &test_intfetch_perf() if $opt_p;
 
 &test1();
 
-print "\nTesting repetitive connect/open/close/disconnect:\n";
-print "If this test hangs then read the README.help file.\n";
-print "Expect sequence of digits, no other messages:\n";
-#DBI->internal->{DebugDispatch} = 2;
+print "\nRepetitive connect/open/close/disconnect:\n";
+#print "If this test hangs then read the README.help.txt file.\n";
+#print "Expect sequence of digits, no other messages:\n";
+# likely to fail with: ORA-12516: TNS:listener could not find available handler with matching protocol stack (DBD ERROR: OCIServerAttach)
+# in default configurations if the number of iterations is high (>~20)
+my $connect_loop_start = DBI::dbi_time();
 foreach(1..$opt_n) { print "$_ "; &test2(); }
-print "\n";
+my $dur = DBI::dbi_time() - $connect_loop_start;
+printf "(~%.3f seconds each)\n", $dur / $opt_n;
 
-print "\nTest interaction of explicit close/logoff and implicit DESTROYs\n";
-print "Expect just 'done.', no other messages:\n";
-$lda2 = &ora_login($dbname, $dbuser, '');
-$csr2 = &ora_open($lda2, "select 42 from dual") || die "ora_open: $ora_errno: $ora_errstr\n";
-&ora_close($csr2)  || warn "ora_close($csr2): $ora_errno: $ora_errstr\n";
-&ora_logoff($lda2) || warn "ora_logoff($lda2): $ora_errno: $ora_errstr\n";
-print "done.\n";
-
-&test_cache();
-
-$dur = time - $start;
-print "\nTest complete ($dur seconds).\n";
-print "If the tests above have produced the 'expected' output then they have passed.\n";
+print "test.pl complete.\n\n";
 
 exit 0;
 
@@ -152,14 +142,14 @@ sub test1 {
 
 	print "Fields:    ",scalar(&ora_fetch($csr)),"\n";
 	die "ora_fetch in scalar context error" unless &ora_fetch($csr)==6;
-	print "Names:     ",DBI::neat_list([&ora_titles($csr)],	0,"\t"),"\n";
-	print "Lengths:   ",DBI::neat_list([&ora_lengths($csr)],0,"\t"),"\n";
-	print "OraTypes:  ",DBI::neat_list([&ora_types($csr)],	0,"\t"),"\n";
-	print "SQLTypes:  ",DBI::neat_list($csr->{TYPE},		0,"\t"),"\n";
-	print "Scale:     ",DBI::neat_list($csr->{SCALE},		0,"\t"),"\n";
-	print "Precision: ",DBI::neat_list($csr->{PRECISION},	0,"\t"),"\n";
-	print "Nullable:  ",DBI::neat_list($csr->{NULLABLE},	0,"\t"),"\n";
-	print "Est row width:    $csr->{ora_est_row_width}\n";
+	print "Names:     \t",join("\t", &ora_titles($csr)),"\n";
+	print "Lengths:   \t",DBI::neat_list([&ora_lengths($csr)],0,"\t"),"\n";
+	print "OraTypes:  \t",DBI::neat_list([&ora_types($csr)],	0,"\t"),"\n";
+	print "SQLTypes:  \t",DBI::neat_list($csr->{TYPE},		0,"\t"),"\n";
+	print "Scale:     \t",DBI::neat_list($csr->{SCALE},		0,"\t"),"\n";
+	print "Precision: \t",DBI::neat_list($csr->{PRECISION},	0,"\t"),"\n";
+	print "Nullable:  \t",DBI::neat_list($csr->{NULLABLE},	0,"\t"),"\n";
+	print "Est row width:\t$csr->{ora_est_row_width}\n";
 	print "Prefetch cache:   $csr->{RowsInCache}\n" if $csr->{RowsInCache};
 
 	print "Data rows:\n";
@@ -170,15 +160,9 @@ sub test1 {
 	    die "Perl list/scalar context error" if @fields==1;
 	    print "    fetch: ", DBI::neat_list(\@fields),"\n";
 	}
-
 	&ora_close($csr) || warn "ora_close($csr): $ora_errno: $ora_errstr\n";
-	print "\n";
     }
-
-    print "ora_logoff...\n";
     &ora_logoff($lda)   || warn "ora_logoff($lda): $ora_errno: $ora_errstr\n";
-
-    print "lda out of scope...\n";
 }
 
 
@@ -212,30 +196,6 @@ sub test_leak {
 }
 
 
-sub test_cache {
-    local($cache) = 5;
-    print "\nTesting row cache ($cache).\n";
-    local($l) = &ora_login($dbname, $dbuser, '')
-		    || die "ora_login: $ora_errno: $ora_errstr\n";
-    local($csr, $rows, $max);
-    local($start) = time;
-    #$l->trace(3);
-    foreach $max (1, 0, $cache-1, $cache, $cache+1) {
-	$csr = &ora_open($l, q{
-		select object_name, rownum from all_objects where rownum <= :1
-	}, $cache);
-	&ora_bind($csr, $max) || die $ora_errstr;
-	$rows = count_fetch($csr);
-	die "test_cache $rows/$max" if $rows != $max;
-	&ora_bind($csr, $max+2) || die $ora_errstr;
-	$rows = count_fetch($csr);
-	die "test_cache $rows/$max+2" if $rows != $max+2;
-    }
-    # this test will only show timing improvements when
-    # run over a modem link. It's primarily designed to
-    # test boundary cases in the cache code.
-    print "Test completed in ".(time-$start)." seconds.\n";
-}
 sub count_fetch {
     local($csr) = @_;
     local($rows) = 0;

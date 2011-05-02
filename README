@@ -1,30 +1,30 @@
 
 DBD::Oracle  --  an Oracle interface for Perl 5.
 
-   Copyright (c) 1994-2004  Tim Bunce, Ireland.
+   Copyright (c) 1994-2006  Tim Bunce, Ireland.
 
-   See the COPYRIGHT section in the Oracle.pm file.
+   See the COPYRIGHT section in the Oracle.pm file for terms.
+   See also the MAINTAINER section in the Oracle.pm
 
    PLEASE READ THE ENTIRE README FILE CAREFULLY !
 
    AND THEN READ ANY README.* FILES RELEVANT TO YOUR PLATFORM:
 
-	README.aix - AIX
-	README.hpux - HP-UX
-	README.java - Java/thread problem on Solaris
-	README.macosx - Mac OS/X
-	README.win32 - MS Windows
-	README.wingcc - MS Windows using GCC
+	README.aix.txt - AIX
+	README.hpux.txt - HP-UX
+	README.java.txt - Java/thread problem on Solaris
+	README.macosx.txt - Mac OS/X
+	README.win32.txt - MS Windows
+	README.wingcc.txt - MS Windows using GCC
 	README.* - see if there's a file for your platform
 
    You may find these useful
 
-	README.help - Help and hints on build problems
-	README.sec - Oracle security issues to be aware of
-	README.login - Help on how to connect to Oracle
-	README.longs - Help on handling LONGs
-	README.utf8 - Help on using UFT8
-	README.clients - What Oracle client files you need installed
+	README.help.txt - Help and hints on build problems
+	README.sec.txt - Oracle security issues to be aware of
+	README.login.txt - Help on how to connect to Oracle
+	README.longs.txt - Help on handling LONGs
+	README.clients.txt - What Oracle client files you need installed
 
 
 *** QUICK START GUIDE:
@@ -49,20 +49,38 @@ DBD::Oracle  --  an Oracle interface for Perl 5.
     Remember to *read* the DBI README file and this one CAREFULLY!
 
     Install enough Oracle software to enable DBD::Oracle to build.
-    That usually includes Pro*C and SQL*Net. That's not very specific
-    because it varies so much between Oracle releases.
 
-    Except under MS Windows, ORACLE_HOME must point to the Oracle Home
-    used to create DBD::Oracle.  Even under MS Windows, it doesn't hurt.
+    For Oracle Instant Client: that means install the following packages:
+        * The "Basic" package for the essential Oracle libraries.
+        * The "SDK" package for the headers and makefile.
+        * The "SQL*Plus" component is optional, but will help you check
+          your configuration and DBD::Oracle determine your Oracle version.
 
-    Make sure Oracle is working and you can use Oracle commands
-    like sqlplus to talk to the database *from the machine* you
-    want to build DBD::Oracle on. (This often involves setting
-    environment variables like PATH, LD_LIBRARY_PATH, TWO_TASK etc.)
+    For full Oracle installs: that usually includes Pro*C and SQL*Net.
+    (That's not very specific because it varies between Oracle releases.)
+
+    The ORACLE_HOME environment variable must point to the Oracle Home
+    used to create DBD::Oracle. (Not essential under MS Windows).
+
+*** MOST IMPORTANTLY:
+
+    Make sure Oracle is working and you can use the Oracle sqlplus
+    command to talk to the database from the machine you
+    want to build DBD::Oracle on. This often involves setting
+    environment variables like PATH, LD_LIBRARY_PATH, TWO_TASK etc.
+    Consult Oracle documentation for more details.
+
+    Only once you can connect to Oracle using sqlplus
+    should you try building and testing DBD::Oracle.
 
 *** BUILDING:
 
+Execute:
+
     perl Makefile.PL            # use a perl that's in your PATH
+
+Use the perl that is first on your PATH. Then execute:
+
     make
 
 If you get an error like "make: not found" you need to find the
@@ -70,29 +88,30 @@ directory that has the make command installed in it (e.g. /usr/ccs/bin
 on Solaris) and add that to your PATH environment variable.
 
 Don't worry about most warnings when make runs, specifically ones like
-"end-of-loop code not reached", "ANSI C forbids braced-groups within
-expressions", "cast increases required alignment of target type" and
-"passing arg 2 of `oerhms' with different width due to prototype".
+"end-of-loop code not reached", "... due to prototype",
+"cast increases required alignment of target type", etc.
 
 If you have problems see the 'IF YOU HAVE PROBLEMS' section below.
-If it builds without error you should then run the tests. For the
+If it builds without error you should then run 'make test'. For the
 main tests to work they must be able to connect to an Oracle database.
 
-You will need to set either the TWO_TASK or ORACLE_SID environment
-variables to the correct values for your database. Consult Oracle
-documentation for more details. Test your settings by connecting to
-the database using an Oracle tool such as sqlplus. Only once you can do
-that should you try testing DBD::Oracle.
+The tests default to using a DSN of "dbi:Oracle:" which means you'll be
+connected to the default database based on your TWO_TASK or ORACLE_SID
+environment variables. This default can be altered either by defining the
+ORACLE_DSN environment variable or the DBI_DSN environment variable.
+See the oracle_test_dsn() sub in t/nchar_test_lib.pl
 
 The supplied tests will connect to the database using the value of the
-ORACLE_USERID environment variable to supply the username/password so
-you should set that to a valid value (e.g. 'scott/tiger') before
-starting the test. Using 'system/manager' might work but is not
-recommended! Please read README.login.
+ORACLE_USERID environment variable to supply the username/password.
+So you should set that to a valid value (e.g. 'scott/tiger') before starting
+the test. Using 'system/manager' might work but is not recommended! See also
+README.login.txt.
 
     make test
 
-    make install (if the tests look okay, the last few are rather verbose)
+If the all the formal tests pass then, finally, run:
+
+    make install
 
 
 *** IF YOU HAVE PROBLEMS:
@@ -103,9 +122,9 @@ sure it's on your PATH so you can say 'perl Makefile.PL' and not
 
 If you get compiler errors refering to Perl's own header files
 (.../CORE/*.h) then there is something wrong with your installation.
-It is important to use a Perl that was built on the system you are
-trying to use and it's also important to use the same compiler that
-was used to build the Perl you are using.
+It is important to use a Perl that was built on the system you are using.
+It's also important to use the same compiler that was used to build the
+Perl you are using.
 
 If you have build/link or core dump problems try:
 	perl Makefile.PL -p
@@ -118,15 +137,11 @@ worked, plus the output of the "perl -V" command).
 Do not hand edit the generated Makefile unless you are completely sure
 you understand the implications! Always try to make changes via the
 Makefile.PL command line and/or editing the Makefile.PL.
-You should not need to make any changes. If you do please let me
+You should not need to make any changes. If you do please let us
 know so that I can try to make it automatic in a later release.
 
 If you just can't login or login takes a long time then read
-README.login
-
-If you can't get it to build on a minimally configured client system
-then read README.client, it might help but basically I can't help much.
-Others on the dbi-users mailing list probably can.
+README.login.txt
 
 If you have linking problems (errors related to libraries or functions)
 then you could try forcing a 'static' build using:
@@ -139,20 +154,31 @@ then you could try forcing a 'static' build using:
   make -f Makefile.aperl inst_perl MAP_TARGET=perl  (install new perl)
   make install                                      (install DBD::Oracle)
 
+But that's not recommended these days.
 
->>> Also carefully read the README.help file which is full of useful
+>>> Also carefully read the README.help.txt file which is full of useful
 >>> tips and workarounds for various problems of various systems.
 
 
 *** HOW TO REPORT PROBLEMS
 
-Please don't post problems to comp.lang.perl.* or perl5-porters.
-This software is supported via the dbi-users mailing list.  For more
-information and to keep informed about progress you can join the
-mailing list by sending a message to dbi-users-help@perl.org
+This software is supported via the dbi-users@perl.org mailing list.
+(You don't need to subscribe to the list in order to post.)
+
+Please do NOT post problems to comp.lang.perl.*, perl5-porters@perl.org,
+http://www.cpanforum.com/dist/DBD-Oracle, or google groups etc.
+
+If you're *sure* the problem is a bug then you can post a bug report
+to http://rt.cpan.org/Public/Dist/Display.html?Name=DBD-Oracle
+Problem reports that don't include sufficient detail (including the
+information listed below and how to reproduce the problem)
+are unlikely to get resolved.
+
+For more information and to keep informed about progress you can join the
+mailing list. Send a message to dbi-users-help@perl.org for more information.
 
 Please post details of any problems (or changes you needed to make) to
-dbi-users@perl.org and CC them to me at Tim.Bunce@pobox.com. But note...
+dbi-users@perl.org.
 
 
 ** IT IS IMPORTANT TO INCLUDE *ALL* THE FOLLOWING INFORMATION:
@@ -160,7 +186,7 @@ dbi-users@perl.org and CC them to me at Tim.Bunce@pobox.com. But note...
 1. A complete log of all steps of the build, e.g.:
 
     (do a make realclean first)
-    perl Makefile.PL -v        (note the -v for verbose)
+    perl Makefile.PL
     make
     make test
 
@@ -174,8 +200,8 @@ dbi-users@perl.org and CC them to me at Tim.Bunce@pobox.com. But note...
 
     perl -Mblib t/<name-of-failed-test>.t
 
-2. Full details of which version of Oracle you're using (if it
-   wasn't automatically found and printed by "perl Makefile.PL")
+2. Full details of which version of Oracle client and server you're using
+   (if it wasn't automatically found and printed by "perl Makefile.PL")
 
 3. The output of perl -V       (that's a capital V, not lowercase)
 
@@ -193,7 +219,7 @@ dbi-users@perl.org and CC them to me at Tim.Bunce@pobox.com. But note...
    debugger (gdb, sdb, dbx, adb etc) to get a stack trace from it.
    NOTE: I may not be able to help you much without a stack trace!
    It is worth fetching and building the GNU GDB debugger (>=4.15) if
-   you don't have a good debugger on your system. If desparate try:
+   you don't have a good debugger on your system. If desperate try:
      make perl; ./perl script; echo '$c' | adb ./perl core
    Also see the Devel::CoreStack module on CPAN.
 
@@ -201,19 +227,18 @@ dbi-users@perl.org and CC them to me at Tim.Bunce@pobox.com. But note...
    make test after setting the environment variable PERL_DL_DEBUG to 2.
 
 7. If your installation succeeds, but your script does not behave
-   as you expect, the problem is most likely on your end. Before
-   sending to dbi-users, try writing a small, easy to use test case
+   as you expect, the problem may be on your end. Before
+   sending to dbi-users, try writing a *small*, easy to use test case
    to reproduce your problem. Also, use the DBI->trace method to
    trace your database calls.
 
 It is important to check that you are using the latest version before
-posting. If you're not then I'm *very* likely to simply say "upgrade to
+posting. If you're not then you're *very* likely to be told "upgrade to
 the latest". You would do yourself a favour by upgrading beforehand.
 
-Please remember that I'm _very_ busy. Try to help yourself first,
-then try to help me help you by following these guidelines carefully.
-And remember, please don't mail me directly - use the dbi-users
-mailing list.
+Try to help yourself first, then try to help others help you by following
+these guidelines carefully.  And remember, please don't mail developers
+directly - use the dbi-users mailing list.
 
 Regards,
 Tim.
@@ -221,14 +246,13 @@ Tim.
 ===============================================================================
 Examples and other info:
 
-README.help     -- READ IT FIRST IF YOU HAVE ANY PROBLEMS
-README.win32    -- building DBD::Oracle under MS Windows
-README.wingcc   -- building DBD::Oracle under MS Windows with gcc
-README.macosx   -- building DBD::Oracle under MacOS X
-README.clients  -- building/using DBD::Oracle on minimally configured systems
-README.login    -- help for login problems
-README.longs    -- examples dealing with LONG types (blobs)
-README.utf8     -- Perl 5.6.1, Oracle, and UTF-8
+README.help.txt     -- READ IT FIRST IF YOU HAVE ANY PROBLEMS
+README.win32.txt    -- building DBD::Oracle under MS Windows
+README.wingcc.txt   -- building DBD::Oracle under MS Windows with gcc
+README.macosx.txt   -- building DBD::Oracle under MacOS X
+README.clients.txt  -- building/using DBD::Oracle on minimally configured systems
+README.login.txt    -- help for login problems
+README.longs.txt    -- examples dealing with LONG types (blobs)
 
 DBI 'home page': http://dbi.perl.org
 
@@ -236,8 +260,6 @@ Old archive site for Perl DB information:
     ftp://ftp.demon.co.uk/pub/perl/db/
 Mailing list archive:                /DBI/perldb-interest/
 Perl 4 Oraperl (v2.4)                /perl4/oraperl/
-
-ftp://ftp.bf.rmit.edu.au/pub/Oracle/sources/...
 
 Jeff Stander's stuff stands out for Oraperl:
 Directories of interest might be
@@ -252,12 +274,6 @@ Directories of interest might be
 	/pub/Oracle/sources/Lonnroth
 	/pub/Oracle/sources/harrison
 
-Send stuff for the archive in
-	[.{cpio|tar|zip}][.{gz|Z|zip}].uu
-	format if by mail to me (orafaq@bf.rmit.edu.au)
-	And drop the .uu if using ftp, putting file(s) in
-	ftp://ftp.bf.rmit.edu.au/incoming/Oracle
-
 http://www.bf.rmit.edu.au/~orafaq/perlish.html
 ftp://ftp.bf.rmit.edu.au/pub/perl/db
 ftp://ftp.bf.rmit.edu.au/pub/Oracle
@@ -269,8 +285,8 @@ then the chances are that DBD::Oracle will as well.
 
 ===============================================================================
 
-See the large README.help file for lots of hints and advice about building and
-runtime issues.
+See the large README.help.txt file for lots of hints and advice
+about building and runtime issues.
 
 End.
 

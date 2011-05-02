@@ -26,10 +26,10 @@ if ($@) {
     warn "The remaining tests will probably also fail with the same error.\a\n\n";
     # try to provide some useful pointers for some cases
     if ($@ =~ /Solaris patch.*Java/i) {
-	warn "*** Please read the README.java file for help. ***\n";
+	warn "*** Please read the README.java.txt file for help. ***\n";
     }
     else {
-	warn "*** Please read the README and README.help files for help. ***\n";
+	warn "*** Please read the README and README.help.txt files for help. ***\n";
     }
     warn "\n";
 	sleep 5;

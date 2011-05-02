@@ -1,5 +1,7 @@
-These instructions allow for the compilation and successful testing of 
-DBD::Oracle on MacOS X 10.2.4 using Oracle 9iR2 DR (Release 9.2.0.1.0).
+These instructions allow for the compilation and successful testing of
+DBD::Oracle on MacOS X 10.2.4 and higher, using Oracle 9iR2 DR
+(Release 9.2.0.1.0) or the 10g Instant Client release (10.1.0.3 at the
+time of writing).
 
 MacOS X DBD::Oracle has been tested (and used) under Jaguar (10.2.x)
 and Panther (10.3.x). Jaguar comes with a Perl version of 5.6.0.,
@@ -16,9 +18,9 @@ DBD::Oracle is likely to not install out of the box on MacOS X
 10.2. nor on 10.3. Manual but different changes will most likely be
 required on both versions. 
 
-The key problem on 10.2. is a symbol clash (caused by a function
-poll() named identically) between the IO library in at least Perl
-5.6.0 (which is the version that comes with 10.2) and the Oracle
+The key problem on 10.2. (Jaguar) is a symbol clash (caused by a
+function poll() named identically) between the IO library in at least
+Perl 5.6.0 (which is the version that comes with 10.2) and the Oracle
 client library in 9iR2 developer's release for MacOS X. The symptom is
 that your build appears to compile fine but then fails in the link
 stage. If you are running a (possibly self-installed) version of Perl
@@ -29,13 +31,21 @@ stage with a duplicate symbol error. Note: if it fails to even
 compile, solve that problem first since it is not due to the symbol
 clash.
 
-The key problem on 10.3 is that the default perl that comes with the
-system is compiled with multi-threading turned on, which at least with
-the 9iR2 developer's release exposes a memory leak. Your DBD::Oracle
-build will compile, test, and install fine, but if you execute the
-same prepared statement multiple times, the process will quickly run
-up hundreds of megabytes of RAM, and depending on how much memory you
-have it will die sooner or later.
+The key problem on 10.3 (Panther) is that the default perl that comes
+with the system is compiled with multi-threading turned on, which at
+least with the 9iR2 developer's release exposes a memory leak. Your
+DBD::Oracle build will compile, test, and install fine, but if you
+execute the same prepared statement multiple times, the process will
+quickly run up hundreds of megabytes of RAM, and depending on how much
+memory you have it will die sooner or later.
+
+Oracle recently released an "Instant Client" for MacOSX 10.3
+(Panther), which as far as I can attest has none of the problems
+above. Since it is also a very compact download (actually, a series of
+downloads) I highly recommend you install and use the Instant Client
+if you are on 10.3 (Panther) and you do not intend to run the Oracle
+database server on your MacOSX box. See below (Instructions for
+10.3.x) for details.
 
 ======================================================================
 Instructions for 10.2.x (Jaguar) 
@@ -213,14 +223,107 @@ diff -c ../IO-orig/IO-1.20/poll.h ./poll.h
 ======================================================================
 Instructions for 10.3.x (Panther) 
 
-Note in advance. If you all you use DBD::Oracle for on MacOSX is
-development and test scripts that don't involve running the same query
-multiple times or many queries within the same perl process, the
-memory leak will most likely never affect you in a serious way. In
-this case I wouldn't bother and just go ahead, build and install
-DBD::Oracle straightforwardly without any special measures.
+I highly recommend you install and use the Oracle 10g Instant Client
+for MacOSX 10.3. Compared to traditional Oracle client installations
+it is a very compact download, and it has the memory leak problem
+fixed. As an added benefit, you will be able to seamlessly connect to
+10g databases. Even if you do want to run the database server included
+in the 9iR2 Developer's Release, I'd still use the Instant Client for
+compiling OCI applications or drivers like DBD::Oracle.
 
-Otherwise read on.
+If you still decide to use the full 9iR2 DR client, and if all you use
+DBD::Oracle for on MacOSX is development and test scripts that don't
+involve running the same query multiple times or many queries within
+the same perl process, then note that the memory leak will most likely
+never affect you in a serious way. In this case you may not need to
+bother and instead just go ahead, build and install DBD::Oracle
+straightforwardly without any special measures.
+
+That said, here are the details.
+
+0) (If you decided for the 9iR2 DR client, skip to 1.) If you decided
+   to use the 10g Instant Client, make sure you download and install
+   all parts. (Given that this is perl land you may not need the JDBC
+   driver, but why bother sorting out the 25% you may or may not ever
+   need.) Follow the Oracle instructions and copy the contents of each
+   part into the same destination directory. Change to this
+   destination directory and create a symlink lib pointing to '.'
+   (without the quotes):
+
+   $ cd </path/to/my/oracle/instantclient>
+   $ ln -s lib .
+
+   Also, set the environment variable ORACLE_HOME to the path to your
+   instantclient destination directory. Makefile.PL needs it.
+
+   Now return to your DBD::Oracle download. If the version is 1.16 or
+   less you will need to patch Makefile.PL; in later versions this may
+   be fixed already. Apply the following patch, e.g., by cutting and
+   pasting into a file Makefile.PL.patch and then executing
+
+   $ patch -p0 < Makefile.PL.patch
+
+   Here is the patch:
+
++=+=+=+=+=+=+= Cut after this line
+*** Makefile.PL.orig	Fri Oct 22 02:07:04 2004
+--- Makefile.PL	Fri May 13 14:28:53 2005
+***************
+*** 1252,1257 ****
+--- 1252,1258 ----
+  	print "Found $dir/$_\n" if $::opt_d;
+      }, "$OH/rdbms",
+         "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0)
++        "$OH/sdk", # Oracle Instant Client default location (10g)
+      );
+      @h_dir = keys %h_dir;
+      print "Found header files in @h_dir.\n" if @h_dir;
+***************
+*** 1286,1292 ****
+--- 1287,1297 ----
+  	open FH, ">define.sql" or warn "Can't create define.sql: $!";
+  	print FH "DEFINE _SQLPLUS_RELEASE\nQUIT\n";
+  	close FH;
++ 	# we need to temporarily disable login sql scripts
++ 	my $sqlpath = $ENV{SQLPATH};
++ 	delete $ENV{SQLPATH};
+  	my $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
++ 	$ENV{SQLPATH} = $sqlpath if $sqlpath;
+  	unlink "define.sql";
+  	print $sqlplus_release;
+  	if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
++=+=+=+=+=+=+= Cut to the previous line
+   
+   The first hunk allows Makefile.PL to find the header files which
+   are in a subdirectory sdk, and the second temporarily disables any
+   global and local login.sql scripts which may make the sqlplus call
+   fail. If you don't have a local login.sql script you will most
+   likely be fine without the second hunk.
+
+   Now run Makefile.PL and make sure you provide the -l flag:
+
+   $ perl Makefile.PL -l
+
+   If you receive some ugly error message stating that some *.mk file
+   couldn't be found you forgot to add the -l flag.
+
+   The continue the standard build process by running make. In
+   DBD::Oracle versions 1.16 and earlier this will end in an error due
+   to a failed execution of nmedit -R. Ignore this error. Move on to
+   running the tests, making sure the test scripts can log in to your
+   database (e.g., by setting ORACLE_USERID). Note that by default the
+   Instant Client does not have a network/admin/tnsnames.ora
+   installed. Either install a suitable one, or point TNS_ADMIN to the
+   directory where you keep your tnsnames.ora, or include the full
+   SQLNET connection string in ORACLE_USERID. All three options are
+   documented by Oracle in the README_IC.htm file that comes with the
+   Instant Client, so be sure you read it if you don't understand what
+   I'm writing here.
+
+   All tests should succeed. Complete by make install. You are done!
+   Skip the other steps below, they do NOT apply to the Instant
+   Client. (Although of course you may still install a later version
+   of perl if you have the need.)
 
 1) Until the reason for the memory leak has been found and fixed, you
    need to remove the condition that exposes it. Apparently, this is

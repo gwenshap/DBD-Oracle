@@ -1,13 +1,10 @@
 /*
    vim:sw=4:ts=8
-   $Id: oci8.c,v 1.44 2004/02/26 01:32:01 timbo Exp $
+   oci8.c
 
-   Copyright (c) 1998-2004  Tim Bunce  Ireland
+   Copyright (c) 1998-2006  Tim Bunce  Ireland
 
-   You may distribute under the terms of either the GNU General Public
-   License or the Artistic License, as specified in the Perl README file,
-   with the exception that it cannot be placed on a CD-ROM or similar media
-   for commercial distribution without the prior approval of the author.
+   See the COPYRIGHT section in the Oracle.pm file for terms.
 
 */
 
@@ -575,6 +572,92 @@ fetch_func_nty(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
 /* ------ */
 
+static void
+fetch_cleanup_rset(SV *sth, imp_fbh_t *fbh)
+{
+    SV *sth_nested = (SV *)fbh->special;
+    fbh->special = NULL;
+
+    if (sth_nested) {
+	dTHR;
+	D_impdata(imp_sth_nested, imp_sth_t, sth_nested);
+        int fields = DBIc_NUM_FIELDS(imp_sth_nested);
+	int i;
+	for(i=0; i < fields; ++i) {
+	    imp_fbh_t *fbh_nested = &imp_sth_nested->fbh[i];
+	    if (fbh_nested->fetch_cleanup)
+		fbh_nested->fetch_cleanup(sth_nested, fbh_nested);
+	}
+	if (DBIS->debug >= 3)
+	    PerlIO_printf(DBILOGFP,
+		    "    fetch_cleanup_rset - deactivating handle %s (defunct nested cursor)\n",
+                		neatsvpv(sth_nested, 0));
+
+	DBIc_ACTIVE_off(imp_sth_nested);
+	SvREFCNT_dec(sth_nested);
+    }
+}
+
+static int
+fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
+{
+    OCIStmt *stmhp_nested = ((OCIStmt **)fbh->fb_ary->abuf)[0];
+
+    dTHR;
+    D_imp_sth(sth);
+    D_imp_dbh_from_sth;
+    dSP;
+    HV *init_attr = newHV();
+    int count;
+
+    if (DBIS->debug >= 3)
+	PerlIO_printf(DBILOGFP,
+		"    fetch_func_rset - allocating handle for cursor nested within %s ...\n",
+                		neatsvpv(sth, 0));
+
+    ENTER; SAVETMPS; PUSHMARK(SP);
+    XPUSHs(sv_2mortal(newRV((SV*)DBIc_MY_H(imp_dbh))));
+    XPUSHs(sv_2mortal(newRV((SV*)init_attr)));
+    PUTBACK;
+    count = perl_call_pv("DBI::_new_sth", G_ARRAY);
+    SPAGAIN;
+    if (count != 2)
+        croak("panic: DBI::_new_sth returned %d values instead of 2", count);
+    POPs;
+    sv_setsv(dest_sv, POPs);
+    SvREFCNT_dec(init_attr);
+    PUTBACK; FREETMPS; LEAVE;
+
+    if (DBIS->debug >= 3)
+	PerlIO_printf(DBILOGFP,
+		"    fetch_func_rset - ... allocated %s for nested cursor\n",
+                		neatsvpv(dest_sv, 0));
+
+    fbh->special = (void *)newSVsv(dest_sv);
+
+    {
+	D_impdata(imp_sth_nested, imp_sth_t, dest_sv);
+	imp_sth_nested->envhp = imp_sth->envhp;
+	imp_sth_nested->errhp = imp_sth->errhp;
+	imp_sth_nested->srvhp = imp_sth->srvhp;
+	imp_sth_nested->svchp = imp_sth->svchp;
+
+	imp_sth_nested->stmhp = stmhp_nested;
+	imp_sth_nested->nested_cursor = 1;
+
+        imp_sth_nested->stmt_type = OCI_STMT_SELECT;
+
+	DBIc_IMPSET_on(imp_sth_nested);
+	DBIc_ACTIVE_on(imp_sth_nested);  /* So describe won't do an execute */
+
+        if (!dbd_describe(dest_sv, imp_sth_nested))
+	    return 0;
+    }
+
+    return 1;
+}
+/* ------ */
+
 
 int 
 dbd_rebind_ph_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs) 
@@ -1007,6 +1090,7 @@ fetch_func_getrefpv(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
     return 1;
 }
 
+#ifdef OCI_DTYPE_REF
 static void
 fbh_setup_getrefpv(imp_fbh_t *fbh, int desc_t, char *bless)
 {
@@ -1020,18 +1104,113 @@ fbh_setup_getrefpv(imp_fbh_t *fbh, int desc_t, char *bless)
     fbh->desc_t = desc_t;
     OCIDescriptorAlloc_ok(fbh->imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
 }
+#endif
 
+
+static int
+calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs)
+{
+    if (has_longs)			/* override/disable caching	*/
+	cache_rows = 1;			/* else read_blob can't work	*/
+    else
+    if (cache_rows == 0) {		/* automatically size the cache	*/
+
+	/* Oracle packets on ethernet have max size of around 1460.	*/
+	/* We'll aim to fill our row cache with around 10 per go.	*/
+	/* Using 10 means any 'runt' packets will have less impact.	*/
+	int txfr_size  = 10 * 1460;	/* desired transfer/cache size	*/
+
+	/* Use guessed average on-the-wire row width calculated above &	*/
+	/* add in overhead of 5 bytes per field plus 8 bytes per row.	*/
+	/* The n*5+8 was determined by studying SQL*Net v2 packets.	*/
+	/* It could probably benefit from a more detailed analysis.	*/
+	est_width += num_fields*5 + 8;
+
+	cache_rows = txfr_size / est_width;	      /* (maybe 1 or 0)	*/
+
+	/* To ensure good performance with large rows (near or larger	*/
+	/* than our target transfer size) we set a minimum cache size.	*/
+	if (cache_rows < 6)	/* is cache a 'useful' size?	*/
+	    cache_rows = (cache_rows > 0) ? 6 : 4;
+    }
+    if (cache_rows > 32767)	/* keep within Oracle's limits  */
+	cache_rows = 32767;
+
+    return cache_rows;
+}
+
+
+static int			/* --- Setup the row cache for this sth --- */
+sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields, int has_longs)
+{
+    D_imp_dbh_from_sth;
+    D_imp_drh_from_dbh;
+    int num_errors = 0;
+    ub4 cache_mem, cache_rows;
+    sword status;
+
+    /* number of rows to cache	*/
+    if      (SvOK(imp_drh->ora_cache_o)) imp_sth->cache_rows = SvIV(imp_drh->ora_cache_o);
+    else if (SvOK(imp_drh->ora_cache))   imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
+    else                                 imp_sth->cache_rows = imp_dbh->RowCacheSize;
+
+    if (imp_sth->cache_rows >= 0) {	/* set cache size by row count	*/
+	/* imp_sth->est_width needs to be set */
+	cache_mem  = 0;             /* so memory isn't the limit */
+	cache_rows = calc_cache_rows(imp_sth->cache_rows,
+		(int)num_fields, imp_sth->est_width, has_longs);
+	if (max_cache_rows && cache_rows > max_cache_rows)
+	    cache_rows = max_cache_rows;
+	imp_sth->cache_rows = cache_rows;	/* record updated value */
+
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
+	    imp_sth->errhp, status);
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+		&cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
+		imp_sth->errhp, status);
+	if (status != OCI_SUCCESS) {
+	    oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
+	    ++num_errors;
+	}
+    }
+    else {				/* set cache size by memory	*/
+	cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
+	cache_rows = 100000;	/* set high so memory is the limit */
+	if (max_cache_rows && cache_rows > max_cache_rows) {
+	    cache_rows = max_cache_rows;
+	    imp_sth->cache_rows = cache_rows;	/* record updated value only if max_cache_rows */
+	}
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	    &cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
+	    imp_sth->errhp, status);
+	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
+	    imp_sth->errhp, status);
+	if (status != OCI_SUCCESS) {
+	    oci_error(h, imp_sth->errhp, status,
+		"OCIAttrSet OCI_ATTR_PREFETCH_ROWS/OCI_ATTR_PREFETCH_MEMORY");
+	    ++num_errors;
+	}
+    }
+    if (DBIS->debug >= 3)
+	PerlIO_printf(DBILOGFP,
+	    "    row cache OCI_ATTR_PREFETCH_ROWS %lu, OCI_ATTR_PREFETCH_MEMORY %lu\n",
+	    cache_rows, cache_mem);
+    return num_errors;
+}
 
 int
 dbd_describe(SV *h, imp_sth_t *imp_sth)
 {
     D_imp_dbh_from_sth;
-	D_imp_drh_from_dbh ;
+    D_imp_drh_from_dbh;
     UV	long_readlen;
     ub4 num_fields;
     int num_errors = 0;
     int has_longs = 0;
     int est_width = 0;		/* estimated avg row width (for cache)	*/
+    int nested_cursors = 0;
     ub4 i = 0;
     sword status;
 
@@ -1112,8 +1291,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
         /* OCI_ATTR_CHAR_SIZE: like OCI_ATTR_DATA_SIZE but measured in chars	*/
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->len_char_size, 0, OCI_ATTR_CHAR_SIZE, status);
 #endif
-#ifdef OCI_ATTR_CHARSET_ID
         fbh->csid = 0; fbh->csform = 0; /* just to be sure */
+#ifdef OCI_ATTR_CHARSET_ID
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->csid,   0, OCI_ATTR_CHARSET_ID,   status);
 	OCIAttrGet_parmdp(imp_sth, fbh->parmdp, &fbh->csform, 0, OCI_ATTR_CHARSET_FORM, status);
 #endif
@@ -1138,9 +1317,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		avg_width = fbh->dbsize / 2;
 		/* FALLTHRU */
 	case  96:				/* CHAR		*/
-		fbh->disize = fbh->dbsize;
-		if (CS_IS_UTF8(fbh->csid)) 
+		if ( CSFORM_IMPLIES_UTF8(fbh->csform) && !CS_IS_UTF8(fbh->csid) )
 		    fbh->disize = fbh->dbsize * 4;
+		else
+		    fbh->disize = fbh->dbsize;
 		fbh->prec   = fbh->disize;
 		break;
 	case  23:				/* RAW		*/
@@ -1149,8 +1329,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 
 	case   2:				/* NUMBER	*/
+	case  21:				/* BINARY FLOAT os-endian	*/
+	case  22:				/* BINARY DOUBLE os-endian	*/
+	case 100:				/* BINARY FLOAT oracle-endian	*/
+	case 101:				/* BINARY DOUBLE oracle-endian	*/
 		fbh->disize = 130+38+3;		/* worst case	*/
-		avg_width = 4;     /* > approx +/- 1_000_000 ?  */
+		avg_width = 4;     /* NUMBER approx +/- 1_000_000 */
 		break;
 
 	case  12:				/* DATE		*/
@@ -1161,7 +1345,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 
 	case   8:				/* LONG		*/
-                if (CS_IS_UTF8(fbh->csid)) 
+		if ( CSFORM_IMPLIES_UTF8(fbh->csform) && !CS_IS_UTF8(fbh->csid) )
                     fbh->disize = long_readlen * 4;
                 else
                     fbh->disize = long_readlen;
@@ -1205,8 +1389,17 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		break;
 #endif
 
+	case 116:				/* RSET		*/
+		fbh->ftype  = fbh->dbtype;
+		fbh->disize = sizeof(OCIStmt *);
+		fbh->fetch_func = fetch_func_rset;
+		fbh->fetch_cleanup = fetch_cleanup_rset;
+		nested_cursors++;
+		break;
+
 	case 182:                  /* INTERVAL YEAR TO MONTH */
 	case 183:                  /* INTERVAL DAY TO SECOND */
+	case 190:                  /* INTERVAL DAY TO SECOND */
 	case 187:                  /* TIMESTAMP */
 	case 188: 	           /* TIMESTAMP WITH TIME ZONE	*/
 	case 232:                  /* TIMESTAMP WITH LOCAL TIME ZONE */
@@ -1246,43 +1439,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
     }
     imp_sth->est_width = est_width;
 
-    /* --- Setup the row cache for this query --- */
-
-    /* number of rows to cache	*/
-    if      (SvOK(imp_drh->ora_cache_o)) imp_sth->cache_rows = SvIV(imp_drh->ora_cache_o);
-    else if (SvOK(imp_drh->ora_cache))   imp_sth->cache_rows = SvIV(imp_drh->ora_cache);
-    else                        imp_sth->cache_rows = imp_dbh->RowCacheSize;
-    if (imp_sth->cache_rows >= 0) {	/* set cache size by row count	*/
-	ub4 cache_mem  = 0; /* so memory isn't the limit */
-	ub4 cache_rows = calc_cache_rows((int)num_fields,
-				est_width, imp_sth->cache_rows, has_longs);
-	imp_sth->cache_rows = cache_rows;	/* record updated value */
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
-	    imp_sth->errhp, status);
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-		&cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
-		imp_sth->errhp, status);
-	if (status != OCI_SUCCESS) {
-	    oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_PREFETCH_ROWS");
-	    ++num_errors;
-	}
-    }
-    else {				/* set cache size by memory	*/
-	ub4 cache_mem  = -imp_sth->cache_rows; /* cache_mem always +ve here */
-	ub4 cache_rows = 100000;	/* set high so memory is the limit */
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-	    &cache_rows, sizeof(cache_rows), OCI_ATTR_PREFETCH_ROWS,
-	    imp_sth->errhp, status);
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-	    &cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
-	    imp_sth->errhp, status);
-	if (status != OCI_SUCCESS) {
-	    oci_error(h, imp_sth->errhp, status,
-		"OCIAttrSet OCI_ATTR_PREFETCH_ROWS/OCI_ATTR_PREFETCH_MEMORY");
-	    ++num_errors;
-	}
-    }
+    sth_set_row_cache(h, imp_sth,
+	(nested_cursors) ? imp_dbh->max_nested_cursors / nested_cursors : 0,
+	(int)num_fields, has_longs
+    );
 
     imp_sth->long_readlen = long_readlen;
     /* Initialise cache counters */
@@ -1299,6 +1459,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	fbh->fb_ary = fb_ary_alloc(define_len, 1);
 	fb_ary = fbh->fb_ary;
 
+	if (fbh->ftype == 116) { /* RSET */
+	    OCIHandleAlloc_ok(imp_sth->envhp,
+		(dvoid*)&((OCIStmt **)fb_ary->abuf)[0],
+		 OCI_HTYPE_STMT, status);
+	}
+
 	OCIDefineByPos_log_stat(imp_sth->stmhp, &fbh->defnp,
 	    imp_sth->errhp, (ub4) i,
 	    (fbh->desc_h) ? (dvoid*)&fbh->desc_h : (dvoid*)fb_ary->abuf,
@@ -1313,15 +1479,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	}
 
 #ifdef OCI_ATTR_CHARSET_FORM
-        if ( (fbh->dbtype == 1) ) { /*  && (fbh->csform == SQLCS_NCHAR) && CS_IS_UTF8(ncharsetid) ) { */
-            /* ok... after doing what tim asked: setting SvUTF8 strictly based on csid 8bit Nchar test was broken
-               and this currently effectively just sets Attrs to the values in fhb ignoring ncharsetid altogether 
-               probably wrong
-             */
-            ub1 csform = fbh->csform;
+        if ( (fbh->dbtype == 1) && fbh->csform ) {
+	    /* csform may be 0 when talking to Oracle 8.0 database */
             if (DBIS->debug >= 3)
-               PerlIO_printf(DBILOGFP, "     calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d\n", csform );
-            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &csform, 
+               PerlIO_printf(DBILOGFP, "    calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d\n", fbh->csform );
+            OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform, 
                                  (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
             if (status != OCI_SUCCESS) {
                 oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");
@@ -1360,9 +1522,15 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth)
     /* that dbd_describe() executed sucessfuly so the memory buffers	*/
     /* are allocated and bound.						*/
     if ( !DBIc_ACTIVE(imp_sth) ) {
-	oci_error(sth, NULL, OCI_ERROR, 
+	oci_error(sth, NULL, OCI_ERROR, imp_sth->nested_cursor ?
+	    "nested cursor is defunct (parent row is no longer current)" :
 	    "no statement executing (perhaps you need to call execute first)");
 	return Nullav;
+    }
+
+    for(i=0; i < num_fields; ++i) {
+	imp_fbh_t *fbh = &imp_sth->fbh[i];
+	if (fbh->fetch_cleanup) fbh->fetch_cleanup(sth, fbh);
     }
 
     if (ora_fetchtest && DBIc_ROW_COUNT(imp_sth)>0) {
