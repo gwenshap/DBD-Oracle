@@ -1,5 +1,7 @@
 [ In no particular order ]
 
+Add info about getting help - mailing lists etc.
+
 Public Oracle docs:
 http://www.csis.gvsu.edu/GeneralInfo/Oracle/nav/docindex.htm
 LOBs
@@ -7,6 +9,12 @@ http://www.csis.gvsu.edu/GeneralInfo/Oracle/appdev.920/a96595/dci06mlt.htm
 http://technet.oracle.com/tech/oci/htdocs/faq.html#1000425
 
 Convert most of test.pl into standard t/*.t tests.
+
+Record ORACLE_HOME when building (auto::DBD::Oracle::mk)
+Check emails from Oracle about that.
+
+Check fix for unassigned placeholder (alen==SvLEN) can't be
+triggered by a valid assignment that's exactly that long.
 
 Resolve imp_sth->stmt_type != OCI_STMT_SELECT issue - add an attribute for it?
 

@@ -1,3 +1,4 @@
 _dlsym
 _dlclose
+_poll
 

@@ -1,6 +1,6 @@
 # Oraperl Emulation Interface for Perl 5 DBD::Oracle DBI
 #
-# $Id: Oraperl.pm,v 1.43 2003/03/25 17:40:10 timbo Exp $
+# $Id: Oraperl.pm,v 1.44 2003/09/23 07:22:10 timbo Exp $
 #
 #   Copyright (c) 1994,1995 Tim Bunce
 #
@@ -25,7 +25,7 @@ require 5.004;
 use DBI 1.21;
 use Exporter;
 
-$VERSION = substr(q$Revision: 1.43 $, 10);
+$VERSION = substr(q$Revision: 1.44 $, 10);
 
 @ISA = qw(Exporter);
 
@@ -94,14 +94,7 @@ sub ora_login {
     local($SIG{'__WARN__'}) = sub { _warn($Oraperl::prev_warn, @_) };
     # we now use the new style connect, since the old style is
     # deprecated
-    my $dbh = DBI->connect("dbi:Oracle:$system_id", $name, $password, {
-	HandleError => sub {
-	    my ($errstr, $h,) = @_;
-	    $Oraperl::ora_errno  = $h->err;
-	    $Oraperl::ora_errstr = $h->errstr;
-	    return; # false
-	},
-    });
+    my $dbh = DBI->connect("dbi:Oracle:$system_id", $name, $password, { });
     return $dbh;
 }
 sub ora_logoff {
@@ -206,11 +199,8 @@ sub ora_version {
 #
 #   $ora_errno
 #   $ora_errstr
-
-# This is really internal knowledge but it saves using tie and
-# performance for ora_errno is very important.
-*Oraperl::ora_errno  = \$DBD::Oracle::err;
-*Oraperl::ora_errstr = \$DBD::Oracle::errstr;
+*Oraperl::ora_errno  = \$DBI::err;
+*Oraperl::ora_errstr = \$DBI::errstr;
 
 
 # -----------------------------------------------------------------

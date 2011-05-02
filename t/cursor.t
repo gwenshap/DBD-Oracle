@@ -49,6 +49,7 @@ unless (defined $limit) { # v$parameter open_cursors could be 0 :)
 	$limit = 1;
 }
 print "Max cursors: $limit\n";
+$limit = 100 if $limit > 100; # lets not be greedy or upset DBA's
 
 my $tests = 2 + 10 * $limit;
 
