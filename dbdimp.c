@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.c,v 1.75 2003/03/14 17:45:27 timbo Exp $
+   $Id: dbdimp.c,v 1.77 2003/03/27 16:44:15 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998  Tim Bunce
 
@@ -1318,7 +1318,6 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     int is_inout;
     IV maxlen;
 {
-    D_imp_dbh_from_sth;
     SV **phs_svp;
     STRLEN name_len;
     char *name = Nullch;
@@ -1339,11 +1338,11 @@ dbd_bind_ph(sth, imp_sth, ph_namesv, newvalue, sql_type, attribs, is_inout, maxl
     }
     assert(name != Nullch);
 
-    if (SvTYPE(newvalue) > SVt_PVLV) /* hook for later array logic	*/
-	croak("Can't bind a non-scalar value (%s)", neatsvpv(newvalue,0));
     if (SvROK(newvalue) && !IS_DBI_HANDLE(newvalue))
 	/* dbi handle allowed for cursor variables */
-	warn("Can't bind a reference (%s)", neatsvpv(newvalue,0));
+	croak("Can't bind a reference (%s)", neatsvpv(newvalue,0));
+    if (SvTYPE(newvalue) > SVt_PVLV) /* hook for later array logic?	*/
+	croak("Can't bind a non-scalar value (%s)", neatsvpv(newvalue,0));
     if (SvTYPE(newvalue) == SVt_PVLV && is_inout)	/* may allow later */
 	croak("Can't bind ``lvalue'' mode scalar as inout parameter (currently)");
 
@@ -1898,7 +1897,6 @@ dbd_st_destroy(sth, imp_sth)
     SV *sth;
     imp_sth_t *imp_sth;
 {
-    D_imp_dbh_from_sth;
     int fields;
     int i;
     dTHX ;
@@ -2023,14 +2021,15 @@ dbd_st_FETCH_attrib(sth, imp_sth, keysv)
 
     } else if (kl==11 && strEQ(key, "ParamValues")) {
 	HV *pvhv = newHV();
-	SV *sv;
-	char *key;
-	I32 keylen;
-
-	hv_iterinit(imp_sth->all_params_hv);
-	while ( (sv = hv_iternextsv(imp_sth->all_params_hv, &key, &keylen)) ) {
-	    phs_t *phs = (phs_t*)(void*)SvPVX(sv);       /* placeholder struct   */
-	    hv_store(pvhv, key, keylen, newSVsv(phs->sv), 0);
+	if (imp_sth->all_params_hv) {
+	    SV *sv;
+	    char *key;
+	    I32 keylen;
+	    hv_iterinit(imp_sth->all_params_hv);
+	    while ( (sv = hv_iternextsv(imp_sth->all_params_hv, &key, &keylen)) ) {
+		phs_t *phs = (phs_t*)(void*)SvPVX(sv);       /* placeholder struct   */
+		hv_store(pvhv, key, keylen, newSVsv(phs->sv), 0);
+	    }
 	}
 	retsv = newRV_noinc((SV*)pvhv);
 	cacheit = FALSE;

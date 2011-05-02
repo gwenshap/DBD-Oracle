@@ -1,5 +1,5 @@
 /*
-   $Id: dbdimp.h,v 1.44 2003/03/12 20:33:02 timbo Exp $
+   $Id: dbdimp.h,v 1.45 2003/03/21 17:27:44 timbo Exp $
 
    Copyright (c) 1994,1995,1996,1997,1998,1999  Tim Bunce
 
@@ -126,7 +126,7 @@ struct imp_sth_st {
     dbih_stc_t com;		/* MUST be first element in structure	*/
 
 #ifdef OCI_V8_SYNTAX
-    void *(*get_oci_handle) _((imp_dbh_t *imp_dbh, int handle_type, int flags));
+    void *(*get_oci_handle) _((imp_sth_t *imp_sth, int handle_type, int flags));
     OCIEnv	*envhp;		/* copy of dbh pointer	*/
     OCIError	*errhp;		/* copy of dbh pointer	*/
     OCIServer	*srvhp;		/* copy of dbh pointer	*/
