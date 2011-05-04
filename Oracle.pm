@@ -145,14 +145,18 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	}
 
 	# get list of 'remote' database connection identifiers
-	my @tns_admin;
-	push @tns_admin, (
-	  "$oracle_home/network/admin",	# OCI 7 and 8.1
-	  "$oracle_home/net80/admin",	# OCI 8.0
-	) if $oracle_home;
-	push @tns_admin, "/var/opt/oracle";
-	foreach $d ( DBD::Oracle::ora_env_var("TNS_ADMIN"), ".", @tns_admin  ) {
-	    next unless $d && open(FH, "<$d/tnsnames.ora");
+	my @tns_admin = ( DBD::Oracle::ora_env_var("TNS_ADMIN"), '.' );
+	push @tns_admin, map { join '/', $oracle_home, $_ }     
+                         'network/admin',	# OCI 7 and 8.1
+                         'net80/admin',	    # OCI 8.0
+	    if $oracle_home;
+	push @tns_admin, '/var/opt/oracle', '/etc';
+
+    TNS_ADMIN:
+	foreach $d ( @tns_admin  ) {
+        next TNS_ADMIN unless $d and -f $d;
+	    open FH, '<', "$d/tnsnames.ora" or next TNS_ADMIN;
+
 	    $drh->trace_msg("Loading $d/tnsnames.ora\n") if $debug;
 	    local *_;
 	    while (<FH>) {
