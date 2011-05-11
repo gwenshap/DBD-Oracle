@@ -150,7 +150,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	  "$oracle_home/network/admin",	# OCI 7 and 8.1
 	  "$oracle_home/net80/admin",	# OCI 8.0
 	) if $oracle_home;
-	push @tns_admin, "/var/opt/oracle";
+	push @tns_admin, '/var/opt/oracle', '/etc';
 	foreach $d ( DBD::Oracle::ora_env_var("TNS_ADMIN"), ".", @tns_admin  ) {
 	    next unless $d && open(FH, "<$d/tnsnames.ora");
 	    $drh->trace_msg("Loading $d/tnsnames.ora\n") if $debug;
