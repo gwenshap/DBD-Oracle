@@ -1112,13 +1112,13 @@ DBD::Oracle is a Perl module which works with the DBI module to provide
 access to Oracle databases.
 
 
-=head1 Which version DBD::Oracle is for me?
+=head1 Which version of DBD::Oracle is for me?
 
-From version 1.25 onwards DBD::Oracle will only support Oracle clients 9.2 or greater as well
-support for ProC connections was dropped in 1.29. This is especially so with the many new functions
-being introduced in 10g and 11g.
+From version 1.25 onwards DBD::Oracle will only support Oracle clients
+9.2 or greater. Support for ProC connections was dropped in 1.29.
 
-If you are still stuck with an older version of Oracle or its client you might want to look at the table below.
+If you are still stuck with an older version of Oracle or its client
+you might want to look at the table below.
 
   +---------------------+-----------------------------------------------------+
   |                     |                   Oracle Version                    |
@@ -1140,36 +1140,35 @@ If you are still stuck with an older version of Oracle or its client you might w
   |      1.25+          | N  |      N      |    N    |  N   |    N   |    Y   |
   +---------------------+----+-------------+---------+------+--------+--------+
 
-As there are dozens and dozens of different versions of Oracle's clients I did not bother to list any of them, just the
-major release versions of Oracle that are out there.
+As there are dozens of different versions of Oracle's clients this
+list does not include all of them, just the major released versions of
+Oracle.
 
-Note that one can still connect to any Oracle version with the older DBD::Oracle versions the only problem you will
-have is that some of the newer OCI and Oracle features available in later DBD::Oracle releases will not be available to you.
+Note that one can still connect to any Oracle version with the older
+DBD::Oracle versions the only problem you will have is that some of
+the newer OCI and Oracle features available in later DBD::Oracle
+releases will not be available to you.
 
 So to make a short story a little longer;
 
-  1) If you are using Oracle 7 or early 8 DB and you can manage to get a 9 client and you can use
-     any DBD::Oracle version.
+  1) If you are using Oracle 7 or early 8 DB and you can manage to get a 9 client and you can use any DBD::Oracle version.
   2) If you have to use an Oracle 7 client then DBD::Oracle 1.17 should work
-  3) Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might
-     go with 1.18.
-  4) For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your
-     patch-set, If you run into trouble go with 1.19
+  3) Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might go with 1.18.
+  4) For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your patch-set, If you run into trouble go with 1.19
   5) After 9.2 you can use any version you want.
-  6) For you Luddites out there ORAPERL still works and is still included but not updated or
-     supported anymore and will be removed in 1.29.
-  7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7
-     and even get to 10. I am not sure what the 11g client can connect to.
+  6) For you Luddites out there ORAPERL still works and is still included but not updated or supported anymore and was removed in 1.29.
+  7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7 and even get to 10. I am not sure what the 11g client can connect to.
 
 
 =head1 CONNECTING TO ORACLE
 
-This is a topic which often causes problems. Mainly due to Oracle's many
-and sometimes complex ways of specifying and connecting to databases.
-James Taylor and Lane Sharman have contributed much of the text in
-this section. Unfortunately it is only really relative for connecting into older Oracle (<9) versions.
-Most of this stuff is well out of date  but it will be left in for now.
-See the next section L</CONNECTING TO ORACLE II> for some more up to date connection hints.
+This is a topic which often causes problems mainly due to Oracle's
+many and sometimes complex ways of specifying and connecting to
+databases.  James Taylor and Lane Sharman have contributed much of the
+text in this section. Unfortunately it is only really relevant to
+connecting into older Oracle (<9) versions.  Most of this is well out
+of date.  See the next section L</CONNECTING TO ORACLE II> for more up
+to date connection hints.
 
 =head2 Connecting without environment variables or tnsnames.ora file
 
@@ -1181,8 +1180,8 @@ then DBD::Oracle will construct a full connection descriptor string
 for you and Oracle will not need to consult the tnsnames.ora file.
 
 If a C<port> number is not specified then the descriptor will try both
-1526 and 1521 in that order (e.g., new then old).  You can check which
-port(s) are in use by typing "$ORACLE_HOME/bin/lsnrctl stat" on the server.
+1526 and 1521 in that order (i.e., new then old).  You can check which
+port(s) are in use by typing C<"$ORACLE_HOME/bin/lsnrctl stat"> on the server.
 
 =head2 Oracle Environment Variables
 
@@ -1197,10 +1196,10 @@ same functionality in addition to allowing remote connections.
 
   % sqlplus username/password
 
-Note that if you have *both* local and remote databases, and you
-have ORACLE_SID *and* TWO_TASK set, and you don't specify a fully
+Note that if you have B<both> local and remote databases, and you
+have ORACLE_SID B<and> TWO_TASK set, and you don't specify a fully
 qualified connect string on the command line, TWO_TASK takes precedence
-over ORACLE_SID (i.e. you get connected to remote system).
+over ORACLE_SID (i.e. you are connected to the remote system).
 
   TWO_TASK=P:sid
 
@@ -1226,18 +1225,20 @@ ORACLE_HOME should match the version of Oracle that will be used
 to load in the Oracle client libraries (via LD_LIBRARY_PATH, ldconfig,
 or similar on Unix).
 
-ORACLE_HOME can be left unset if you aren't using any of Oracle's
-executables, but it is I<not> recommended and error messages may not display.
-It should be set to the ORACLE_HOME directory of the version of Oracle
-that DBD::Oracle was compiled with.
+ORACLE_HOME can be left unset if you are not using any of Oracle's
+executables, but it is I<not> recommended and error messages may not
+display.  It should be set to the ORACLE_HOME directory of the version
+of Oracle that DBD::Oracle was compiled with.
 
 Discouraging the use of ORACLE_SID makes it easier on the users to see
-what is going on. (It's unfortunate that TWO_TASK couldn't be renamed,
-since it makes no sense to the end user, and doesn't have the ORACLE prefix).
+what is going on. (It is unfortunate that TWO_TASK could not be
+renamed, since it makes no sense to the end user, and does not have
+the ORACLE prefix).
 
-Also remember that depending on the operating system you are using
-the differing "ORACLE" environment variables may be case sensitive, so if you are not connecting
-as you should double check the case of both the variable and its value.
+Also remember that depending on the operating system you are using the
+various "ORACLE" environment variables may be case sensitive, so if
+you are not connecting as you should double check the case of both the
+variable and its value.
 
 =head2 Connection Examples Using DBD::Oracle
 
@@ -1250,7 +1251,7 @@ you can also leave the SID empty:
   $dbh = DBI->connect('dbi:Oracle:','scott', 'tiger');
 
 in which case Oracle client code will use the ORACLE_SID environment
-variable (if TWO_TASK env var isn't defined).
+variable (if the TWO_TASK environment variable is not defined).
 
 Below are various ways of connecting to an oracle database using
 SQL*Net 1.x and SQL*Net 2.x.  "Machine" is the computer the database is
@@ -1290,8 +1291,8 @@ of the ...@DB variants as a workaround. E.g.,
   $dbh = DBI->connect('','username/password@DB','');
 
 On the other hand, that may cause you to trip up on another Oracle bug
-that causes alternating connection attempts to fail! (In reality only
-a small proportion of people experience these problems.)
+that causes alternating connection attempts to fail (in reality only a
+small proportion of people experience these problems.)
 
 
 To connect to a local database with a user which has been set-up to
@@ -1300,22 +1301,25 @@ authenticate via the OS ("ALTER USER username IDENTIFIED EXTERNALLY"):
   $dbh = DBI->connect('dbi:Oracle:','/','');
 
 Note the lack of a connection name (use the ORACLE_SID environment
-variable). If an explicit SID is used you'll probably get an ORA-01004 error.
+variable). If an explicit SID is used you will probably get an
+ORA-01004 error.
 
-That only works for local databases. (Authentication to remote Oracle
-databases using your Unix login name without a password and is possible
-but it's not secure and not recommended so not documented here. If you
-can't find the information elsewhere then you probably shouldn't be
-trying to do it.)
+That only works for local databases. Authentication to remote Oracle
+databases using your Unix login name without a password is possible
+but it is not secure and not recommended so not documented here. If
+you cannot find the information elsewhere then you probably should not
+be trying to do it.
 
 
 =head1 CONNECTING TO ORACLE II
 
-If you are reading this it is assumed that DBD::Oracle has been successfully installed on you PERL instance and
-you are having some problems connecting to Oracle.
+If you are reading this it is assumed that you have successfully
+installed DBD::Oracle and you are having some problems connecting to
+Oracle.
 
-First off you will have to tell DBD::Oracle where the binaries reside for the Oracle client it was compiled against.
-This is the case when you encounter a
+First off you will have to tell DBD::Oracle where the binaries reside
+for the Oracle client it was compiled against.  This is the case when
+you encounter a
 
  DBI connect('','system',...) failed: ERROR OCIEnvNlsCreate.
 
@@ -1323,11 +1327,13 @@ error in Linux or in Windows when you get
 
   OCI.DLL not found
 
-The solution to this problem in the case of Linux is to ensure your 'ORACLE_HOME' environment variable points to the correct directory.
+The solution to this problem in the case of Linux is to ensure your
+'ORACLE_HOME' (or LD_LIBRARY_PATH for InstantClient) environment
+variable points to the correct directory.
 
   export ORACLE_HOME=/app/oracle/product/xx.x.x
 
-For Windows solution is to add this value to you PATH
+For Windows the solution is to add this value to you PATH
 
   PATH=c:\app\oracle\product\xx.x.x;%PATH%
 
@@ -1336,15 +1342,20 @@ If you get past this stage and get a
 
   ORA-12154: TNS:could not resolve the connect identifier specified
 
-error then the most likely cause is DBD::ORACLE cannot find your .ORA (TNSNAMES.ORA, LISTENER.ORA, SQLNET.ORA) files. This can be solved by setting the
-TNS_ADMIN environment variable to the directory where these files can be found.
+error then the most likely cause is DBD::ORACLE cannot find your .ORA
+(F<TNSNAMES.ORA>, F<LISTENER.ORA>, F<SQLNET.ORA>) files. This can be
+solved by setting the TNS_ADMIN environment variable to the directory
+where these files can be found.
 
-If you get to this stage and you then either one of the following errors;
+If you get to this stage and you have either one of the following
+errors;
 
   ORA-12560: TNS:protocol adapter error
   ORA-12162: TNS:net service name is incorrectly specified
 
-usually means that DBD::Oracle can find the listener but the it cannot connect to the DB because the listener cannot find the DB you asked for.
+it usually means that DBD::Oracle can find the listener but the it
+cannot connect to the DB because the listener cannot find the DB you
+asked for.
 
 =head2 Connection Examples Using DBD::Oracle
 
@@ -1361,7 +1372,7 @@ It is best to not use ORACLE_SID or TWO_TASK as both of these are rather out of 
 
 For those who really want to use ORACLE_SID and TWO_TASK here are examples of it in use;
 
-Given this TNS entry;
+Given this TNS entry:
 
  DB.TEST =
     (DESCRIPTION =
@@ -1372,7 +1383,7 @@ Given this TNS entry;
          (CONNECT_DATA =      (SID = DB)    )
 )
 
-and this code
+and this code:
 
   BEGIN {
      $ENV{ORACLE_SID} = 'DB';
@@ -1382,7 +1393,8 @@ and this code
 
 you will be able to connect to DB. Note this may not work for Windows.
 
-TWO_TASK works the same way except it should override the value in ORACLE_SID so this
+TWO_TASK works the same way except it should override the value in
+ORACLE_SID so this:
 
   BEGIN {
      $ENV{ORACLE_SID} = 'DB';
@@ -1396,10 +1408,12 @@ will work as well. Note this may not work for Windows.
 
 =head2 Oracle DRCP
 
-DBD::Oracle now supports DRCP (Database Resident Connection Pool) so if you have an 11.2 database and the DRCP is turned on
-you can now direct all of your connections to it simply adding ':POOLED' to the SID or setting a connection attribute of ora_drcp, or
-set the SERVER=POOLED when using a TNSENTRY style connection or even by setting an environment variable ORA_DRCP.
-All of which are demonstrated below;
+DBD::Oracle now supports DRCP (Database Resident Connection Pool) so
+if you have an 11.2 database and DRCP is enabled you can now direct
+all of your connections to it by simply adding ':POOLED' to the SID or
+setting a connection attribute of ora_drcp, or set the SERVER=POOLED
+when using a TNSENTRY style connection or even by setting an
+environment variable ORA_DRCP.  All of which are demonstrated below;
 
   $dbh = DBI->connect('dbi:Oracle:DB:POOLED','username','password')
 
@@ -1417,29 +1431,40 @@ All of which are demonstrated below;
   (ADDRESS=(PROTOCOL=TCP)(HOST= foobar)(PORT=1521))
   (CONNECT_DATA=(SID=ORCL)(SERVER=POOLED)))}, "")
 
-  if ORA_DRCP environment var is set the just this
+  if ORA_DRCP environment var is set then just this
 
   $dbh = DBI->connect('dbi:Oracle:DB','username','password')
 
-You can find a white paper on setting up DRCP and its advantages here http://www.oracle.com/technology/tech/oci/pdf/oracledrcp11g.pdf
+You can find a white paper on setting up DRCP and its advantages at L<http://www.oracle.com/technology/tech/oci/pdf/oracledrcp11g.pdf>.
 
-At this point in time this is just the first crack at DRCP and DBD::Oracle so the mechanics or its implementation are subject to change.
+Please note that DRCP support in DBD::Oracle is relatively new so the
+mechanics or its implementation are subject to change.
 
 =head2 TAF (Transparent Application Failover)
-Transparent Application Failover (TAF) is a longstanding default feature in OCI that allows for clients to automatically reconnect to
-an instance in the event of a failure of the instance. The reconnect happens automatically from within the OCI (Oracle Call Interface) library.
-DBD::Oracle now supports a callback function that will fire when a TAF event takes place. The main use of the callback is to give the
-oppertunity for the program to inform the user that a failover is taking place.
 
-You will have to set up TAF on your instance before you can use this callback.  You can test your instance to see if you can use TAF callback with
+Transparent Application Failover (TAF) is the feature in OCI that
+allows for clients to automatically reconnect to an instance in the
+event of a failure of the instance. The reconnect happens
+automatically from within the OCI (Oracle Call Interface) library.
+DBD::Oracle now supports a callback function that will fire when a TAF
+event takes place. The main use of the callback is to give your
+program the opportunity to inform the user that a failover is taking
+place.
+
+You will have to set up TAF on your instance before you can use this
+callback.  You can test your instance to see if you can use TAF
+callback with
 
   $dbh->ora_can_taf();
 
-If you try to set up a callback without it being enable DBD::Oracle will croak.
+If you try to set up a callback without it being enabled DBD::Oracle will croak.
 
-It is outside the scope of this documents to go through all of the possiable TAF situations you might want to set up. Below is the simplest of examples;
+It is outside the scope of this documents to go through all of the
+possiable TAF situations you might want to set up but here is a simple
+example:
 
-The TNS entry for the instace has had the following added to the CONNECT_DATA portion
+The TNS entry for the instance has had the following added to the
+CONNECT_DATA section
 
    (FAILOVER_MODE=
                (TYPE=select)
@@ -1447,14 +1472,17 @@ The TNS entry for the instace has had the following added to the CONNECT_DATA po
                (RETRIES=10)
                (DELAY=10))
 
-You will also have to create your on perl function that will be called from the client.  You can name it anything you want and it will allways have
-two parameters, the failover event value and the failover type.  You can also set a sleep value in case of failover error and the oci client will sleep
-for the entered seconds before it attempts another event.
+You will also have to create your own perl function that will be
+called from the client.  You can name it anything you want and it will
+always be passed two parameters, the failover event value and the
+failover type.  You can also set a sleep value in case of failover
+error and the OCI client will sleep for the specified seconds before it
+attempts another event.
 
   use DBD::Oracle(qw(:ora_fail_over));
-  #import the ora_fail_over constancts
+  #import the ora fail over constants
 
-  #set up TAF on the conection
+  #set up TAF on the connection
   my $dbh = DBI->connect('dbi:Oracle:XE','hr','hr',{ora_taf=>1,taf_sleep=>5,ora_taf_function=>'handle_taft'});
 
   #create the perl TAF event function
@@ -1463,7 +1491,7 @@ for the entered seconds before it attempts another event.
     my ($fo_event,$fo_type) = @_;
     if ($fo_event == OCI_FO_BEGIN){
 
-      print(" Instance Unavailable Please stand by!! \n");
+      print " Instance Unavailable Please stand by!! \n";
       printf(" Your TAF type is %s \n",
                        (($fo_type==OCI_FO_NONE) ? "NONE"
                        :($fo_type==OCI_FO_SESSION) ? "SESSION"
@@ -1471,7 +1499,7 @@ for the entered seconds before it attempts another event.
                        : "UNKNOWN!"));
     }
     elsif ($fo_event == OCI_FO_ABORT){
-       printf(" Failover aborted. Failover will not take place.\n");
+       print " Failover aborted. Failover will not take place.\n";
     }
     elsif ($fo_event == OCI_FO_END){
        printf(" Failover ended ...Resuming your %s\n",(($fo_type==OCI_FO_NONE) ? "NONE"
@@ -1480,10 +1508,10 @@ for the entered seconds before it attempts another event.
                                                       : "UNKNOWN!"));
     }
     elsif ($fo_event == OCI_FO_REAUTH){
-       printf(" Failed over user. Resuming services\n");
+       print " Failed over user. Resuming services\n";
     }
     elsif ($fo_event == OCI_FO_ERROR){
-       printf(" Failover error Sleeping...\n");
+       print " Failover error Sleeping...\n";
     }
     else {
        printf(" Bad Failover Event: %d.\n",  $fo_event);
@@ -1494,10 +1522,10 @@ for the entered seconds before it attempts another event.
 
 The TAF types are as follows
 
-  OCI_FO_SESSION which indicates the user has requested only session failover.
-  OCI_FO_SELECT which indicates the user has requested select failover.
-  OCI_FO_NONE which inicates the user has not requested a failover type.
-  OCI_FO_TXNAL which indicates the user has requested a transaction failover.
+  OCI_FO_SESSION indicates the user has requested only session failover.
+  OCI_FO_SELECT indicates the user has requested select failover.
+  OCI_FO_NONE indicates the user has not requested a failover type.
+  OCI_FO_TXNAL indicates the user has requested a transaction failover.
 
 The TAF events are as follows
 
@@ -1510,7 +1538,7 @@ The TAF events are as follows
 
 =head2 Optimizing Oracle's listener
 
-[By Lane Sharman <lane@bienlogic.com>] I spent a LOT of time optimizing
+[By Lane Sharman <lane@bienlogic.com>] I spent a lot of time optimizing
 listener.ora and I am including it here for anyone to benefit from. My
 connections over tnslistener on the same humble Netra 1 take an average
 of 10-20 milli seconds according to tnsping. If anyone knows how to
@@ -1541,7 +1569,7 @@ make it better, please let me know!
      )
    )
 
-1) When the application is co-located on the host AND there is no need for
+1) When the application is co-located on the host and there is no need for
 outside SQLNet connectivity, stop the listener. You do not need it. Get
 your application/cgi/whatever working using pipes and shared memory. I am
 convinced that this is one of the connection bugs (sockets over the same
@@ -1670,14 +1698,14 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 =item ora_ncs_buff_mtpl
 
 You can now customize the size of the buffer when selecting LOBs with
-the built in AUTO Lob.  The default value is 4 which should is actually excessive
-for most situations but is needed for backward compatibility.
-If you not converting between a NCS on the DB and the Client then you might
-want to set this to 1 to free up memory.
+the built in AUTO Lob.  The default value is 4 which is probably
+excessive for most situations but is needed for backward
+compatibility.  If you not converting between a NCS on the DB and the
+Client then you might want to set this to 1 to reduce memory usage.
 
-For convenience I have added support for a 'ORA_DBD_NCS_BUFFER'
-environment variable that you can use at the OS level to set this
-value.  If used it will take the value at the connect stage.
+This value can also be specified with the C<ORA_DBD_NCS_BUFFER>
+environment variable in which case it sets the value at the connect
+stage.
 
 See more details in the LOB section of the POD
 
@@ -1686,63 +1714,72 @@ See more details in the LOB section of the POD
 If you have an 11.2 or greater database your can utilize the DRCP by setting
 this attribute to 1 at connect time.
 
-For convenience I have added support for a 'ORA_DRCP'
-environment variable that you can use at the OS level to set this
-value.
+This value can also be set with the C<ORA_DRCP> environment variable.
 
 =item ora_drcp_class
 
-If you are using DRCP, you can set a CONNECTION_CLASS for your pools as well.
-As sessions from a DRCP cannot be shared by users, you can use this
-setting to identify the same user across different applications. OCI will ensure that
-session belonging to a 'class' are not shared outside the class'.
+If you are using DRCP, you can set a CONNECTION_CLASS for your pools
+as well.  As sessions from a DRCP cannot be shared by users, you can
+use this setting to identify the same user across different
+applications. OCI will ensure that sessions belonging to a 'class' are
+not shared outside the class'.
 
-The values for ora_drcp_class cannot contain an '*' and must be less than 1024 characters.
+The values for ora_drcp_class cannot contain a '*' and must be less
+than 1024 characters.
 
-This value can be set at the environment level with 'ORA_DRCP_CLASS'.
+This value can be also be specified with the C<ORA_DRCP_CLASS>
+environment variable.
 
 =item ora_drcp_min
 
-Is an optional value that specifies the minimum number of sessions that are initially opened.
-New sessions are only opened after this value has been reached.
+This optional value specifies the minimum number of sessions that are
+initially opened.  New sessions are only opened after this value has
+been reached.
 
-The default value is '4' and  any value above '0' is valid.
+The default value is 4 and  any value above 0 is valid.
 
-Generally, it should be set to the number of concurrent statements the application is planning
-or expecting to run.
+Generally, it should be set to the number of concurrent statements the
+application is planning or expecting to run.
 
-This value can be set at the environment level with 'ORA_DRCP_MIN'.
+This value can also be specified with the C<ORA_DRCP_MIN> environment
+variable.
 
 =item ora_drcp_max
 
-Is an optional value that specifies the maximum number of sessions that can be open at one time.
-Once reached no more session can be opened until one becomes free. The default value
-is '40' and any value above '1' is valid.  You should not set this value lower than ora_drcp_min as
+This optional value specifies the maximum number of sessions that can
+be open at one time.  Once reached no more sessions can be opened
+until one becomes free. The default value is 40 and any value above 1
+is valid.  You should not set this value lower than ora_drcp_min as
 that will just waste resources.
 
-This value can be set at the environment level with 'ORA_DRCP_MAX'.
+This value can also be specified with the C<ORA_DRCP_MAX> environment
+variable.
 
 =item ora_drcp_incr
 
-Is an optional value that specifies the next increment for sessions to be started if the current number of
-sessions are less than ora_drcp_max. The default value is '2' and  any value above '0' is valid as long
-as the value of ora_drcp_min + ora_drcp_incr is not greater than ora_drcp_max.
+This optional value specifies the next increment for sessions to be
+started if the current number of sessions are less than
+ora_drcp_max. The default value is 2 and any value above 0 is
+valid as long as the value of ora_drcp_min + ora_drcp_incr is not
+greater than ora_drcp_max.
 
-This value can be set at the environment level with 'ORA_DRCP_INCR'.
-
+This value can also be specified with the C<ORA_DRCP_INCR> environment
+variable.
 
 =item ora_taf
 
-If your Oracle instace has been configured to use TAF events you can enable the TAF callback by seting this
-value to anything other than 0;
+If your Oracle instance has been configured to use TAF events you can
+enable the TAF callback by setting this value to anything other than 0.
 
 =item ora_taf_function
 
-The name of the Perl that will be called from OCI when a TAF event. You must supply a perl function to use the callback it will
-allways have two parameters, the failover event value and the failover type. Below is an example of a TAF function
+The name of the Perl subroutine that will be called from OCI when a
+TAF event occurs. You must supply a perl function to use the callback
+and it will always receive two parameters, the failover event value
+and the failover type. Below is an example of a TAF function
 
   sub taf_event{
-     my ($event,$type)=@_;
+     my ($event, $type) = @_;
 
      print "My TAF event=$event\n";
      print "My TAF type=$type\n";
@@ -1751,9 +1788,8 @@ allways have two parameters, the failover event value and the failover type. Bel
 
 =item taf_sleep
 
-A sleep value in seconds that you can sent to the OCI client and when there is a TAF event of the type OCI_FO_ERROR the client
-will sleep that long before it attempts another failover event.
-
+The amount of time in seconds the OCI client will sleep between attempting
+successive failover events when the event is OCI_FO_ERROR.
 
 =item ora_session_mode
 
@@ -1775,17 +1811,17 @@ Example:
 
   $dbh = DBI->connect($dsn, "", "", { ora_session_mode => ORA_SYSDBA });
 
-It has been reported that this only works if $dsn does not contain a SID
-so that Oracle then uses the value of the ORACLE_SID (not TWO_TASK)
-environment variable to connect to a local instance. Also the username
-and password should be empty, and the user executing the script needs
-to be part of the dba group or osdba group.
+It has been reported that this only works if C<$dsn> does not contain
+a SID so that Oracle then uses the value of ORACLE_SID (not
+TWO_TASK) environment variable to connect to a local instance. Also
+the username and password should be empty, and the user executing the
+script needs to be part of the dba group or osdba group.
 
 =item ora_oratab_orahome
 
 Passing a true value for the ora_oratab_orahome attribute will make
-DBD::Oracle change $ENV{ORACLE_HOME} to make the Oracle home directory
-specified in the C</etc/oratab> file I<if> the database to connect to
+DBD::Oracle change C<$ENV{ORACLE_HOME}> to make the Oracle home directory
+that specified in the C</etc/oratab> file I<if> the database to connect to
 is specified as a SID that exists in the oratab file, and DBD::Oracle was
 built to use the Oracle 7 OCI API (not Oracle 8+).
 
@@ -1803,7 +1839,7 @@ monitoring and performance tuning purposes. For example:
 =item ora_driver_name
 
 For 11g and later you can now set the name of the driver layer using OCI.
-PERL, PERL5, ApachePerl so on. Names starting with "ORA" are reserved. You
+Perl, Perl5, ApachePerl so on. Names starting with "ORA" are reserved. You
 can enter up to 8 characters.  If none is enter then this will default to
 DBDOxxxx where xxxx is the current version number. This value can be
 retrieved on the server side using V$SESSION_CONNECT_INFO or
@@ -1816,9 +1852,8 @@ GV$SESSION_CONNECT_INFO
 
 =item ora_client_info
 
-When passed in on the connection attributes it can specify any info you want
-onto the session up to 64 bytes. This value can be
-retrieved on the server side using V$SESSION view.
+Allows you to add any value (up to 64 bytes) to your session and it can be
+retrieved on the server side from the C<V$SESSION>a view.
 
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_info => 'Remote2' });
 
@@ -1826,12 +1861,14 @@ retrieved on the server side using V$SESSION view.
 
 =item ora_client_identifier
 
-When passed in on the connection attributes it specifies the user identifier
-in the session handle. Most useful for web app as it can pass in the session
-user name which might be different than the connection user name. Can be up
-to 64 bytes long do not to include the password for security reasons and the
-first character of the identifier should not be ':'. This value can be
-retrieved on the server side using V$SESSION view.
+Allows you to specify the user identifier in the session handle.
+
+Most useful for web applications as it can pass in the session user
+name which might be different to the connection user name. Can be up
+to 64 bytes long but do not to include the password for security
+reasons and the first character of the identifier should not be
+':'. This value can be retrieved on the server side using C<V$SESSION>
+view.
 
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_identifier => $some_web_user });
 
@@ -1839,8 +1876,8 @@ retrieved on the server side using V$SESSION view.
 
 =item ora_action
 
-You can set this value to anything you want up to 32 bytes. This value can be
-retrieved on the server side using V$SESSION view.
+Allows you to specify any string up to 32 bytes which may be retrieved
+on the server side using C<V$SESSION> view.
 
    my $dbh = DBI->connect($dsn, $user, $passwd, { ora_action => "Login"});
 
@@ -1848,11 +1885,12 @@ retrieved on the server side using V$SESSION view.
 
 =item ora_dbh_share
 
-Needs at least Perl 5.8.0 compiled with ithreads. Allows to share database
-connections between threads. The first connect will make the connection,
-all following calls to connect with the same ora_dbh_share attribute
-will use the same database connection. The value must be a reference
-to a already shared scalar which is initialized to an empty string.
+Requires at least Perl 5.8.0 compiled with ithreads. Allows you to share
+database connections between threads. The first connect will make the
+connection, all following calls to connect with the same ora_dbh_share
+attribute will use the same database connection. The value must be a
+reference to a already shared scalar which is initialized to an empty
+string.
 
   our $orashr : shared = '' ;
 
@@ -1869,10 +1907,10 @@ The ora_envhp attribute can be used to disable the reuse of the OCI
 environment from a previous connect. If the value is C<0> then
 a new OCI environment is allocated and used for this connection.
 
-The OCI environment is what holds information about the client side
-context, such as the local NLS environment. So by altering %ENV and
-setting ora_envhp to 0 you can create connections with different
-NLS settings. This is most useful for testing.
+The OCI environment holds information about the client side context,
+such as the local NLS environment. By altering C<%ENV> and setting
+ora_envhp to 0 you can create connections with different NLS
+settings. This is most useful for testing.
 
 =item ora_charset, ora_ncharset
 
@@ -1887,24 +1925,26 @@ These attributes override the settings from environment variables.
 
 =item ora_verbose
 
-Use this value to enable DBD::Oracle only tracing.  Simply
-either set the ora_verbose attribute on the connect() method to the trace level you desire like this
+Use this value to enable DBD::Oracle only tracing.  Simply either set
+the ora_verbose attribute on the connect() method to the trace level
+you desire like this
 
   my $dbh = DBI->connect($dsn, "", "", {ora_verbose=>6});
 
 or set it directly on the DB handle like this;
 
-  $dbh->{ora_verbose} =6;
+  $dbh->{ora_verbose} = 6;
 
-In both cases the DBD::Oracle trace level to 6, which is this level that will trace most of the calls to OCI.
-
+In both cases the DBD::Oracle trace level to 6, which is the highest
+level tracing most of the calls to OCI.
 
 =item ora_oci_success_warn
 
-Use this value to print silent OCI warnings that may happen when an execute or fetch returns "Success With Info" or when
-you want to tune RowCaching and LOB Reads
+Use this value to print otherwise silent OCI warnings that may happen
+when an execute or fetch returns "Success With Info" or when you want
+to tune RowCaching and LOB Reads
 
-  $dbh->{ora_oci_success_warn} =1;
+  $dbh->{ora_oci_success_warn} = 1;
 
 =item ora_objects
 
@@ -1948,11 +1988,11 @@ This is the normal default placeholder type.
 
 =item ORA_STRING
 
-Don't strip trailing spaces and end the string at the first \0.
+Do not strip trailing spaces and end the string at the first \0.
 
 =item ORA_CHAR
 
-Don't strip trailing spaces and allow embedded \0.
+Do not strip trailing spaces and allow embedded \0.
 Force 'blank-padded comparison semantics'.
 
 For example:
@@ -1980,7 +2020,7 @@ error was found.
 
 =item ora_array_chunk_size
 
-Because of OCI limitations, DBD::Oracle needs to buffer up rows of
+Due to OCI limitations, DBD::Oracle needs to buffer up rows of
 bind values in its C<execute_for_fetch> implementation. This attribute
 sets the number of rows to buffer at a time (default value is 1000).
 
@@ -1994,19 +2034,22 @@ method is implemented using C<execute_for_fetch>.
 
 =item ora_connect_with_default_signals
 
-Sometimes the Oracle client seems to change some of the signal handlers
-of the process during the connect phase.  For instance, some users have
-observed Perl's default C<$SIG{INT}> handler being ignored after
-connecting to an Oracle database.  If this causes problems in your
-application, set this attribute to an array reference of signals you
-would like to be localized during the connect process.  Once the connect
-is complete, the signal handlers should be returned to their previous state.
+Sometimes the Oracle client seems to change some of the signal
+handlers of the process during the connect phase.  For instance, some
+users have observed Perl's default C<$SIG{INT}> handler being ignored
+after connecting to an Oracle database.  If this causes problems in
+your application, set this attribute to an array reference of signals
+you would like to be localized during the connect process.  Once the
+connect is complete, the signal handlers should be returned to their
+previous state.
 
 For example:
 
   $dbh = DBI->connect ($dsn, $user, $passwd,
                        {ora_connect_with_default_signals => [ 'INT' ] });
 
+NOTE disabling the signal handlers the OCI library sets up may affect
+functionality in the OCI library.
 
 =back
 
@@ -2037,6 +2080,7 @@ BLOB column in most circumstances.  If false, fetching retrieves the
 Oracle "LOB Locator" of the CLOB or BLOB value.
 
 See L</LOBs and LONGs> for more details.
+
 See also the LOB tests in 05dbi.t of Oracle::OCI for examples
 of how to use LOB Locators.
 
@@ -2047,29 +2091,31 @@ used for LOBs rather than the default method L</Data Interface for LOB Locators>
 
 =item ora_clbk_lob
 
-If true the L</Piecewise Fetch with Callback> method for the L</Data Interface for Persistent LOBs> will be
-used for LOBs.
+If true the L</Piecewise Fetch with Callback> method for the L</Data
+Interface for Persistent LOBs> will be used for LOBs.
 
 =item ora_piece_lob
 
-If true the L</Piecewise Fetch with Polling> method for the L</Data Interface for Persistent LOBs> will be
-used for LOBs.
+If true the L</Piecewise Fetch with Polling> method for the L</Data
+Interface for Persistent LOBs> will be used for LOBs.
 
 =item ora_piece_size
 
-This is the max piece size for the L</Piecewise Fetch with Callback> and L</Piecewise Fetch with Polling> methods, in chars for CLOBS,
-and bytes for BLOBS.
+This is the max piece size for the L</Piecewise Fetch with Callback>
+and L</Piecewise Fetch with Polling> methods, in chars for CLOBS, and
+bytes for BLOBS.
 
 =item ora_check_sql
 
 If 1 (default), force SELECT statements to be described in prepare().
 If 0, allow SELECT statements to defer describe until execute().
 
-See L</Prepare postponed till execute> for more information.
+See L</Prepare postponed until execute> for more information.
 
 =item ora_exe_mode
 
-This will set the execute mode of the current statement. Presently only one mode is supported;
+This will set the execute mode of the current statement. Presently
+only one mode is supported;
 
   OCI_STMT_SCROLLABLE_READONLY - make result set scrollable
 
@@ -2077,27 +2123,22 @@ See L</Scrollable Cursors> for more details.
 
 =item ora_prefetch_rows
 
-Sets the number of rows to be prefetched. If it is not set, then the default value is 1.
-See L</Row Prefetching> for more details.
+Sets the number of rows to be prefetched. If it is not set, then the
+default value is 1.  See L</Row Prefetching> for more details.
 
 =item ora_prefetch_memory
 
-Sets the memory level for rows to be prefetched. The application then fetches as many rows as will fit into that much memory.
-See L</Row Prefetching> for more details.
+Sets the memory level for rows to be prefetched. The application then
+fetches as many rows as will fit into that much memory.  See L</Row
+Prefetching> for more details.
 
 =item ora_row_cache_off
 
-By default DBD::Oracle will use a row cache when fetching to cut down the number of round
-trips to the server. If you do not want to use an array fetch set this value to any value other than 0;
+By default DBD::Oracle will use a row cache when fetching to cut down
+the number of round trips to the server. If you do not want to use an
+array fetch set this value to any value other than 0;
+
 See L</Prefetching Rows> for more details.
-
-=item ora_verbose
-
-Use this value to enable DBD::Oracle only tracing.  Simply set the attribute to the trace level you desire.
-
-=item ora_oci_success_warn
-
-Use this value to print silent OCI warnings that may happen when a fetch returns "Success With Info".
 
 =back
 
@@ -2193,7 +2234,7 @@ I<an exception is thrown> even if C<RaiseError> is false!
 
 Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
 
-=head1 Prefetching & Row Caching
+=head1 Prefetching and Row Caching
 
 DBD::Oracle now supports both Server pre-fetch and Client side row caching. By default both
 are turned on to give optimum performance. Most of the time one can just let DBD::Oracle
@@ -3601,7 +3642,7 @@ size of the LOB. Like the L</Simple Fetch for LONGs and LONG RAWs> and L</Simple
 or set the 'LongReadLen' to a higher value.  With this interface the value of 'ora_piece_size' seems to be constrained by the same memory limit as found on
 the Simple Fetch interface. If you encounter an 'ORA-01062' error try setting the value of 'ora_piece_size' to a smaller value.   The value for 'LongReadLen' is
 dependent on the version and settings of the Oracle DB you are using. In theory it ranges from 8GBs
-in 9iR1 up to 128 terabytes with 11g but you will also be limited by the physical memory of your PERL instance.
+in 9iR1 up to 128 terabytes with 11g but you will also be limited by the physical memory of your Perl instance.
 
 Using the table from the last example this code;
 
@@ -3783,7 +3824,7 @@ so the following returns an error:
 
 When fetching LOBs with this interface a 'LOB Locator' is created then used to get the lob with the LongReadLen and LongTruncOk attributes.
 The value for 'LongReadLen' is dependent on the version and settings of the Oracle DB you are using. In theory it ranges from 8GBs
-in 9iR1 up to 128 terabytes with 11g but you will also be limited by the physical memory of your PERL instance.
+in 9iR1 up to 128 terabytes with 11g but you will also be limited by the physical memory of your Perl instance.
 
 When inserting or updating LOBs some I<major> magic has to be performed
 behind the scenes to make it transparent.  Basically the driver has to
@@ -3873,7 +3914,7 @@ If you ever get an
 error, while attempting to insert a LOB, this means the Oracle user has insufficient space for LOB you are trying to insert.
 One solution it to use "alter database datafile 'sss.ggg' resize Mnnn" to increase the available memory for LOBs.
 
-=head2 Persistent & Locator Interface Caveats
+=head2 Persistent and Locator Interface Caveats
 
 Now that one has the option of using the Persistent or the Locator interface for LOBs the questions arises
 which one to use. For starters, if you want to access LOBs over a dblink you will have to use the Persistent
@@ -4153,7 +4194,7 @@ for example if the code below;
 
 was used with a chunk size of 4096 against a blob that requires more than 1 chunk to return
 the data and the last chunk is one byte long and contains a zero (ASCII 48) you will miss this last byte
-as $data will contain 0 which PERL will see as false and not print it out.
+as $data will contain 0 which Perl will see as false and not print it out.
 
 =head3 Example: Truncating existing large data
 
@@ -4325,7 +4366,7 @@ each statement handle, the total number of nested cursors in pre-fetched
 rows is limited to the value of this parameter. The default value
 is 0, which disables pre-fetching for queries involving nested cursors.
 
-=head1 Returning A Value from an INSERT
+=head1 Returning a Value from an INSERT
 
 Oracle supports an extended SQL insert syntax which will return one
 or more of the values inserted. This can be particularly useful for
@@ -4377,7 +4418,7 @@ Note:
 
 3) The "ora_type" attribute is not needed but only ORA_VARCHAR2 will work.
 
-=head1 Returning A Recordset
+=head1 Returning a Recordset
 
 DBD::Oracle does not currently support binding a PL/SQL table (aka array)
 as an IN OUT parameter to any Perl data structure.  You cannot therefore call
@@ -4669,79 +4710,6 @@ one can insert data using this code
 In the above case we will assume that $xml has 10000 Book nodes and is over 32k in size and is well formed XML.
 This will also work for XML that is smaller than 32k as well. Attempting to insert malformed XML will cause an error.
 
-=head1 Oracle Related Links
-
-=head2 DBD::Oracle Tutorial
-
-  http://www.pythian.com/blogs/wp-content/uploads/introduction-dbd-oracle.html
-
-=head2 Oracle Instant Client
-
-  http://www.oracle.com/technology/tech/oci/instantclient/index.html
-
-=head2 Oracle on Linux
-
-  http://www.eGroups.com/list/oracle-on-linux
-
-  http://www.ixora.com.au/
-
-=head2 Free Oracle Tools and Links
-
-  ora_explain supplied and installed with DBD::Oracle.
-
-  http://www.orafaq.com/
-
-  http://vonnieda.org/oracletool/
-
-=head2 Commercial Oracle Tools and Links
-
-Assorted tools and references for general information.
-No recommendation implied.
-
-  http://www.platinum.com/products/oracle.htm
-  http://www.SoftTreeTech.com
-  http://www.databasegroup.com
-
-Also PL/Vision from RevealNet and Steven Feuerstein, and
-"Q" from Savant Corporation.
-
-
-=head1 SEE ALSO
-
-DBI
-
-http://search.cpan.org/~timb/DBD-Oracle/MANIFEST for all files in
-the DBD::Oracle source distribution including the examples in the
-Oracle.ex directory
-
-  http://search.cpan.org/search?query=Oracle&mode=dist
-
-=head1 AUTHOR
-
-DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
-
-=head1 ACKNOWLEDGEMENTS
-
-A great many people have helped me with DBD::Oracle over the 14 years
-between 1994 and 2008.  Far too many to name, but I thank them all.
-Many are named in the Changes file.
-
-See also L<DBI/ACKNOWLEDGEMENTS>.
-
-=head1 MAINTAINER
-
-As of release 1.17 in February 2006 The Pythian Group, Inc. (L<http://www.pythian.com>)
-are taking the lead in maintaining DBD::Oracle with my assistance and
-gratitude. That frees more of my time to work on DBI for Perl 5 and Perl 6.
-
-=head1 COPYRIGHT
-
-The DBD::Oracle module is Copyright (c) 1994-2006 Tim Bunce. Ireland.
-The DBD::Oracle module is Copyright (c) 2006-2008 John Scoles (The Pythian Group). Canada.
-
-The DBD::Oracle module is free open source software; you can
-redistribute it and/or modify it under the same terms as Perl 5.
-
 =head1 CONTRIBUTING
 
 If you'd like DBD::Oracle to do something new or different the best way
@@ -4813,5 +4781,75 @@ to discuss (on dbi-dev@perl.org) the changes you propose before
 actually spending time working on them. Otherwise you run the risk
 of them being rejected because they don't fit into some larger plans
 you may not be aware of.
+
+=head1 Oracle Related Links
+
+=head2 DBD::Oracle Tutorial
+
+  http://www.pythian.com/blogs/wp-content/uploads/introduction-dbd-oracle.html
+
+=head2 Oracle Instant Client
+
+  http://www.oracle.com/technology/tech/oci/instantclient/index.html
+
+=head2 Oracle on Linux
+
+  http://www.ixora.com.au/
+
+=head2 Free Oracle Tools and Links
+
+  ora_explain supplied and installed with DBD::Oracle.
+
+  http://www.orafaq.com/
+
+  http://vonnieda.org/oracletool/
+
+=head2 Commercial Oracle Tools and Links
+
+Assorted tools and references for general information.
+No recommendation implied.
+
+  http://www.platinum.com
+  http://www.SoftTreeTech.com
+
+Also PL/Vision from RevealNet and Steven Feuerstein, and
+"Q" from Savant Corporation.
+
+
+=head1 SEE ALSO
+
+DBI
+
+http://search.cpan.org/~timb/DBD-Oracle/MANIFEST for all files in
+the DBD::Oracle source distribution including the examples in the
+Oracle.ex directory
+
+  http://search.cpan.org/search?query=Oracle&mode=dist
+
+=head1 AUTHOR
+
+DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
+
+=head1 ACKNOWLEDGEMENTS
+
+A great many people have helped me with DBD::Oracle over the 14 years
+between 1994 and 2008.  Far too many to name, but I thank them all.
+Many are named in the Changes file.
+
+See also L<DBI/ACKNOWLEDGEMENTS>.
+
+=head1 MAINTAINER
+
+As of release 1.17 in February 2006 The Pythian Group, Inc. (L<http://www.pythian.com>)
+are taking the lead in maintaining DBD::Oracle with my assistance and
+gratitude. That frees more of my time to work on DBI for Perl 5 and Perl 6.
+
+=head1 COPYRIGHT
+
+The DBD::Oracle module is Copyright (c) 1994-2006 Tim Bunce. Ireland.
+The DBD::Oracle module is Copyright (c) 2006-2011 John Scoles (The Pythian Group). Canada.
+
+The DBD::Oracle module is free open source software; you can
+redistribute it and/or modify it under the same terms as Perl 5.
 
 =cut
