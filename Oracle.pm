@@ -1834,7 +1834,7 @@ monitoring and performance tuning purposes. For example:
 
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_module_name => $0 });
 
-  $dbh{ora_module_name} = $y;
+  $dbh->{ora_module_name} = $y;
 
 =item ora_driver_name
 
@@ -1848,7 +1848,7 @@ GV$SESSION_CONNECT_INFO
 
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_driver_name => 'ModPerl_1' });
 
-  $dbh{ora_driver_name} = $q;
+  $dbh->{ora_driver_name} = $q;
 
 =item ora_client_info
 
@@ -1857,7 +1857,7 @@ retrieved on the server side from the C<V$SESSION>a view.
 
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_info => 'Remote2' });
 
-  $dbh{ora_client_info} = "Remote2";
+  $dbh->{ora_client_info} = "Remote2";
 
 =item ora_client_identifier
 
@@ -1872,7 +1872,7 @@ view.
 
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_identifier => $some_web_user });
 
-  $dbh{ora_client_identifier} = $local_user;
+  $dbh->{ora_client_identifier} = $local_user;
 
 =item ora_action
 
@@ -1881,7 +1881,7 @@ on the server side using C<V$SESSION> view.
 
    my $dbh = DBI->connect($dsn, $user, $passwd, { ora_action => "Login"});
 
-   $dbh{ora_action} = "New Long Query 22";
+   $dbh->{ora_action} = "New Long Query 22";
 
 =item ora_dbh_share
 
