@@ -1,5 +1,7 @@
 =head1 Changes in DBD-Oracle 1.29_1 (svn rev NNNNN)
 
+  Fixed up the POD based on DBD::Pg by John Scoles (most likely killed martins below
+  Revoved oparse_lng as it is obsolete by John Scoles
   Added installation notes for MAC Snow Leopard by Martin J. Evans
   pod review rephrasing, fixing typos and spelling mistakes up to "Placeholder Binding Attributes" by Martin J. Evans
   Add /etc to the search paths for tnsnames.ora (rt67942) by Martin J. Evans, Jay Senseman
