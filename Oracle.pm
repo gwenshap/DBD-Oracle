@@ -1693,9 +1693,9 @@ If it generates any errors which look relevant then please talk to your
 Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
 
-=head3 B<Private Connect Attributes>
+=head4 B<Private Connect Attributes>
 
-=head4 ora_ncs_buff_mtpl
+=head5 ora_ncs_buff_mtpl
 
 You can now customize the size of the buffer when selecting LOBs with
 the built in AUTO Lob.  The default value is 4 which should is actually excessive 
@@ -1709,7 +1709,7 @@ value.  If used it will take the value at the connect stage.
 
 See more details in the LOB section of the POD
 
-=head4 ora_drcp
+=head5 ora_drcp
 
 If you have an 11.2 or greater database your can utilize the DRCP by setting
 this attribute to 1 at connect time. 
@@ -1718,7 +1718,7 @@ For convenience I have added support for a 'ORA_DRCP'
 environment variable that you can use at the OS level to set this
 value. 
 
-=head4 ora_drcp_class
+=head5 ora_drcp_class
 
 If you are using DRCP, you can set a CONNECTION_CLASS for your pools as well.
 As sessions from a DRCP cannot be shared by users, you can use this 
@@ -1729,7 +1729,7 @@ The values for ora_drcp_class cannot contain an '*' and must be less than 1024 c
 
 This value can be set at the environment level with 'ORA_DRCP_CLASS'.
 
-=head4 ora_drcp_min
+=head5 ora_drcp_min
 
 Is an optional value that specifies the minimum number of sessions that are initially opened.
 New sessions are only opened after this value has been reached.
@@ -1741,7 +1741,7 @@ or expecting to run.
 
 This value can be set at the environment level with 'ORA_DRCP_MIN'.
 
-=head4 ora_drcp_max
+=head5 ora_drcp_max
 
 Is an optional value that specifies the maximum number of sessions that can be open at one time.
 Once reached no more session can be opened until one becomes free. The default value 
@@ -1750,7 +1750,7 @@ that will just waste resources.
 
 This value can be set at the environment level with 'ORA_DRCP_MAX'.
 
-=head4 ora_drcp_incr
+=head5 ora_drcp_incr
 
 Is an optional value that specifies the next increment for sessions to be started if the current number of
 sessions are less than ora_drcp_max. The default value is '2' and  any value above '0' is valid as long
@@ -1759,12 +1759,12 @@ as the value of ora_drcp_min + ora_drcp_incr is not greater than ora_drcp_max.
 This value can be set at the environment level with 'ORA_DRCP_INCR'.
 
 
-=head4 ora_taf
+=head5 ora_taf
 
 If your Oracle instance has been configured to use TAF events you can enable the TAF callback by setting this
 value to anything other than 0;
 
-=head4 ora_taf_function
+=head5 ora_taf_function
 
 The name of the Perl that will be called from OCI when a TAF event. You must supply a perl function to use the callback it will
 always have two parameters, the failover event value and the failover type. Below is an example of a TAF function
@@ -1777,13 +1777,13 @@ always have two parameters, the failover event value and the failover type. Belo
      return;
   }
 
-=head4 taf_sleep
+=head5 ora_taf_sleep
 
 A sleep value in seconds that you can sent to the OCI client and when there is a TAF event of the type OCI_FO_ERROR the client
 will sleep that long before it attempts another failover event.
 
 
-=head4 ora_session_mode
+=head5 ora_session_mode
 
 The ora_session_mode attribute can be used to connect with SYSDBA
 authorization and SYSOPER authorization.
@@ -1809,7 +1809,7 @@ environment variable to connect to a local instance. Also the username
 and password should be empty, and the user executing the script needs
 to be part of the dba group or osdba group.
 
-=head4 ora_oratab_orahome
+=head5 ora_oratab_orahome
 
 Passing a true value for the ora_oratab_orahome attribute will make
 DBD::Oracle change $ENV{ORACLE_HOME} to make the Oracle home directory
@@ -1817,7 +1817,7 @@ specified in the C</etc/oratab> file I<if> the database to connect to
 is specified as a SID that exists in the oratab file, and DBD::Oracle was
 built to use the Oracle 7 OCI API (not Oracle 8+).
 
-=head4 ora_module_name
+=head5 ora_module_name
 
 After connecting to the database the value of this attribute is passed
 to the SET_MODULE() function in the C<DBMS_APPLICATION_INFO> PL/SQL
@@ -1828,7 +1828,7 @@ monitoring and performance tuning purposes. For example:
   
   $dbh->{ora_module_name} = $y; 
 
-=head4 ora_driver_name
+=head5 ora_driver_name
 
 For 11g and later you can now set the name of the driver layer using OCI.
 PERL, PERL5, ApachePerl so on. Names starting with "ORA" are reserved. You
@@ -1842,7 +1842,7 @@ GV$SESSION_CONNECT_INFO
 
   $dbh->{ora_driver_name} = $q;
 
-=head4 ora_client_info
+=head5 ora_client_info
 
 When passed in on the connection attributes it can specify any info you want
 onto the session up to 64 bytes. This value can be 
@@ -1852,7 +1852,7 @@ retrieved on the server side using V$SESSION view.
 
   $dbh->{ora_client_info} = "Remote2";
 
-=head4 ora_client_identifier
+=head5 ora_client_identifier
 
 When passed in on the connection attributes it specifies the user identifier 
 in the session handle. Most useful for web app as it can pass in the session
@@ -1865,7 +1865,7 @@ retrieved on the server side using V$SESSION view.
 
   $dbh->{ora_client_identifier} = $local_user;
 
-=head4 ora_action
+=head5 ora_action
 
 You can set this value to anything you want up to 32 bytes. This value can be 
 retrieved on the server side using V$SESSION view.
@@ -1874,7 +1874,7 @@ retrieved on the server side using V$SESSION view.
    
    $dbh->{ora_action} = "New Long Query 22";
 
-=head4 ora_dbh_share
+=head5 ora_dbh_share
 
 Needs at least Perl 5.8.0 compiled with ithreads. Allows to share database
 connections between threads. The first connect will make the connection, 
@@ -1886,7 +1886,7 @@ to a already shared scalar which is initialized to an empty string.
 
   $dbh = DBI->connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
 
-=head4 ora_envhp
+=head5 ora_envhp
 
 The first time a connection is made a new OCI 'environment' is
 created by DBD::Oracle and stored in the driver handle.
@@ -1902,7 +1902,7 @@ context, such as the local NLS environment. So by altering %ENV and
 setting ora_envhp to 0 you can create connections with different
 NLS settings. This is most useful for testing.
 
-=item ora_charset, ora_ncharset
+=head5 ora_charset, ora_ncharset
 
 For oracle versions >= 9.2 you can specify the client charset and
 ncharset with the ora_charset and ora_ncharset attributes.  You
@@ -1913,7 +1913,7 @@ These attributes override the settings from environment variables.
   $dbh = DBI->connect ($dsn, $user, $passwd,
                        {ora_charset => 'AL32UTF8'});
 
-=head4 ora_verbose
+=head5 ora_verbose
 
 Use this value to enable DBD::Oracle only tracing.  Simply
 either set the ora_verbose attribute on the connect() method to the trace level you desire like this
@@ -1927,14 +1927,14 @@ or set it directly on the DB handle like this;
 In both cases the DBD::Oracle trace level to 6, which is this level that will trace most of the calls to OCI. 
 
 
-=head4 ora_oci_success_warn
+=head5 ora_oci_success_warn
 
 Use this value to print silent OCI warnings that may happen when an execute or fetch returns "Success With Info" or when
 you want to tune RowCaching and LOB Reads
 
   $dbh->{ora_oci_success_warn} =1;
 
-=head4 ora_objects 
+=head5 ora_objects 
 
 Use this value to enable extended embedded oracle objects mode. In extended:
 
@@ -1952,7 +1952,7 @@ Determine object type for each instance. All object attributes are returned (not
 
   $dbh->{ora_objects} = 1;
 
-=head4 ora_ph_type
+=head5 ora_ph_type
 
 The default placeholder datatype for the database session.
 The C<TYPE> or L</ora_type> attributes to L<DBI/bind_param> and
@@ -1996,14 +1996,14 @@ Will pad bloggs out to 8 characters and return the username.
 
 =back
 
-=head4 ora_parse_error_offset
+=head5 ora_parse_error_offset
 
 If the previous error was from a failed C<prepare> due to a syntax error,
 this attribute gives the offset into the C<Statement> attribute where the
 error was found.
 
 
-=head4 ora_array_chunk_size
+=head5 ora_array_chunk_size
 
 Because of OCI limitations, DBD::Oracle needs to buffer up rows of
 bind values in its C<execute_for_fetch> implementation. This attribute
@@ -2017,7 +2017,7 @@ used to limit or extend the number of rows processed at a time.
 Note that this attribute also applies to C<execute_array>, since that
 method is implemented using C<execute_for_fetch>.
 
-=head4 ora_connect_with_default_signals
+=head5 ora_connect_with_default_signals
 
 Sometimes the Oracle client seems to change some of the signal handlers
 of the process during the connect phase.  For instance, some users have
