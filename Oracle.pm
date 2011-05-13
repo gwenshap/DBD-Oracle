@@ -81,7 +81,9 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	DBD::Oracle::db->install_method("ora_nls_parameters");
 	DBD::Oracle::db->install_method("ora_can_unicode");
 	DBD::Oracle::db->install_method("ora_can_taf");
-	DBD::Oracle::st->install_method("ora_fetch_scroll");
+	DBD::Oracle::db->install_method("ora_db_startup");
+        DBD::Oracle::db->install_method("ora_db_shutdown");
+        DBD::Oracle::st->install_method("ora_fetch_scroll");
 	DBD::Oracle::st->install_method("ora_scroll_position");
 	DBD::Oracle::st->install_method("ora_ping");
 	DBD::Oracle::st->install_method("ora_stmt_type_name");
@@ -1251,7 +1253,7 @@ and sometimes complex ways of specifying and connecting to databases.
 James Taylor and Lane Sharman have contributed much of the text in
 this section. Unfortunately it is only really relative for connecting into older Oracle (<9) versions.
 Most of this stuff is well out of date  but it will be left in for now.
-See the next section L</CONNECTING TO ORACLE II> for some more up to date connection hints.
+See the next section L</Connecting To Oracle> for some more up to date connection hints.
 
 =head4 Connecting without environment variables or tnsnames.ora file
 
@@ -1388,7 +1390,7 @@ databases using your Unix login name without a password is possible
 but it is not secure and not recommended so not documented here.
 
 
-=head4 Connecting to Oracle
+=head4 Connecting To Oracle
 
 If you are reading this it is assumed that you have successfully
 installed DBD::Oracle and you are having some problems connecting to
@@ -1480,7 +1482,7 @@ TWO_TASK works the same way except it should override the value in ORACLE_SID so
 
 will work as well. Note this may not work for Windows.
 
-=head5 Timezones
+=head4 Timezones
 
 If TWO_TASK isn't set, Oracle uses the TZ variable from the local environment.
 
@@ -1709,9 +1711,9 @@ If it generates any errors which look relevant then please talk to your
 Oracle technical support (and not the dbi-users mailing list). Thanks.
 Thanks to Mark Dedlow for this information.
 
-=head4 B<Private Connect Attributes>
+=head3 Private Connect Attributes
 
-=head5 ora_ncs_buff_mtpl
+=head4 ora_ncs_buff_mtpl
 
 You can now customize the size of the buffer when selecting LOBs with
 the built in AUTO Lob.  The default value is 4 which is probably
@@ -1725,14 +1727,14 @@ stage.
 
 See more details in the LOB section of the POD
 
-=head5 ora_drcp
+=head4 ora_drcp
 
 If you have an 11.2 or greater database your can utilize the DRCP by setting
 this attribute to 1 at connect time.
 
 This value can also be set with the C<ORA_DRCP> environment variable.
 
-=head5 ora_drcp_class
+=head4 ora_drcp_class
 
 If you are using DRCP, you can set a CONNECTION_CLASS for your pools
 as well.  As sessions from a DRCP cannot be shared by users, you can
@@ -1746,7 +1748,7 @@ than 1024 characters.
 This value can be also be specified with the C<ORA_DRCP_CLASS>
 environment variable.
 
-=head5 ora_drcp_min
+=head4 ora_drcp_min
 
 This optional value specifies the minimum number of sessions that are
 initially opened.  New sessions are only opened after this value has
@@ -1760,7 +1762,7 @@ application is planning or expecting to run.
 This value can also be specified with the C<ORA_DRCP_MIN> environment
 variable.
 
-=head5 ora_drcp_max
+=head4 ora_drcp_max
 
 This optional value specifies the maximum number of sessions that can
 be open at one time.  Once reached no more sessions can be opened
@@ -1771,7 +1773,7 @@ that will just waste resources.
 This value can also be specified with the C<ORA_DRCP_MAX> environment
 variable.
 
-=head5 ora_drcp_incr
+=head4 ora_drcp_incr
 
 This optional value specifies the next increment for sessions to be
 started if the current number of sessions are less than
@@ -1782,12 +1784,12 @@ greater than ora_drcp_max.
 This value can also be specified with the C<ORA_DRCP_INCR> environment
 variable.
 
-=head5 ora_taf
+=head4 ora_taf
 
 If your Oracle instance has been configured to use TAF events you can
 enable the TAF callback by setting this value to anything other than 0.
 
-=head5 ora_taf_function
+=head4 ora_taf_function
 
 The name of the Perl subroutine that will be called from OCI when a
 TAF event occurs. You must supply a perl function to use the callback
@@ -1802,13 +1804,13 @@ and the failover type. Below is an example of a TAF function
      return;
   }
 
-=head5 ora_taf_sleep
+=head4 ora_taf_sleep
 
 The amount of time in seconds the OCI client will sleep between attempting
 successive failover events when the event is OCI_FO_ERROR.
 
 
-=head5 ora_session_mode
+=head4 ora_session_mode
 
 The ora_session_mode attribute can be used to connect with SYSDBA
 authorization and SYSOPER authorization.
@@ -1834,7 +1836,7 @@ TWO_TASK) environment variable to connect to a local instance. Also
 the username and password should be empty, and the user executing the
 script needs to be part of the dba group or osdba group.
 
-=head5 ora_oratab_orahome
+=head4 ora_oratab_orahome
 
 Passing a true value for the ora_oratab_orahome attribute will make
 DBD::Oracle change C<$ENV{ORACLE_HOME}> to make the Oracle home directory
@@ -1842,7 +1844,7 @@ that specified in the C</etc/oratab> file I<if> the database to connect to
 is specified as a SID that exists in the oratab file, and DBD::Oracle was
 built to use the Oracle 7 OCI API (not Oracle 8+).
 
-=head5 ora_module_name
+=head4 ora_module_name
 
 After connecting to the database the value of this attribute is passed
 to the SET_MODULE() function in the C<DBMS_APPLICATION_INFO> PL/SQL
@@ -1855,9 +1857,7 @@ monitoring and performance tuning purposes. For example:
 
 The maximum size is 48 bytes.
 
-=head5 ora_driver_name
-
-=item ora_driver_name
+=head4 ora_driver_name
 
 For 11g and later you can now set the name of the driver layer using OCI.
 Perl, Perl5, ApachePerl so on. Names starting with "ORA" are reserved. You
@@ -1871,7 +1871,7 @@ GV$SESSION_CONNECT_INFO
 
   $dbh->{ora_driver_name} = $q;
 
-=head5 ora_client_info
+=head4 ora_client_info
 
 Allows you to add any value (up to 64 bytes) to your session and it can be
 retrieved on the server side from the C<V$SESSION>a view.
@@ -1880,7 +1880,7 @@ retrieved on the server side from the C<V$SESSION>a view.
 
   $dbh->{ora_client_info} = "Remote2";
 
-=head5 ora_client_identifier
+=head4 ora_client_identifier
 
 Allows you to specify the user identifier in the session handle.
 
@@ -1895,7 +1895,7 @@ view.
 
   $dbh->{ora_client_identifier} = $local_user;
 
-=head5 ora_action
+=head4 ora_action
 
 Allows you to specify any string up to 32 bytes which may be retrieved
 on the server side using C<V$SESSION> view.
@@ -1904,7 +1904,7 @@ on the server side using C<V$SESSION> view.
 
    $dbh->{ora_action} = "New Long Query 22";
 
-=head5 ora_dbh_share
+=head4 ora_dbh_share
 
 Requires at least Perl 5.8.0 compiled with ithreads. Allows you to share
 database connections between threads. The first connect will make the
@@ -1917,7 +1917,7 @@ string.
 
   $dbh = DBI->connect ($dsn, $user, $passwd, {ora_dbh_share => \$orashr}) ;
 
-=head5 ora_envhp
+=head4 ora_envhp
 
 The first time a connection is made a new OCI 'environment' is
 created by DBD::Oracle and stored in the driver handle.
@@ -1933,7 +1933,7 @@ such as the local NLS environment. By altering C<%ENV> and setting
 ora_envhp to 0 you can create connections with different NLS
 settings. This is most useful for testing.
 
-=head5 ora_charset, ora_ncharset
+=head4 ora_charset, ora_ncharset
 
 For oracle versions >= 9.2 you can specify the client charset and
 ncharset with the ora_charset and ora_ncharset attributes.  You
@@ -1944,7 +1944,7 @@ These attributes override the settings from environment variables.
   $dbh = DBI->connect ($dsn, $user, $passwd,
                        {ora_charset => 'AL32UTF8'});
 
-=head5 ora_verbose
+=head4 ora_verbose
 
 Use this value to enable DBD::Oracle only tracing.  Simply either set
 the ora_verbose attribute on the connect() method to the trace level
@@ -1959,7 +1959,7 @@ or set it directly on the DB handle like this;
 In both cases the DBD::Oracle trace level is set to 6, which is the highest
 level tracing most of the calls to OCI.
 
-=head5 ora_oci_success_warn
+=head4 ora_oci_success_warn
 
 Use this value to print otherwise silent OCI warnings that may happen
 when an execute or fetch returns "Success With Info" or when you want
@@ -1967,7 +1967,7 @@ to tune RowCaching and LOB Reads
 
   $dbh->{ora_oci_success_warn} = 1;
 
-=head5 ora_objects
+=head4 ora_objects
 
 Use this value to enable extended embedded oracle objects mode. In extended:
 
@@ -1985,7 +1985,7 @@ Determine object type for each instance. All object attributes are returned (not
 
   $dbh->{ora_objects} = 1;
 
-=head5 ora_ph_type
+=head4 ora_ph_type
 
 The default placeholder datatype for the database session.
 The C<TYPE> or L</ora_type> attributes to L<DBI/bind_param> and
@@ -2029,14 +2029,14 @@ Will pad bloggs out to 8 characters and return the username.
 
 =back
 
-=head5 ora_parse_error_offset
+=head4 ora_parse_error_offset
 
 If the previous error was from a failed C<prepare> due to a syntax error,
 this attribute gives the offset into the C<Statement> attribute where the
 error was found.
 
 
-=head5 ora_array_chunk_size
+=head4 ora_array_chunk_size
 
 Due to OCI limitations, DBD::Oracle needs to buffer up rows of
 bind values in its C<execute_for_fetch> implementation. This attribute
@@ -2050,7 +2050,7 @@ used to limit or extend the number of rows processed at a time.
 Note that this attribute also applies to C<execute_array>, since that
 method is implemented using C<execute_for_fetch>.
 
-=head5 ora_connect_with_default_signals
+=head4 ora_connect_with_default_signals
 
 Sometimes the Oracle client seems to change some of the signal
 handlers of the process during the connect phase.  For instance, some
@@ -2068,9 +2068,6 @@ For example:
 
 NOTE disabling the signal handlers the OCI library sets up may affect
 functionality in the OCI library.
-
-=back
-
 
 =head3 B<connect_cached>
 
@@ -2472,7 +2469,7 @@ bytes for BLOBS.
 If 1 (default), force SELECT statements to be described in prepare().
 If 0, allow SELECT statements to defer describe until execute().
 
-See L</Prepare postponed until execute> for more information.
+See L</Prepare Postponed Till Execute> for more information.
 
 =item ora_exe_mode
 
@@ -2500,7 +2497,7 @@ By default DBD::Oracle will use a row cache when fetching to cut down
 the number of round trips to the server. If you do not want to use an
 array fetch set this value to any value other than 0;
 
-See L</Prefetching Rows> for more details.
+See L</Row Prefetching> for more details.
 
 =back
 
@@ -2572,7 +2569,6 @@ on insert with the bind_param_inout method.
 Issues a COMMIT to the server, indicating that the current transaction is finished and that
 all changes made will be visible to other processes. If AutoCommit is enabled, then
 a warning is given and no COMMIT is issued. Returns true on success, false on error.
-See also the the section on L</Transactions>.
 
 =head3 B<rollback>
 
@@ -2580,7 +2576,7 @@ See also the the section on L</Transactions>.
 
 Issues a ROLLBACK to the server, which discards any changes made in the current transaction. If AutoCommit
 is enabled, then a warning is given and no ROLLBACK is issued. Returns true on success, and
-false on error. See also the the section on L</Transactions>.
+false on error. 
 
 =head3 B<begin_work>
 
@@ -2803,8 +2799,7 @@ To cause the latest values to be fetched, pass a true value to the function.
 
 Supported by DBD::Oracle as proposed by DBI.The default of AutoCommit is on, but this may change
 in the future, so it is highly recommended that you explicitly set it when
-calling L</connect>. For details see the notes about L</Transactions>
-elsewhere in this document.
+calling L</connect>. 
 
 =head3 B<ReadOnly> (boolean)
 
@@ -2866,7 +2861,7 @@ Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improve
   $dbh->{RowCacheSize} = 100;
   $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>10000});
 
-In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle® Call Interface Programmer's Guide,
+In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The OracleÂ® Call Interface Programmer's Guide,
 suggests a good row cache value for a scrollable cursor is about 20% of expected size of the record set.
 
 The prefetch settings tell the DBD::Oracle to grab x rows (or x-bytes) when it needs to get new rows. This happens on the first
@@ -3043,9 +3038,9 @@ ORA_NUMBER_TABLE.
 
 =back
 
-=head4 Optimizing Results
+=head3 Optimizing Results
 
-=head5 Prepare postponed till execute
+=head4 Prepare Postponed Till Execute
 
 The DBD::Oracle module can avoid an explicit 'describe' operation
 prior to the execution of the statement unless the application requests
@@ -3061,9 +3056,9 @@ I<an exception is thrown> even if C<RaiseError> is false!
 
 Set L</ora_check_sql> to 0 in prepare() to enable this behaviour.
 
-=head4 Spaces & Padding
+=head3 Spaces & Padding
 
-=head5 Trailing Spaces
+=head4 Trailing Spaces
 
 Please note that only the Oracle OCI 8 strips trailing spaces from VARCHAR placeholder
 values and uses Nonpadded Comparison Semantics with the result.
@@ -3088,7 +3083,7 @@ numbers of spaces difficult and should be avoided.
 
 Oracle Clients that use OCI 9.2 do not strip trailing spaces.
 
-=head5 Padded Char Fields
+=head4 Padded Char Fields
 
 Oracle Clients after OCI 9.2 will automatically pad CHAR placeholder values to the size of the CHAR.
 As the default placeholder type value in DBD::Oracle is ORA_VARCHAR2 to access this behaviour you will
@@ -3109,7 +3104,7 @@ Information about Unicode in general can be found at:
 L<http://www.unicode.org/>. It is well worth reading because there are
 many misconceptions about Unicode and you may be holding some of them.
 
-=head5 Perl and Unicode
+=head4 Perl and Unicode
 
 Perl began implementing Unicode with version 5.6, but the implementation
 did not mature until version 5.8 and later. If you plan to use Unicode
@@ -3124,7 +3119,7 @@ And then read it again.
 Perl's internal Unicode format is UTF-8
 which corresponds to the Oracle character set called AL32UTF8.
 
-=head5 Oracle and Unicode
+=head4 Oracle and Unicode
 
 Oracle supports many characters sets, including several different forms
 of Unicode.  These include:
@@ -3172,7 +3167,7 @@ For example:
    NLS_NCHAR=UTF8
    NLS_NCHAR=AL32UTF8
 
-=head5 Oracle UTF8 is not UTF-8
+=head4 Oracle UTF8 is not UTF-8
 
 AL32UTF8 should be used in preference to UTF8 if it works for you,
 which it should for Oracle 9.2 or later. If you're using an old
@@ -3209,7 +3204,7 @@ Because of that, for the rest of this document we'll use "AL32UTF8".
 If you're using an Oracle version below 9.2 you'll need to use "UTF8"
 until you upgrade.
 
-=head5 DBD::Oracle and Unicode
+=head4 DBD::Oracle and Unicode
 
 DBD::Oracle Unicode support has been implemented for Oracle versions 9
 or greater, and Perl version 5.6 or greater (though we I<strongly>
@@ -3281,7 +3276,7 @@ set (as specified by NLS_LANG). So Unicode strings containing
 non-ASCII characters should not be used unless the default client
 character set is AL32UTF8.
 
-=head5 DBD::Oracle and Other Character Sets and Encodings
+=head4 DBD::Oracle and Other Character Sets and Encodings
 
 The only multi-byte Oracle character set supported by DBD::Oracle is
 "AL32UTF8" (and "UTF8"). Single-byte character sets should work well.
@@ -3378,7 +3373,7 @@ Examples:
   # Result is : "'' to '(undef)', 'Something else' to '1'"
 
 
-=head5 Object & Collection Data Types
+=head4 Object & Collection Data Types
 
 Oracle databases allow for the creation of object oriented like user-defined types.
 There are two types of objects, Embedded--an object stored in a column of a regular table
@@ -3506,7 +3501,7 @@ nested to 10 levels.
 
 Any NULL values found in the embedded object will be returned as 'undef'.
 
-=head5 Support for Insert of XMLType (ORA_XMLTYPE)
+=head4 Support for Insert of XMLType (ORA_XMLTYPE)
 
 Inserting large XML data sets into tables with XMLType fields is now supported by DBD::Oracle. The only special
 requirement is the use of bind_param() with an attribute hash parameter that specifies ora_type as ORA_XMLTYPE. For
@@ -3736,13 +3731,13 @@ Which will return all the ids into @out_values.
 
 =over
 
-B<Note:>
+=item B<Note:>
 
-=item 1 This will only work for numbered (?) placeholders,
+=item This will only work for numbered (?) placeholders,
 
-=item 2 The third parameter of bind_param_inout_array, (0 in the example), "maxlen" is required by DBI but not used by DBD::Oracle
+=item The third parameter of bind_param_inout_array, (0 in the example), "maxlen" is required by DBI but not used by DBD::Oracle
 
-=item 3 The "ora_type" attribute is not needed but only ORA_VARCHAR2 will work.
+=item The "ora_type" attribute is not needed but only ORA_VARCHAR2 will work.
 
 =back
 
@@ -3899,9 +3894,9 @@ and B<SYS.DBMS_SQL.NUMBER_TABLE> datatypes. The simple example is here:
 
 =over
 
-B<Note:>
+=item B<Note:>
 
-   Take careful note that we use '\\@arr' here because  the 'bind_param_inout'
+=item   Take careful note that we use '\\@arr' here because  the 'bind_param_inout'
    will only take a reference to a scalar.
 
 =back
