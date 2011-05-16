@@ -272,6 +272,11 @@ cancel(sth)
 	D_imp_sth(sth);
 	ST(0) = dbd_st_cancel(sth, imp_sth) ? &PL_sv_yes : &PL_sv_no;
 
+
+
+
+MODULE = DBD::Oracle	PACKAGE = DBD::Oracle::db
+
 void
 ora_db_startup(dbh, attribs)
 	SV *dbh
@@ -279,19 +284,25 @@ ora_db_startup(dbh, attribs)
 	PREINIT:
 	D_imp_dbh(dbh);
 	sword status;
+#if defined(ORA_OCI_102)
+	ub4 mode;
+	ub4 flags;
+	OCIAdmin *admhp;
+	STRLEN svp_len;
+	text *str;
+#endif
 	CODE:
 #if defined(ORA_OCI_102)
 	SV **svp;
-	ub4 mode = OCI_DEFAULT;
+	mode = OCI_DEFAULT;
 	DBD_ATTRIB_GET_IV(attribs, "ora_mode", 8, svp, mode);
-	ub4 flags = OCI_DEFAULT;
+	flags = OCI_DEFAULT;
 	DBD_ATTRIB_GET_IV(attribs, "ora_flags", 9, svp, flags);
-  OCIAdmin *admhp = (OCIAdmin*)0;
+    admhp = (OCIAdmin*)0;
 	if ((svp=DBD_ATTRIB_GET_SVP(attribs, "ora_pfile", 9)) && SvOK(*svp)) {
 		if (!SvPOK(*svp))
 			croak("ora_pfile is not a string");
-		STRLEN svp_len;
-		text *str = (text*)SvPV(*svp, svp_len);
+		str = (text*)SvPV(*svp, svp_len);
 		OCIHandleAlloc(imp_dbh->envhp, (dvoid**)&admhp, (ub4)OCI_HTYPE_ADMIN, (size_t)0, (dvoid**)0);
 		OCIAttrSet_log_stat((dvoid*)admhp, (ub4)OCI_HTYPE_ADMIN, (dvoid*)str, (ub4)svp_len, (ub4)OCI_ATTR_ADMIN_PFILE, (OCIError*)imp_dbh->errhp, status);
   }
@@ -316,12 +327,16 @@ ora_db_shutdown(dbh, attribs)
 	PREINIT:
 	D_imp_dbh(dbh);
 	sword status;
+#if defined(ORA_OCI_102)
+	ub4 mode;
+	OCIAdmin *admhp;
+#endif
 	CODE:
 #if defined(ORA_OCI_102)
 	SV **svp;
-	ub4 mode = OCI_DEFAULT;
+	mode = OCI_DEFAULT;
 	DBD_ATTRIB_GET_IV(attribs, "ora_mode", 8, svp, mode);
-	OCIAdmin *admhp = (OCIAdmin*)0;
+	admhp = (OCIAdmin*)0;
 	OCIDBShutdown_log_stat(imp_dbh->svchp, imp_dbh->errhp, admhp, mode, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCIDBShutdown");
@@ -333,10 +348,6 @@ ora_db_shutdown(dbh, attribs)
 #else
 	croak("OCIDBShutdown not available");
 #endif
-
-
-
-MODULE = DBD::Oracle	PACKAGE = DBD::Oracle::db
 
 void
 ora_can_taf(dbh)
