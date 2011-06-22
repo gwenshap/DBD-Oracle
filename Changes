@@ -1,7 +1,8 @@
 =head1 Changes in DBD-Oracle 1.29_1 (svn rev NNNNN)
 ****************************  NOTE: ora_db_shutdown/ora_dv_startup/StrictlyType/DiscardString not documented
 
-  Added patch supplied on rt68958 to trap OCIServerAttach errors by Martin J. Evans
+  Added patch supplied on rt68958 to trap OCIServerAttach errors by Marc
+    Fielding and Martin J. Evans (rt68958)
   Added ora_db_shutdown and ora_db_startup private functions by Steffen Goeldner
   Fixed up the POD based on DBD::Pg by John Scoles 
   Removed oparse_lang as it is obsolete by John Scoles
