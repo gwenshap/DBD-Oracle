@@ -969,7 +969,6 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	IV  ora_pers_lob	 = 0;
 	IV  ora_piece_lob	 = 0;
 	IV  ora_clbk_lob	 = 0;
-	ub4	oparse_lng		 = 1;  /* auto v6 or v7 as suits db connected to	*/
 	int ora_check_sql 	 = 1;	/* to force a describe to check SQL	*/
 	IV  ora_placeholders = 1;	/* find and handle placeholders */
 	/* XXX we set ora_check_sql on for now to force setup of the	*/
@@ -1004,7 +1003,6 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	if (attribs) {
 		SV **svp;
 		IV ora_auto_lob = 1;
-		DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_placeholders", 16, svp, ora_placeholders);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob", 12, svp, ora_auto_lob);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_pers_lob", 12, svp, ora_pers_lob);
@@ -1046,18 +1044,12 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	imp_sth->srvhp = imp_dbh->srvhp;
 	imp_sth->svchp = imp_dbh->svchp;
 
-	switch(oparse_lng) {
-		case 0:  /* old: calls for V6 syntax - give them V7	*/
-		case 2:  /* old: calls for V7 syntax		*/
-		case 7:  oparse_lng = OCI_V7_SYNTAX;	break;
-		case 8:  oparse_lng = OCI_V8_SYNTAX;	break;
-		default: oparse_lng = OCI_NTV_SYNTAX;	break;
-	}
+
 
 	OCIHandleAlloc_ok(imp_dbh->envhp, &imp_sth->stmhp, OCI_HTYPE_STMT, status);
 	OCIStmtPrepare_log_stat(imp_sth->stmhp, imp_sth->errhp,
 			(text*)imp_sth->statement, (ub4)strlen(imp_sth->statement),
-			oparse_lng, OCI_DEFAULT, status);
+			OCI_NTV_SYNTAX, OCI_DEFAULT, status);
 
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCIStmtPrepare");
@@ -1070,9 +1062,9 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->stmt_type, 0, OCI_ATTR_STMT_TYPE, status);
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	dbd_st_prepare'd sql %s (pl%d, auto_lob%d, check_sql%d)\n",
+		PerlIO_printf(DBILOGFP, "	dbd_st_prepare'd sql %s ( auto_lob%d, check_sql%d)\n",
 			oci_stmt_type_name(imp_sth->stmt_type),
-			oparse_lng, imp_sth->auto_lob, ora_check_sql);
+			imp_sth->auto_lob, ora_check_sql);
 
 	DBIc_IMPSET_on(imp_sth);
 
@@ -1080,30 +1072,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		if (!dbd_describe(sth, imp_sth))
 			return 0;
 	}
-/*	else {
-		 set initial cache size by memory
-		    [I'm not now sure why this is here - from a patch sometime ago - Tim]
-		    you are right Tim thre is no need to have this here so out it goes
-		    a very useless call to the server
-		ub4 cache_mem;
-		IV cache_mem_iv;
-		D_imp_dbh_from_sth ;
-		D_imp_drh_from_dbh ;
 
-		if(SvOK(imp_drh->ora_cache_o)) cache_mem_iv = -SvIV(imp_drh -> ora_cache_o);
-		else if (SvOK(imp_drh->ora_cache))   cache_mem_iv = -SvIV(imp_drh -> ora_cache);
-		else	cache_mem_iv = -imp_dbh->RowCacheSize;
-		cache_mem = (cache_mem_iv <= 0) ? 10 * 1460 : cache_mem_iv;
-		OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-			&cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
-			imp_sth->errhp, status);
-		if (status != OCI_SUCCESS) {
-			oci_error(sth, imp_sth->errhp, status,
-			  "OCIAttrSet OCI_ATTR_PREFETCH_MEMORY");
-			return 0;
-		}
-	}
-*/
 	return 1;
 }
 

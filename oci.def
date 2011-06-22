@@ -34,6 +34,8 @@ OCICollGetElem
 OCICollMax
 OCICollSize
 OCICollTrim
+OCIDBStartup
+OCIDBShutdown
 OCIDateAddDays
 OCIDateAddMonths
 OCIDateAssign

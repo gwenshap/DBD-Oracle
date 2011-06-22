@@ -828,6 +828,17 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 					OCIServerAttach_log_stat(imp_dbh, dbname,OCI_DEFAULT, status);
+                    if (status != OCI_SUCCESS) {
+                        oci_error(dbh, imp_dbh->errhp, status, "OCIServerAttach");
+                        OCIHandleFree_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,status);
+                        OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+                        OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR, status);
+                        OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+                        if (forced_new_environment)
+                            OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
+                        return 0;
+                    }
+
 
 					OCIAttrSet_log_stat( imp_dbh->svchp, OCI_HTYPE_SVCCTX, imp_dbh->srvhp,
 									(ub4) 0, OCI_ATTR_SERVER, imp_dbh->errhp, status);

@@ -572,4 +572,19 @@
 		OciTp, (void*)sh,(void*)eh,oci_mode(md),ul_t(md),				\
 		oci_status_name(stat)),stat : stat
 
+#define OCIDBStartup_log_stat(svchp,errhp,admhp,mode,flags,stat)		\
+	stat=OCIDBStartup(svchp,errhp,admhp,mode,flags);			\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
+		"%sOCIDBStartup(%p,%p,%p,%u,%u)=%s\n",				\
+		OciTp, (void*)svchp,(void*)errhp,(void*)admhp,mode,flags,	\
+		oci_status_name(stat)),stat : stat
+
+#define OCIDBShutdown_log_stat(svchp,errhp,admhp,mode,stat)			\
+	stat=OCIDBShutdown(svchp,errhp,admhp,mode);				\
+	(DBD_OCI_TRACEON) ? PerlIO_printf(DBD_OCI_TRACEFP,			\
+		"%sOCIDBShutdown(%p,%p,%p,%u)=%s\n",				\
+		OciTp, (void*)svchp,(void*)errhp,(void*)admhp,mode,		\
+		oci_status_name(stat)),stat : stat
+
+
 #endif /* !DBD_OCI_TRACEON */

@@ -3,11 +3,11 @@ DBD::Oracle on MacOS X 10.2.4 and higher, using Oracle 9iR2 DR
 (Release 9.2.0.1.0) or the 10g Instant Client release (10.1.0.3 at the
 time of writing).
 
-MacOS X DBD::Oracle has been tested (and used) under Jaguar (10.2.x)
-and Panther (10.3.x). Jaguar comes with a Perl version of 5.6.0.,
-which I can report to work with DBD::Oracle 1.14 and higher once you
-take certain steps (see below). You may want to install a later perl,
-e.g., Perl 5.8.x. Please refer to:
+MacOS X DBD::Oracle has been tested (and used) under Jaguar (10.2.x),
+Panther (10.3.x), Snow Leopard (10.6.x). Jaguar comes with a Perl
+version of 5.6.0., which I can report to work with DBD::Oracle 1.14
+and higher once you take certain steps (see below). You may want to
+install a later perl, e.g., Perl 5.8.x. Please refer to:
 
 	Installing Perl 5.8 on Jaguar
 	http://developer.apple.com/internet/macosx/perl.html
@@ -16,7 +16,7 @@ for Perl 5.8.0 installation instructions.
 
 DBD::Oracle is likely to not install out of the box on MacOS X
 10.2. nor on 10.3. Manual but different changes will most likely be
-required on both versions. 
+required on both versions.
 
 The key problem on 10.2. (Jaguar) is a symbol clash (caused by a
 function poll() named identically) between the IO library in at least
@@ -48,7 +48,97 @@ database server on your MacOSX box. See below (Instructions for
 10.3.x) for details.
 
 ======================================================================
-Instructions for 10.2.x (Jaguar) 
+Instructions for 10.6.x (Snow Leopard)
+
+These are taken from a stackoverflow answer by "nickisfat" who gave
+his/her permission for its inclusion here. You can see the original
+question and answers at http://stackoverflow.com/questions/5964999.
+
+Getting a mac install of perl to play nicely with oracle is a bit of a
+pain - once it's running it is fantastic, getting it running is a
+little frustrating..
+
+The below has worked for me on a few different intel macs, there could
+well be superfluous steps in there and it is likely not going to be
+the same for other platforms.
+
+This will require use of shell, the root user and a bit of CPANing -
+nothing too onerous
+
+First off create a directory for the oracle pap - libraries, instant client etc
+
+sudo mkdir /usr/oracle_instantClient64
+
+Download and extract all 64 bit instant client packages from oracle to
+the above directory
+
+Create a symlink within that directory for one of the files in there
+
+sudo cd /usr/oracle_instantClient64
+sudo ln -s /usr/oracle_instantClient64/libclntsh.dylib.10.1 libclntsh.dylib
+
+The following dir is hardcoded into the oracle instant client - god knows why - so need to create and symlink it
+
+sudo mkdir -p /b/227/rdbms/
+sudo cd /b/227/rdbms/
+sudo ln -s /usr/oracle_instantClient64/ lib
+
+Need to add a couple of environment variables, so edit /etc/profile
+and add them so they exist for all users:
+
+export ORACLE_HOME=/usr/oracle_instantClient64
+export DYLD_LIBRARY_PATH=/usr/oracle_instantClient64
+
+Now try and install DBD::Oracle through CPAN - this will fail, but it
+means any dependencies will be downloaded and it retrieves the module
+for us
+
+sudo perl -MCPAN -e shell
+install DBD::Oracle
+
+When this fails exit CPAN and head to your .cpan/build dir - if you
+used automatic config of CPAN it'll be
+
+cd ~/.cpan/build
+
+if you didn't auto configure you can find your build directory with
+the following command in CPAN
+
+o conf build_dir
+
+Once in the build dir look for the DBD::Oracle dir which has just been
+created (it'll be called something like DBD-Oracle-1.28-?) and cd into
+it.
+
+Now we need to switch to the root user. Root isn't enabled as default
+in osx - for details on enabling see this post on the apple website
+
+Once logged in as root we need to set the above environment variables for root:
+
+export ORACLE_HOME=/usr/oracle_instantClient64
+export DYLD_LIBRARY_PATH=/usr/oracle_instantClient64
+
+Now while still logged in as root we need to run the makefile for the
+module, then make, then install
+
+perl Makefile.pl
+make
+install
+
+Assuming that all worked without error log out of root: we're DBD'd
+up! If this didn't work it's time to bust out google on whatever
+errors you're seeing
+
+Now just to install the DBI module
+
+sudo perl -MCPAN -e shell
+install DBI
+
+Now you're all set - enjoy your perly oracley new life
+
+
+======================================================================
+Instructions for 10.2.x (Jaguar)
 
 1) Install Oracle exactly per Oracle documentation. If you change
 install locations, then you'll need to modify paths accordingly.
@@ -79,7 +169,7 @@ follow nonetheless.
     The problem with this is that the version of nm that comes with
     Jaguar doesn't support the -R flag. I'd be grateful to anyone who
     can suggest how to edit the symbol table of libraries on MacOS X.
-  
+
   2b) SKIP IF YOU WANT TO OR HAVE SUCCESSFULLY TRIED 2a). In this
     variant, we will patch the Perl IO modules to change the name of
     the poll() function, as that is where it is defined. In this case,
@@ -115,7 +205,7 @@ diff -c ../IO-orig/IO-1.20/IO.xs ./IO.xs
 ! 	    ST(0) = &sv_undef;
   	    errno = EINVAL;
   	}
-  
+
 --- 205,211 ----
   	    ST(0) = sv_2mortal(newSVpv((char*)&pos, sizeof(Fpos_t)));
   	}
@@ -123,7 +213,7 @@ diff -c ../IO-orig/IO-1.20/IO.xs ./IO.xs
 ! 	    ST(0) = &PL_sv_undef;
   	    errno = EINVAL;
   	}
-  
+
 ***************
 *** 249,255 ****
   	    SvREFCNT_dec(gv);   /* undo increment in newRV() */
@@ -132,7 +222,7 @@ diff -c ../IO-orig/IO-1.20/IO.xs ./IO.xs
 ! 	    ST(0) = &sv_undef;
   	    SvREFCNT_dec(gv);
   	}
-  
+
 --- 249,255 ----
   	    SvREFCNT_dec(gv);   /* undo increment in newRV() */
   	}
@@ -140,7 +230,7 @@ diff -c ../IO-orig/IO-1.20/IO.xs ./IO.xs
 ! 	    ST(0) = &PL_sv_undef;
   	    SvREFCNT_dec(gv);
   	}
-  
+
 ***************
 *** 272,278 ****
   	i++;
@@ -164,7 +254,7 @@ diff -c ../IO-orig/IO-1.20/poll.c ./poll.c
 ***************
 *** 35,41 ****
   # define POLL_EVENTS_MASK (POLL_CAN_READ | POLL_CAN_WRITE | POLL_HAS_EXCP)
-  
+
   int
 ! poll(fds, nfds, timeout)
   struct pollfd *fds;
@@ -172,7 +262,7 @@ diff -c ../IO-orig/IO-1.20/poll.c ./poll.c
   int timeout;
 --- 35,41 ----
   # define POLL_EVENTS_MASK (POLL_CAN_READ | POLL_CAN_WRITE | POLL_HAS_EXCP)
-  
+
   int
 ! io_poll(fds, nfds, timeout)
   struct pollfd *fds;
@@ -185,17 +275,17 @@ diff -c ../IO-orig/IO-1.20/poll.h ./poll.h
 *** 44,50 ****
   #define	POLLHUP		0x0010
   #define	POLLNVAL	0x0020
-  
+
 ! int poll _((struct pollfd *, unsigned long, int));
-  
+
   #ifndef HAS_POLL
   #  define HAS_POLL
 --- 44,50 ----
   #define	POLLHUP		0x0010
   #define	POLLNVAL	0x0020
-  
+
 ! int io_poll _((struct pollfd *, unsigned long, int));
-  
+
   #ifndef HAS_POLL
   #  define HAS_POLL
 +=+=+=+=+=+=+= Cut to the previous line
@@ -221,7 +311,7 @@ diff -c ../IO-orig/IO-1.20/poll.h ./poll.h
       $ make install
 
 ======================================================================
-Instructions for 10.3.x (Panther) 
+Instructions for 10.3.x (Panther)
 
 I highly recommend you install and use the Oracle 10g Instant Client
 for MacOSX 10.3. Compared to traditional Oracle client installations
@@ -293,7 +383,7 @@ That said, here are the details.
   	print $sqlplus_release;
   	if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
 +=+=+=+=+=+=+= Cut to the previous line
-   
+
    The first hunk allows Makefile.PL to find the header files which
    are in a subdirectory sdk, and the second temporarily disables any
    global and local login.sql scripts which may make the sqlplus call
