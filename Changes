@@ -1,5 +1,6 @@
 =head1 Changes in DBD-Oracle 1.29_1 (svn rev NNNNN)
 
+  Add /etc to the search paths for tnsnames.ora (rt67942) by Martin J. Evans, Jay Senseman
   Removed support for ProcC connections John Scoles
   Added support for TAF callback by John Scoles
   Fixed some compiler warnings in dbdimp.c and oci8.c by Martin J. Evans
