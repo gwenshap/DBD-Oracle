@@ -1,5 +1,12 @@
 [ In no particular order ]
 
+****************************  NOTE: ora_db_shutdown/ora_dv_startup/StrictlyType/DiscardString not documented
+
+User requested a document/link anywhere that details what Oracle client attributes
+are supported and which are not for Oracle 11g and interacting with a RAC
+and using things like TAF, FAN, etc... 
+
+
 Seems this file has been neglected for quite a while so I will try to keep it up to date for now
 
 For release 1.26 or later
