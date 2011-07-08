@@ -21,18 +21,18 @@ eval {$dbh = DBI->connect($dsn, $dbuser, '',{ RaiseError=>1,
 					AutoCommit=>1,
 					PrintError => 0,
 					 ora_objects => 1 })};
-if ($dbh) {
-    plan tests => 50;
-} else {
-    plan skip_all => "Unable to connect to Oracle";
-}
+
+plan skip_all => "Unable to connect to Oracle" unless $dbh;
+
+plan tests => 65;
+
 my ($schema) = $dbuser =~ m{^([^/]*)};
 
 # Test ora_objects flag 
-cmp_ok($dbh->{ora_objects}, 'eq', '1', 'ora_objects flag is set to 1');
+is $dbh->{ora_objects} => 1, 'ora_objects flag is set to 1';
 
 $dbh->{ora_objects} = 0;
-cmp_ok($dbh->{ora_objects}, 'eq', '0', 'ora_objects flag is set to 0');
+is $dbh->{ora_objects} => 0, 'ora_objects flag is set to 0';
 
 # check that our db handle is good
 isa_ok($dbh, "DBI::db");
@@ -67,50 +67,66 @@ sub drop_test_objects {
 
 &drop_test_objects;
 
-$dbh->do(qq{ CREATE OR REPLACE TYPE $super_type AS OBJECT (
+# get the user's privileges
+my $privs_sth = $dbh->prepare( 'SELECT PRIVILEGE from session_privs' );
+$privs_sth->execute;
+my @privileges = map { $_->[0] } @{ $privs_sth->fetchall_arrayref };
+
+
+SKIP: {
+    skip q{don't have permission to create type} => 61
+        unless grep { $_ eq 'CREATE TYPE' } @privileges;
+
+sql_do_ok( $dbh, qq{ CREATE OR REPLACE TYPE $super_type AS OBJECT (
                 num     INTEGER,
                 name    VARCHAR2(20)
-            ) NOT FINAL }) or die $dbh->errstr;
+            ) NOT FINAL } );
 
-$dbh->do(qq{ CREATE OR REPLACE TYPE $sub_type UNDER $super_type (
+sql_do_ok( $dbh, qq{ CREATE OR REPLACE TYPE $sub_type UNDER $super_type (
                 datetime  DATE,
                 amount    NUMERIC(10,5)
-            ) NOT FINAL }) or die $dbh->errstr;
-$dbh->do(qq{ CREATE TABLE $table (id INTEGER, obj $super_type) })
-            or die $dbh->errstr;
-$dbh->do(qq{ INSERT INTO $table VALUES (1, $super_type(13, 'obj1')) })
-            or die $dbh->errstr;
-$dbh->do(qq{ INSERT INTO $table VALUES (2, $sub_type(NULL, 'obj2', 
-                    TO_DATE('2004-11-30 14:27:18', 'YYYY-MM-DD HH24:MI:SS'),
-                    '12345.6789')) }
-            ) or die $dbh->errstr;
-$dbh->do(qq{ INSERT INTO $table VALUES (3, $sub_type(5, 'obj3', NULL, '777.666')) }
-            ) or die $dbh->errstr;
+            ) NOT FINAL } );
 
-$dbh->do(qq{ CREATE OR REPLACE TYPE $inner_type AS OBJECT (
+sql_do_ok( $dbh, qq{ CREATE TABLE $table (id INTEGER, obj $super_type) });
+
+sql_do_ok( $dbh, qq{ INSERT INTO $table VALUES (1, $super_type(13, 'obj1')) });
+
+sql_do_ok( $dbh, qq{ INSERT INTO $table VALUES (2, $sub_type(NULL, 'obj2', 
+                    TO_DATE('2004-11-30 14:27:18', 'YYYY-MM-DD HH24:MI:SS'),
+                    12345.6789)) }
+            );
+
+sql_do_ok( $dbh, qq{ INSERT INTO $table VALUES (3, $sub_type(5, 'obj3', NULL,
+    777.666)) } );
+
+sql_do_ok( $dbh, qq{ CREATE OR REPLACE TYPE $inner_type AS OBJECT (
                 num     INTEGER,
                 name    VARCHAR2(20)
-            ) FINAL }) or die $dbh->errstr;
-$dbh->do(qq{ CREATE OR REPLACE TYPE $outer_type AS OBJECT (
+            ) FINAL });
+
+sql_do_ok( $dbh, qq{ CREATE OR REPLACE TYPE $outer_type AS OBJECT (
                 num     INTEGER,
                 obj     $inner_type
-            ) FINAL }) or die $dbh->errstr;
-$dbh->do(qq{ CREATE OR REPLACE TYPE $list_type AS
-                            TABLE OF $inner_type }) or die $dbh->errstr;
-$dbh->do(qq{ CREATE TABLE $nest_table(obj $outer_type) }) or die $dbh->errstr;
-$dbh->do(qq{ INSERT INTO $nest_table VALUES($outer_type(91, $inner_type(1, 'one'))) }
-            ) or die $dbh->errstr;
-$dbh->do(qq{ INSERT INTO $nest_table VALUES($outer_type(92, $inner_type(0, null))) }
-            ) or die $dbh->errstr;
-$dbh->do(qq{ INSERT INTO $nest_table VALUES($outer_type(93, null)) }
-            ) or die $dbh->errstr;
+            ) FINAL });
 
-$dbh->do(qq{ CREATE TABLE $list_table ( id INTEGER, list $list_type )
-               NESTED TABLE list STORE AS ${list_table}_list }) or die $dbh->errstr;
-$dbh->do(qq{ INSERT INTO $list_table VALUES(81,$list_type($inner_type(null, 'listed'))) }
-            ) or die $dbh->errstr;
+sql_do_ok( $dbh, qq{ CREATE OR REPLACE TYPE $list_type AS
+                            TABLE OF $inner_type });
 
+sql_do_ok( $dbh, qq{ CREATE TABLE $nest_table(obj $outer_type) });
 
+sql_do_ok( $dbh, qq{ INSERT INTO $nest_table VALUES($outer_type(91, $inner_type(1, 'one'))) }
+            );
+
+sql_do_ok( $dbh, qq{ INSERT INTO $nest_table VALUES($outer_type(92, $inner_type(0, null))) }
+            );
+
+sql_do_ok( $dbh, qq{ INSERT INTO $nest_table VALUES($outer_type(93, null)) }
+);
+
+sql_do_ok( $dbh, qq{ CREATE TABLE $list_table ( id INTEGER, list $list_type )
+               NESTED TABLE list STORE AS ${list_table}_list });
+
+sql_do_ok( $dbh, qq{ INSERT INTO $list_table VALUES(81,$list_type($inner_type(null, 'listed'))) } );
 # Test old (backward compatible) interface 
 
 # test select testing objects 
@@ -159,14 +175,14 @@ ok (scalar @row2, 'new: Fetch second row');
 cmp_ok(ref $row2[1], 'eq', 'DBD::Oracle::Object', 'new: Row 2 column 2 is an DBD::Oracle::Object');
 cmp_ok(uc $row2[1]->type_name, "eq", uc "$schema.$sub_type", "new: Row 2 column 2 object type");
 is_deeply([$row2[1]->attributes], ['NUM', undef, 'NAME', 'obj2', 
-            'DATETIME', '2004-11-30T14:27:18', 'AMOUNT', '12345.6789'], "new: Row 1 column 2 object attributes");
+            'DATETIME', '2004-11-30T14:27:18', 'AMOUNT', 12345.6789], "new: Row 1 column 2 object attributes");
 
 @row3 = $sth->fetchrow();
 ok (scalar @row3, 'new: Fetch third row');
 cmp_ok(ref $row3[1], 'eq', 'DBD::Oracle::Object', 'new: Row 3 column 2 is an DBD::Oracle::Object');
 cmp_ok(uc $row3[1]->type_name, "eq", uc "$schema.$sub_type", "new: Row 3 column 2 object type");
 is_deeply([$row3[1]->attributes], ['NUM', 5, 'NAME', 'obj3', 
-            'DATETIME', undef, 'AMOUNT', '777.666'], "new: Row 1 column 2 object attributes");
+            'DATETIME', undef, 'AMOUNT', 777.666], "new: Row 1 column 2 object attributes");
 
 ok (!$sth->fetchrow(), 'new: No more rows expected');
 
@@ -217,11 +233,18 @@ is_deeply($row3[0]->attr, {NUM=>'93', OBJ=>undef}, 'Check obj');
 
 ok (!$sth->fetchrow(), 'new: No more rows expected (nested object)');
 
-#print STDERR Dumper(\@row1, \@row2, \@row3);
-
+}
 
 #cleanup 
 &drop_test_objects;
 $dbh->disconnect;
 
 1;
+
+
+sub sql_do_ok {
+    my ( $dbh, $sql, $title ) = @_;
+    $title = $sql unless defined $title;
+    ok( $dbh->do( $sql ), $title ) or diag $dbh->errstr;
+}
+

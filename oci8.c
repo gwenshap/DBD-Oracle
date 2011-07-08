@@ -969,7 +969,6 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	IV  ora_pers_lob	 = 0;
 	IV  ora_piece_lob	 = 0;
 	IV  ora_clbk_lob	 = 0;
-	ub4	oparse_lng		 = 1;  /* auto v6 or v7 as suits db connected to	*/
 	int ora_check_sql 	 = 1;	/* to force a describe to check SQL	*/
 	IV  ora_placeholders = 1;	/* find and handle placeholders */
 	/* XXX we set ora_check_sql on for now to force setup of the	*/
@@ -1004,7 +1003,6 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	if (attribs) {
 		SV **svp;
 		IV ora_auto_lob = 1;
-		DBD_ATTRIB_GET_IV(  attribs, "ora_parse_lang", 14, svp, oparse_lng);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_placeholders", 16, svp, ora_placeholders);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_auto_lob", 12, svp, ora_auto_lob);
 		DBD_ATTRIB_GET_IV(  attribs, "ora_pers_lob", 12, svp, ora_pers_lob);
@@ -1046,18 +1044,12 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	imp_sth->srvhp = imp_dbh->srvhp;
 	imp_sth->svchp = imp_dbh->svchp;
 
-	switch(oparse_lng) {
-		case 0:  /* old: calls for V6 syntax - give them V7	*/
-		case 2:  /* old: calls for V7 syntax		*/
-		case 7:  oparse_lng = OCI_V7_SYNTAX;	break;
-		case 8:  oparse_lng = OCI_V8_SYNTAX;	break;
-		default: oparse_lng = OCI_NTV_SYNTAX;	break;
-	}
+
 
 	OCIHandleAlloc_ok(imp_dbh->envhp, &imp_sth->stmhp, OCI_HTYPE_STMT, status);
 	OCIStmtPrepare_log_stat(imp_sth->stmhp, imp_sth->errhp,
 			(text*)imp_sth->statement, (ub4)strlen(imp_sth->statement),
-			oparse_lng, OCI_DEFAULT, status);
+			OCI_NTV_SYNTAX, OCI_DEFAULT, status);
 
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCIStmtPrepare");
@@ -1070,9 +1062,9 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->stmt_type, 0, OCI_ATTR_STMT_TYPE, status);
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	dbd_st_prepare'd sql %s (pl%d, auto_lob%d, check_sql%d)\n",
+		PerlIO_printf(DBILOGFP, "	dbd_st_prepare'd sql %s ( auto_lob%d, check_sql%d)\n",
 			oci_stmt_type_name(imp_sth->stmt_type),
-			oparse_lng, imp_sth->auto_lob, ora_check_sql);
+			imp_sth->auto_lob, ora_check_sql);
 
 	DBIc_IMPSET_on(imp_sth);
 
@@ -1080,30 +1072,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 		if (!dbd_describe(sth, imp_sth))
 			return 0;
 	}
-/*	else {
-		 set initial cache size by memory
-		    [I'm not now sure why this is here - from a patch sometime ago - Tim]
-		    you are right Tim thre is no need to have this here so out it goes
-		    a very useless call to the server
-		ub4 cache_mem;
-		IV cache_mem_iv;
-		D_imp_dbh_from_sth ;
-		D_imp_drh_from_dbh ;
 
-		if(SvOK(imp_drh->ora_cache_o)) cache_mem_iv = -SvIV(imp_drh -> ora_cache_o);
-		else if (SvOK(imp_drh->ora_cache))   cache_mem_iv = -SvIV(imp_drh -> ora_cache);
-		else	cache_mem_iv = -imp_dbh->RowCacheSize;
-		cache_mem = (cache_mem_iv <= 0) ? 10 * 1460 : cache_mem_iv;
-		OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
-			&cache_mem,  sizeof(cache_mem), OCI_ATTR_PREFETCH_MEMORY,
-			imp_sth->errhp, status);
-		if (status != OCI_SUCCESS) {
-			oci_error(sth, imp_sth->errhp, status,
-			  "OCIAttrSet OCI_ATTR_PREFETCH_MEMORY");
-			return 0;
-		}
-	}
-*/
 	return 1;
 }
 
@@ -1271,7 +1240,8 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 	to get it all.  I also take set fb_ary->cb_abuf back to empty just
 	to keep things clean
  -------------------------------------------------------------- */
-sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
+sb4
+presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
 					  ub4 **alenpp, ub1 *piecep, dvoid **indpp, ub2 **rcpp)
 {
 	dTHX;
@@ -1285,7 +1255,7 @@ sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufp
 
 
 	if (dbd_verbose >= 5 ) {
-			PerlIO_printf(DBILOGFP, " In presist_lob_fetch_cbk\n");
+		PerlIO_printf(DBILOGFP, " In presist_lob_fetch_cbk\n");
 	}
 
 	if ( *piecep ==OCI_NEXT_PIECE ){/*more than one piece*/
@@ -1304,6 +1274,80 @@ sb4 presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufp
 
 	return OCI_CONTINUE;
 
+}
+
+/* TAF or Trasarent Application Failoever callback
+   Works like this.  The fuction below is registered on the server,
+   when the server is set up to use it, when an exe is called (not sure about other server round trips)
+   and the server fails tt should get into this cbk error below.
+   It will wait X seconds and then try to reconnect (up to n times if that is the users choice)
+   That is how I see it working */
+
+sb4
+taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
+{
+	dTHX;
+	taf_callback_t *cb =(taf_callback_t*)fo_ctx;
+
+	dSP;
+	PUSHMARK(SP);
+	XPUSHs(sv_2mortal(newSViv(fo_event)));
+	XPUSHs(sv_2mortal(newSViv(fo_type)));
+	PUTBACK;
+	call_pv(cb->function, G_DISCARD);
+
+	switch (fo_event){
+
+		case OCI_FO_BEGIN:
+		case OCI_FO_ABORT:
+		case OCI_FO_END:
+		case OCI_FO_REAUTH:
+		{
+			break;
+		}
+		case OCI_FO_ERROR:
+		{
+			sleep(cb->sleep);
+			return OCI_FO_RETRY;
+			break;
+		}
+
+		default:
+		{
+			break;
+		}
+	}
+	return 0;
+}
+
+
+sb4
+reg_taf_callback( imp_dbh_t *imp_dbh)
+{
+	dTHX;
+	OCIFocbkStruct 	tafailover;
+	sword 			status;
+	taf_callback_t  *cb = NULL;
+/*allocate space for the callback */
+	Newz(1, cb, 1, taf_callback_t);
+	cb->function= (char*)safemalloc(strlen(imp_dbh->taf_function));
+	cb->sleep   = imp_dbh->taf_sleep;
+	strcpy((char *)cb->function,imp_dbh->taf_function);
+
+	if (dbd_verbose >= 5 ) {
+  		PerlIO_printf(DBILOGFP, " In reg_taf_callback\n");
+	}
+
+/* set the context up as a pointer to the taf callback struct*/
+	tafailover.fo_ctx = cb;
+	tafailover.callback_function = &taf_cbk;
+
+/* register the callback */
+	OCIAttrSet_log_stat(imp_dbh->srvhp, (ub4) OCI_HTYPE_SERVER,
+								(dvoid *) &tafailover, (ub4) 0,
+								(ub4) OCI_ATTR_FOCBK, imp_dbh->errhp, status);
+
+	return status;
 }
 
 #ifdef UTF8_SUPPORT
@@ -3891,7 +3935,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						aTHX_ sv, fbh->req_type, fbh->bind_flags, NULL);
 						if (sts == 0) {
 							sprintf(errstr,
-								"over/under flow converting column %d to type %d",
+								"over/under flow converting column %d to type %"IVdf"",
 								i+1, fbh->req_type);
 							oci_error(sth, imp_sth->errhp, OCI_ERROR, errstr);
 							return Nullav;
@@ -3899,7 +3943,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 						}
 						else if (sts == -2) {
 							sprintf(errstr,
-								"unsupported bind type %d for column %d",
+								"unsupported bind type %"IVdf" for column %d",
 								fbh->req_type, i+1);
 							return Nullav;
 						}
@@ -3960,6 +4004,7 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 {
 	dTHX;
 	sword status;
+
 	/* OCI 8 does not seem to allow uid to be "name/pass" :-( */
 	/* so we have to split it up ourselves */
 	if (strlen(*pwdp)==0 && strchr(*uidp,'/')) {
@@ -4097,6 +4142,7 @@ find_ident_after(char *src, char *after, STRLEN *len, int copy)
 	}
 	return NULL;
 }
+
 
 
 

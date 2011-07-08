@@ -87,6 +87,8 @@ t/31lob.t
 t/31lob_extended.t
 t/32xmltype.t
 t/34pres_lobs.t
+t/36lob_leak.t
+t/38taf.t
 t/40ph_type.t
 t/50cursor.t
 t/51scroll.t

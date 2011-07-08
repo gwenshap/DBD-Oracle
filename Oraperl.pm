@@ -229,7 +229,7 @@ __END__
 
 =head1 NAME
 
-Oraperl - deprecated (Will be removed from DBD::Oracle in 1.29) Perl access to Oracle databases for old oraperl scripts
+Oraperl - deprecated (Repreived for now, but Will be removed in a future release) Perl access to Oracle databases for old oraperl scripts
 
 =head1 SYNOPSIS
 

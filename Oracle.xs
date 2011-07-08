@@ -25,31 +25,48 @@ constant(name=Nullch)
 	ORA_CLOB	 = ORA_CLOB
 	ORA_BLOB	 = ORA_BLOB
 	ORA_RSET	 = ORA_RSET
-	ORA_VARCHAR2_TABLE = ORA_VARCHAR2_TABLE
-	ORA_NUMBER_TABLE   = ORA_NUMBER_TABLE
-	ORA_SYSDBA	 		  = 0x0002
-	ORA_SYSOPER	 		  = 0x0004
-	SQLCS_IMPLICIT 		  = SQLCS_IMPLICIT
-	SQLCS_NCHAR			  = SQLCS_NCHAR
-	SQLT_INT	 		  = SQLT_INT
-	SQLT_FLT	 		  = SQLT_FLT
+	ORA_VARCHAR2_TABLE	= ORA_VARCHAR2_TABLE
+	ORA_NUMBER_TABLE	= ORA_NUMBER_TABLE
+	ORA_SYSDBA	 		= 0x0002
+	ORA_SYSOPER	 		= 0x0004
+	SQLCS_IMPLICIT 		= SQLCS_IMPLICIT
+	SQLCS_NCHAR			= SQLCS_NCHAR
+	SQLT_INT	 		= SQLT_INT
+	SQLT_FLT	 		= SQLT_FLT
 	OCI_BATCH_MODE		= 0x01
-	OCI_EXACT_FETCH	   = 0x02
-	OCI_KEEP_FETCH_STATE  = 0x04
-	OCI_DESCRIBE_ONLY	 = 0x10
-	OCI_COMMIT_ON_SUCCESS = 0x20
-	OCI_NON_BLOCKING	  = 0x40
-	OCI_BATCH_ERRORS	  = 0x80
-	OCI_PARSE_ONLY		= 0x100
-	OCI_SHOW_DML_WARNINGS = 0x400
-	OCI_STMT_SCROLLABLE_READONLY = 0x08
-  	OCI_FETCH_CURRENT 	= OCI_FETCH_CURRENT
-	OCI_FETCH_NEXT 		= OCI_FETCH_NEXT
-	OCI_FETCH_FIRST		= OCI_FETCH_FIRST
-	OCI_FETCH_LAST 		= OCI_FETCH_LAST
-	OCI_FETCH_PRIOR 	= OCI_FETCH_PRIOR
-	OCI_FETCH_ABSOLUTE 	= OCI_FETCH_ABSOLUTE
-	OCI_FETCH_RELATIVE	= OCI_FETCH_RELATIVE
+	OCI_EXACT_FETCH		= 0x02
+	OCI_KEEP_FETCH_STATE	= 0x04
+	OCI_DESCRIBE_ONLY		= 0x10
+	OCI_COMMIT_ON_SUCCESS	= 0x20
+	OCI_NON_BLOCKING		= 0x40
+	OCI_BATCH_ERRORS		= 0x80
+	OCI_PARSE_ONLY			= 0x100
+	OCI_SHOW_DML_WARNINGS	= 0x400
+  	OCI_FETCH_CURRENT 		= OCI_FETCH_CURRENT
+	OCI_FETCH_NEXT 			= OCI_FETCH_NEXT
+	OCI_FETCH_FIRST			= OCI_FETCH_FIRST
+	OCI_FETCH_LAST 			= OCI_FETCH_LAST
+	OCI_FETCH_PRIOR 		= OCI_FETCH_PRIOR
+	OCI_FETCH_ABSOLUTE 		= OCI_FETCH_ABSOLUTE
+	OCI_FETCH_RELATIVE		= OCI_FETCH_RELATIVE
+	OCI_FO_END				= OCI_FO_END
+	OCI_FO_ABORT			= OCI_FO_ABORT
+	OCI_FO_REAUTH			= OCI_FO_REAUTH
+	OCI_FO_BEGIN			= OCI_FO_BEGIN
+	OCI_FO_ERROR			= OCI_FO_ERROR
+	OCI_FO_NONE				= OCI_FO_NONE
+	OCI_FO_SESSION			= OCI_FO_SESSION
+	OCI_FO_SELECT			= OCI_FO_SELECT
+	OCI_FO_TXNAL			= OCI_FO_TXNAL
+	OCI_STMT_SCROLLABLE_READONLY 	= 0x08
+	OCI_PRELIM_AUTH 		= 0x00000008
+	OCI_DBSTARTUPFLAG_FORCE 	= 0x00000001
+	OCI_DBSTARTUPFLAG_RESTRICT 	= 0x00000002
+	OCI_DBSHUTDOWN_TRANSACTIONAL	 = 1
+	OCI_DBSHUTDOWN_TRANSACTIONAL_LOCAL = 2
+	OCI_DBSHUTDOWN_IMMEDIATE = 3
+	OCI_DBSHUTDOWN_ABORT 	= 4
+	OCI_DBSHUTDOWN_FINAL 	= 5
 	SQLT_CHR	= SQLT_CHR
 	SQLT_BIN	= SQLT_BIN
 	CODE:
@@ -60,6 +77,7 @@ constant(name=Nullch)
 	else RETVAL = ix;
 	OUTPUT:
 	RETVAL
+
 
 void
 ORA_OCI()
@@ -255,8 +273,99 @@ cancel(sth)
 	ST(0) = dbd_st_cancel(sth, imp_sth) ? &PL_sv_yes : &PL_sv_no;
 
 
+
+
 MODULE = DBD::Oracle	PACKAGE = DBD::Oracle::db
 
+void
+ora_db_startup(dbh, attribs)
+	SV *dbh
+	SV *attribs
+	PREINIT:
+	D_imp_dbh(dbh);
+	sword status;
+#if defined(ORA_OCI_102)
+	ub4 mode;
+	ub4 flags;
+	OCIAdmin *admhp;
+	STRLEN svp_len;
+	text *str;
+#endif
+	CODE:
+#if defined(ORA_OCI_102)
+	SV **svp;
+	mode = OCI_DEFAULT;
+	DBD_ATTRIB_GET_IV(attribs, "ora_mode", 8, svp, mode);
+	flags = OCI_DEFAULT;
+	DBD_ATTRIB_GET_IV(attribs, "ora_flags", 9, svp, flags);
+    admhp = (OCIAdmin*)0;
+	if ((svp=DBD_ATTRIB_GET_SVP(attribs, "ora_pfile", 9)) && SvOK(*svp)) {
+		if (!SvPOK(*svp))
+			croak("ora_pfile is not a string");
+		str = (text*)SvPV(*svp, svp_len);
+		OCIHandleAlloc(imp_dbh->envhp, (dvoid**)&admhp, (ub4)OCI_HTYPE_ADMIN, (size_t)0, (dvoid**)0);
+		OCIAttrSet_log_stat((dvoid*)admhp, (ub4)OCI_HTYPE_ADMIN, (dvoid*)str, (ub4)svp_len, (ub4)OCI_ATTR_ADMIN_PFILE, (OCIError*)imp_dbh->errhp, status);
+  }
+	OCIDBStartup_log_stat(imp_dbh->svchp, imp_dbh->errhp, admhp, mode, flags, status);
+	if (status != OCI_SUCCESS) {
+		oci_error(dbh, imp_dbh->errhp, status, "OCIDBStartup");
+		ST(0) = &PL_sv_undef;
+	}
+	else {
+		ST(0) = &PL_sv_yes;
+	}
+	if (admhp) OCIHandleFree_log_stat((dvoid*)admhp, (ub4)OCI_HTYPE_ADMIN, status);
+#else
+	croak("OCIDBStartup not available");
+#endif
+
+
+void
+ora_db_shutdown(dbh, attribs)
+	SV *dbh
+	SV *attribs
+	PREINIT:
+	D_imp_dbh(dbh);
+	sword status;
+#if defined(ORA_OCI_102)
+	ub4 mode;
+	OCIAdmin *admhp;
+#endif
+	CODE:
+#if defined(ORA_OCI_102)
+	SV **svp;
+	mode = OCI_DEFAULT;
+	DBD_ATTRIB_GET_IV(attribs, "ora_mode", 8, svp, mode);
+	admhp = (OCIAdmin*)0;
+	OCIDBShutdown_log_stat(imp_dbh->svchp, imp_dbh->errhp, admhp, mode, status);
+	if (status != OCI_SUCCESS) {
+		oci_error(dbh, imp_dbh->errhp, status, "OCIDBShutdown");
+		ST(0) = &PL_sv_undef;
+	}
+	else {
+		ST(0) = &PL_sv_yes;
+	}
+#else
+	croak("OCIDBShutdown not available");
+#endif
+
+void
+ora_can_taf(dbh)
+	SV 				*dbh
+	PREINIT:
+	D_imp_dbh(dbh);
+	sword status;
+	ub4 can_taf = 0;
+	CODE:
+	OCIAttrGet_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, &can_taf, NULL,
+				OCI_ATTR_TAF_ENABLED, imp_dbh->errhp, status);
+	if (status != OCI_SUCCESS) {
+		oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet OCI_ATTR_TAF_ENABLED");
+		XSRETURN_IV(0);
+	}
+	else {
+		XSRETURN_IV(can_taf);
+	}
 
 void
 ora_ping(dbh)

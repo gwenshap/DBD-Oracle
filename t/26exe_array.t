@@ -43,11 +43,6 @@ eval {
 if (!$dbh) {
     plan skip_all => "Unable to connect to Oracle";
 }
-else {
-    plan tests=>406;
-}
-
-
 #$dbh->{PrintError} = 1;
 my $has_test_nowarnings = 1;
 eval "require Test::NoWarnings";
@@ -60,12 +55,13 @@ END {
     }
     Test::NoWarnings::had_no_warnings()
           if ($has_test_nowarnings);
+    done_testing();
 }
 
 sub error_handler
 {
     @captured_error = @_;
-    diag("***** error handler called *****");
+    note("***** error handler called *****");
     0;                          # pass errors on
 }
 
@@ -104,7 +100,7 @@ sub drop_table_local
         $dbh->do(qq/drop table $table/);
         $dbh->do(qq/drop table $table2/);
     };
-    diag("Table dropped");
+    note("Table dropped");
 }
 
 # clear the named table of rows
@@ -131,7 +127,7 @@ sub check_tuple_status
 {
     my ($tsts, $expected) = @_;
 
-    diag(Data::Dumper->Dump([$tsts], [qw(ArrayTupleStatus)]));
+    note(Data::Dumper->Dump([$tsts], [qw(ArrayTupleStatus)]));
     my $row = 0;
     foreach my $s (@$tsts) {
         if (ref($expected->[$row])) {
@@ -156,7 +152,7 @@ sub insert
     my ($dbh, $sth, $ref) = @_;
 
     die "need hashref arg" if (!$ref || (ref($ref) ne 'HASH'));
-    diag("insert " . join(", ", map {"$_ = ". DBI::neat($ref->{$_})} keys %$ref ));
+    note("insert " . join(", ", map {"$_ = ". DBI::neat($ref->{$_})} keys %$ref ));
     # DBD::Oracle supports MAS don't compensate for it not
     if ($ref->{requires_mas} && $dbh->{Driver}->{Name} eq 'Oracle') {
         delete $ref->{requires_mas};
@@ -213,7 +209,7 @@ sub insert
             }
             return 'mas';
         }
-        ok(!$@, 'no error in execute_array eval') or diag($@);
+        ok(!$@, 'no error in execute_array eval') or note($@);
     }
     $dbh->commit if $ref->{commit};
 
@@ -257,11 +253,11 @@ sub simple
 {
     my ($dbh, $ref) = @_;
 
-    diag('simple tests ' . join(", ", map {"$_ = $ref->{$_}"} keys %$ref ));
+    note('simple tests ' . join(", ", map {"$_ = $ref->{$_}"} keys %$ref ));
 
-    diag("  all param arrays the same size");
+    note("  all param arrays the same size");
     foreach my $commit (1,0) {
-        diag("    Autocommit: $commit");
+        note("    Autocommit: $commit");
         clear_table($dbh, $table);
         $dbh->begin_work if !$commit;
 
@@ -274,7 +270,7 @@ sub simple
         check_data($dbh, \@p1, \@p2);
     }
 
-    diag ("  Not all param arrays the same size");
+    note "  Not all param arrays the same size";
     clear_table($dbh, $table);
     my $sth = $dbh->prepare(qq/insert into $table values(?,?)/);
 
@@ -285,7 +281,7 @@ sub simple
                         tuple => [1, 1, 1, 1, 1], %$ref});
     check_data($dbh, \@p1, ['one', undef, undef, undef, undef]);
 
-    diag ("  Not all param arrays the same size with bind on execute_array");
+    note "  Not all param arrays the same size with bind on execute_array";
     clear_table($dbh, $table);
     $sth = $dbh->prepare(qq/insert into $table values(?,?)/);
 
@@ -295,7 +291,7 @@ sub simple
                         params => [\@p1, [qw(one)]]});
     check_data($dbh, \@p1, ['one', undef, undef, undef, undef]);
 
-    diag ("  no parameters");
+    note "  no parameters";
     clear_table($dbh, $table);
     $sth = $dbh->prepare(qq/insert into $table values(?,?)/);
 
@@ -325,9 +321,9 @@ sub error
 
     die "need hashref arg" if (!$ref || (ref($ref) ne 'HASH'));
 
-    diag('error tests ' . join(", ", map {"$_ = $ref->{$_}"} keys %$ref ));
+    note('error tests ' . join(", ", map {"$_ = $ref->{$_}"} keys %$ref ));
     {
-        diag("Last row in error");
+        note("Last row in error");
 
         clear_table($dbh, $table);
         my $sth = $dbh->prepare(qq/insert into $table values(?,?)/);
@@ -342,7 +338,7 @@ sub error
     }
 
     {
-        diag("2nd last row in error");
+        note("2nd last row in error");
         clear_table($dbh, $table);
         my $sth = $dbh->prepare(qq/insert into $table values(?,?)/);
         my @pe1 = @p1;
@@ -357,9 +353,9 @@ sub error
 
 sub fetch_sub
 {
-    diag("fetch_sub $fetch_row");
+    note("fetch_sub $fetch_row");
     if ($fetch_row == @p1) {
-        diag('returning undef');
+        note('returning undef');
         $fetch_row = 0;
         return;
     }
@@ -372,7 +368,7 @@ sub row_wise
 {
     my ($dbh, $ref) = @_;
 
-    diag("row_size via execute_for_fetch");
+    note("row_size via execute_for_fetch");
 
     $fetch_row = 0;
     clear_table($dbh, $table);
@@ -387,7 +383,7 @@ sub row_wise
     # it is not easy (if at all possible) to know if an ODBC driver can
     # handle MAS or not. If it errors the driver probably does not have MAS
     # so the error is ignored and a diagnostic is output.
-    diag("row_size via select");
+    note("row_size via select");
     clear_table($dbh, $table);
     $sth = $dbh->prepare(qq/insert into $table values(?,?)/);
     my $sth2 = $dbh->prepare(qq/select * from $table2/);
@@ -408,7 +404,7 @@ sub update
 {
     my ($dbh, $ref) = @_;
 
-    diag("update test");
+    note("update test");
 
     $fetch_row = 0;
     clear_table($dbh, $table);

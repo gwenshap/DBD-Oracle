@@ -61,7 +61,8 @@ my %opts = (
     META_MERGE => {
        configure_requires => { "DBI" => '1.51' },
        build_requires => {"DBI" => '1.51',
-                          "ExtUtils::MakeMaker" => 0}
+                          "ExtUtils::MakeMaker" => 0,
+                          "Test::Simple" => '0.90'}
     },
 );
 my $eumm = $ExtUtils::MakeMaker::VERSION;
@@ -87,9 +88,9 @@ my %mk_target_rules;
 #$::opt_ic10 = 1;   # Build for Oracle 10g instantclient
 $::opt_b = 1;	# try to use Oracle's own 'build' rule
 $::opt_r = '';	# With -b above, use this names build rule (eg -r=build64)
-$::opt_m = '';	# path to proc.mk or oracle.mk file to read
+$::opt_m = '';	# path to oracle.mk file to read
 $::opt_h = '';	# path to oracle header files
-$::opt_p = '';	# alter preference for oracle.mk over proc
+$::opt_p = '';	# alter preference for oracle.mk
 $::opt_n = '';	# Oracle .mk macro name to use for library list to link with
 $::opt_c = 0;	# don't encourage use of shared library
 $::opt_l = 0;	# try direct-link to libclntsh
@@ -102,13 +103,12 @@ $::opt_f = 0;	# include text of oracle's .mk file within generated Makefile
 $::opt_F = 0;	# force - ignore errors
 $::opt_W = 0;	# just write a basic default Makefile (won't build)
 $::opt_w = 0;	# enable many gcc compiler warnings
-$::opt_ProC= 0;	# enable integration with ProC
 $::opt_V = 0;   # force assumption of specified Oracle version
 		# If == 8 then we don't use the new OCI_INIT code
 		# and we force our emulation of OCILobWriteAppend
 
 Getopt::Long::config( qw( no_ignore_case ) );
-GetOptions(qw(b! r=s v! d! g! p! l! c! f! F! W! w! m=s h=s n=s s=s S=s V=s ProC!))
+GetOptions(qw(b! r=s v! d! g! p! l! c! f! F! W! w! m=s h=s n=s s=s S=s V=s ))
 	or die "Invalid arguments";
 
 $::opt_g &&= '-g';	# convert to actual string
@@ -667,10 +667,7 @@ $opts{DEFINE} .= ' -Wall -Wno-comment' if $Config{gccversion};
 
 $opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
 
-if ($::opt_ProC) {
-	$opts{DEFINE} .= ' -DCAN_USE_PRO_C' ;
-	print "Seems you want to use ProC connections. Both the Instant Clients and Oracle XE client may not work!!\n\n";
-}
+
 
 	
 
@@ -1075,11 +1072,7 @@ sub del_crtobj {
 
 
 sub find_mkfile {
-    my @mk_proc = (	'precomp/demo/proc/proc.mk',
-	'precomp/demo/proc/demo_proc.mk',
-	'proc/lib/proc.mk',
-	'proc16/lib/proc16.mk',
-    );
+    
     my @mk_oci32 = (
     	'rdbms/demo/demo_xe.mk',
 	'rdbms/demo/demo_rdbms32.mk'
@@ -1094,17 +1087,14 @@ sub find_mkfile {
  
     );
     my @mk_oci = perl_is_64bit() ? @mk_oci64 : @mk_oci32;
-    $client_version and push @mk_proc,        # Oracle Instant Client
-        "/usr/share/oracle/$client_version/client/demo.mk",
-        "/usr/share/oracle/$client_version/client64/demo.mk";
-
+   
     # Add build.mk from /usr/share/oracle based on the oracle home location if
     # oracle home is under /usr/lib/oracle (Linux RPM install).
     # The 11g instant client only contains build.mk located in
     # /usr/share/oracle/
     push @mk_oci, "/usr/share/oracle/$1/demo.mk" if ($OH =~ m|^/usr/lib/oracle/(.*)|);
 
-    my @mkplaces = ($::opt_p) ? (@mk_proc,@mk_oci) : (@mk_oci,@mk_proc);
+    my @mkplaces = ($::opt_p) ? (@mk_oci) : (@mk_oci);
     if ($::opt_m) {
 	$::opt_m = cwd()."/$::opt_m" unless $::opt_m =~ m:^/:;
 	die "-m $::opt_m: not found" unless -f $::opt_m;
@@ -1119,13 +1109,12 @@ sub find_mkfile {
 	print "Found $place\n";
     }
     die qq{
-	Unable to locate an oracle.mk, proc.mk or other suitable *.mk
+	Unable to locate an oracle.mk or other suitable *.mk
 	file in your Oracle installation.  (I looked in
 	@mkplaces under $OH)
 
 	The oracle.mk (or demo_rdbms.mk) file is part of the Oracle
-	RDBMS product. The proc.mk (or demo_proc.mk) file is part of
-	the Oracle Pro*C product.  You need to build DBD::Oracle on a
+	RDBMS product.  You need to build DBD::Oracle on a
 	system which has one of these Oracle components installed.
 	(Other *.mk files such as the env_*.mk files will not work.)
 	Alternatively you can use Oracle Instant Client.

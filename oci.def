@@ -34,6 +34,8 @@ OCICollGetElem
 OCICollMax
 OCICollSize
 OCICollTrim
+OCIDBStartup
+OCIDBShutdown
 OCIDateAddDays
 OCIDateAddMonths
 OCIDateAssign
@@ -226,6 +228,7 @@ OCISecurity_PKEncrypt
 OCIServerAttach
 OCIServerDetach
 OCIServerVersion
+OCIServerRelease
 OCISessionBegin
 OCISessionEnd
 OCIStmtBindByName
