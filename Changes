@@ -5,22 +5,23 @@ Changes in DBD-Oracle XXX
  - Makefile.PL's options are now documented
 
  [BUG FIXES]
+ - support development release versions in GetInfo (Martin J. Evans)
  - don't gag diag() on the tests by default
 
 Changes in DBD-Oracle 1.29_1
  [ENHANCEMENTS]
  - added support for TAF callback (John Scoles)
- - now trap OCIServerAttach errors (patch by Marc Fielding, applied 
+ - now trap OCIServerAttach errors (patch by Marc Fielding, applied
     by Martin J. Evans) [rt68958]
  - added installation notes for MAC Snow Leopard (Martin J. Evans)
- - added '/etc' to the search paths for tnsnames.ora (Martin J. Evans, Jay Senseman) 
+ - added '/etc' to the search paths for tnsnames.ora (Martin J. Evans, Jay Senseman)
     [rt67942]
  - removed support for ProcC connections (John Scoles)
  - added ora_db_shutdown and ora_db_startup private functions (Steffen Goeldner)
  - added Test::Simple 0.90 to build_requires as we use note etc (Martin J.  Evans)
 
  [BUG FIXES]
- - fixed bug in bind_col which was broken in 1.27 and stopped anyone using 
+ - fixed bug in bind_col which was broken in 1.27 and stopped anyone using
     a string as a column number. E.g., '1' (Martin J. Evans, Alexander
     Foken)
  - removed obsolete oparse_lang (John Scoles)
@@ -28,11 +29,12 @@ Changes in DBD-Oracle 1.29_1
  - added missing OCIServerRelease to oci.def (Martin J. Evans) [rt68172]
  - fixed up the POD based on DBD::Pg (John Scoles)
  - POD review rephrasing, fixing typos and spelling mistakes up to
-    "Placeholder Binding Attributes" (Martin J. Evans)    
+    "Placeholder Binding Attributes" (Martin J. Evans)
+ - rt 56824 - add META_MERGE mentioning DBI required version (Martin J. Evans)
 
 * Changes in DBD-Oracle 1.28 (svn rev 14765)
 
-  Changed 26exe_array.t so it is compatiable with older version of Test::More by John Scoles
+  Changed 26exe_array.t so it is compatible with older version of Test::More by John Scoles
   A fix from Charles Jardine for 58object.t to stop an error on some 64 bit systems
   A few quick changes from H. Merijn Brand to fix some compiler warings and a fix for Oracle 9 clients
   Added connection attribute 'ora_connect_with_default_signals' that will localize Perl's $SIG{INT} handler from Brian Phillips and T. Bunce

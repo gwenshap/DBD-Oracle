@@ -5,8 +5,14 @@ use DBD::Oracle();
 
 my $sql_driver = 'Oracle';
 my $sql_ver_fmt = '%02d.%02d.%04d';   # ODBC version string: ##.##.#####
+my ($a,$b,$c) = (0,0,0);
+my $ver = $DBD::Oracle::VERSION;
+my @parts = split /\./, $ver;
+$a = $parts[0];
+($b,$c) = split /_/, $parts[1];
+$c = 0 if !$c;
 
-my $sql_driver_ver = sprintf $sql_ver_fmt, split (/\./, "$DBD::Oracle::VERSION.0.0.0.0.0.0");
+my $sql_driver_ver = sprintf $sql_ver_fmt, $a, $b, $c;
 
 sub sql_dbms_version {
     my $dbh = shift;
