@@ -3,6 +3,7 @@ Revision history for DBD::Oracle
 Changes in DBD-Oracle 1.29_2
  [BUG FIXES]
  - support development release versions in GetInfo (Martin J. Evans)
+ - don't gag diag() on the tests by default
 
 Changes in DBD-Oracle 1.29_1
  [ENHANCEMENTS]

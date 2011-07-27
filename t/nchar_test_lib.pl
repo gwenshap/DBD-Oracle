@@ -48,10 +48,6 @@ my $tb = Test::More->builder;
 binmode($tb->failure_output, ':utf8');
 binmode($tb->output, ':utf8');
 
-# disable diag unless TEST_VERBOSE is set.
-if (!exists($ENV{TEST_VERBOSE})) {
-    $tb->no_diag(1);
-}
 sub long_test_cols
 {
    my ($type) = @_ ;
