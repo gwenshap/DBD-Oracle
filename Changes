@@ -1,6 +1,9 @@
 Revision history for DBD::Oracle
 
 Changes in DBD-Oracle XXX
+ [ENHANCEMENTS]
+ - Makefile.PL's options are now documented
+
  [BUG FIXES]
  - don't gag diag() on the tests by default
 

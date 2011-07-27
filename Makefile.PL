@@ -12,6 +12,7 @@ use Getopt::Long;
 use Config;
 use Cwd;
 use File::Find;
+use Pod::Usage;
 
 # DBI must be installed before we can build a DBD.
 # For those not using Dynamic loading this means building a
@@ -83,6 +84,89 @@ my(@MK, %MK, $MK_TEXT, %MK_expanding);	# parsed macros from Oracle's makefiles
 my %mk_target_deps;
 my %mk_target_rules;
 
+=head1 OPTIONS
+
+=over
+
+=item -b
+
+Try to use Oracle's own 'build' rule. Defaults to true.
+
+
+=item -r 
+
+With I<-b>, use this names build rule (eg -r=build64).
+
+=item -m 
+
+Path to 'oracle.mk'
+
+=item -h 
+
+Path to oracle header files.
+
+=item -p
+
+Alter preference for oracle.mk.
+
+=item -n 
+
+Oracle .mk macro name to use for library list to link with.
+
+=item -c
+
+Don't encourage use of shared library.
+
+=item -l 
+
+Try direct-link to libclntsh.
+
+=item -g
+
+Enable debugging (-g for compiler and linker).
+
+=item -s 
+
+Find a symbol in oracle libs, Don't build a Makefile.
+
+=item -S 
+
+Find a symbol in oracle & system libs, Don't build a Makefile.
+
+=item -v 
+
+Be more verbose.
+
+=item -d 
+
+Much more verbose for debugging.
+
+=item -f 
+
+Include text of oracle's .mk file within generated Makefile.
+
+=item -F 
+
+Force - ignore errors.
+
+=item -W 
+
+Just write a basic default Makefile (won't build).
+
+=item -w
+
+Enable many gcc compiler warnings.
+
+=item -V 
+
+Force assumption of specified Oracle version
+If == 8 then we don't use the new OCI_INIT code
+and we force our emulation of OCILobWriteAppend.
+
+=back
+
+=cut
+
 # Options (rarely needed)
 # to turn off an option prefix with 'no', ie 'perl Makefile.PL -nob'
 #$::opt_ic10 = 1;   # Build for Oracle 10g instantclient
@@ -109,7 +193,7 @@ $::opt_V = 0;   # force assumption of specified Oracle version
 
 Getopt::Long::config( qw( no_ignore_case ) );
 GetOptions(qw(b! r=s v! d! g! p! l! c! f! F! W! w! m=s h=s n=s s=s S=s V=s ))
-	or die "Invalid arguments";
+  or die pod2usage( -verbose => 99, -sections => [ 'OPTIONS' ] );
 
 $::opt_g &&= '-g';	# convert to actual string
 $::opt_v = 1 if $::opt_d;
