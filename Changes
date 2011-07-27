@@ -1,6 +1,11 @@
 Revision history for DBD::Oracle
 
 Changes in DBD-Oracle 1.XX
+ [BUG FIXES]
+ - COLUMN_SIZE of VARCHAR2 returns size in chars, not bytes. [RT#13865]
+    (reported by Stefano and Laurent Dami)
+
+
  [DOCUMENTATION]
  - add mention of the github mirror of the subversion repository
  - add 'resources' info to META.yml
