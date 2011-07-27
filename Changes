@@ -1,5 +1,9 @@
 Revision history for DBD::Oracle
 
+Changes in DBD-Oracle XXX
+ [BUG FIXES]
+ - don't gag diag() on the tests by default
+
 Changes in DBD-Oracle 1.29_1
  [ENHANCEMENTS]
  - added support for TAF callback (John Scoles)
