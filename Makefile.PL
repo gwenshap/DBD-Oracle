@@ -896,61 +896,52 @@ print "***  If you have problems...\n";
 print "     read all the log printed above, and the README and README.help.txt files.\n";
 print "     (Of course, you have read README by now anyway, haven't you?)\n\n";
 
+vms_logical_names_sanity_check();
+
 exit 0;
 
+# === utility functions ================================
 
-if ($^O eq 'VMS') { # sanity check VMS logical names
+sub vms_logical_names_sanity_check {
+    return unless $^O eq 'VMS';
 
-   sub search_in_search_list {
-     # subroutine that searches list arg1 for item arg2
-     my ($search_list_name , $logical) = @_ ;
-     $search_list_name =~ s/;// ;
-     $search_list_name = $search_list_name . ';';
-     my $i = 0;
-     my @s;
-     while ( defined( $s[$i] = $ENV{$search_list_name.$i} ) ) {
-        print "logical : $logical - fromlist : $s[$i] \n" if $::opt_v;
-        return 1 if $s[$i++] eq $logical;
-     }
-     return 0
-   }
-
-   if ( !$ENV{PERL_ENV_TABLES} ) { # perl_env_tables not set  report
-     print qq{
+   unless ( $ENV{PERL_ENV_TABLES} ) { # perl_env_tables not set  report
+     print <<'END_TXT';
 
    The logical PERL_ENV_TABLES is not set.
 
    This means that any logical names set when testing the package
    will be set in the first logical name table that occurs in the
-   LNM\$FILE_DEV list.
+   LNM$FILE_DEV list.
 
    Please read the Readme.VMS file for further information.
-       \a\n};
-       sleep 5;
+
+END_TXT
+
+     return;
    }
-   else {
 
-      # perl_env_tables set but the element we want is missing
-      if ( !search_in_search_list('PERL_ENV_TABLES;', 'LNM$JOB')  ) {
-          print qq{
+    return if grep { $ENV{$_} eq 'LNM$JOB' } 
+              grep { /^PERL_ENV_TABLES;\d+$/ } 
+              keys %ENV;
 
-   The logical PERL_ENV_TABLES is set, but without LNM\$JOB.
+# perl_env_tables set but the element we want is missing
+          print <<'END_TXT';
+
+   The logical PERL_ENV_TABLES is set, but without LNM$JOB.
 
    Testing the package can fail because of inability to correctly
-   translate SYS\$SCRATCH for temporary storage, as SYS\$SCRATCH is
+   translate SYS$SCRATCH for temporary storage, as SYS$SCRATCH is
    set at the JOB level.
 
-   To ensure that testing the package correctly translates SYS\$SCRATCH,
-   please ensure that LNM\$JOB is part of PERL_ENV_TABLES like this:
+   To ensure that testing the package correctly translates SYS$SCRATCH,
+   please ensure that LNM$JOB is part of PERL_ENV_TABLES like this:
 
-      \$ DEFINE PERL_ENV_TABLES LNM\$PROCESS, LNM\$JOB , CRTL_ENV
-      \a\n};
-      sleep 5;
-      }
-   } # end if 
+      $ DEFINE PERL_ENV_TABLES LNM$PROCESS, LNM$JOB , CRTL_ENV
+END_TXT
+
 }
 
-# =====================================================================
 
 
 sub find_oracle_home {
