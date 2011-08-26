@@ -1,12 +1,16 @@
 Revision history for DBD::Oracle
 
-Changes in DBD-Oracle 1.29_2
+Changes in DBD-Oracle XXX
  [ENHANCEMENTS]
  - Makefile.PL's options are now documented
 
  [BUG FIXES]
  - support development release versions in GetInfo (Martin J. Evans)
  - don't gag diag() on the tests by default
+
+Changes in DBD-Oracle 1.30
+  [DOCUMENTATION]
+ - add warning about RT#69350 in documentation 
 
 Changes in DBD-Oracle 1.29_1
  [ENHANCEMENTS]
