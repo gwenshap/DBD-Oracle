@@ -1,0 +1,25 @@
+--- #YAML:1.0
+name:               DBD-Oracle
+version:            1.30
+abstract:           Oracle database driver for the DBI module
+author:
+    - Tim Bunce (dbi-users@perl.org)
+license:            perl
+distribution_type:  module
+configure_requires:
+    DBI:                  1.51
+    ExtUtils::MakeMaker:  0
+build_requires:
+    DBI:                  1.51
+    ExtUtils::MakeMaker:  0
+    Test::Simple:         0.90
+requires:
+    DBI:  1.51
+no_index:
+    directory:
+        - t
+        - inc
+generated_by:       ExtUtils::MakeMaker version 6.56
+meta-spec:
+    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
+    version:  1.4

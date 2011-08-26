@@ -102,3 +102,4 @@ t/nchar_test_lib.pl
 test.pl
 Todo
 typemap
+META.yml                                 Module meta-data (added by MakeMaker)
