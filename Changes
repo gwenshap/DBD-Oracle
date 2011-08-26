@@ -8,6 +8,10 @@ Changes in DBD-Oracle XXX
  - support development release versions in GetInfo (Martin J. Evans)
  - don't gag diag() on the tests by default
 
+Changes in DBD-Oracle 1.30
+  [DOCUMENTATION]
+ - add warning about RT#69350 in documentation 
+
 Changes in DBD-Oracle 1.29_1
  [ENHANCEMENTS]
  - added support for TAF callback (John Scoles)

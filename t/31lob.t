@@ -2,11 +2,14 @@
 
 use strict;
 use Test::More;
-use DBD::Oracle qw(:ora_types);
+use DBD::Oracle qw(:ora_types ORA_OCI );
 use DBI;
 
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
+
+plan skip_all => "see RT#69350"
+    if ORA_OCI() =~ /^11\.2\./;
 
 my $dbh;
 $| = 1;
