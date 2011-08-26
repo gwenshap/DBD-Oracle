@@ -7,7 +7,7 @@
 
 require 5.006;
 
-$DBD::Oracle::VERSION = '1.29_1';
+$DBD::Oracle::VERSION = '1.30';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -5583,6 +5583,12 @@ No recommendation implied.
 
 Also PL/Vision from RevealNet and Steven Feuerstein, and
 "Q" from Savant Corporation.
+
+=head1 BUGS AND LIMITATIONS
+
+There is a known problem with the 11.2g Oracle client and the 
+C<DBMS_LOB.GETLENGTH()> PL/SQL function.  
+See L<https://rt.cpan.org/Public/Bug/Display.html?id=69350> for the details.
 
 
 =head1 SEE ALSO

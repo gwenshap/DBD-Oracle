@@ -1,5 +1,9 @@
 Revision history for DBD::Oracle
 
+Changes in DBD-Oracle 1.30
+  [DOCUMENTATION]
+ - add warning about RT#69350 in documentation 
+
 Changes in DBD-Oracle 1.29_1
  [ENHANCEMENTS]
  - added support for TAF callback (John Scoles)
