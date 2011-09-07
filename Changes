@@ -3,6 +3,7 @@ Revision history for DBD::Oracle
 Changes in DBD-Oracle XXX
  [ENHANCEMENTS]
  - Makefile.PL's options are now documented
+ - move 'explain' to '/examples' directory
 
  [BUG FIXES]
  - support development release versions in GetInfo (Martin J. Evans)
