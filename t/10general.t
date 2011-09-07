@@ -1,4 +1,5 @@
-#!perl -w
+use strict;
+use warnings;
 
 use Test::More;
 
@@ -6,7 +7,6 @@ use DBI;
 use Oraperl;
 use Config;
 use DBD::Oracle qw(ORA_OCI);
-
 
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
@@ -32,7 +32,10 @@ if ($dbh) {
 my($sth, $p1, $p2, $tmp);
 SKIP: {
     skip "not unix-like", 2 unless $Config{d_semctl};
-    skip "solaris with OCI>9.x", 2 unless ($^O eq "solaris") and (scalar(ORA_OCI) ge 10);
+
+    my @ora_oci_version = split /\./, ORA_OCI();
+    skip 'solaris with OCI>9.x', 2 
+        if $^O eq 'solaris' and $ora_oci_version[0] > 9;
 
     # basic check that we can fork subprocesses and wait for the status
     # after having connected to Oracle
@@ -111,5 +114,3 @@ ok(scalar @ora_oci >= 2, 'version has 2 or more components');
 ok((scalar @ora_oci == grep { DBI::looks_like_number($_) } @ora_oci),
   'version looks like numbers');
 is($ora_oci[0], int($ora_oci), 'first number is int');
-
-exit 0;

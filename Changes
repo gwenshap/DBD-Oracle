@@ -7,7 +7,10 @@ Changes in DBD-Oracle XXX
  [BUG FIXES]
  - support development release versions in GetInfo (Martin J. Evans)
  - don't gag diag() on the tests by default
- - convert a symbolically linked ORACLE_HOME to an absolute path (patch by H.Merijn Brand, applied by Martin J. Evans) [rt70785]
+ - SKIP condition in 10general.t was reversed (reported by Alois) [RT#46761]
+ - Check for LD_LIBRARY_PATH_(32|64) as well for solaris [RT#46761]
+ - convert a symbolically linked ORACLE_HOME to an absolute path 
+    (patch by H.Merijn Brand, applied by Martin J. Evans) [rt70785]
 
 Changes in DBD-Oracle 1.30
   [DOCUMENTATION]

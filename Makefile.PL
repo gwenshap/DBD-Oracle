@@ -1926,8 +1926,10 @@ $(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt $(INST_ARCHAUTODIR)
 
 
 sub ldlibpth_info {
-    my ($verbose) = @_;
+    my $verbose = shift;
+
     my ($ldlibpthname, $val);
+
     if ($^O eq "hpux") { # hpux is odd again: can use two env vars
         my @envs = grep { $ENV{$_} } qw( LD_LIBRARY_PATH SHLIB_PATH );
         $ldlibpthname = join "/", @envs;
@@ -1935,23 +1937,42 @@ sub ldlibpth_info {
     }
     else {
         $ldlibpthname = $Config{ldlibpthname} or return;
-	$val          = $ENV{$ldlibpthname} || '';
+        $val          = $ENV{$ldlibpthname} || '';
     }
+
     print "Your $ldlibpthname env var is set to '$val'\n" if $verbose;
-    my @dirs = split /\Q$Config{path_sep}/o, $val, -1;
-    return ($ldlibpthname, $val, @dirs);
+
+    return ( $ldlibpthname, $val, split /\Q$Config{path_sep}/, $val );
 }
 
 
 sub check_ldlibpthname {
-    my ($libdir) = @_;
-    $libdir ||= "$OH/".ora_libdir();
-    $libdir =~ s:[\\/]$::;
+    my $libdir = shift || join '/', $OH, ora_libdir();
+
+    $libdir =~ s:[\\/]$::;  # cut final / or \
+
     my ($ldlibpthname, $val, @dirs) = ldlibpth_info(1);
+
+    my $warn_name = $ldlibpthname;
+
     return 1 if grep { s:[\\/]$::; $_ eq $libdir } @dirs;
-    warn "WARNING: Your $ldlibpthname env var doesn't include '$libdir' but probably needs to.$BELL\n";
-    sleep 5;
-    return;
+
+    # on solaris, it can be under LD_LIBRARY_PATH_(32|64)
+    if ( $^O eq 'solaris' ) {
+        my $ld_library_path_name = 'LD_LIBRARY_PATH_' 
+                                 . ( perl_is_64bit() ? '64' : '32' );
+
+        $warn_name .= " or $ld_library_path_name";
+
+        my @dirs = split quotemeta($Config{path_sep}), 
+                         $ENV{$ld_library_path_name};
+
+        s#[\\/]$## for @dirs;  # cut potential final / or \
+
+        return if grep { $_ eq $libdir } @dirs;
+    }
+
+    warn "WARNING: Your $warn_name env var doesn't include '$libdir' but probably needs to.\n";
 }
 
 
