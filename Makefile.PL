@@ -25,7 +25,7 @@ use DBI::DBD;	# DBD creation tools
 # Some MakeMaker's forged some FileHandle methods
 require FileHandle unless defined &FileHandle::new;
 
-BEGIN { 
+BEGIN {
     return unless $^O eq 'VMS';
     eval q{
         use vmsish;
@@ -93,15 +93,15 @@ my %mk_target_rules;
 Try to use Oracle's own 'build' rule. Defaults to true.
 
 
-=item -r 
+=item -r
 
 With I<-b>, use this names build rule (eg -r=build64).
 
-=item -m 
+=item -m
 
 Path to 'oracle.mk'
 
-=item -h 
+=item -h
 
 Path to oracle header files.
 
@@ -109,7 +109,7 @@ Path to oracle header files.
 
 Alter preference for oracle.mk.
 
-=item -n 
+=item -n
 
 Oracle .mk macro name to use for library list to link with.
 
@@ -117,7 +117,7 @@ Oracle .mk macro name to use for library list to link with.
 
 Don't encourage use of shared library.
 
-=item -l 
+=item -l
 
 Try direct-link to libclntsh.
 
@@ -125,31 +125,31 @@ Try direct-link to libclntsh.
 
 Enable debugging (-g for compiler and linker).
 
-=item -s 
+=item -s
 
 Find a symbol in oracle libs, Don't build a Makefile.
 
-=item -S 
+=item -S
 
 Find a symbol in oracle & system libs, Don't build a Makefile.
 
-=item -v 
+=item -v
 
 Be more verbose.
 
-=item -d 
+=item -d
 
 Much more verbose for debugging.
 
-=item -f 
+=item -f
 
 Include text of oracle's .mk file within generated Makefile.
 
-=item -F 
+=item -F
 
 Force - ignore errors.
 
-=item -W 
+=item -W
 
 Just write a basic default Makefile (won't build).
 
@@ -157,7 +157,7 @@ Just write a basic default Makefile (won't build).
 
 Enable many gcc compiler warnings.
 
-=item -V 
+=item -V
 
 Force assumption of specified Oracle version
 If == 8 then we don't use the new OCI_INIT code
@@ -219,7 +219,7 @@ Remember to actually *READ* the README file! Especially if you have any problems
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 my $OH = $ENV{$ORACLE_ENV} || '';
-$OH  = win32_oracle_home($OH) if ($^O eq 'MSWin32') or ($^O =~ /cygwin/i);
+$OH = win32_oracle_home($OH) if ($^O eq 'MSWin32') or ($^O =~ /cygwin/i);
 $OH = unixify $OH if $^O eq 'VMS';
 $OH =~ s:/$::;
 
@@ -237,7 +237,7 @@ if (!$OH) {
   print "WARNING: If these tests fail you may have to set ORACLE_HOME yourself!\n";
   sleep 5;
 }
-
+-l $OH and $OH = Cwd::abs_path ($OH); # Oracle really dislikes symbolic links
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture).
@@ -250,7 +250,7 @@ die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
       or glob("$OH/libclntsh.$so*") # pre-sdk instant client or rpm
       or -e "$OH/oci.dll";	# Windows Instant Client
 
-print "Installing on a $^O, Ver#$osvers\n"; 
+print "Installing on a $^O, Ver#$osvers\n";
 print "Using Oracle in $OH\n";
 
 # $client_version => Major.Minor, $client_version_full => Major.Minor.X.Y.Z
@@ -306,9 +306,9 @@ elsif (($^O eq 'MSWin32') or ($^O =~ /cygwin/i)) {
 	$OCIDIR = $_ if /^OCI\d*$/i && $OCIDIR lt $_;
 	$File::Find::prune = 1 if -d $_ && $_ !~ /^\./;
     }, $OH );
-    
+
     $OCIDIR = 'sdk' if !$OCIDIR && -d "$OH/sdk"; # Instant Client SDK
-    
+
     die "OCI directory not found, please install OCI in $OH" if ! $OCIDIR;
     print "Using OCI directory '$OCIDIR'\n";
 
@@ -338,26 +338,26 @@ elsif (($^O eq 'MSWin32') or ($^O =~ /cygwin/i)) {
       push @OCILIB, "OCI.LIB"    if $OCILIB{'OCI.LIB'};
       my $OCILIB = pop @OCILIB || '';
       $OCILIB =~ s/\.LIB$//i;
-  
+
       die qq{
       Unable to find required Oracle OCI files for the build.  Please check
-      that you have your OCI installed in your oracle home ($OH) 
+      that you have your OCI installed in your oracle home ($OH)
       directory and that it has the following files (and probably more):
-  
+
 	$OH\\$OCIDIR\\include\\oratypes.h
 	$OH\\$OCIDIR\\lib\\$oci_compiler_dir\\$OCILIB.lib
-  
+
       Please install OCI or send comments back to dbi-users\@perl.org
-      if you have an OCI directory other than $OCIDIR.  
+      if you have an OCI directory other than $OCIDIR.
 
       Alternatively, if you\'re using ActiveState perl on Windows try
         ppm install ftp://ftp.esoftmatic.com/outgoing/DBI/5.8.3/DBI.ppd
         ppm install ftp://ftp.esoftmatic.com/outgoing/DBI/5.8.3/DBD-Oracle.ppd
-  
-      } unless  (-e "$OH/$OCIDIR/include/oratypes.h" 
+
+      } unless  (-e "$OH/$OCIDIR/include/oratypes.h"
 	      && -e "$OH/$OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib")
 	      or $::opt_F;
-  
+
       print "Using $OCIDIR/lib/$oci_compiler_dir/$OCILIB.lib\n";
       $opts{LIBS} = [ "-L$OH/$OCIDIR/LIB/$oci_compiler_dir $OCILIB" ];
     };
@@ -399,7 +399,7 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
 elsif (my @libclntsh = glob("$OH/libclntsh.$so*")) {
 
     print "Looks like an Instant Client installation, okay\n";
-    
+
     # the libclntsh.$so (without version suffix) may be missing
     # we need it to link to so try to create it
     eval {
@@ -408,7 +408,7 @@ elsif (my @libclntsh = glob("$OH/libclntsh.$so*")) {
 	print "So I'm going to create a $OH/libclntsh.$so symlink to $libclntsh_v\n";
         symlink($libclntsh_v, "$OH/libclntsh.$so")
 	    or warn "Can't create symlink $OH/libclntsh.$so to $libclntsh_v: $!\n";
-    } unless -e "$OH/libclntsh.$so";  
+    } unless -e "$OH/libclntsh.$so";
 
     check_ldlibpthname($OH);
 
@@ -477,9 +477,9 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
     my $libhome = expand_mkvars($MK{LIBHOME}, 0, 1) || "$OH/lib";
     $linkwith = expand_mkvars($linkvia, 0, 1);
 
-    #now use logic based of oracle version 
-    $linkwith =~ s!/lib\b!/$libdir!g; 
-    $libhome =~ s!/lib\b!/$libdir!g; 
+    #now use logic based of oracle version
+    $linkwith =~ s!/lib\b!/$libdir!g;
+    $libhome =~ s!/lib\b!/$libdir!g;
     #print "linkwith=$linkwith\n";
 
 
@@ -571,7 +571,7 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 
     # modifications (mostly) by Lincoln Baxter
     if ( ($^O eq 'hpux') && ($osvers > 10) && (
-        $Config{'cc'} eq 'cc' or $Config{'gccversion'}) ) 
+        $Config{'cc'} eq 'cc' or $Config{'gccversion'}) )
     {
         # these get dragged in from demo_rdbms.mk where Oracle uses them
         # the linker bitches about them not being valid options
@@ -594,10 +594,10 @@ else {	# --- trawl the guts of Oracle's make files looking the how it wants to l
 
         #Lincoln: pick the right library path
         my $libdir = ora_libdir();
-        $linkwith =~ s!/lib\b!/$libdir!g; 
+        $linkwith =~ s!/lib\b!/$libdir!g;
 
         # A number of folks have had to add this library to resolve
-        # undefined symbol errors reported at runtime by ld.sl (the 
+        # undefined symbol errors reported at runtime by ld.sl (the
         # library loader) libqsmashr defines LhrStringInsert()...
         # other libraries may have to be added (Lincoln Baxter <lbaxter@fleetcc.com>)
         # we check for the library's existence first... (8.0.5 does not have it)
@@ -740,7 +740,7 @@ $opts{DEFINE} .= ' -Xa' if $Config{cc} eq 'clcc';	# CenterLine CC
 
 
 
-	
+
 
 
 
@@ -761,15 +761,15 @@ $opts{DEFINE} .= ($^O ne 'VMS')
 print "\nclient_version=$client_version\n\n";
 
 $opts{DEFINE} .= " -DORA_OCI_102" if ($::opt_V && $client_version == 10.2)
-				or ( $client_version >= 10.2); 
+				or ( $client_version >= 10.2);
 
 $opts{DEFINE} .= " -DORA_OCI_112" if ($::opt_V && $client_version == 11.2)
-				or ( $client_version >= 11.2); 
+				or ( $client_version >= 11.2);
 
 print "\nDEFINE=$opts{DEFINE}\n\n";
 # OCIStmntFetch2() is a feature of OCI 9.0.0
 $opts{DEFINE} .= " -DUSE_ORA_OCI_STMNT_FETCH " if ( $client_version < 9.0 );
- 
+
 
 # Set some private WriteMakefile options if this is 'me' :-)
 if ($is_developer){  # a reasonable guess
@@ -806,11 +806,11 @@ if ($^O eq 'hpux') {
 }
 
 
-# --- check for Test::Harness bug 
+# --- check for Test::Harness bug
 
 print "\nChecking for functioning wait.ph\n";
 eval { package WAIT; local $^W = 0; require 'wait.ph' };
-if (!$@ && !defined(&WAIT::WCOREDUMP)) { 
+if (!$@ && !defined(&WAIT::WCOREDUMP)) {
     print "You have a wait.ph file generated by perl h2ph utility.\n";
     print "(I found it at $INC{'wait.ph'})\n";
     print "It does not define a WCOREDUMP function. That's probably an error.\n";
@@ -818,7 +818,7 @@ if (!$@ && !defined(&WAIT::WCOREDUMP)) {
     print "from Test::Harness about WCOREDUMP being undefined. You can either ignore\n";
     print "it or try to fix your wait.ph file. The message DOES NOT reflect the\n";
     print "cause of the test failure, it's just a problem interpreting the failure.\n";
-} 
+}
 print "\n";
 
 
@@ -921,8 +921,8 @@ END_TXT
      return;
    }
 
-    return if grep { $ENV{$_} eq 'LNM$JOB' } 
-              grep { /^PERL_ENV_TABLES;\d+$/ } 
+    return if grep { $ENV{$_} eq 'LNM$JOB' }
+              grep { /^PERL_ENV_TABLES;\d+$/ }
               keys %ENV;
 
 # perl_env_tables set but the element we want is missing
@@ -1101,7 +1101,7 @@ sub read_sysliblist {
 }
 
 
-sub perl_is_64bit { 
+sub perl_is_64bit {
     return defined $Config{use64bitall} ;
 }
 sub ora_libdir {
@@ -1112,7 +1112,7 @@ sub ora_libdir {
     else {
         $libdir = 'lib64' if   perl_is_64bit() and -d "$OH/lib64";
     }
-   
+
     return $libdir;
 }
 
@@ -1134,7 +1134,7 @@ sub del_crtobj {
 
 
 sub find_mkfile {
-    
+
     my @mk_oci32 = (
     	'rdbms/demo/demo_xe.mk',
 	'rdbms/demo/demo_rdbms32.mk'
@@ -1146,10 +1146,10 @@ sub find_mkfile {
 	'rdbms/demo/demo_rdbms.mk',
 	'rdbms/demo/demo_rdbms64.mk',
 	'rdbms/lib/ins_rdbms.mk' #Oracle 11 full client for 64 bit and maybe 32 bit??
- 
+
     );
     my @mk_oci = perl_is_64bit() ? @mk_oci64 : @mk_oci32;
-   
+
     # Add build.mk from /usr/share/oracle based on the oracle home location if
     # oracle home is under /usr/lib/oracle (Linux RPM install).
     # The 11g instant client only contains build.mk located in
@@ -1219,7 +1219,7 @@ sub fetch_oci_macros {
     $edit{COMPOBJS} = q{
 	# Firstly a Solaris specific edit:
 	$_ = del_crtobj($_) if $^O eq 'solaris';
-	
+
 	# Delete any object files in COMPOBJS that don't actually exist
 	my $of;
 	foreach $of (split(/=|\s+/)) {
@@ -1228,7 +1228,7 @@ sub fetch_oci_macros {
 	    next if -e $obj;
 	    print "Deleting $of from COMPOBJS because $obj doesn't exist.\n";
 	    s:\Q$of::;
-	} 
+	}
     };
 
     # deal with (some subversions) of Oracle8.0.3's incompatible use of OBJ_EXT
@@ -1237,7 +1237,7 @@ sub fetch_oci_macros {
     # Don't include compiler options for these compilers
     my @ignore_def = qw( BUILD_CCC296 BUILD_ICC );
     my %ignore_def; @ignore_def{@ignore_def} = ('1') x @ignore_def;
- 
+
     my $mkver = 0;
     my $lastline = '';
     my @lines = read_inc_file($file);
@@ -1274,7 +1274,7 @@ sub fetch_oci_macros {
                 }
 		push @rules, $tmp_line;
 		#print "target @tgts => $mk_target_deps{$tgt} => @{$mk_target_rules{$tgt}}\n";
-            }  
+            }
 	    for (@tgts) { push @{ $mk_target_rules{$_} ||= [] }, @rules }
             next;
         }
@@ -1418,7 +1418,7 @@ sub read_inc_file {
 
 
 my %expand_shellescape;
-sub expand_shellescape { 
+sub expand_shellescape {
     my($orig, $level) = @_;
     my $cmd = $orig;
     my $debug = $::opt_d || $::opt_v;
@@ -1435,7 +1435,7 @@ sub expand_shellescape {
     $result;
 }
 
-sub expand_mkvars { 
+sub expand_mkvars {
     my ($string, $strip, $backtick, $level, $maxlevel) = @_;
 
 	 return if(!defined $string);
@@ -1459,7 +1459,7 @@ sub expand_mkvars {
 }
 
 
-sub mkvar { 
+sub mkvar {
     my($var, $strip, $backtick, $level, $maxlevel) = @_;
     my  $default = $strip ? '' : "\$($var)";
     print "$level Variable: $var\n" if $::opt_d;
@@ -1500,7 +1500,7 @@ sub find_bin{
     my $bin = shift;
     my $path_sep = $Config{path_sep};
     foreach (split(/\Q$path_sep/, $ENV{PATH})){
-      return "$_/$bin" if -x "$_/$bin";	
+      return "$_/$bin" if -x "$_/$bin";
     }
     return undef;
 }
@@ -1510,7 +1510,7 @@ sub find_headers {
 
     # compensate for case where final .0 isn't in the install directory name
     (my $client_version_trim = $client_version_full) =~ s/\.0$//;
-  
+
     my @try = (	# search the ORACLE_HOME we're using first
        # --- Traditional full-install locations
        "$OH/rdbms/public", # prefer public over others
@@ -1527,19 +1527,19 @@ sub find_headers {
        "/usr/include/oracle/$client_version/client64", # Instant Client 11.1 and up
        "/usr/include/oracle/$client_version_trim/client64", # Instant Client 64
        "/usr/include/oracle/$client_version_full/client64", # Instant Client 64
-       
+
     );
 
 
-     
+
    # Add /usr/include/oracle based on the oracle home location if oracle home is under
    # /usr/lib/oracle ( Linux RPM install ).  The 11g instant client reports
    # client_version as 11.1.0.6 from sqlplus, but installs under 11.1.0.1.
    push @try, "/usr/include/oracle/$1" if ($OH =~ m|^/usr/lib/oracle/(.*)|);
- 
+
    unshift @try, $::opt_h if $::opt_h;
    @try = grep { -d $_ } @try;
-  
+
     my %h_file;
     if (@try) {
       find( sub {
@@ -1601,13 +1601,13 @@ sub get_client_version {
 	close FH;
 	my $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
 	if ($sqlplus_release =~ /(SP2-0750)|(SP2-0642)/) {
-	
+
 
 	                my $x = $ENV{ORACLE_HOME};
 	                delete $ENV{ORACLE_HOME};
 	                $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
 	                $ENV{ORACLE_HOME} = $x;
-        } 
+        }
 	unlink "define.sql";
 	print $sqlplus_release; # the _SQLPLUS_RELEASE may not be on first line:
 	if ($sqlplus_release =~ /DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
@@ -1781,13 +1781,13 @@ You have an old copy which you should delete when installing this one.\n";
 
     sub const_loadlibs {
 	my $self = shift;
-	
+
 	# ExtUtils::MM_Unix v1.50 (invoked by ExtUtils::MakeMaker)
 	# requires that $self->{LD_RUN_PATH} be defined and not be
-	# an empty string for Makefile to specify its use during the 
+	# an empty string for Makefile to specify its use during the
 	# build. This is required by both SUPER::const_loadlibs
 	# and SUPER::dynamic_lib. hence it is best if we define
-	# or modify $self->{LD_RUN_PATH} here *before* calling 
+	# or modify $self->{LD_RUN_PATH} here *before* calling
 	# SUPER::const_loadlibs.
 
 
@@ -1861,7 +1861,7 @@ ORACLE_HOME = '.$OH.'
 	   if ($^O eq "MSWin32" and $Config::Config{cc} eq 'cl') {
 	      s/\s-/ -Zi -/;
 	      s/-O1//;
-	      
+
 	   } else {
 	      s/\s-O\d?\b//;	# delete optimise option
   	      s/\s-/ -g -/;	# add -g option
@@ -1881,7 +1881,7 @@ ORACLE_HOME = '.$OH.'
 	unless ($^O eq 'VMS') {
 		my $m = $self->SUPER::dynamic_lib(@_);
 		if ($^O eq 'darwin') {
-			$m =  "NMEDIT = nmedit\n" . $m . 
+			$m =  "NMEDIT = nmedit\n" . $m .
 			      "\t\$(NMEDIT) -R ./hints/macos_bundle.syms \$(INST_DYNAMIC) || true\n";
 		}
 		elsif (($^O eq 'hpux') and ($osvers <11)) {
@@ -1916,7 +1916,7 @@ $(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt $(INST_ARCHAUTODIR)
 	$(NOECHO) If F$TrnLNm("PerlShr").eqs."" Then Define/NoLog/User PerlShr Sys$Share:PerlShr.',$Config::Config{'dlext'},'
 	Lnproc $(MMS$TARGET)$(OTHERLDFLAGS) $(BASEEXT).opt/Option,$(PERL_INC)perlshr_attr.opt/Option i
 ';
-    
+
   }
 	push @m, $self->dir_target('$(INST_ARCHAUTODIR)');
 	join('',@m);
@@ -1981,7 +1981,7 @@ sub check_security {
     # if set, this allows a user to fork a root shell!
     # Get the octal portion of perms that indicates
     # SUID and SGID, and warn if either is set
- 
+
     my @files = map { ($_,$_.'0') } qw(
 	oratclsh lsnrctl oemevent onrsd osslogin tnslsnr
 	tnsping trcasst trcroute cmctl cmadmin cmgw names namesctl otrccref
@@ -2022,7 +2022,7 @@ sub check_macos_symbol_table {
 	warn <<"END_WARNING";
 WARNING: symbol table may need modification in Oracle library:
     $oracle_lib
-If the build fails in the linking stage, manual modification is 
+If the build fails in the linking stage, manual modification is
 required - see README.macosx.txt
 END_WARNING
 
