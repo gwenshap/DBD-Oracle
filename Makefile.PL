@@ -219,7 +219,7 @@ Remember to actually *READ* the README file! Especially if you have any problems
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 my $OH = $ENV{$ORACLE_ENV} || '';
-$OH  = win32_oracle_home($OH) if ($^O eq 'MSWin32') or ($^O =~ /cygwin/i);
+$OH = win32_oracle_home($OH) if ($^O eq 'MSWin32') or ($^O =~ /cygwin/i);
 $OH = unixify $OH if $^O eq 'VMS';
 $OH =~ s:/$::;
 
@@ -237,7 +237,7 @@ if (!$OH) {
   print "WARNING: If these tests fail you may have to set ORACLE_HOME yourself!\n";
   sleep 5;
 }
-
+-l $OH and $OH = Cwd::abs_path ($OH); # Oracle really dislikes symbolic links
 die qq{  The $ORACLE_ENV environment variable value ($OH) is not valid.
   It must be set to hold the path to an Oracle installation directory
   on this machine (or a machine with a compatible architecture).

@@ -7,10 +7,11 @@ Changes in DBD-Oracle XXX
  [BUG FIXES]
  - support development release versions in GetInfo (Martin J. Evans)
  - don't gag diag() on the tests by default
+ - convert a symbolically linked ORACLE_HOME to an absolute path (patch by H.Merijn Brand, applied by Martin J. Evans) [rt70785]
 
 Changes in DBD-Oracle 1.30
   [DOCUMENTATION]
- - add warning about RT#69350 in documentation 
+ - add warning about RT#69350 in documentation
 
 Changes in DBD-Oracle 1.29_1
  [ENHANCEMENTS]
@@ -26,7 +27,7 @@ Changes in DBD-Oracle 1.29_1
 
  [BUG FIXES]
  - fixed bug in bind_col which was broken in 1.27 and stopped anyone using
-    a string as a column number. E.g., '1' (Martin J. Evans, Alexander
+    a string as a column number. e.g., '1' (Martin J. Evans, Alexander
     Foken)
  - removed obsolete oparse_lang (John Scoles)
  - fixed some compiler warnings in dbdimp.c and oci8.c (Martin J. Evans)
