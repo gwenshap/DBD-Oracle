@@ -229,7 +229,7 @@ __END__
 
 =head1 NAME
 
-Oraperl - deprecated (Repreived for now, but Will be removed in a future release) Perl access to Oracle databases for old oraperl scripts
+Oraperl - [DEPRECATED] Perl access to Oracle databases for old oraperl scripts
 
 =head1 SYNOPSIS
 
@@ -291,6 +291,11 @@ with both the perl4 oraperl and perl5 you should add add the following
 text instead:
 
   eval 'use Oraperl; 1;' || die $@ if $] >= 5;
+
+
+The use of I<Oraperl> is deprecated in favor of L<DBD::Oracle>,
+and will be removed from the I<DBD::Oracle> distribution as of 
+1.38.
 
 =head2 Principal Functions
 
