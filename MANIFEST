@@ -15,7 +15,6 @@ mkta.pl
 oci.def				OCI.DLL export declarations
 oci8.c
 ocitrace.h
-ora_explain.PL
 Oracle.ex/bind.pl
 Oracle.ex/commit.pl
 Oracle.ex/curref.pl
@@ -33,21 +32,6 @@ Oracle.xs
 oraperl.ph Old oraperl file included for completeness of emulation
 Oraperl.pm
 README
-README-files/hpux/Conf-Lincoln-1.06
-README-files/hpux/Conf-Lincoln-1.07
-README-files/hpux/Conf-Merijn-580-10.20-cc
-README-files/hpux/Conf-Merijn-585-11.00-cc
-README-files/hpux/Conf-Merijn-585-11.11-cc
-README-files/hpux/Conf-Merijn-587-11.23-cc
-README-files/hpux/Conf-Merijn-588-10.20-gcc
-README-files/hpux/Conf-Merijn-588-11.00-gcc32
-README-files/hpux/Conf-Merijn-588-11.00-gcc64
-README-files/hpux/Conf-Merijn-588-11.11-gcc32
-README-files/hpux/Conf-Merijn-588-11.11-gcc64
-README-files/hpux/Conf-Merijn-588-11.23-gcc64
-README-files/hpux/Conf-Mike
-README-files/hpux/Conf-Roger
-README-files/hpux/libjava.eml
 README-files/hpux/Makefile-Lincoln
 README.64bit.txt
 README.aix.txt
@@ -102,3 +86,5 @@ t/nchar_test_lib.pl
 test.pl
 Todo
 typemap
+examples/ora_explain.pl
+t/00versions.t
