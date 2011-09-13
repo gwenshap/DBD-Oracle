@@ -69,9 +69,7 @@ for my $test_info (@tests) {
 
   my $ph_type = $test_info->{type} || die;
   my $name    = $test_info->{name} || die;
-  diag("\n");
-  diag("testing @{[ %$test_info ]} ...\n");
-  diag("\n");
+  note("\ntesting @{[ %$test_info ]} ...\n\n");
 
  SKIP: {
       skip "skipping tests", 12 if ($test_info->{SKIP});
@@ -95,7 +93,7 @@ for my $test_info (@tests) {
       $dbh->rollback;
 
       delete $_->{name} foreach values %$tmp;
-      diag(Data::Dumper::Dumper($tmp));
+      note(Data::Dumper::Dumper($tmp));
 
       # check trailing_space behaviour
       my $expect = $val_with_trailing_space;

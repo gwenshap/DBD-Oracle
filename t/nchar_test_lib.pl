@@ -189,7 +189,7 @@ sub show_test_data
         my $nice_string = nice_string($v);
         my $out = sprintf( "row: %3d: nice_string=%s byte_string=%s (%s, %s)\n",
                            $cnt, $nice_string, $byte_string, $v, DBI::neat($v));
-        diag($out);
+        note($out);
     }
     return $cnt;
 }
@@ -387,7 +387,7 @@ sub create_table
     } else {
        #$sql =~ s/ \( */(\n\t/g;
        #$sql =~ s/, */,\n\t/g;
-       diag("$sql\n") ;
+       note("$sql\n") ;
     }
     return $table;
 #    ok( not $dbh->err, "create table $table..." );
@@ -406,11 +406,11 @@ sub show_db_charsets
 	db_ochar_is_utf($dbh) ? "Unicode" : "Non-Unicode",
 	$paramsH->{NLS_NCHAR_CHARACTERSET},
 	db_nchar_is_utf($dbh) ? "Unicode" : "Non-Unicode";
-    diag($out);
+    note($out);
     my $ora_client_version = ORA_OCI();
     $out = sprintf "Client $ora_client_version NLS_LANG is '%s', NLS_NCHAR is '%s'\n",
 	ora_env_var("NLS_LANG") || "<unset>", ora_env_var("NLS_NCHAR") || "<unset>";
-    diag($out);
+    note($out);
 }
 sub db_ochar_is_utf { return shift->ora_can_unicode & 2 }
 sub db_nchar_is_utf { return shift->ora_can_unicode & 1 }

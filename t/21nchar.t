@@ -20,8 +20,8 @@ SKIP: {
   #  $dbh->{PrintError} = 1;
     plan skip_all => "Unable to connect to Oracle" if not $dbh;
 
-    diag("testing control and 8 bit chars:\n") ;
-    diag(" Database and client versions and character sets:\n");
+    note("testing control and 8 bit chars:\n") ;
+    note(" Database and client versions and character sets:\n");
     show_db_charsets( $dbh);
 
     plan skip_all => "Oracle charset tests unreliable for Oracle 8 client"
