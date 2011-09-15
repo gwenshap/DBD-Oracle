@@ -3,6 +3,7 @@ Revision history for DBD::Oracle
 Changes in DBD-Oracle XXX
  [ENHANCEMENTS]
  - Makefile.PL's options are now documented
+ - move 'explain' to '/examples' directory
 
  [BUG FIXES]
  - support development release versions in GetInfo (Martin J. Evans)
@@ -11,6 +12,9 @@ Changes in DBD-Oracle XXX
  - Check for LD_LIBRARY_PATH_(32|64) as well for solaris [RT#46761]
  - convert a symbolically linked ORACLE_HOME to an absolute path 
     (patch by H.Merijn Brand, applied by Martin J. Evans) [rt70785]
+
+ [DOCUMENTATION]
+ - announce that Oraperl will be removed from the dist by v1.38.
 
 Changes in DBD-Oracle 1.30
   [DOCUMENTATION]

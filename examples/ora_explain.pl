@@ -1,9 +1,4 @@
-# -*- perl -*-
-
-use strict;
-
-my $script = <<'SCRIPT';
-~startperl~ -w
+#!/usr/bin/env perl 
 
 ################################################################################
 # Copyright (c) 1999 Alan Burlison
@@ -22,6 +17,8 @@ my $script = <<'SCRIPT';
 ################################################################################
 
 use strict;
+use warnings;
+
 use File::Basename;
 use DBI;
 use Tk;
@@ -1417,7 +1414,7 @@ $frame2->grid(-column => 0, -row => 2, -sticky => "we",
               -columnspan => 2, -padx => 6, -pady => 6);
 $frame1->pack(-fill => "x");
 &$ord_bn_cb();   # Set the buttons to the initial state
-$frame->pack(-fill => "x", ipadx => 6, -ipady => 6);
+$frame->pack(-fill => "x", -padx => 6, -pady => 6);
 
 ### Buttons
 $frame = $GrabMain->Frame(-borderwidth => 3, -relief => "raised");
@@ -1573,14 +1570,11 @@ __END__
 
 =head1 NAME
 
-explain, ora_explain - deprecated (Will be removed from DBD::Oracle in 1.29) Visualise Oracle query plans
+ora_explain.pl - Visualise Oracle query plans
 
 =head1 SYNOPSIS
 
- $ explain [ [ user/password@database ] sql script ]
- $ ora_explain [ [ user/password@database ] sql script ]
-
-B<Note:> When bundled with DBD::Oracle, the script is called ora_explain
+ $ ora_explain.pl [ [ user/password@database ] sql script ]
 
 =head1 DESCRIPTION
 
@@ -1632,29 +1626,9 @@ L<Tk::Pod> 3.15 or later
 
 Items 2 through 6 can be obtained from any CPAN mirror.
 
-=head1 INSTALLATION
-
-=over 2
-
-=item 1.
-
-Check you have all the prequisites installed and working.
-
-=item 2.
-
-Run 'perl Makefile.PL; make instal1'
-
-=item 3.
-
-Make sure you have run the script $ORACLE_HOME/rdbms/admin/utlxplan.sql
-from a SQL*Plus session.  This script creates the PLAN_TABLE that is used
-by Oracle when explaining query plans.
-
-=back
-
 =head1 HOW TO USE
 
-Type "explain" or "ora_explain" at the shell prompt.  A window will appear with
+Type "ora_explain.pl" at the shell prompt.  A window will appear with
 a menu bar and three frames, labelled "Query Plan", "Query Step Details" and
 "SQL Editor".  At the bottom of the window are three buttons labelled
 "Explain", "Clear" and "SQL Cache".  A login dialog will also appear, into
@@ -1789,18 +1763,3 @@ This code was written by the author as a private individual, and is in no way
 endorsed or warrantied by Sun Microsystems.
 
 =cut
-SCRIPT
-
-use Config;
-
-my $file = __FILE__; $file =~ s/\.PL$//;
-
-$script =~ s/\~(\w+)\~/$Config{$1}/eg;
-if (!(open(FILE, ">$file"))  ||
-    !(print FILE $script)  ||
-    !(close(FILE))) {
-    die "Error while writing $file: $!\n";
-}
-print "Extracted $file from ",__FILE__," with variable substitutions.\n";
-
-# End.

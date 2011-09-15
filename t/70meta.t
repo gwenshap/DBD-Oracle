@@ -20,14 +20,14 @@ if ($dbh) {
     plan skip_all => "Unable to connect to Oracle";
 }
 
-diag("type_info_all\n");
+note("type_info_all\n");
 my @types = $dbh->type_info(SQL_ALL_TYPES);
 ok(@types >= 8, 'more than 8 types');
-diag(Dumper( @types ));
+note(Dumper( @types ));
 
-diag("tables():\n");
+note("tables():\n");
 my @tables = $dbh->tables;
-diag(@tables." tables\n");
+note(@tables." tables\n");
 ok(scalar @tables, 'tables');
 
 my @table_info_params = (
