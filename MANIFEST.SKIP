@@ -15,3 +15,5 @@
 ^oracle/
 ^tags$
 ~$
+^\.git
+^xt

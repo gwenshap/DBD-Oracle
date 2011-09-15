@@ -49,7 +49,7 @@ if ($dbh) {
 my @cursors;
 my @row;
 
-diag("opening cursors\n");
+note("opening cursors\n");
 my $open_cursor = $dbh->prepare( qq{
 	BEGIN OPEN :kursor FOR
 		SELECT * FROM all_objects WHERE rownum < 5;
@@ -58,7 +58,7 @@ my $open_cursor = $dbh->prepare( qq{
 ok($open_cursor, 'open cursor' );
 
 foreach ( 1 .. $limit ) {
-	diag("opening cursor $_\n");
+	note("opening cursor $_\n");
 	ok( $open_cursor->bind_param_inout( ":kursor", \my $cursor, 0, { ora_type => ORA_RSET } ), 'open cursor bind param inout' );
 	ok( $open_cursor->execute, 'open cursor execute' );
 	ok(!$open_cursor->{Active}, 'open cursor Active');
@@ -72,7 +72,7 @@ foreach ( 1 .. $limit ) {
 	push @cursors, $cursor;
 }
 
-diag("closing cursors\n");
+note("closing cursors\n");
 my $close_cursor = $dbh->prepare( qq{ BEGIN CLOSE :kursor; END; } );
 ok($close_cursor, 'close cursor');
 foreach ( 1 .. @cursors ) {
