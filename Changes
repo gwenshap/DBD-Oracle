@@ -16,6 +16,7 @@ Changes in DBD-Oracle 1.31_00
 
  [DOCUMENTATION]
  - announce that Oraperl will be removed from the dist by v1.38.
+ - add Mac OS instructions for Lion (patch by David Wheeler) [rt71109]
 
 Changes in DBD-Oracle 1.30
   [DOCUMENTATION]
