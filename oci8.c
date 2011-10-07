@@ -774,8 +774,12 @@ oci_attr_name(ub4 attr)
 
 	/* OCI_ATTR_RESERVED_14 */
 
+#ifdef OCI_ATTR_RESERVED_15
 	case OCI_ATTR_RESERVED_15:			return "OCI_ATTR_RESERVED_15";		/* reserved */
+#endif
+#ifdef OCI_ATTR_RESERVED_16
 	case OCI_ATTR_RESERVED_16:			return "OCI_ATTR_RESERVED_16";		/* reserved */
+#endif
 
 	}
 	sv = sv_2mortal(newSViv((IV)attr));
@@ -1276,8 +1280,8 @@ presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
 
 }
 
-/* TAF or Trasarent Application Failoever callback
-   Works like this.  The fuction below is registered on the server,
+/* TAF or Transparent Application Failoever callback
+   Works like this.  The function below is registered on the server,
    when the server is set up to use it, when an exe is called (not sure about other server round trips)
    and the server fails tt should get into this cbk error below.
    It will wait X seconds and then try to reconnect (up to n times if that is the users choice)
