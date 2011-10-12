@@ -41,7 +41,8 @@ if ($dbh) {
 
     plan tests => $tests;
 
-    diag("Max cursors: $limit\n");
+    note "Max cursors: $limit";
+
 } else {
     plan skip_all => "Unable to connect to Oracle";
 }

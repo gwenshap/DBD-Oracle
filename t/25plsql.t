@@ -261,10 +261,9 @@ if (1) {
     is("@r", "@s2", "ref = sql");
 }
 
-diag("test bind_param_inout of param that's not assigned to in executed statement\n");
+# test bind_param_inout of param that's not assigned to in executed statement
 # See http://www.mail-archive.com/dbi-users@perl.org/msg18835.html
-if (1) {
-    my $sth = $dbh->prepare (q(
+my $sth = $dbh->prepare (q(
     BEGIN
  --     :p1 := :p1 ;
  --     :p2 := :p2 ;
@@ -272,21 +271,23 @@ if (1) {
             :p1 := 'AAA' ;
             :p2 := 'Z' ;
         END IF ;
-    END ;));
+END ;));
+
+{
     my ($p1, $p2, $p3) = ('Hello', 'Y', 'Y') ;
     $sth->bind_param_inout(':p1', \$p1, 30) ;
     $sth->bind_param_inout(':p2', \$p2, 1) ;
     $sth->bind_param_inout(':p3', \$p3, 1) ;
-    diag("Before p1=[$p1] p2=[$p2] p3=[$p3]\n");
+    note("Before p1=[$p1] p2=[$p2] p3=[$p3]\n");
     ok($sth->execute, 'test bind_param_inout for non assigned');
     is($p1, 'Hello', 'p1 ok');
     is($p2, 'Y', 'p2 ok');
     is($p3, 'Y', 'p3 ok');
-    diag("After p1=[$p1] p2=[$p2] p3=[$p3]\n");
+    note("After p1=[$p1] p2=[$p2] p3=[$p3]\n");
 }
 
 SKIP: {
-    diag("test nvarchar2 arg passing to functions\n");
+    # test nvarchar2 arg passing to functions
     # http://www.nntp.perl.org/group/perl.dbi.users/24217
     my $ora_server_version = $dbh->func("ora_server_version");
     skip "Client/server version < 9.0", 15

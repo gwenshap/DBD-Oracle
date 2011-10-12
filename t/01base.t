@@ -3,8 +3,7 @@
 # Base DBD Driver Test
 use Test::More tests => 6;
 
-diag('Test loading DBI, DBD::Oracle and version');
-require_ok(DBI);
+require_ok('DBI');
 
 eval {
     import DBI;

@@ -89,7 +89,9 @@ sub timed_fetch {
   my $tm_start = DBI::dbi_time();
   $row_count++ while $rs->fetch;
   my $elapsed = DBI::dbi_time() - $tm_start;
-  diag("Fetched $row_count rows ($caption): $elapsed secs.\n");
+
+  note "Fetched $row_count rows ($caption): $elapsed secs.";
+
   return $elapsed;
 }
 

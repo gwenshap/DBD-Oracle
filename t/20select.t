@@ -44,7 +44,8 @@ if ($dbh) {
     plan skip_all => "Unable to connect to oracle\n";
 }
 
-diag('test simple select statements with [utf8]');
+# test simple select statements with [utf8]
+
 my $utf8_test = ($] >= 5.006)
 	&& client_ochar_is_utf8() # for correct output (utf8 bind vars should be fine regardless)
 	&& ($dbh->ora_can_unicode() & 2);
