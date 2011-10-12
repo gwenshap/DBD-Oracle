@@ -3,6 +3,7 @@ Revision history for DBD::Oracle
 Changes in DBD-Oracle 1.XX
  [DOCUMENTATION]
  - add mention of the github mirror of the subversion repository
+ - add 'resources' info to META.yml
 
 Changes in DBD-Oracle 1.31_00
 
