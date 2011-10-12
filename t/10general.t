@@ -13,8 +13,6 @@ require 'nchar_test_lib.pl';
 
 $| = 1;
 
-diag('Test preparsing, Active, NLS_NUMERIC_CHARACTERS, err, ping and OCI version');
-
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 
@@ -105,10 +103,10 @@ $dbh->{PrintError} = 0;
 ok( $dbh->ping, 'ping - connected');
 
 my $ora_oci = DBD::Oracle::ORA_OCI(); # dualvar
-printf "ORA_OCI = %d (%s)\n", $ora_oci, $ora_oci;
+note sprintf "ORA_OCI = %d (%s)\n", $ora_oci, $ora_oci;
+
 ok("$ora_oci", 'ora_oci defined');
-ok($ora_oci >= 8, 'ora_oci >= 8');
-diag($ora_oci);
+ok($ora_oci >= 8, "ora_oci $ora_oci >= 8");
 my @ora_oci = split(/\./, $ora_oci,-1);
 ok(scalar @ora_oci >= 2, 'version has 2 or more components');
 ok((scalar @ora_oci == grep { DBI::looks_like_number($_) } @ora_oci),

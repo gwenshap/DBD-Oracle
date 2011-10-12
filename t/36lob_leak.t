@@ -157,10 +157,10 @@ END {
        if ($function){
           eval {$dbh->do(qq/drop function $function/);};
           if ($@) {
-             warn("function p_DBD_Oracle_drop_me possibly not dropped" .
+             diag("function p_DBD_Oracle_drop_me possibly not dropped" .
                     "- check - $@\n") if $dbh->err ne '4043';
           } else {
-             diag("function p_DBD_Oracle_drop_me dropped");
+             note("function p_DBD_Oracle_drop_me dropped");
           }
        }
    }

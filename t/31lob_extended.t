@@ -171,24 +171,21 @@ EOT
 }
 
 END {
-    if ($dbh) {
-        local $dbh->{PrintError} = 0;
-        local $dbh->{RaiseError} = 1;
-        eval {$dbh->do(q/drop procedure p_DBD_Oracle_drop_me/);};
-        if ($@) {
-            warn("procedure p_DBD_Oracle_drop_me possibly not dropped" .
-                     "- check - $@\n") if $dbh->err ne '4043';
-        } else {
-            diag("procedure p_DBD_Oracle_drop_me dropped");
-        }
-        eval {drop_table($dbh);};
-        if ($@) {
-            warn("table $table possibly not dropped - check - $@\n")
+    return unless $dbh;
 
-                if $dbh->err ne '942';
-        } else {
-            diag("table $table dropped");
-        }
+    local $dbh->{PrintError} = 0;
+    local $dbh->{RaiseError} = 1;
+
+    eval {$dbh->do(q/drop procedure p_DBD_Oracle_drop_me/);};
+    if ($@) {
+        diag("procedure p_DBD_Oracle_drop_me possibly not dropped" .
+                    "- check - $@\n") if $dbh->err ne '4043';
     }
-};
+
+    eval {drop_table($dbh);};
+    if ($@) {
+        diag("table $table possibly not dropped - check - $@\n")
+            if $dbh->err ne '942';
+    }
+}
 
