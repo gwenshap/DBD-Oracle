@@ -1,6 +1,11 @@
 Revision history for DBD::Oracle
 
-Changes in DBD-Oracle XXX
+Changes in DBD-Oracle 1.XX
+ [DOCUMENTATION]
+ - add mention of the github mirror of the subversion repository
+
+Changes in DBD-Oracle 1.31_00
+
  [ENHANCEMENTS]
  - Makefile.PL's options are now documented
  - move 'explain' to '/examples' directory
