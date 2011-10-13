@@ -650,6 +650,7 @@ SELECT *
                         )
          , 'FLOAT'    , tc.DATA_PRECISION
          , 'DATE'     , 19
+         , 'VARCHAR2' , tc.CHAR_LENGTH 
          , tc.DATA_LENGTH
          )                   COLUMN_SIZE
        , decode( tc.DATA_TYPE
