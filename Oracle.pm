@@ -5551,6 +5551,11 @@ actually spending time working on them. Otherwise you run the risk
 of them being rejected because they don't fit into some larger plans
 you may not be aware of.
 
+=head2 GitHub repository
+
+A git mirror of the subversion is also available at
+`https://github.com/yanick/DBD-Oracle`. 
+
 =head1 Oracle Related Links
 
 =head2 DBD::Oracle Tutorial
