@@ -1533,7 +1533,7 @@ environment variable ORA_DRCP.  All of which are demonstrated below;
 
   $dbh = DBI->connect('dbi:Oracle:DB','username','password')
 
-You can find a white paper on setting up DRCP and its advantages at L<http://www.oracle.com/technology/tech/oci/pdf/oracledrcp11g.pdf>.
+You can find a white paper on setting up DRCP and its advantages at L<http://www.oracle.com/technetwork/articles/oracledrcp11g-1-133381.pdf>.
 
 Please note that DRCP support in DBD::Oracle is relatively new so the
 mechanics or its implementation are subject to change.
