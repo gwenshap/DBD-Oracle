@@ -1,5 +1,8 @@
 Revision history for DBD::Oracle
 
+Changes in DBD-Oracle 1.32  (16-10-2011)
+ - promote 1.31_00 to official release
+
 Changes in DBD-Oracle 1.31_00
 
  [ENHANCEMENTS]
