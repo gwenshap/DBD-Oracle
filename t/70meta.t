@@ -38,20 +38,19 @@ my @table_info_params = (
 foreach my $table_info_params (@table_info_params) {
     my ($name) = shift @$table_info_params;
     my $start = time;
-    diag("$name: table_info(".DBI::neat_list($table_info_params).")\n");
+    note("$name: table_info(".DBI::neat_list($table_info_params).")\n");
     my $table_info_sth = $dbh->table_info(@$table_info_params);
     ok($table_info_sth, 'table_info');
     my $data = $table_info_sth->fetchall_arrayref;
     ok($data, 'table_info fetch');
     ok(scalar @$data, 'table_info data returned');
     my $dur = time - $start;
-    diag("$name: ".@$data." rows, $dur seconds\n");
-#   print Dumper($data);
+    note("$name: ".@$data." rows, $dur seconds\n");
 }
 
 my $sql_dbms_version = $dbh->get_info(18);
 ok($sql_dbms_version, 'dbms_version');
-diag("sql_dbms_version=$sql_dbms_version\n");
+note "sql_dbms_version=$sql_dbms_version";
 like($sql_dbms_version, qr/^\d+\.\d+\.\d+$/, 'matched');
 
 $dbh->disconnect;

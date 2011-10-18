@@ -7,7 +7,7 @@
 
 require 5.006;
 
-$DBD::Oracle::VERSION = '1.32';
+$DBD::Oracle::VERSION = '1.33_00';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -650,6 +650,7 @@ SELECT *
                         )
          , 'FLOAT'    , tc.DATA_PRECISION
          , 'DATE'     , 19
+         , 'VARCHAR2' , tc.CHAR_LENGTH 
          , tc.DATA_LENGTH
          )                   COLUMN_SIZE
        , decode( tc.DATA_TYPE
@@ -1532,7 +1533,7 @@ environment variable ORA_DRCP.  All of which are demonstrated below;
 
   $dbh = DBI->connect('dbi:Oracle:DB','username','password')
 
-You can find a white paper on setting up DRCP and its advantages at L<http://www.oracle.com/technology/tech/oci/pdf/oracledrcp11g.pdf>.
+You can find a white paper on setting up DRCP and its advantages at L<http://www.oracle.com/technetwork/articles/oracledrcp11g-1-133381.pdf>.
 
 Please note that DRCP support in DBD::Oracle is relatively new so the
 mechanics or its implementation are subject to change.
@@ -5550,6 +5551,11 @@ to discuss (on dbi-dev@perl.org) the changes you propose before
 actually spending time working on them. Otherwise you run the risk
 of them being rejected because they don't fit into some larger plans
 you may not be aware of.
+
+=head2 GitHub repository
+
+A git mirror of the subversion is also available at
+`https://github.com/yanick/DBD-Oracle`. 
 
 =head1 Oracle Related Links
 

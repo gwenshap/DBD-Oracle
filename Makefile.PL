@@ -62,7 +62,20 @@ my %opts = (
        configure_requires => { "DBI" => '1.51' },
        build_requires => {"DBI" => '1.51',
                           "ExtUtils::MakeMaker" => 0,
-                          "Test::Simple" => '0.90'}
+                          "Test::Simple" => '0.90'},
+       resources => {
+           bugtracker => {
+               mailto => 'bug-dbd-oracle at rt.cpan.org',
+               web => 
+                'http://rt.cpan.org/Public/Dist/Display.html?Name=DBD-Oracle',
+           },
+           homepage => 'http://search.cpan.org/dist/DBD-Oracle',
+           repository => {
+               type => 'git',
+               url => 'git://github.com/yanick/DBD-Oracle.git',
+               web => 'http://github.com/yanick/DBD-Oracle/tree',
+           },
+       },
     },
 );
 my $eumm = $ExtUtils::MakeMaker::VERSION;
