@@ -1,6 +1,6 @@
 Revision history for DBD::Oracle
 
-Changes in DBD-Oracle 1.XX
+Changes in DBD-Oracle 1.33_00 (18-10-2011)
 
  [BUG FIXES]
  - COLUMN_SIZE of VARCHAR2 returns size in chars, not bytes. [RT#13865]
@@ -12,6 +12,7 @@ Changes in DBD-Oracle 1.XX
  - fixed broken link to Oracle DRCP doc in POD (John Scoles)
 
 Changes in DBD-Oracle 1.32  (16-10-2011)
+
  - promote 1.31_00 to official release
 
 Changes in DBD-Oracle 1.31_00
