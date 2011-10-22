@@ -16,6 +16,10 @@ Changes in DBD-Oracle 1.33_01 (xx-xx-xxxx)
    does not affect how the column is bound in Oracle, only what
    happens after the column data is retrieved (Martin J. Evans)
 
+ [OTHER]
+ - Commented out some functions in oci8.c which were not used to
+   reduce the size of the driver a little (Martin J. Evans)
+
 Changes in DBD-Oracle 1.33_00 (18-10-2011)
 
  [BUG FIXES]

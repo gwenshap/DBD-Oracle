@@ -23,7 +23,7 @@ int describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level );
 int dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level);
 
 
-
+/*
 char *
 dbd_yes_no(int yes_no)
 {
@@ -33,6 +33,7 @@ dbd_yes_no(int yes_no)
 	}
 	return "No";
 }
+*/
 
 void
 dbd_init_oci(dbistate_t *dbistate)
@@ -52,6 +53,7 @@ dbd_init_oci_drh(imp_drh_t * imp_drh)
 
 }
 
+/*
 char *
 oci_sql_function_code_name(int sqlfncode)
 {
@@ -71,7 +73,9 @@ oci_sql_function_code_name(int sqlfncode)
 	sprintf(SvPVX(sv),"(UNKNOWN SQL FN Code %d)", sqlfncode);
 	return SvPVX(sv);
 }
+*/
 
+ /*
 char *
 oci_ptype_name(int ptype)
 {
@@ -104,7 +108,8 @@ oci_ptype_name(int ptype)
 	sprintf(SvPVX(sv),"(UNKNOWN PTYPE Code %d)", ptype);
 	return SvPVX(sv);
 }
-
+ */
+ 
 char *
 oci_exe_mode(ub4 mode)
 {

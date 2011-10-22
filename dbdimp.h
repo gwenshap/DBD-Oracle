@@ -352,8 +352,8 @@ char *oci_exe_mode _((ub4 mode));
 char *dbd_yes_no _((int yes_no));
 char *oci_col_return_codes _((int rc));
 char *oci_csform_name _((ub4 attr));
-char *oci_sql_function_code_name _((int sqlfncode));
-char *oci_ptype_name _((int ptype));
+/*char *oci_sql_function_code_name _((int sqlfncode));
+  char *oci_ptype_name _((int ptype));*/
 
 int dbd_rebind_ph_lob _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
 
