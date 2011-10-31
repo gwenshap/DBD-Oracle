@@ -15,6 +15,7 @@ Changes in DBD-Oracle XXX
  - Added notes to bind_col documenting the fact that setting a TYPE
    does not affect how the column is bound in Oracle, only what
    happens after the column data is retrieved (Martin J. Evans)
+ - fix typo (thanks to Julián Moreno Patiño) [RT72038]
 
  [OTHER]
  - Commented out some functions in oci8.c which were not used to
