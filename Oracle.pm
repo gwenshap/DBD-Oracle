@@ -4148,6 +4148,12 @@ Returns the number of rows affected for updates, deletes and inserts and -1 for 
 Binds a Perl variable and/or some attributes to an output column of a SELECT statement.
 Column numbers count up from 1. You do not need to bind output columns in order to fetch data.
 
+NOTE: DBD::Oracle does not use the C<$bind_type> to determine how to
+bind the column; it uses what Oracle says the data type is. You can
+however set a numeric bind type with the bind attributes
+StrictlyTyped/DiscardString as these attributes are applied after the
+column is retrieved.
+
 See the DBI documentation for a discussion of the optional parameters C<\%attr> and C<$bind_type>
 
 =head3 B<bind_columns>
