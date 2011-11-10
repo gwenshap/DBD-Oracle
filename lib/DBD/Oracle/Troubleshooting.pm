@@ -208,7 +208,7 @@ The present version of the make creates a link on your "instantclient" directory
 but is not need for the test.pl. It should be removed after the compile.
 
 If the Makefile.PL or make fails try creating this link directly in your "instantclient" directory.
- 
+
 =head2 Oracle Database 10g Express Edition  10.2
 
 To get 10Xe to compile correctly I had to add $ORACLE_HOME/lib to the LD_LIBRARY_PATH 
@@ -301,5 +301,19 @@ this:
 
     my $dbh = DBI->connect('dbi:Oracle:host=oraclehost;sid=oracledb1',
     'username', 'password');
+
+=head2 SUN
+
+If you get this on a Solaris 9 and 10 box
+
+  "Outofmemory!
+   Callback called exit.
+   END failed--call queue aborted."
+
+The solution may be as simple as not having you "ORACLE_HOME" Defined in the
+environment.
+
+It seems that having it defined will prevent the error.
+
 
 =cut
