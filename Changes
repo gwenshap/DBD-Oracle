@@ -17,6 +17,7 @@ Changes in DBD-Oracle XXX
    does not affect how the column is bound in Oracle, only what
    happens after the column data is retrieved (Martin J. Evans)
  - fix typo (thanks to Julián Moreno Patiño) [RT72038]
+ - shuffle POd around to improve documentation flow [RT72252]
 
  [OTHER]
  - Commented out some functions in oci8.c which were not used to
