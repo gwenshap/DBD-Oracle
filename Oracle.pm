@@ -1122,7 +1122,7 @@ This documentation describes driver specific behaviour and restrictions. It is
 not supposed to be used as the only reference for the user. In any case
 consult the L<DBI> documentation first!
 
-=head1 Constants
+=head1 CONSTANTS
 
 =over 4
 
@@ -1189,7 +1189,7 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 
 =back
 
-=head1 The DBI Class
+=head1 THE DBI CLASS
 
 =head2 DBI Class Methods
 
@@ -1198,12 +1198,15 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 This method creates a database handle by connecting to a database, and is the DBI
 equivalent of the "new" method.
 
-This is a topic which often causes problems. Mainly due to Oracle's many
-and sometimes complex ways of specifying and connecting to databases.
-James Taylor and Lane Sharman have contributed much of the text in
-this section. Unfortunately it is only really relative for connecting into older Oracle (<9) versions.
-Most of this stuff is well out of date  but it will be left in for now.
-See the next section L</Connecting To Oracle> for some more up to date connection hints.
+It is best to not use ORACLE_SID or TWO_TASK as both of these are rather out of date. You are better off keeping it simple like the following examples
+
+  $dbh = DBI->connect('dbi:Oracle:DB','username','password');
+
+  $dbh = DBI->connect('dbi:Oracle:DB','username/password','');
+
+  $dbh = DBI->connect('dbi:Oracle:','username@DB','password');
+
+  $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=DB;port=1521', 'scott/tiger', '');
 
 =head4 Connecting without environment variables or tnsnames.ora file
 
@@ -1217,6 +1220,20 @@ for you and Oracle will not need to consult the tnsnames.ora file.
 If a C<port> number is not specified then the descriptor will try both
 1526 and 1521 in that order (e.g., new then old).  You can check which
 port(s) are in use by typing "$ORACLE_HOME/bin/lsnrctl stat" on the server.
+
+=head4 OS authentication
+
+To connect to a local database with a user which has been set up to
+authenticate via the OS ("ALTER USER username IDENTIFIED EXTERNALLY"):
+
+  $dbh = DBI->connect('dbi:Oracle:','/','');
+
+Note the lack of a connection name (use the ORACLE_SID environment
+variable). If an explicit SID is used you will probably get an ORA-01004 error.
+
+That only works for local databases. (Authentication to remote Oracle
+databases using your Unix login name without a password is possible
+but it is not secure and not recommended so not documented here.
 
 =head4 Oracle Environment Variables
 
@@ -1273,129 +1290,7 @@ Also remember that depending on the operating system you are using
 the differing "ORACLE" environment variables may be case sensitive, so if you are not connecting
 as you should double check the case of both the variable and its value.
 
-=head4 Connection Examples Using DBD::Oracle
-
-First, how to connect to a local database I<without> using a Listener:
-
-  $dbh = DBI->connect('dbi:Oracle:SID','scott', 'tiger');
-
-you can also leave the SID empty:
-
-  $dbh = DBI->connect('dbi:Oracle:','scott', 'tiger');
-
-in which case Oracle client code will use the ORACLE_SID environment
-variable (if the TWO_TASK environment varariable is not defined).
-
-Below are various ways of connecting to an Oracle database using
-SQL*Net 1.x and SQL*Net 2.x.  "Machine" is the computer the database is
-running on, "SID" is the SID of the database, "DB" is the SQL*Net 2.x
-connection descriptor for the database.
-
-B<Note:> Some of these formats may not work with Oracle 9+.
-
-  BEGIN {
-     $ENV{ORACLE_HOME} = '/home/oracle/product/10.x.x';
-     $ENV{TWO_TASK}    = 'DB';
-  }
-  $dbh = DBI->connect('dbi:Oracle:','scott', 'tiger');
-  #  - or -
-  $dbh = DBI->connect('dbi:Oracle:','scott/tiger');
-
-Refer to your Oracle documentation for valid values of TWO_TASK.
-
-Here are some variations (not setting TWO_TASK) in order of preference:
-
-  $dbh = DBI->connect('dbi:Oracle:DB','username','password')
-
-  $dbh = DBI->connect('dbi:Oracle:DB','username/password','')
-
-  $dbh = DBI->connect('dbi:Oracle:','username@DB','password')
-
-  $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=ORCL;port=1521', 'scott/tiger', '')
-
-  $dbh = DBI->connect('dbi:Oracle:', q{scott/tiger@(DESCRIPTION=
-  (ADDRESS=(PROTOCOL=TCP)(HOST= foobar)(PORT=1521))
-  (CONNECT_DATA=(SID=ORCL)))}, "")
-
-If you are having problems with login taking a long time (>10 seconds say)
-then you might have tripped up on an Oracle bug. You can try using one
-of the ...@DB variants as a workaround. e.g.,
-
-  $dbh = DBI->connect('','username/password@DB','');
-
-On the other hand, that may cause you to trip up on another Oracle bug
-that causes alternating connection attempts to fail! (in reality only
-a small proportion of people experience these problems)
-
-To connect to a local database with a user which has been set up to
-authenticate via the OS ("ALTER USER username IDENTIFIED EXTERNALLY"):
-
-  $dbh = DBI->connect('dbi:Oracle:','/','');
-
-Note the lack of a connection name (use the ORACLE_SID environment
-variable). If an explicit SID is used you will probably get an ORA-01004 error.
-
-That only works for local databases. (Authentication to remote Oracle
-databases using your Unix login name without a password is possible
-but it is not secure and not recommended so not documented here.
-
-
-=head4 Connecting To Oracle
-
-If you are reading this it is assumed that you have successfully
-installed DBD::Oracle and you are having some problems connecting to
-Oracle.
-
-First off you will have to tell DBD::Oracle where the binaries reside
-for the Oracle client it was compiled against.  This is the case when
-you encounter a
-
- DBI connect('','system',...) failed: ERROR OCIEnvNlsCreate.
-
-error in Linux or in Windows when you get
-
-  OCI.DLL not found
-
-The solution to this problem in the case of Linux is to ensure your
-'ORACLE_HOME' (or LD_LIBRARY_PATH for InstantClient) environment
-variable points to the correct directory.
-
-  export ORACLE_HOME=/app/oracle/product/xx.x.x
-
-For Windows the solution is to add this value to you PATH
-
-  PATH=c:\app\oracle\product\xx.x.x;%PATH%
-
-
-If you get past this stage and get a
-
-  ORA-12154: TNS:could not resolve the connect identifier specified
-
-error then the most likely cause is DBD::ORACLE cannot find your .ORA
-(F<TNSNAMES.ORA>, F<LISTENER.ORA>, F<SQLNET.ORA>) files. This can be
-solved by setting the TNS_ADMIN environment variable to the directory
-where these files can be found.
-
-If you get to this stage and you have either one of the following
-errors;
-
-  ORA-12560: TNS:protocol adapter error
-  ORA-12162: TNS:net service name is incorrectly specified
-
-usually means that DBD::Oracle can find the listener but the it cannot connect to the DB because the listener cannot find the DB you asked for.
-
-=head4 Connection Examples Using DBD::Oracle
-
-It is best to not use ORACLE_SID or TWO_TASK as both of these are rather out of date. You are better off keeping it simple like the following examples
-
-  $dbh = DBI->connect('dbi:Oracle:DB','username','password');
-
-  $dbh = DBI->connect('dbi:Oracle:DB','username/password','');
-
-  $dbh = DBI->connect('dbi:Oracle:','username@DB','password');
-
-  $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=DB;port=1521', 'scott/tiger', '');
-
+=head4 ORACLE_SID and TWO_TASK
 
 For those who really want to use ORACLE_SID and TWO_TASK here are examples of it in use;
 
@@ -1420,17 +1315,6 @@ and this code
 
 you will be able to connect to DB. Note this may not work for Windows.
 
-TWO_TASK works the same way except it should override the value in ORACLE_SID so this
-
-  BEGIN {
-     $ENV{ORACLE_SID} = 'DB';
-     $ENV{TWO_TASK}  = 'DB.TEST';
-
-  }
-
-  $dbh = DBI->connect('dbi:Oracle:','username/password','');
-
-will work as well. Note this may not work for Windows.
 
 =head4 Timezones
 
