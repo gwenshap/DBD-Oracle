@@ -1189,11 +1189,9 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 
 =back
 
-=head1 THE DBI CLASS
+=head1 DBI Class Methods
 
-=head2 DBI Class Methods
-
-=head3 B<connect>
+=head2 B<connect>
 
 This method creates a database handle by connecting to a database, and is the DBI
 equivalent of the "new" method.
@@ -1208,7 +1206,7 @@ It is best to not use ORACLE_SID or TWO_TASK as both of these are rather out of 
 
   $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=DB;port=1521', 'scott/tiger', '');
 
-=head4 Connecting without environment variables or tnsnames.ora file
+=head3 Connecting without environment variables or tnsnames.ora file
 
 If you use the C<host=$host;sid=$sid> style syntax, for example:
 
@@ -1221,7 +1219,7 @@ If a C<port> number is not specified then the descriptor will try both
 1526 and 1521 in that order (e.g., new then old).  You can check which
 port(s) are in use by typing "$ORACLE_HOME/bin/lsnrctl stat" on the server.
 
-=head4 OS authentication
+=head3 OS authentication
 
 To connect to a local database with a user which has been set up to
 authenticate via the OS ("ALTER USER username IDENTIFIED EXTERNALLY"):
@@ -1235,7 +1233,7 @@ That only works for local databases. (Authentication to remote Oracle
 databases using your Unix login name without a password is possible
 but it is not secure and not recommended so not documented here.
 
-=head4 Oracle Environment Variables
+=head3 Oracle Environment Variables
 
 Oracle typically no longer needs two environment variables to specify default
 connections: ORACLE_SID and TWO_TASK.
@@ -1290,7 +1288,7 @@ Also remember that depending on the operating system you are using
 the differing "ORACLE" environment variables may be case sensitive, so if you are not connecting
 as you should double check the case of both the variable and its value.
 
-=head4 ORACLE_SID and TWO_TASK
+=head3 ORACLE_SID and TWO_TASK
 
 For those who really want to use ORACLE_SID and TWO_TASK here are examples of it in use;
 
@@ -1315,8 +1313,7 @@ and this code
 
 you will be able to connect to DB. Note this may not work for Windows.
 
-
-=head4 Timezones
+=head3 Timezones
 
 If TWO_TASK isn't set, Oracle uses the TZ variable from the local environment.
 
@@ -1333,11 +1330,11 @@ running a Perl script at the end of the previous month even though it
 was the 6th of the new month.  I had the dba start up a listener with
 TZ=X+144.  (144 hours = 6 days)"]
 
-=head4 Oracle DRCP
+=head3 Oracle DRCP
 
-DBD::Oracle now supports DRCP (Database Resident Connection Pool) so
-if you have an 11.2 database and DRCP is enabled you can now direct
-all of your connections to it by simply adding ':POOLED' to the SID or
+DBD::Oracle supports DRCP (Database Resident Connection Pool) so
+if you have an 11.2 database and DRCP is enabled you can direct
+all of your connections to it by adding ':POOLED' to the SID or
 setting a connection attribute of ora_drcp, or set the SERVER=POOLED
 when using a TNSENTRY style connection or even by setting an
 environment variable ORA_DRCP.  All of which are demonstrated below;
@@ -1367,7 +1364,7 @@ You can find a white paper on setting up DRCP and its advantages at L<http://www
 Please note that DRCP support in DBD::Oracle is relatively new so the
 mechanics or its implementation are subject to change.
 
-=head4 TAF (Transparent Application Failover)
+=head3 TAF (Transparent Application Failover)
 
 Transparent Application Failover (TAF) is the feature in OCI that
 allows for clients to automatically reconnect to an instance in the
@@ -1462,95 +1459,12 @@ The TAF events are as follows
   OCI_FO_ERROR also indicates that failover was unsuccessful, but it gives the application the opportunity to handle the error and retry failover.
   OCI_FO_REAUTH indicates that you have multiple authentication handles and failover has occurred after the original authentication. It indicates that a user handle has been re-authenticated. To find out which, the application checks the OCI_ATTR_SESSION attribute of the service context handle (which is the first parameter).
 
-
-=head4 Optimizing Oracle's listener
-
-[By Lane Sharman <lane@bienlogic.com>] I spent a lot of time optimizing
-listener.ora and I am including it here for anyone to benefit from. My
-connections over tnslistener on the same humble Netra 1 take an average
-of 10-20 milli seconds according to tnsping. If anyone knows how to
-make it better, please let me know!
-
-  LISTENER =
-   (ADDRESS_LIST =
-    (ADDRESS =
-      (PROTOCOL = TCP)
-      (Host = aa.bbb.cc.d)
-      (Port = 1521)
-      (QUEUESIZE=10)
-    )
-   )
-
-  STARTUP_WAIT_TIME_LISTENER = 0
-  CONNECT_TIMEOUT_LISTENER = 10
-  TRACE_LEVEL_LISTENER = OFF
-  SID_LIST_LISTENER =
-   (SID_LIST =
-    (SID_DESC =
-      (SID_NAME = xxxx)
-      (ORACLE_HOME = /xxx/local/oracle7-3)
-        (PRESPAWN_MAX = 40)
-        (PRESPAWN_LIST=
-        (PRESPAWN_DESC=(PROTOCOL=tcp) (POOL_SIZE=40) (TIMEOUT=120))
-      )
-     )
-   )
-
-1) When the application is co-located on the host and there is no need for
-outside SQLNet connectivity, stop the listener. You do not need it. Get
-your application/cgi/whatever working using pipes and shared memory. I am
-convinced that this is one of the connection bugs (sockets over the same
-machine). Note the $ENV{ORAPIPES} env var.  The essential code to do
-this at the end of this section.
-
-2) Be careful in how you implement the multi-threaded server. Currently I
-am not using it in the initxxxx.ora file but will be doing some more testing.
-
-3) Be sure to create user rollback segments and use them; do not use the
-system rollback segments; however, you must also create a small rollback
-space for the system as well.
-
-5) Use large tuning settings and get lots of RAM. Check out all the
-parameters you can set in v$parameters because there are quite a few not
-documented you may to set in your initxxx.ora file.
-
-6) Use svrmgrl to control oracle from the command line. Write lots of small
-SQL scripts to get at V$ info.
-
-  use DBI;
-  # Environmental variables used by Oracle
-  $ENV{ORACLE_SID}   = "xxx";
-  $ENV{ORACLE_HOME}  = "/opt/oracle7";
-  $ENV{EPC_DISABLED} = "TRUE";
-  $ENV{ORAPIPES} = "V2";
-  my $dbname = "xxx";
-  my $dbuser = "xxx";
-  my $dbpass = "xxx";
-  my $dbh = DBI->connect("dbi:Oracle:$dbname", $dbuser, $dbpass)
-             || die "Unable to connect to $dbname: $DBI::errstr\n";
-
-=head4 Oracle utilities
-
-If you are still having problems connecting then the Oracle adapters
-utility may offer some help. Run these two commands:
-
-  $ORACLE_HOME/bin/adapters
-  $ORACLE_HOME/bin/adapters $ORACLE_HOME/bin/sqlplus
-
-and check the output. The "Protocol Adapters" section should be the
-same.  It should include at least "IPC Protocol Adapter" and "TCP/IP
-Protocol Adapter".
-
-If it generates any errors which look relevant then please talk to your
-Oracle technical support (and not the dbi-users mailing list). Thanks.
-Thanks to Mark Dedlow for this information.
-
-=head3 Private Connect Attributes
+=head3 Connect Attributes
 
 =head4 ora_ncs_buff_mtpl
 
-You can now customize the size of the buffer when selecting LOBs with
-the built in AUTO Lob.  The default value is 4 which is probably
+You can customize the size of the buffer when selecting LOBs with
+the built-in AUTO Lob.  The default value is 4 which is probably
 excessive for most situations but is needed for backward
 compatibility.  If you not converting between a NCS on the DB and the
 Client then you might want to set this to 1 to reduce memory usage.
@@ -1559,14 +1473,11 @@ This value can also be specified with the C<ORA_DBD_NCS_BUFFER>
 environment variable in which case it sets the value at the connect
 stage.
 
-See more details in the LOB section of the POD
-
 =head4 ora_drcp
 
-If you have an 11.2 or greater database your can utilize the DRCP by setting
-this attribute to 1 at connect time.
+For Oracle 11.2 or greater.
 
-This value can also be set with the C<ORA_DRCP> environment variable.
+Set to I<1> to enable DRCP. Can also be set via the C<ORA_DRCP> environment variable.
 
 =head4 ora_drcp_class
 
@@ -1621,7 +1532,7 @@ variable.
 =head4 ora_taf
 
 If your Oracle instance has been configured to use TAF events you can
-enable the TAF callback by setting this value to anything other than 0.
+enable the TAF callback by setting this option to any I<true> value.
 
 =head4 ora_taf_function
 
@@ -1642,7 +1553,6 @@ and the failover type. Below is an example of a TAF function
 
 The amount of time in seconds the OCI client will sleep between attempting
 successive failover events when the event is OCI_FO_ERROR.
-
 
 =head4 ora_session_mode
 
@@ -1740,7 +1650,9 @@ on the server side using C<V$SESSION> view.
 
 =head4 ora_dbh_share
 
-Requires at least Perl 5.8.0 compiled with ithreads. Allows you to share
+Requires at least Perl 5.8.0 compiled with ithreads. 
+
+Allows you to share
 database connections between threads. The first connect will make the
 connection, all following calls to connect with the same ora_dbh_share
 attribute will use the same database connection. The value must be a
@@ -1903,11 +1815,12 @@ For example:
 NOTE disabling the signal handlers the OCI library sets up may affect
 functionality in the OCI library.
 
-=head3 B<connect_cached>
+=head2 B<connect_cached>
 
-Implemented by DBI, no driver-specific impact. Please note that connect_cached as not been tested with DRCP.
+Implemented by DBI, no driver-specific impact. 
+Please note that connect_cached as not been tested with DRCP.
 
-=head3 B<data_sources>
+=head2 B<data_sources>
 
   @data_sources = DBI->data_sources('Oracle');
   @data_sources = $dbh->data_sources();
@@ -1916,29 +1829,26 @@ Returns a list of available databases. You will have to set either the 'ORACLE_H
 'TNS_ADMIN' environment value to retrieve this list.  It will read these values from
 TNSNAMES.ORA file entries.
 
-
-
-
-=head2 Methods Common To All Handles
+=head1 METHODS COMMON TO ALL HANDLES
 
 For all of the methods below, B<$h> can be either a database handle (B<$dbh>)
 or a statement handle (B<$sth>). Note that I<$dbh> and I<$sth> can be replaced with
 any variable name you choose: these are just the names most often used. Another
 common variable used in this documentation is $I<rv>, which stands for "return value".
 
-=head3 B<err>
+=head2 B<err>
 
   $rv = $h->err;
 
 Returns the error code from the last method called.
 
-=head3 B<errstr>
+=head2 B<errstr>
 
   $str = $h->errstr;
 
 Returns the last error that was reported by Oracle. Starting with "ORA-00000" code followed by the error message.
 
-=head3 B<state>
+=head2 B<state>
 
   $str = $h->state;
 
@@ -1948,29 +1858,29 @@ Oracle hasn't supported SQLSTATE since the early versions OCI. It will return em
 While this method can be called as either C<< $sth->state >> or C<< $dbh->state >>, it
 is usually clearer to always use C<< $dbh->state >>.
 
-=head3 B<trace>
+=head2 B<trace>
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<trace_msg>
+=head2 B<trace_msg>
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<parse_trace_flag> and B<parse_trace_flags>
+=head2 B<parse_trace_flag> and B<parse_trace_flags>
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<func>
+=head2 B<func>
 
 DBD::Oracle uses the C<func> method to support a variety of functions.
 
-=head3 B<Private database handle functions>
+=head2 B<Private database handle functions>
 
 Some of these functions are called through the method func()
 which is described in the DBI documentation. Any function that begins with ora_
 can be called directly.
 
-=head3 B<plsql_errstr>
+=head2 B<plsql_errstr>
 
 This function returns a string which describes the errors
 from the most recent PL/SQL function, procedure, package,
@@ -2000,7 +1910,7 @@ Example:
         die $msg if $msg;
     }
 
-=head3 B<dbms_output_enable / dbms_output_put / dbms_output_get>
+=head2 B<dbms_output_enable / dbms_output_put / dbms_output_get>
 
 These functions use the PL/SQL DBMS_OUTPUT package to store and
 retrieve text using the DBMS_OUTPUT buffer.  Text stored in this buffer
@@ -2039,7 +1949,7 @@ Example 2:
   # retrieve the string
   $date_string = $dbh->func( 'dbms_output_get' );
 
-=head3 B<dbms_output_enable ( [ buffer_size ] )>
+=head2 B<dbms_output_enable ( [ buffer_size ] )>
 
 This function calls DBMS_OUTPUT.ENABLE to enable calls to package
 DBMS_OUTPUT procedures GET, GET_LINE, PUT, and PUT_LINE.  Calls to
@@ -2050,7 +1960,7 @@ The buffer_size is the maximum amount of text that can be saved in the
 buffer and must be between 2000 and 1,000,000.  If buffer_size is not
 given, the default is 20,000 bytes.
 
-=head3 B<dbms_output_put ( [ @lines ] )>
+=head2 B<dbms_output_put ( [ @lines ] )>
 
 This function calls DBMS_OUTPUT.PUT_LINE to add lines to the buffer.
 
@@ -2061,7 +1971,7 @@ If any line causes buffer_size to be exceeded, a buffer overflow error
 is raised and the function call fails.  Some of the text might be in
 the buffer.
 
-=head3 B<dbms_output_get>
+=head2 B<dbms_output_get>
 
 This function calls DBMS_OUTPUT.GET_LINE to retrieve lines of text from
 the buffer.
@@ -2077,13 +1987,13 @@ Any text in the buffer after a call to DBMS_OUTPUT.GET_LINE or
 DBMS_OUTPUT.GET is discarded by the next call to DBMS_OUTPUT.PUT_LINE,
 DBMS_OUTPUT.PUT, or DBMS_OUTPUT.NEW_LINE.
 
-=head3 B<reauthenticate ( $username, $password )>
+=head2 B<reauthenticate ( $username, $password )>
 
 Starts a new session against the current database using the credentials
 supplied.
 
 
-=head3 B<private_attribute_info>
+=head2 B<private_attribute_info>
 
   $hashref = $dbh->private_attribute_info();
   $hashref = $sth->private_attribute_info();
@@ -2091,127 +2001,127 @@ supplied.
 Returns a hash of all private attributes used by DBD::Oracle, for either
 a database or a statement handle. Currently, all the hash values are undef.
 
-=head2 Attributes Common To All Handles
+=head1 ATTRIBUTES COMMON TO ALL HANDLES
 
-=head3 B<InactiveDestroy> (boolean)
+=head2 B<InactiveDestroy> (boolean)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<RaiseError> (boolean, inherited)
+=head2 B<RaiseError> (boolean, inherited)
 
 Forces errors to always raise an exception. Although it defaults to off, it is recommended that this
 be turned on, as the alternative is to check the return value of every method (prepare, execute, fetch, etc.)
 manually, which is easy to forget to do.
 
-=head3 B<PrintError> (boolean, inherited)
+=head2 B<PrintError> (boolean, inherited)
 
 Forces database errors to also generate warnings, which can then be filtered with methods such as
 locally redefining I<$SIG{__WARN__}> or using modules such as C<CGI::Carp>. This attribute is on
 by default.
 
-=head3 B<ShowErrorStatement> (boolean, inherited)
+=head2 B<ShowErrorStatement> (boolean, inherited)
 
 Appends information about the current statement to error messages. If placeholder information
 is available, adds that as well. Defaults to true.
 
-=head3 B<Warn> (boolean, inherited)
+=head2 B<Warn> (boolean, inherited)
 
 Enables warnings. This is on by default, and should only be turned off in a local block
 for a short a time only when absolutely needed.
 
-=head3 B<Executed> (boolean, read-only)
+=head2 B<Executed> (boolean, read-only)
 
 Indicates if a handle has been executed. For database handles, this value is true after the L</do> method has been called, or
 when one of the child statement handles has issued an L</execute>. Issuing a L</commit> or L</rollback> always resets the
 attribute to false for database handles. For statement handles, any call to L</execute> or its variants will flip the value to
 true for the lifetime of the statement handle.
 
-=head3 B<TraceLevel> (integer, inherited)
+=head2 B<TraceLevel> (integer, inherited)
 
 Sets the trace level, similar to the L</trace> method. See the sections on
 L</trace> and L</parse_trace_flag> for more details.
 
-=head3 B<Active> (boolean, read-only)
+=head2 B<Active> (boolean, read-only)
 
 Indicates if a handle is active or not. For database handles, this indicates if the database has
 been disconnected or not. For statement handles, it indicates if all the data has been fetched yet
 or not. Use of this attribute is not encouraged.
 
-=head3 B<Kids> (integer, read-only)
+=head2 B<Kids> (integer, read-only)
 
 Returns the number of child processes created for each handle type. For a driver handle, indicates the number
 of database handles created. For a database handle, indicates the number of statement handles created. For
 statement handles, it always returns zero, because statement handles do not create kids.
 
-=head3 B<ActiveKids> (integer, read-only)
+=head2 B<ActiveKids> (integer, read-only)
 
 Same as C<Kids>, but only returns those that are active.
 
-=head3 B<CachedKids> (hash ref)
+=head2 B<CachedKids> (hash ref)
 
 Returns a hashref of handles. If called on a database handle, returns all statement handles created by use of the
 C<prepare_cached> method. If called on a driver handle, returns all database handles created by the L</connect_cached>
 method.
 
-=head3 B<ChildHandles> (array ref)
+=head2 B<ChildHandles> (array ref)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<PrintWarn> (boolean, inherited)
+=head2 B<PrintWarn> (boolean, inherited)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<HandleError> (boolean, inherited)
+=head2 B<HandleError> (boolean, inherited)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<HandleSetErr> (code ref, inherited)
+=head2 B<HandleSetErr> (code ref, inherited)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<ErrCount> (unsigned integer)
+=head2 B<ErrCount> (unsigned integer)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<FetchHashKeyName> (string, inherited)
+=head2 B<FetchHashKeyName> (string, inherited)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<ChopBlanks> (boolean, inherited)
+=head2 B<ChopBlanks> (boolean, inherited)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<Taint> (boolean, inherited)
+=head2 B<Taint> (boolean, inherited)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<TaintIn> (boolean, inherited)
+=head2 B<TaintIn> (boolean, inherited)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<TaintOut> (boolean, inherited)
+=head2 B<TaintOut> (boolean, inherited)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<Profile> (inherited)
+=head2 B<Profile> (inherited)
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<Type> (scalar)
+=head2 B<Type> (scalar)
 
 Returns C<dr> for a driver handle, C<db> for a database handle, and C<st> for a statement handle.
 Should be rarely needed.
 
-=head3 B<LongReadLen>
+=head2 B<LongReadLen>
 
 Implemented by DBI, no driver-specific impact.
 
-=head3 B<LongTruncOk>
+=head2 B<LongTruncOk>
 
 Implemented by DBI, no driver-specific impact.
 
 
-=head3 B<CompatMode>
+=head2 B<CompatMode>
 
 Type: boolean, inherited
 
@@ -2220,11 +2130,35 @@ The CompatMode attribute is used by emulation layers (such as Oraperl) to enable
 It also has the effect of disabling the 'quick FETCH' of attribute values from the handles attribute cache. So all attribute values are handled by the drivers own FETCH method. This makes them slightly slower but is useful for special-purpose drivers like DBD::Multiplex.
 
 
-=head1 DBI Database Handle Object
+=head1 ORACLE-SPECIFIC DATABASE HANDLE METHODS
 
-=head2 Database Handle Methods
+=head2 B<ora_can_unicode ( [ $refresh ] )>
 
-=head3 B<selectall_arrayref>
+Returns a number indicating whether either of the database character sets
+is a Unicode encoding. Calls ora_nls_parameters() and passes the optional
+$refresh parameter to it.
+
+0 = Neither character set is a Unicode encoding.
+
+1 = National character set is a Unicode encoding.
+
+2 = Database character set is a Unicode encoding.
+
+3 = Both character sets are Unicode encodings.
+
+=head2 B<ora_can_taf>
+
+Returns true if the current connection supports TAF events. False if otherise.
+
+=head2 B<ora_nls_parameters ( [ $refresh ] )>
+
+Returns a hash reference containing the current NLS parameters, as given
+by the v$nls_parameters view. The values fetched are cached between calls.
+To cause the latest values to be fetched, pass a true value to the function.
+
+=head1 Database Handle Methods
+
+=head2 B<selectall_arrayref>
 
   $ary_ref = $dbh->selectall_arrayref($sql);
   $ary_ref = $dbh->selectall_arrayref($sql, \%attr);
@@ -2233,14 +2167,14 @@ It also has the effect of disabling the 'quick FETCH' of attribute values from t
 Returns a reference to an array containing the rows returned by preparing and executing the SQL string.
 See the DBI documentation for full details.
 
-=head3 B<selectall_hashref>
+=head2 B<selectall_hashref>
 
   $hash_ref = $dbh->selectall_hashref($sql, $key_field);
 
 Returns a reference to a hash containing the rows returned by preparing and executing the SQL string.
 See the DBI documentation for full details.
 
-=head3 B<selectcol_arrayref>
+=head2 B<selectcol_arrayref>
 
   $ary_ref = $dbh->selectcol_arrayref($sql, \%attr, @bind_values);
 
@@ -2248,13 +2182,13 @@ Returns a reference to an array containing the first column
 from each rows returned by preparing and executing the SQL string. It is possible to specify exactly
 which columns to return. See the DBI documentation for full details.
 
-=head3 B<prepare>
+=head2 B<prepare>
 
   $sth = $dbh->prepare($statement, \%attr);
 
 Prepares a statement for later execution by the database engine and returns a reference to a statement handle object.
 
-=head4 B<Prepare Attributes>
+=head3 B<Prepare Attributes>
 
 These attributes may be used in the C<\%attr> parameter of the
 L<DBI/prepare> database handle method.
@@ -2335,7 +2269,7 @@ See L</Row Prefetching> for more details.
 
 =back
 
-=head4 B<Placeholders>
+=head3 B<Placeholders>
 
 There are two types of placeholders that can be used in DBD::Oracle. The first is
 the "question mark" type, in which each placeholder is represented by a single
@@ -2356,14 +2290,14 @@ use different ones for each statement handle you have. This is confusing at best
 stick to one style within your program.
 
 
-=head3 B<prepare_cached>
+=head2 B<prepare_cached>
 
   $sth = $dbh->prepare_cached($statement, \%attr);
 
 Implemented by DBI, no driver-specific impact. This method is most useful
 if the same query is used over and over as it will cut down round trips to the server.
 
-=head3 B<do>
+=head2 B<do>
 
   $rv = $dbh->do($statement);
   $rv = $dbh->do($statement, \%attr);
@@ -2375,7 +2309,7 @@ number of rows is unknown or not available. Note that this method will return B<
 of 0 for 'no rows were affected', in order to always return a true value if no error occurred.
 
 
-=head3 B<last_insert_id>
+=head2 B<last_insert_id>
 
 Oracle does not implement auto_increment of serial type columns it uses predefined
 sequences where the id numbers are either selected before insert, at insert time with a trigger,
@@ -2396,7 +2330,7 @@ on insert with the bind_param_inout method.
   $sth->execute();
   $db->commit();
 
-=head3 B<commit>
+=head2 B<commit>
 
   $rv = $dbh->commit;
 
@@ -2404,7 +2338,7 @@ Issues a COMMIT to the server, indicating that the current transaction is finish
 all changes made will be visible to other processes. If AutoCommit is enabled, then
 a warning is given and no COMMIT is issued. Returns true on success, false on error.
 
-=head3 B<rollback>
+=head2 B<rollback>
 
   $rv = $dbh->rollback;
 
@@ -2412,13 +2346,13 @@ Issues a ROLLBACK to the server, which discards any changes made in the current 
 is enabled, then a warning is given and no ROLLBACK is issued. Returns true on success, and
 false on error. 
 
-=head3 B<begin_work>
+=head2 B<begin_work>
 
 This method turns on transactions until the next call to L</commit> or L</rollback>, if L</AutoCommit> is
 currently enabled. If it is not enabled, calling begin_work will issue an error. Note that the
 transaction will not actually begin until the first statement after begin_work is called.
 
-=head3 B<disconnect>
+=head2 B<disconnect>
 
   $rv = $dbh->disconnect;
 
@@ -2431,7 +2365,7 @@ referenced by anything), then the database handle's DESTROY method will call the
 methods automatically. It is best to explicitly disconnect rather than rely on this behavior.
 
 
-=head3 B<ping>
+=head2 B<ping>
 
   $rv = $dbh->ping;
 
@@ -2439,13 +2373,13 @@ This C<ping> method is used to check the validity of a database handle. The valu
 either 0, indicating that the connection is no longer valid, or 1, indicating the connection is valid.
 This function does 1 round trip to the Oracle Server.
 
-=head3 B<get_info()>
+=head2 B<get_info()>
 
  $value = $dbh->get_info($info_type);
 
 DBD::Oracle supports C<get_info()>, but (currently) only a few info types.
 
-=head3 B<table_info()>
+=head2 B<table_info()>
 
 DBD::Oracle supports attributes for C<table_info()>.
 
@@ -2482,7 +2416,7 @@ upper case). Oracle stores and returns it as given.
 C<table_info()> has no special quote handling, neither adds nor
 removes quotes.
 
-=head3 B<primary_key_info()>
+=head2 B<primary_key_info()>
 
 Oracle does not support catalogues so TABLE_CAT is ignored as
 selection criterion.
@@ -2498,7 +2432,7 @@ An identifier is passed I<as is>, i.e. as the user provides or
 Oracle returns it.
 See L</table_info()> for more detailed information.
 
-=head3 B<foreign_key_info()>
+=head2 B<foreign_key_info()>
 
 This method (currently) supports the extended behaviour of SQL/CLI, i.e. the
 result set contains foreign keys that refer to primary B<and> alternate keys.
@@ -2531,7 +2465,7 @@ An identifier is passed I<as is>, i.e. as the user provides or
 Oracle returns it.
 See L</table_info()> for more detailed information.
 
-=head3 B<column_info()>
+=head2 B<column_info()>
 
 Oracle does not support catalogues so TABLE_CAT is ignored as
 selection criterion.
@@ -2564,7 +2498,7 @@ So in the example the exact case "Bla_BLA" must be used to get it info on the co
 
 any case can be used to get info on the column.
 
-=head3 B<selectrow_array>
+=head2 B<selectrow_array>
 
   @row_ary = $dbh->selectrow_array($sql);
   @row_ary = $dbh->selectrow_array($sql, \%attr);
@@ -2575,7 +2509,7 @@ by calling L</fetchrow_array>. The string can also be a statement handle generat
 only the first row of data is returned. If called in a scalar context, only the first column of the first row is
 returned. Because this is not portable, it is not recommended that you use this method in that way.
 
-=head3 B<selectrow_arrayref>
+=head2 B<selectrow_arrayref>
 
   $ary_ref = $dbh->selectrow_arrayref($statement);
   $ary_ref = $dbh->selectrow_arrayref($statement, \%attr);
@@ -2584,7 +2518,7 @@ returned. Because this is not portable, it is not recommended that you use this 
 Exactly the same as L</selectrow_array>, except that it returns a reference to an array, by internal use of
 the L</fetchrow_arrayref> method.
 
-=head3 B<selectrow_hashref>
+=head2 B<selectrow_hashref>
 
   $hash_ref = $dbh->selectrow_hashref($sql);
   $hash_ref = $dbh->selectrow_hashref($sql, \%attr);
@@ -2593,49 +2527,22 @@ the L</fetchrow_arrayref> method.
 Exactly the same as L</selectrow_array>, except that it returns a reference to an hash, by internal use of
 the L</fetchrow_hashref> method.
 
-=head3 B<clone>
+=head2 B<clone>
 
   $other_dbh = $dbh->clone();
 
 Creates a copy of the database handle by connecting with the same parameters as the original
 handle, then trying to merge the attributes. See the DBI documentation for complete usage.
 
-=head2 Private Database Handle Methods
+=head1 Database Handle Attributes
 
-=head3 B<ora_can_unicode ( [ $refresh ] )>
-
-Returns a number indicating whether either of the database character sets
-is a Unicode encoding. Calls ora_nls_parameters() and passes the optional
-$refresh parameter to it.
-
-0 = Neither character set is a Unicode encoding.
-
-1 = National character set is a Unicode encoding.
-
-2 = Database character set is a Unicode encoding.
-
-3 = Both character sets are Unicode encodings.
-
-=head3 B<ora_can_taf>
-
-Returns true if the current connection supports TAF events. False if otherise.
-
-=head3 B<ora_nls_parameters ( [ $refresh ] )>
-
-Returns a hash reference containing the current NLS parameters, as given
-by the v$nls_parameters view. The values fetched are cached between calls.
-To cause the latest values to be fetched, pass a true value to the function.
-
-
-=head2 Database Handle Attributes
-
-=head3 B<AutoCommit> (boolean)
+=head2 B<AutoCommit> (boolean)
 
 Supported by DBD::Oracle as proposed by DBI.The default of AutoCommit is on, but this may change
 in the future, so it is highly recommended that you explicitly set it when
 calling L</connect>. 
 
-=head3 B<ReadOnly> (boolean)
+=head2 B<ReadOnly> (boolean)
 
   $dbh->{ReadOnly} = 1;
 
@@ -2647,29 +2554,29 @@ issuing commands such as INSERT, UPDATE, or DELETE.
 
 This method method requires DBI version 1.55 or better.
 
-=head3 B<Name> (string, read-only)
+=head2 B<Name> (string, read-only)
 
 Returns the name of the current database. This is the same as the DSN, without the
 "dbi:Oracle:" part.
 
-=head3 B<Username> (string, read-only)
+=head2 B<Username> (string, read-only)
 
 Returns the name of the user connected to the database.
 
-=head3 B<Driver> (handle, read-only)
+=head2 B<Driver> (handle, read-only)
 
 Holds the handle of the parent driver. The only recommended use for this is to find the name
 of the driver using:
 
   $dbh->{Driver}->{Name}
 
-=head3 B<RowCacheSize>
+=head2 B<RowCacheSize>
 
 DBD::Oracle supports both Server pre-fetch and Client side row caching. By default both
 are turned on to give optimum performance. Most of the time one can just let DBD::Oracle
 figure out the best optimization.
 
-=head4 B<Row Caching>
+=head3 B<Row Caching>
 
 Row caching occurs on the client side and the object of it is to cut down the number of round
 trips made to the server when fetching rows. At each fetch a set number of rows will be retrieved
@@ -2687,7 +2594,7 @@ By default C<RowCacheSize> is automatically set. If you want to totally turn off
 For any SQL statement that contains a LOB, Long or Object Type Row Caching will be turned off. However server side
 caching still works.  If you are only selecting a LOB Locator then Row Caching will still work.
 
-=head4 Row Prefetching
+=head3 Row Prefetching
 
 Row prefetching occurs on the server side and uses the DBI database handle attribute C<RowCacheSize> and or the
 Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improved performance.
@@ -2713,12 +2620,9 @@ If the ora_prefetch_memory less than 1 or not present then memory size is not in
 number of rows to prefetch otherwise the number of rows will be limited to memory size. Likewise if the RowCacheSize is less than 1 it
 is not included in the computing of the prefetch rows.
 
+=head1 DBI STATEMENT HANDLE OBJECT METHODS
 
-=head1 DBI Statement Handle Object
-
-=head2 Statement Handle Methods
-
-=head3 B<bind_param>
+=head2 B<bind_param>
 
   $rv = $sth->bind_param($param_num, $bind_value);
   $rv = $sth->bind_param($param_num, $bind_value, $bind_type);
