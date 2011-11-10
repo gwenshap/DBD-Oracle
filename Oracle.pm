@@ -1118,64 +1118,9 @@ DBD::Oracle - Oracle database driver for the DBI module
 DBD::Oracle is a Perl module which works with the DBI module to provide
 access to Oracle databases.
 
-=head1 Module Documentation
-
-
 This documentation describes driver specific behaviour and restrictions. It is
 not supposed to be used as the only reference for the user. In any case
-consult the B<DBI> documentation first!
-
-=for html <a href="http://search.cpan.org/~timb/DBI/DBI.pm">Latest DBI documentation.</a>
-
-=head1 Which version DBD::Oracle is for me?
-
-From version 1.25 onwards DBD::Oracle will only support Oracle clients
-9.2 or greater. Support for ProC connections was dropped in 1.29.
-
-If you are still stuck with an older version of Oracle or its client you might want to look at the table below.
-
-  +---------------------+-----------------------------------------------------+
-  |                     |                   Oracle Version                    |
-  +---------------------+----+-------------+---------+------+--------+--------+
-  | DBD::Oracle Version | <8 | 8.0.3~8.0.6 | 8iR1~R2 | 8iR3 |   9i   | 9.2~11 |
-  +---------------------+----+-------------+---------+------+--------+--------+
-  |      0.1~16         | Y  |      Y      |    Y    |  Y   |    Y   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+--------+
-  |      1.17           | Y  |      Y      |    Y    |  Y   |    Y   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+--------+
-  |      1.18           | N  |      N      |    N    |  Y   |    Y   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+--------+
-  |      1.19           | N  |      N      |    N    |  Y   |    Y   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+--------+
-  |      1.20           | N  |      N      |    N    |  Y   |    Y   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+--------+
-  |      1.21~1.24      | N  |      N      |    N    |  N   |    Y   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+--------+
-  |      1.25+          | N  |      N      |    N    |  N   |    N   |    Y   |
-  +---------------------+----+-------------+---------+------+--------+--------+
-
-As there are dozens of different versions of Oracle's clients this
-list does not include all of them, just the major released versions of
-Oracle.
-
-Note that one can still connect to any Oracle version with the older
-DBD::Oracle versions the only problem you will have is that some of
-the newer OCI and Oracle features available in later DBD::Oracle
-releases will not be available to you.
-
-So to make a short story a little longer;
-
-  1) If you are using Oracle 7 or early 8 DB and you can manage to get a 9 client and you can use
-     any DBD::Oracle version.
-  2) If you have to use an Oracle 7 client then DBD::Oracle 1.17 should work
-  3) Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might
-     go with 1.18.
-  4) For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your
-     patch-set, If you run into trouble go with 1.19
-  5) After 9.2 you can use any version you want.
-  6) For you Luddites out there ORAPERL still works and is still included but not updated or supported anymore and was removed in 1.29.
-  7) It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7
-     and even get to 10. I am not sure what the 11g client can connect to.
+consult the L<DBI> documentation first!
 
 =head1 Constants
 
@@ -5565,37 +5510,75 @@ A git mirror of the subversion is also available at
 
 =head1 Oracle Related Links
 
-=head2 DBD::Oracle Tutorial
+=head1 WHICH VERSION OF DBD::ORACLE IS FOR ME?
 
-  http://www.pythian.com/blogs/wp-content/uploads/introduction-dbd-oracle.html
+From version 1.25 onwards DBD::Oracle only support Oracle clients
+9.2 or greater. Support for ProC connections was dropped in 1.29.
 
-=head2 Oracle Instant Client
+If you are still stuck with an older version of Oracle or its client you might want to look at the table below.
 
-  http://www.oracle.com/technology/tech/oci/instantclient/index.html
+  +---------------------+-----------------------------------------------------+
+  |                     |                   Oracle Version                    |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  | DBD::Oracle Version | <8 | 8.0.3~8.0.6 | 8iR1~R2 | 8iR3 |   9i   | 9.2~11 |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      0.1~16         | Y  |      Y      |    Y    |  Y   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.17           | Y  |      Y      |    Y    |  Y   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.18           | N  |      N      |    N    |  Y   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.19           | N  |      N      |    N    |  Y   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.20           | N  |      N      |    N    |  Y   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.21~1.24      | N  |      N      |    N    |  N   |    Y   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
+  |      1.25+          | N  |      N      |    N    |  N   |    N   |    Y   |
+  +---------------------+----+-------------+---------+------+--------+--------+
 
-=head2 Oracle on Linux
+As there are dozens of different versions of Oracle's clients this
+list does not include all of them, just the major released versions of
+Oracle.
 
-  http://www.ixora.com.au/
+Note that one can still connect to any Oracle version with the older
+DBD::Oracle versions the only problem you will have is that some of
+the newer OCI and Oracle features available in later DBD::Oracle
+releases will not be available to you.
 
-=head2 Free Oracle Tools and Links
+So to make a short story a little longer:
 
-  ora_explain supplied and installed with DBD::Oracle.
+=over
 
-  http://www.orafaq.com/
+=item 1
 
-  http://vonnieda.org/oracletool/
+If you are using Oracle 7 or early 8 DB and you can manage to get a 9 client and you can use
+any DBD::Oracle version.
 
-=head2 Commercial Oracle Tools and Links
+=item 2
 
-Assorted tools and references for general information.
-No recommendation implied.
+If you have to use an Oracle 7 client then DBD::Oracle 1.17 should work
 
-  http://www.platinum.com
-  http://www.SoftTreeTech.com
+=item 3
 
-Also PL/Vision from RevealNet and Steven Feuerstein, and
-"Q" from Savant Corporation.
+Same thing for 8 up to R2, use 1.17, if you are lucky and have the right patch-set you might
+go with 1.18.
 
+=item 4
+
+For 8iR3 you can use any of the DBD::Oracle versions up to 1.21. Again this depends on your
+patch-set, If you run into trouble go with 1.19
+
+=item 5
+
+After 9.2 you can use any version you want.
+
+=item 6
+
+It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go back to 7
+and even get to 10. I am not sure what the 11g client can connect to.
+
+=back
 =head1 BUGS AND LIMITATIONS
 
 There is a known problem with the 11.2g Oracle client and the 
@@ -5605,31 +5588,61 @@ See L<https://rt.cpan.org/Public/Bug/Display.html?id=69350> for the details.
 
 =head1 SEE ALSO
 
-DBI
+=over
+
+=item L<DBI>
 
 http://search.cpan.org/~timb/DBD-Oracle/MANIFEST for all files in
 the DBD::Oracle source distribution including the examples in the
 Oracle.ex directory
 
-  http://search.cpan.org/search?query=Oracle&mode=dist
+=item DBD::Oracle Tutorial
 
-=head1 AUTHOR
+http://www.pythian.com/blogs/wp-content/uploads/introduction-dbd-oracle.html
 
-DBD::Oracle by Tim Bunce. DBI by Tim Bunce.
+=item Oracle Instant Client
+
+http://www.oracle.com/technology/tech/oci/instantclient/index.html
+
+=item Oracle on Linux
+
+http://www.ixora.com.au/
+
+=item Free Oracle Tools and Links
+
+ora_explain supplied and installed with DBD::Oracle.
+
+http://www.orafaq.com/
+
+http://vonnieda.org/oracletool/
+
+=item Commercial Oracle Tools and Links
+
+Assorted tools and references for general information.
+No recommendation implied.
+
+http://www.platinum.com
+
+http://www.SoftTreeTech.com
+
+Also PL/Vision from RevealNet and Steven Feuerstein, and
+"Q" from Savant Corporation.
+
+=back
+
+=head1 AUTHORS
+
+DBI by Tim Bunce L<http://www.tim.bunce.name>.
+
+The original C<DBD::Oracle> was by Tim Bunce. 
+Maintained as of release 1.17 (February 2006) by John Scoles, then Yanick Champoux, under the
+auspice of the Pythian Group (L<http://www.pythian.com>).
 
 =head1 ACKNOWLEDGEMENTS
 
-A great many people have helped me with DBD::Oracle over the 17 years
-between 1994 and 2011.  Far too many to name, but I thank them all.
+A great many people have helped with DBD::Oracle over the 17 years
+between 1994 and 2011.  Far too many to name, but we thank them all.
 Many are named in the Changes file.
-
-See also L<DBI/ACKNOWLEDGEMENTS>.
-
-=head1 MAINTAINER
-
-As of release 1.17 in February 2006 The Pythian Group, Inc. (L<http://www.pythian.com>)
-are taking the lead in maintaining DBD::Oracle with my assistance and
-gratitude. That frees more of my time to work on DBI for Perl 5 and Perl 6.
 
 =head1 COPYRIGHT
 
