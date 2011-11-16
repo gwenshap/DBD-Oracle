@@ -1198,10 +1198,24 @@ To open a connection to an Oracle database you need to specify a database connec
 
 The connection string is always of the form: "dbi:Oracle:<db identifier>"
 There are several ways to identify a database:
-1. If the database is local, specifying the SID or service name will be enough.
-2. If the database is defined in a TNSNAMES.ORA file, you can use the service name given in the file
-3. To connect without TNSNAMES.ORA file, you can use an EZCONNECT url, of the form:
+
+=over
+
+=item 1
+
+If the database is local, specifying the SID or service name will be enough.
+
+=item 2
+
+If the database is defined in a TNSNAMES.ORA file, you can use the service name given in the file
+
+=item 3
+
+To connect without TNSNAMES.ORA file, you can use an EZCONNECT url, of the form:
 //host[:port][/service_name]
+
+=back
+
 If port name is not specified, 1521 is the default. If service name is not specified, the hostname will be used as a service name.
 
 The following examples show several ways a connection can be created:
