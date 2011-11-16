@@ -1193,10 +1193,33 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 
 =head2 B<connect>
 
-This method creates a database handle by connecting to a database, and is the DBI
-equivalent of the "new" method.
+This method creates a database handle by connecting to a database, and is the DBI equivalent of the "new" method.
+To open a connection to an Oracle database you need to specify a database connection string (URL), username and password.
 
-It is best to not use ORACLE_SID or TWO_TASK as both of these are rather out of date. You are better off keeping it simple like the following examples
+The connection string is always of the form: "dbi:Oracle:<db identifier>"
+There are several ways to identify a database:
+
+=over
+
+=item 1
+
+If the database is local, specifying the SID or service name will be enough.
+
+=item 2
+
+If the database is defined in a TNSNAMES.ORA file, you can use the service name given in the file
+
+=item 3
+
+To connect without TNSNAMES.ORA file, you can use an EZCONNECT url, of the form:
+//host[:port][/service_name]
+
+=back
+
+If port name is not specified, 1521 is the default. If service name is not specified, the hostname will be used as a service name.
+
+The following examples show several ways a connection can be created:
+
 
   $dbh = DBI->connect('dbi:Oracle:DB','username','password');
 
@@ -1206,18 +1229,7 @@ It is best to not use ORACLE_SID or TWO_TASK as both of these are rather out of 
 
   $dbh = DBI->connect('dbi:Oracle:host=foobar;sid=DB;port=1521', 'scott/tiger', '');
 
-=head3 Connecting without environment variables or tnsnames.ora file
-
-If you use the C<host=$host;sid=$sid> style syntax, for example:
-
-  $dbh = DBI->connect("dbi:Oracle:host=myhost.com;sid=ORCL", $user, $passwd);
-
-then DBD::Oracle will construct a full connection descriptor string
-for you and Oracle will not need to consult the tnsnames.ora file.
-
-If a C<port> number is not specified then the descriptor will try both
-1526 and 1521 in that order (e.g., new then old).  You can check which
-port(s) are in use by typing "$ORACLE_HOME/bin/lsnrctl stat" on the server.
+  $dbh = DBI->connect("dbi:Oracle://myhost:1522/ORCL",'username', 'password');
 
 =head3 OS authentication
 
@@ -1235,100 +1247,29 @@ but it is not secure and not recommended so not documented here.
 
 =head3 Oracle Environment Variables
 
-Oracle typically no longer needs two environment variables to specify default
-connections: ORACLE_SID and TWO_TASK.
+To use DBD::ORACLE to connect to an Oracle database, ORACLE_HOME environment variable should be set correctly.  
+In general, the value used should match the version of Oracle that was used to build DBD::Oracle.  If using dynamic linking then ORACLE_HOME should match the version of Oracle that will be used to load in the Oracle client libraries (via LD_LIBRARY_PATH, ldconfig, or similar on Unix).
 
-ORACLE_SID is really unnecessary to set since TWO_TASK provides the
-same functionality in addition to allowing remote connections.
+Oracle can use two environment variables to specify default connections: ORACLE_SID and TWO_TASK.
 
-  % setenv //xxx.yyy.zzz:1521/ORACLE_SID           # for csh shell
-  $ TWO_TASK=T:hostname:ORACLE_SID export TWO_TASK   # for sh shell
+To use them, specify either a local SID or service name, or a service name that is specified in the TNSNAMES.ORA file.
 
-  % sqlplus username/password
+Note that if you have *both* local and remote databases, and you have ORACLE_SID *and* TWO_TASK set, and you don't specify a fully
+qualified connect string on the command line, TWO_TASK takes precedence over ORACLE_SID (i.e. you get connected to remote system).
 
-Note that if you have *both* local and remote databases, and you
-have ORACLE_SID *and* TWO_TASK set, and you don't specify a fully
-qualified connect string on the command line, TWO_TASK takes precedence
-over ORACLE_SID (i.e. you get connected to remote system).
+It is highly recommended not to rely on environment variables and to always explicitly specify the SID in the connection string. This can prevent serious mistakes such as dropping a schema in the wrong database, and generally makes debugging and troubleshooting easier.
 
-  TWO_TASK=P:sid
-
-will use the pipe driver for local connections using SQL*Net v1.
-
-  TWO_TASK=T:machine:sid
-
-will use TCP/IP (or D for DECNET, etc.) for remote SQL*Net v1 connection.
-
-  TWO_TASK=dbname
-
-will use the info stored in the SQL*Net v2 F<tnsnames.ora>
-configuration file for local or remote connections.
-
-Support for 'T:' syntax of Oracle SQL*Net V1 is only supported on older 7 clients and
-I have my doubts it will even work if the DB or client has been patched and I know it
-will not work on any later clients.
-
-The ORACLE_HOME environment variable should be set correctly.
-In general, the value used should match the version of Oracle that
-was used to build DBD::Oracle.  If using dynamic linking then
-ORACLE_HOME should match the version of Oracle that will be used
-to load in the Oracle client libraries (via LD_LIBRARY_PATH, ldconfig,
-or similar on Unix).
-
-ORACLE_HOME can be left unset if you aren't using any of Oracle's
-executables, but it is I<not> recommended and error messages may not display.
-It should be set to the ORACLE_HOME directory of the version of Oracle
-that DBD::Oracle was compiled with.
-
-Discouraging the use of ORACLE_SID makes it easier on the users to see
-what is going on. (It's unfortunate that TWO_TASK couldn't be renamed,
-since it makes no sense to the end user, and doesn't have the ORACLE prefix).
-
-Also remember that depending on the operating system you are using
-the differing "ORACLE" environment variables may be case sensitive, so if you are not connecting
-as you should double check the case of both the variable and its value.
-
-=head3 ORACLE_SID and TWO_TASK
-
-For those who really want to use ORACLE_SID and TWO_TASK here are examples of it in use;
-
-Given this TNS entry;
-
- DB.TEST =
-    (DESCRIPTION =
-         (ADDRESS =
-            (PROTOCOL = TCP)
-            (HOST = xxx.xxx.xxx.xx)
-            (PORT = 1523))
-         (CONNECT_DATA =      (SID = DB)    )
-)
-
-and this code
-
-  BEGIN {
-     $ENV{ORACLE_SID} = 'DB';
-  }
-
-  $dbh = DBI->connect('dbi:Oracle:','username/password','');
-
-you will be able to connect to DB. Note this may not work for Windows.
+Also remember that depending on the operating system you are using the differing "ORACLE" environment variables may be case sensitive, so if you are not connecting as you should double check the case of both the variable and its value.
 
 =head3 Timezones
 
-If TWO_TASK isn't set, Oracle uses the TZ variable from the local environment.
+If the query is run through SQL*Net (mostly queries that are executed on remote servers), Oracle will return the time zone based on the setting of the UNIX environment variable "TZ" for the user who started the listener.
 
-If TWO_TASK IS set, Oracle uses the TZ variable of the listener process
-running on the server.
+If the query is run locally, Oracle will return the time zone based on the "TZ" environment variable setting of the user running
+the query.
 
-You could have multiple listeners, each with their own TZ, and assign
-users to the appropriate listener by setting TNS_ADMIN to a directory
-that contains a tnsnames.ora file that points to the port that their
-listener is on.
-
-[Brad Howerter, who supplied this info said: "I've done this to simulate
-running a Perl script at the end of the previous month even though it
-was the 6th of the new month.  I had the dba start up a listener with
-TZ=X+144.  (144 hours = 6 days)"]
+With local queries, you can change the time zone for a particular user by simply changing the setting of "TZ". To check the current setting,
+issue the UNIX "date" command.
 
 =head3 Oracle DRCP
 
