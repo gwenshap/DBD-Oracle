@@ -10,11 +10,15 @@ Changes in DBD-Oracle XXX
    SQL_INTEGER or SQL_DOUBLE and bind attributes like StrictlyTyped or
    DiscardString a warning was not issued that the type is unsupported
    and no data was returned (Martin J. Evans)
+ - Fix test so it works with perl compiled with -Duselongdouble [RT71852]
 
  [DOCUMENTATION]
  - Added notes to bind_col documenting the fact that setting a TYPE
    does not affect how the column is bound in Oracle, only what
    happens after the column data is retrieved (Martin J. Evans)
+ - fix typo (thanks to Julián Moreno Patiño) [RT72038]
+ - shuffle POD around to improve documentation flow [RT72252]
+ - major tidying up of the connect() documentation. (by Gwen Shapira)
 
  [OTHER]
  - Commented out some functions in oci8.c which were not used to
