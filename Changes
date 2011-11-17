@@ -11,6 +11,8 @@ Changes in DBD-Oracle XXX
    DiscardString a warning was not issued that the type is unsupported
    and no data was returned (Martin J. Evans)
  - Fix test so it works with perl compiled with -Duselongdouble [RT71852]
+ - Apply patch from Charles Jardine for better building against a full
+   Oracle 11 install [72463] (Martin J. Evans)
 
  [DOCUMENTATION]
  - Added notes to bind_col documenting the fact that setting a TYPE
