@@ -1,6 +1,6 @@
 Revision history for DBD::Oracle
 
-Changes in DBD-Oracle 1.33_01 (xx-xx-xxxx)
+Changes in DBD-Oracle XXX
 
  [BUG FIXES]
  - if bind_col is called with a TYPE but no bind attributes like
@@ -19,6 +19,10 @@ Changes in DBD-Oracle 1.33_01 (xx-xx-xxxx)
  [OTHER]
  - Commented out some functions in oci8.c which were not used to
    reduce the size of the driver a little (Martin J. Evans)
+
+Changes in DBD-Oracle 1.34 (31-10-2011)
+
+ - promote 1.33_00 to official release
 
 Changes in DBD-Oracle 1.33_00 (18-10-2011)
 
