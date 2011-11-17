@@ -1687,7 +1687,7 @@ expand the table dialog to show all the indexes defined on the table.  Each
 column represents an index, and the figures define the order that the table
 columns appears in the index.  To find out the name of an index, position the
 mouse over the index column.  A single click will display the definition of the
-index in a seperate dialog.
+index in a separate dialog.
 
 Right-clicking on a plan step that refers to a table will pop up a menu showing
 a list of the indexes available for the table.  Selecting an index will display
