@@ -1,6 +1,6 @@
 Revision history for DBD::Oracle
 
-Changes in DBD-Oracle XXX
+Changes in DBD-Oracle 1.35_00 (18-11-2011)
 
  [BUG FIXES]
  - if bind_col is called with a TYPE but no bind attributes like
