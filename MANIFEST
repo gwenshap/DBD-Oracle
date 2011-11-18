@@ -82,3 +82,6 @@ typemap
 examples/ora_explain.pl
 t/00versions.t
 lib/DBD/Oracle/Troubleshooting.pm
+examples/inserting_longs.pl
+examples/read_long_via_blob_read.pl
+t/rt13865.t
