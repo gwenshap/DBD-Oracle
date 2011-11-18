@@ -1,6 +1,6 @@
 Revision history for DBD::Oracle
 
-Changes in DBD-Oracle XXX
+Changes in DBD-Oracle 1.35_00 (18-11-2011)
 
  [BUG FIXES]
  - if bind_col is called with a TYPE but no bind attributes like
@@ -12,7 +12,7 @@ Changes in DBD-Oracle XXX
    and no data was returned (Martin J. Evans)
  - Fix test so it works with perl compiled with -Duselongdouble [RT71852]
  - Apply patch from Charles Jardine for better building against a full
-   Oracle 11 install [72463] (Martin J. Evans)
+   Oracle 11 install [RT72463] (Martin J. Evans)
 
  [DOCUMENTATION]
  - Added notes to bind_col documenting the fact that setting a TYPE
@@ -21,6 +21,7 @@ Changes in DBD-Oracle XXX
  - fix typo (thanks to Julián Moreno Patiño) [RT72038]
  - shuffle POD around to improve documentation flow [RT72252]
  - major tidying up of the connect() documentation. (by Gwen Shapira)
+ - Moved LONG examples out of POD and into examples/
 
  [OTHER]
  - Commented out some functions in oci8.c which were not used to

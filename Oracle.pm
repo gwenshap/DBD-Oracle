@@ -7,7 +7,7 @@
 
 require 5.006;
 
-$DBD::Oracle::VERSION = '1.33_00';
+$DBD::Oracle::VERSION = '1.35_00';
 
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
@@ -5306,6 +5306,7 @@ It seems that the 10g client can only connect to 9 and 11 DBs while the 9 can go
 and even get to 10. I am not sure what the 11g client can connect to.
 
 =back
+
 =head1 BUGS AND LIMITATIONS
 
 There is a known problem with the 11.2g Oracle client and the 
