@@ -21,6 +21,7 @@ Changes in DBD-Oracle XXX
  - fix typo (thanks to Julián Moreno Patiño) [RT72038]
  - shuffle POD around to improve documentation flow [RT72252]
  - major tidying up of the connect() documentation. (by Gwen Shapira)
+ - Moved LONG examples out of POD and into examples/
 
  [OTHER]
  - Commented out some functions in oci8.c which were not used to
