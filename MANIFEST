@@ -36,20 +36,13 @@ README-files/hpux/Makefile-Lincoln
 README.64bit.txt
 README.aix.txt
 README.clients.txt
-README.explain.txt
 README.help.txt
 README.hpux.txt
 README.java.txt
-README.linux.txt
-README.login.txt
-README.longs.txt
 README.macosx.txt
 README.sec.txt
-README.sun.txt
-README.vms.txt
 README.win32.txt
 README.win64.txt
-README.wingcc.txt			Notes about building with mingw32 and cygwin32
 t/01base.t
 t/10general.t
 t/12impdata.t
@@ -88,4 +81,8 @@ Todo
 typemap
 examples/ora_explain.pl
 t/00versions.t
+lib/DBD/Oracle/Troubleshooting.pm
+examples/inserting_longs.pl
+examples/read_long_via_blob_read.pl
+t/rt13865.t
 META.yml                                 Module meta-data (added by MakeMaker)

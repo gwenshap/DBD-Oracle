@@ -23,7 +23,7 @@ int describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level );
 int dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level);
 
 
-
+/*
 char *
 dbd_yes_no(int yes_no)
 {
@@ -33,6 +33,7 @@ dbd_yes_no(int yes_no)
 	}
 	return "No";
 }
+*/
 
 void
 dbd_init_oci(dbistate_t *dbistate)
@@ -52,6 +53,7 @@ dbd_init_oci_drh(imp_drh_t * imp_drh)
 
 }
 
+/*
 char *
 oci_sql_function_code_name(int sqlfncode)
 {
@@ -71,7 +73,9 @@ oci_sql_function_code_name(int sqlfncode)
 	sprintf(SvPVX(sv),"(UNKNOWN SQL FN Code %d)", sqlfncode);
 	return SvPVX(sv);
 }
+*/
 
+ /*
 char *
 oci_ptype_name(int ptype)
 {
@@ -104,7 +108,8 @@ oci_ptype_name(int ptype)
 	sprintf(SvPVX(sv),"(UNKNOWN PTYPE Code %d)", ptype);
 	return SvPVX(sv);
 }
-
+ */
+ 
 char *
 oci_exe_mode(ub4 mode)
 {
@@ -3738,6 +3743,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 AV *
 dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 	dTHX;
+    D_imp_xxh(sth);
 	sword status;
 	D_imp_dbh_from_sth;
 	int num_fields = DBIc_NUM_FIELDS(imp_sth);
@@ -3927,12 +3933,13 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 #if DBIXS_REVISION > 13590
 		/* If a bind type was specified we use DBI's sql_type_cast
 			to cast it - currently only number types are handled */
-					if (fbh->req_type != 0) {
+					if ((fbh->req_type != 0) && (fbh->bind_flags != 0)) {
 						int sts;
 						char errstr[256];
 
 						sts = DBIc_DBISTATE(imp_sth)->sql_type_cast_svpv(
 						aTHX_ sv, fbh->req_type, fbh->bind_flags, NULL);
+
 						if (sts == 0) {
 							sprintf(errstr,
 								"over/under flow converting column %d to type %"IVdf"",
@@ -3945,7 +3952,11 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 							sprintf(errstr,
 								"unsupported bind type %"IVdf" for column %d",
 								fbh->req_type, i+1);
-							return Nullav;
+                            /* issue warning */
+                            DBIh_SET_ERR_CHAR(sth, imp_xxh, "0", 1, errstr, Nullch, Nullch);
+                            if (CSFORM_IMPLIES_UTF8(fbh->csform) ){
+                                SvUTF8_on(sv);
+                            }
 						}
 					}
 					else

@@ -1,5 +1,32 @@
 Revision history for DBD::Oracle
 
+Changes in DBD-Oracle 1.35_00 (18-11-2011)
+
+ [BUG FIXES]
+ - if bind_col is called with a TYPE but no bind attributes like
+   StrictlyTyped or DiscardString are set DBD::Oracle still attempts
+   to call sql_type_cast which is pointless (Martin J. Evans)
+ - if bind_col is called with a TYPE other than SQL_NUMERIC,
+   SQL_INTEGER or SQL_DOUBLE and bind attributes like StrictlyTyped or
+   DiscardString a warning was not issued that the type is unsupported
+   and no data was returned (Martin J. Evans)
+ - Fix test so it works with perl compiled with -Duselongdouble [RT71852]
+ - Apply patch from Charles Jardine for better building against a full
+   Oracle 11 install [RT72463] (Martin J. Evans)
+
+ [DOCUMENTATION]
+ - Added notes to bind_col documenting the fact that setting a TYPE
+   does not affect how the column is bound in Oracle, only what
+   happens after the column data is retrieved (Martin J. Evans)
+ - fix typo (thanks to Julián Moreno Patiño) [RT72038]
+ - shuffle POD around to improve documentation flow [RT72252]
+ - major tidying up of the connect() documentation. (by Gwen Shapira)
+ - Moved LONG examples out of POD and into examples/
+
+ [OTHER]
+ - Commented out some functions in oci8.c which were not used to
+   reduce the size of the driver a little (Martin J. Evans)
+
 Changes in DBD-Oracle 1.34 (31-10-2011)
 
  - promote 1.33_00 to official release
