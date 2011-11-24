@@ -952,12 +952,15 @@ SQL
     sub ora_server_version {
 	my $dbh = shift;
 	return $dbh->{ora_server_version} if defined $dbh->{ora_server_version};
-	$dbh->{ora_server_version} =
-	   [ split /\./, $dbh->selectrow_array(<<'SQL', undef, 'Oracle%', 'Personal Oracle%') .''];
-SELECT version
-  FROM product_component_version
- WHERE product LIKE ? or product LIKE ?
+	my $banner = $dbh->selectrow_array(<<'SQL', undef, 'Oracle%', 'Personal Oracle%');
+SELECT banner
+  FROM v$version
+  WHERE banner LIKE ? OR banner LIKE ?
 SQL
+	if (defined $banner) {
+	    my @version = $banner =~ /(?:^|\s)(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)(?:\s|$)/;
+	    $dbh->{ora_server_version} = \@version if @version;
+	}
     }
 
     sub ora_nls_parameters {
