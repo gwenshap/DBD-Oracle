@@ -1,5 +1,13 @@
 Revision history for DBD::Oracle
 
+Changes in DBD-Oracle X.XX (XX-XX-XXXX)
+
+ [BEG FIXES]
+
+ - applied patch from Charles Jardine avoiding undefined values
+   warnings in ora_server_version when the database is not open
+   [RT72623] (Martin J. Evans)
+
 Changes in DBD-Oracle 1.35_00 (18-11-2011)
 
  [BUG FIXES]
