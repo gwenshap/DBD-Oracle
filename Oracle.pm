@@ -148,7 +148,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 	# get list of 'remote' database connection identifiers
 	my @tns_admin = ( DBD::Oracle::ora_env_var("TNS_ADMIN"), '.' );
-	push @tns_admin, map { join '/', $oracle_home, $_ }     
+	push @tns_admin, map { join '/', $oracle_home, $_ }
                          'network/admin',	# OCI 7 and 8.1
                          'net80/admin',	    # OCI 8.0
 	    if $oracle_home;
@@ -650,7 +650,7 @@ SELECT *
                         )
          , 'FLOAT'    , tc.DATA_PRECISION
          , 'DATE'     , 19
-         , 'VARCHAR2' , tc.CHAR_LENGTH 
+         , 'VARCHAR2' , tc.CHAR_LENGTH
          , tc.DATA_LENGTH
          )                   COLUMN_SIZE
        , decode( tc.DATA_TYPE
@@ -1250,7 +1250,7 @@ but it is not secure and not recommended so not documented here.
 
 =head3 Oracle Environment Variables
 
-To use DBD::ORACLE to connect to an Oracle database, ORACLE_HOME environment variable should be set correctly.  
+To use DBD::ORACLE to connect to an Oracle database, ORACLE_HOME environment variable should be set correctly.
 In general, the value used should match the version of Oracle that was used to build DBD::Oracle.  If using dynamic linking then ORACLE_HOME should match the version of Oracle that will be used to load in the Oracle client libraries (via LD_LIBRARY_PATH, ldconfig, or similar on Unix).
 
 Oracle can use two environment variables to specify default connections: ORACLE_SID and TWO_TASK.
@@ -1594,7 +1594,7 @@ on the server side using C<V$SESSION> view.
 
 =head4 ora_dbh_share
 
-Requires at least Perl 5.8.0 compiled with ithreads. 
+Requires at least Perl 5.8.0 compiled with ithreads.
 
 Allows you to share
 database connections between threads. The first connect will make the
@@ -1759,9 +1759,21 @@ For example:
 NOTE disabling the signal handlers the OCI library sets up may affect
 functionality in the OCI library.
 
+NOTE If you are using connect_cached then the above example will lead
+to DBI thinking each connection is different as an anonymous array reference
+is being used. To avoid this when using connect_cached you are advised
+to use:
+
+  my @ora_default_signals = (...);
+  $dbh = DBI->connect($dsn, $user, $passwd,
+      {ora_connect_with_default_signals => \@ora_default_signals});
+
+In more recent Perl versions you could possibly make use of new state
+variables.
+
 =head2 B<connect_cached>
 
-Implemented by DBI, no driver-specific impact. 
+Implemented by DBI, no driver-specific impact.
 Please note that connect_cached as not been tested with DRCP.
 
 =head2 B<data_sources>
@@ -2288,7 +2300,7 @@ a warning is given and no COMMIT is issued. Returns true on success, false on er
 
 Issues a ROLLBACK to the server, which discards any changes made in the current transaction. If AutoCommit
 is enabled, then a warning is given and no ROLLBACK is issued. Returns true on success, and
-false on error. 
+false on error.
 
 =head2 B<begin_work>
 
@@ -2484,7 +2496,7 @@ handle, then trying to merge the attributes. See the DBI documentation for compl
 
 Supported by DBD::Oracle as proposed by DBI.The default of AutoCommit is on, but this may change
 in the future, so it is highly recommended that you explicitly set it when
-calling L</connect>. 
+calling L</connect>.
 
 =head2 B<ReadOnly> (boolean)
 
@@ -5236,7 +5248,7 @@ you may not be aware of.
 =head2 GitHub repository
 
 A git mirror of the subversion is also available at
-`https://github.com/yanick/DBD-Oracle`. 
+`https://github.com/yanick/DBD-Oracle`.
 
 =head1 Oracle Related Links
 
@@ -5312,8 +5324,8 @@ and even get to 10. I am not sure what the 11g client can connect to.
 
 =head1 BUGS AND LIMITATIONS
 
-There is a known problem with the 11.2g Oracle client and the 
-C<DBMS_LOB.GETLENGTH()> PL/SQL function.  
+There is a known problem with the 11.2g Oracle client and the
+C<DBMS_LOB.GETLENGTH()> PL/SQL function.
 See L<https://rt.cpan.org/Public/Bug/Display.html?id=69350> for the details.
 
 
@@ -5365,7 +5377,7 @@ Also PL/Vision from RevealNet and Steven Feuerstein, and
 
 DBI by Tim Bunce L<http://www.tim.bunce.name>.
 
-The original C<DBD::Oracle> was by Tim Bunce. 
+The original C<DBD::Oracle> was by Tim Bunce.
 Maintained as of release 1.17 (February 2006) by John Scoles, then Yanick Champoux, under the
 auspice of the Pythian Group (L<http://www.pythian.com>).
 
