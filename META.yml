@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               DBD-Oracle
-version:            1.35_00
+version:            1.36
 abstract:           Oracle database driver for the DBI module
 author:
     - Tim Bunce (dbi-users@perl.org)
