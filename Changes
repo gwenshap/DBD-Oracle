@@ -10,9 +10,10 @@ Changes in DBD-Oracle X.XX (XX-XX-XXXX)
 
  [DOCUMENTATION]
 
- - [rt72716] Document possible problem with
+ - Document possible problem with
    ora_connect_with_default_signals and connect_cached
-   (Martin J. Evans)
+   [RT72716] (Martin J. Evans)
+ - Fix documentation for 'ora_fetch_scroll()'
 
 Changes in DBD-Oracle 1.35_00 (18-11-2011)
 

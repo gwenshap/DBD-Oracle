@@ -3405,11 +3405,11 @@ The minimum value will always be 1 after the first fetch. The maximum value will
 
 =item ora_fetch_scroll
 
-  @ary =  $sth->ora_fetch_scroll($fetch_orient,$fetch_offset);
+  $ary_ref = $sth->ora_fetch_scroll($fetch_orient,$fetch_offset);
 
-Works the same as fetchrow_array method however, one passes in a 'Fetch Orientation' constant and a fetch_offset
+Works the same as C<fetchrow_arrayref>, excepts one passes in a 'Fetch Orientation' constant and a fetch_offset
 value which will then determine the row that will be fetched. It returns the row as a list containing the field values.
-Null fields are returned as undef values in the list.
+Null fields are returned as I<undef> values in the list.
 
 The valid orientation constant and fetch offset values combination are detailed below
 
@@ -3420,12 +3420,14 @@ The valid orientation constant and fetch offset values combination are detailed 
   OCI_FETCH_LAST,     fetches the last row, the fetch offset value is ignored.
   OCI_FETCH_PRIOR,    fetches the previous row from the current position, the fetch offset
                       value is ignored.
+
   OCI_FETCH_ABSOLUTE, fetches the row that is specified by the fetch offset value.
-  OCI_FETCH_RELATIVE, fetches the row relative from the current position as specified by the
-                      fetch offset value.
 
   OCI_FETCH_ABSOLUTE, and a fetch offset value of 1 is equivalent to a OCI_FETCH_FIRST.
   OCI_FETCH_ABSOLUTE, and a fetch offset value of 0 is equivalent to a OCI_FETCH_CURRENT.
+
+  OCI_FETCH_RELATIVE, fetches the row relative from the current position as specified by the
+                      fetch offset value.
 
   OCI_FETCH_RELATIVE, and a fetch offset value of 0 is equivalent to a OCI_FETCH_CURRENT.
   OCI_FETCH_RELATIVE, and a fetch offset value of 1 is equivalent to a OCI_FETCH_NEXT.
