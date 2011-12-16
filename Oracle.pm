@@ -27,7 +27,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	    ORA_CLOB ORA_BLOB ORA_RSET ORA_VARCHAR2_TABLE ORA_NUMBER_TABLE
 	    SQLT_INT SQLT_FLT ORA_OCI SQLT_CHR SQLT_BIN
 	) ],
-        ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ) ],
+        ora_session_modes => [ qw( ORA_SYSDBA ORA_SYSOPER ORA_SYSASM) ],
         ora_fetch_orient  => [ qw( OCI_FETCH_NEXT OCI_FETCH_CURRENT OCI_FETCH_FIRST
         			   OCI_FETCH_LAST OCI_FETCH_PRIOR OCI_FETCH_ABSOLUTE
         			   OCI_FETCH_RELATIVE)],
@@ -1131,7 +1131,7 @@ consult the L<DBI> documentation first!
 
 =item :ora_session_modes
 
-ORA_SYSDBA ORA_SYSOPER
+ORA_SYSDBA ORA_SYSOPER ORA_SYSASM
 
 =item :ora_types
 
@@ -1500,9 +1500,9 @@ successive failover events when the event is OCI_FO_ERROR.
 
 =head4 ora_session_mode
 
-The ora_session_mode attribute can be used to connect with SYSDBA
-authorization and SYSOPER authorization.
-The ORA_SYSDBA and ORA_SYSOPER constants can be imported using
+The ora_session_mode attribute can be used to connect with SYSDBA,
+SYSOPER and ORA_SYSASM authorization.
+The ORA_SYSDBA, ORA_SYSOPER and ORA_SYSASM constants can be imported using
 
   use DBD::Oracle qw(:ora_session_modes);
 
