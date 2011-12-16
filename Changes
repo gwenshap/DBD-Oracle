@@ -2,6 +2,10 @@ Revision history for DBD::Oracle
 
 Changes in DBD-Oracle X.XX (XX-XX-XXXX)
 
+ [ENHANCEMENTS]
+  - added SYSASM session mode. [RT651211] (patch from 
+  Anthony DeRobertis, reported by Julián Moreno Patiño)
+
  [BUG FIXES]
 
  - applied patch from Charles Jardine avoiding undefined values
