@@ -11,6 +11,7 @@ Changes in DBD-Oracle X.XX (XX-XX-XXXX)
  - applied patch from Charles Jardine avoiding undefined values
    warnings in ora_server_version when the database is not open
    [RT72623] (Martin J. Evans)
+ - TNS_ADMIN was ignored [RT73456]
 
  [DOCUMENTATION]
 
