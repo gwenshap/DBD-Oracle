@@ -11,3 +11,4 @@ MYMETA.json
 dbdimp.o
 mk.pm
 oci8.o
+DBD-Oracle*

@@ -1,8 +1,7 @@
+package DBD::Oracle::Troubleshooting;
+#ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle
+
 =pod
-
-=head1 NAME
-
-DBD::Oracle::Troubleshooting - Tips and Hints to Troubleshoot DBD::Oracle
 
 =head1 CONNECTING TO ORACLE
 

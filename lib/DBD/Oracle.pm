@@ -7,12 +7,11 @@
 
 require 5.006;
 
-$DBD::Oracle::VERSION = '1.35_00';
-
 my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 
 {
-    package DBD::Oracle;
+package DBD::Oracle;
+# ABSTRACT: Oracle database driver for the DBI module
 
     use DBI ();
     use DynaLoader ();
@@ -1097,9 +1096,6 @@ SQL
 
 __END__
 
-=head1 NAME
-
-DBD::Oracle - Oracle database driver for the DBI module
 
 =head1 SYNOPSIS
 
