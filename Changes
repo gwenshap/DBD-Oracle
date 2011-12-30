@@ -11,6 +11,7 @@ Changes in DBD-Oracle X.XX (XX-XX-XXXX)
  - applied patch from Charles Jardine avoiding undefined values
    warnings in ora_server_version when the database is not open
    [RT72623] (Martin J. Evans)
+ - TNS_ADMIN was ignored [RT73456]
 
  [DOCUMENTATION]
 
@@ -18,6 +19,10 @@ Changes in DBD-Oracle X.XX (XX-XX-XXXX)
    ora_connect_with_default_signals and connect_cached
    [RT72716] (Martin J. Evans)
  - Fix documentation for 'ora_fetch_scroll()'
+
+Changes in DBD-Oracle 1.36 (6-12-2011)
+    
+ - promote 1.35_00 to official release
 
 Changes in DBD-Oracle 1.35_00 (18-11-2011)
 
