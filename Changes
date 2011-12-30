@@ -1,6 +1,6 @@
 Revision history for DBD::Oracle
 
-Changes in DBD-Oracle X.XX (XX-XX-XXXX)
+1.37_00   2011-12-30
 
  [ENHANCEMENTS]
   - added SYSASM session mode. [RT651211] (patch from 
