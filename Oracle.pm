@@ -155,8 +155,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 	push @tns_admin, '/var/opt/oracle', '/etc';
 
     TNS_ADMIN:
-	foreach $d ( @tns_admin  ) {
-        next TNS_ADMIN unless $d and -f $d;
+	foreach $d ( grep { $_ and -d $_ } @tns_admin  ) {
 	    open FH, '<', "$d/tnsnames.ora" or next TNS_ADMIN;
 
 	    $drh->trace_msg("Loading $d/tnsnames.ora\n") if $debug;
