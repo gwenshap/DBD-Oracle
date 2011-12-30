@@ -1,5 +1,25 @@
 Revision history for DBD::Oracle
 
+1.37_00   2011-12-30
+
+ [ENHANCEMENTS]
+  - added SYSASM session mode. [RT651211] (patch from 
+  Anthony DeRobertis, reported by Julián Moreno Patiño)
+
+ [BUG FIXES]
+
+ - applied patch from Charles Jardine avoiding undefined values
+   warnings in ora_server_version when the database is not open
+   [RT72623] (Martin J. Evans)
+ - TNS_ADMIN was ignored [RT73456]
+
+ [DOCUMENTATION]
+
+ - Document possible problem with
+   ora_connect_with_default_signals and connect_cached
+   [RT72716] (Martin J. Evans)
+ - Fix documentation for 'ora_fetch_scroll()'
+
 Changes in DBD-Oracle 1.36 (6-12-2011)
     
  - promote 1.35_00 to official release
