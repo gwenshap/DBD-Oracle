@@ -46,7 +46,7 @@ $| = 1;
 
 my %opts = (
     NAME => 'DBD::Oracle',
-    VERSION_FROM => 'Oracle.pm',
+    VERSION_FROM => 'lib/DBD/Oracle.pm',
     PREREQ_PM => { "Test::Simple" => 0.90, # actually Test::More pkg in T::S dist
                    "DBI"          => 1.51},
     OBJECT => '$(O_FILES)',
@@ -83,7 +83,7 @@ $eumm =~ tr/_//d;
 
 if ($eumm >= 5.43) {
     $opts{AUTHOR} = 'Tim Bunce (dbi-users@perl.org)';
-    $opts{ABSTRACT_FROM} = 'Oracle.pm';
+    $opts{ABSTRACT_FROM} = 'lib/DBD/Oracle.pm';
     $opts{PREREQ_PM} = { DBI => 1.51 };
     $opts{CAPI} = 'TRUE' if $Config{archname} =~ /-object\b/i;
 }

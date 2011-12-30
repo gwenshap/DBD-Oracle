@@ -1,4 +1,5 @@
 package DBD::Oracle::Object;
+# ABSTRACT: Wrapper for Oracle objects
 
 use strict;
 use warnings;

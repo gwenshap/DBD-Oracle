@@ -29,3 +29,4 @@ Oracle.o
 Oracle.xsi
 pm_to_blib
 
+dist.ini
