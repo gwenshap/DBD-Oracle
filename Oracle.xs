@@ -358,9 +358,13 @@ ora_can_taf(dbh)
 	sword status;
 	ub4 can_taf = 0;
 	CODE:
+#ifdef OCI_ATTR_TAF_ENABLED
 	OCIAttrGet_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, &can_taf, NULL,
 				OCI_ATTR_TAF_ENABLED, imp_dbh->errhp, status);
 	if (status != OCI_SUCCESS) {
+# else
+    if ( 1 ) {
+# endif
 		oci_error(dbh, imp_dbh->errhp, status, "OCIAttrGet OCI_ATTR_TAF_ENABLED");
 		XSRETURN_IV(0);
 	}
