@@ -902,8 +902,12 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
     if (imp_dbh->using_taf){
 		bool	can_taf;
+        can_taf = 0;
+
+#ifdef OCI_ATTR_TAF_ENABLED
 		OCIAttrGet_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, &can_taf, NULL,
 				OCI_ATTR_TAF_ENABLED, imp_dbh->errhp, status);
+#endif
 
 		if (!can_taf){
 			croak("You are attempting to enable TAF on a server that is not TAF Enabled \n");
