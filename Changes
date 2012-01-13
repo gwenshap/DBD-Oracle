@@ -2,6 +2,10 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+ - promote 1.37_00 to official release
+
+1.37_00   2011-12-30
+
  [ENHANCEMENTS]
   - added SYSASM session mode. [RT651211] (patch from 
   Anthony DeRobertis, reported by Julián Moreno Patiño)
