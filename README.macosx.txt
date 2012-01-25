@@ -50,11 +50,12 @@ database server on your MacOSX box. See below (Instructions for
 ======================================================================
 Instructions for 10.7.x (Lion)
 
-Because the 64 bit instantclient is currently [incompatible with Lion][],
-DBD::Oracle can only be compiled with the 32-bit instantclient libraries, and
-therefore requires 32-bit Perl. If your Perl is 64-bit (which, by default, it
-is on Mac OS X), you will not be able to build DBD::Oracle until an updated
-64-bit instantclient is released.
+Because the 64 bit instantclient (version 10gr2)is currently
+[incompatible with Lion][], DBD::Oracle can only be compiled with the
+32-bit instantclient libraries, and therefore requires 32-bit Perl. If
+your Perl is 64-bit (which, by default, it is on Mac OS X), you will
+not be able to build DBD::Oracle until an updated 64-bit instantclient
+is released.
 
 [incompatible with Lion]: http://only4left.jpiwowar.com/2011/08/instant-client-osx-lion-32-bit-only/
 
