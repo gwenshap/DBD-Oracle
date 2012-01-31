@@ -994,14 +994,14 @@ sub win32_oracle_home {
 	  eval {
 	      require Win32::TieRegistry;
 	      $Win32::TieRegistry::Registry->Delimiter("/");
-	      $req_ok = 1;
-	      $hkey = $Win32::TieRegistry::Registry->{"LMachine/SOFTWARE/Oracle/"};
+	      $hkey = $Win32::TieRegistry::Registry->{"LMachine/SOFTWARE/Oracle/"}
+                  and $req_ok = 1;
 	  };
 	  eval { # older name of Win32::TieRegistry
 	      require Tie::Registry;
 	      $Tie::Registry::Registry->Delimiter("/");
-	      $req_ok = 1;
-	      $hkey = $Tie::Registry::Registry->{"LMachine/SOFTWARE/Oracle/"};
+	      $hkey = $Tie::Registry::Registry->{"LMachine/SOFTWARE/Oracle/"}
+                  and $req_ok = 1;
 	  } unless $req_ok;
 	  eval {
 	     $default_home = $hkey->{ORACLE_HOME} || '';
