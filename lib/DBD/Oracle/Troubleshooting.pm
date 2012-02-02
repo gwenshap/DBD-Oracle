@@ -304,11 +304,11 @@ in the first table in above list, and not as one would normally
 expect in the process table.
 
 Installing DBI and DBD::Oracle has influence upon this since in
-both cases a few enviroment variables are read or set in the
+both cases a few environment variables are read or set in the
 test phase.
 For DBI it is the logical SYS$SCRATCH, which is a JOB logical.
 For DBD-Oracle it is when testing a new feature in the Oracle 
-RDBMS: UTF8 and UTF16 character set functionallity, and in order 
+RDBMS: UTF8 and UTF16 character set functionality, and in order 
 to do this it sets and unsets the related environment variables 
 NLS_NCHAR and NLS_LANG.
 
