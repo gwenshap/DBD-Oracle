@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 # Short examples of procedure calls from Oracle.pm
 # These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
 
