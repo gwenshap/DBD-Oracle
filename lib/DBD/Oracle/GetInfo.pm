@@ -1,4 +1,5 @@
 package DBD::Oracle::GetInfo;
+# ABSTRACT: Wrapper to get Oracle information
 
 use strict;
 use DBD::Oracle();

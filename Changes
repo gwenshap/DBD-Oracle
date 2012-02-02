@@ -11,6 +11,7 @@ Revision history for DBD::Oracle
  [DOCUMENTATION]
  - Mention the release of Oracle Instant Client 64 bit which does not work
     on Lion. (Martin J. Evans)
+ - Fix DBD::Oracle::GetInfo blurb (patch by Julián Moreno Patiño) [rt7400]
 
  [OTHERS]
  - change the shebang line of examples to the more modern '/usr/bin/env perl'
