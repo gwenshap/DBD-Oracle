@@ -1,10 +1,11 @@
 package DBD::Oracle::GetInfo;
 {
-  $DBD::Oracle::GetInfo::VERSION = '1.37_00';
+  $DBD::Oracle::GetInfo::VERSION = '1.38';
 }
 BEGIN {
   $DBD::Oracle::GetInfo::AUTHORITY = 'cpan:PYTHIAN';
 }
+# ABSTRACT: Wrapper to get Oracle information
 
 use strict;
 use DBD::Oracle();
@@ -326,11 +327,11 @@ our %info = (
 
 =head1 NAME
 
-DBD::Oracle::GetInfo
+DBD::Oracle::GetInfo - Wrapper to get Oracle information
 
 =head1 VERSION
 
-version 1.37_00
+version 1.38
 
 =head1 AUTHORS
 

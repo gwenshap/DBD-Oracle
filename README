@@ -2,7 +2,7 @@ NAME
     DBD::Oracle - Oracle database driver for the DBI module
 
 VERSION
-    version 1.37_00
+    version 1.38
 
 SYNOPSIS
       use DBI;
