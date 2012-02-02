@@ -12,6 +12,10 @@ Revision history for DBD::Oracle
  - Mention the release of Oracle Instant Client 64 bit which does not work
     on Lion. (Martin J. Evans)
 
+ [OTHERS]
+ - change the shebang line of examples to the more modern '/usr/bin/env perl'
+    [RT74001]
+
 1.38   2012-01-13
 
  - promote 1.37_00 to official release
