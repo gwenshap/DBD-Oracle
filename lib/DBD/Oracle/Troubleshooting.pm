@@ -1,7 +1,23 @@
 package DBD::Oracle::Troubleshooting;
+{
+  $DBD::Oracle::Troubleshooting::VERSION = '1.38';
+}
+BEGIN {
+  $DBD::Oracle::Troubleshooting::AUTHORITY = 'cpan:PYTHIAN';
+}
 #ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle
 
+
+__END__
 =pod
+
+=head1 NAME
+
+DBD::Oracle::Troubleshooting - Tips and Hints to Troubleshoot DBD::Oracle
+
+=head1 VERSION
+
+version 1.38
 
 =head1 CONNECTING TO ORACLE
 
@@ -28,7 +44,6 @@ variable points to the correct directory.
 For Windows the solution is to add this value to you PATH
 
   PATH=c:\app\oracle\product\xx.x.x;%PATH%
-
 
 If you get past this stage and get a
 
@@ -60,7 +75,6 @@ Protocol Adapter".
 
 If it generates any errors which look relevant then please talk to your
 Oracle technical support (and not the dbi-users mailing list).
-
 
 =head1 USING THE LONG TYPES
 
@@ -95,7 +109,6 @@ It turns out that now it is necessary to edit the same file and append
 "`gcc -print-libgcc-file-name`" (including the backquotes!).  If you do
 this and then run "genclntsh", the libclntsh is properly generated and
 the linkage with DBD::Oracle proceeds properly.
-
 
 =head2 cc1: invalid option `tune=pentium4'" error
 
@@ -153,7 +166,7 @@ To get 10Xe to compile correctly I had to add $ORACLE_HOME/lib to the LD_LIBRARY
 as you would for an install against 10g Standard Edition, Standard Edition One, or 
 Enterprise Edition 
 
-=head2  UTF8 bug in Oracle  9.2.0.5.0 and 9.2.0.7.0
+=head2 UTF8 bug in Oracle  9.2.0.5.0 and 9.2.0.7.0
 
 DBD::Oracle seems to hit some sort of bug with the above two versions of DB.
 The bug seems to hit when you when the Oracle database charset: US7ASCII and the Oracle nchar charset: AL16UTF16 and it has also
@@ -172,7 +185,6 @@ So far there is no patch for this but here are some work arounds
     or this way
 
     utf8::downgrade($parameter, 1);
-	
 
 =head1 CYGWIN
 
@@ -335,4 +347,30 @@ oracle table implementation, and no UTF support.
 Oracle 9.0 is uncertain, since testing has not been possible yet,
 but the remedy will not hurt :)
 
+=head1 AUTHORS
+
+=over 4
+
+=item *
+
+Tim Bunce <timb@cpan.org>
+
+=item *
+
+John Scoles
+
+=item *
+
+Yanick Champoux <yanick@cpan.org>
+
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 1994 by Tim Bunce.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
 =cut
+
