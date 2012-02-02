@@ -29,25 +29,25 @@ name: DBD-Oracle
 provides:
   DBD::Oracle:
     file: lib/DBD/Oracle.pm
-    version: 1.37_00
+    version: 1.38
   DBD::Oracle::GetInfo:
     file: lib/DBD/Oracle/GetInfo.pm
-    version: 1.37_00
+    version: 1.38
   DBD::Oracle::Object:
     file: lib/DBD/Oracle/Object.pm
-    version: 1.37_00
+    version: 1.38
   DBD::Oracle::Troubleshooting:
     file: lib/DBD/Oracle/Troubleshooting.pm
-    version: 1.37_00
+    version: 1.38
   DBD::Oracle::db:
     file: lib/DBD/Oracle.pm
-    version: 1.37_00
+    version: 1.38
   DBD::Oracle::dr:
     file: lib/DBD/Oracle.pm
-    version: 1.37_00
+    version: 1.38
   DBD::Oracle::st:
     file: lib/DBD/Oracle.pm
-    version: 1.37_00
+    version: 1.38
 requires:
   DBI: 0
   DynaLoader: 0
@@ -59,5 +59,5 @@ resources:
   bugtracker: http://rt.cpan.org/Public/Dist/Display.html?Name=DBD-Oracle
   homepage: http://search.cpan.org/dist/DBD-Oracle/
   repository: git://github.com/yanick/DBD-Oracle.git
-version: 1.37_00
+version: 1.38
 x_authority: cpan:PYTHIAN
