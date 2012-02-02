@@ -1,6 +1,6 @@
 Revision history for DBD::Oracle
 
-{{$NEXT}}
+1.38      2012-02-02
 
  [BUG FIXES]
  - TAF supports now conditional to presence of OCI_ATTR_TAF_ENABLED
