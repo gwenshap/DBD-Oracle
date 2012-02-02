@@ -5,6 +5,12 @@ Revision history for DBD::Oracle
  [BUG FIXES]
  - TAF supports now conditional to presence of OCI_ATTR_TAF_ENABLED
     [RT73798]
+ - detect broken Win32::TieRegistry (patch by Rafael Kitover (Caelum))
+    [RT74544]
+
+ [DOCUMENTATION]
+ - Mention the release of Oracle Instant Client 64 bit which does not work
+    on Lion. (Martin J. Evans)
 
 1.38   2012-01-13
 
