@@ -1,0 +1,97 @@
+{
+   "abstract" : "Oracle database driver for the DBI module",
+   "author" : [
+      "Tim Bunce <timb@cpan.org>",
+      "John Scoles",
+      "Yanick Champoux <yanick@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Dist::Zilla version 4.300005, CPAN::Meta::Converter version 2.112150",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "DBD-Oracle",
+   "prereqs" : {
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "6.30"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "DBI" : 0,
+            "DynaLoader" : 0,
+            "Exporter" : 0,
+            "perl" : "5.006",
+            "strict" : 0,
+            "warnings" : 0
+         }
+      },
+      "test" : {
+         "requires" : {
+            "Carp" : 0,
+            "Config" : 0,
+            "Data::Dumper" : 0,
+            "Devel::Peek" : 0,
+            "Encode" : 0,
+            "Math::BigInt" : 0,
+            "Oraperl" : 0,
+            "Scalar::Util" : 0,
+            "Test::More" : "0.94",
+            "Thread::Semaphore" : 0,
+            "utf8" : 0,
+            "vars" : 0
+         }
+      }
+   },
+   "provides" : {
+      "DBD::Oracle" : {
+         "file" : "lib/DBD/Oracle.pm",
+         "version" : "1.38"
+      },
+      "DBD::Oracle::GetInfo" : {
+         "file" : "lib/DBD/Oracle/GetInfo.pm",
+         "version" : "1.38"
+      },
+      "DBD::Oracle::Object" : {
+         "file" : "lib/DBD/Oracle/Object.pm",
+         "version" : "1.38"
+      },
+      "DBD::Oracle::Troubleshooting" : {
+         "file" : "lib/DBD/Oracle/Troubleshooting.pm",
+         "version" : "1.38"
+      },
+      "DBD::Oracle::db" : {
+         "file" : "lib/DBD/Oracle.pm",
+         "version" : "1.38"
+      },
+      "DBD::Oracle::dr" : {
+         "file" : "lib/DBD/Oracle.pm",
+         "version" : "1.38"
+      },
+      "DBD::Oracle::st" : {
+         "file" : "lib/DBD/Oracle.pm",
+         "version" : "1.38"
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "bugtracker" : {
+         "mailto" : "bug-dbd-oracle at rt.cpan.org",
+         "web" : "http://rt.cpan.org/Public/Dist/Display.html?Name=DBD-Oracle"
+      },
+      "homepage" : "http://search.cpan.org/dist/DBD-Oracle/",
+      "repository" : {
+         "type" : "git",
+         "url" : "git://github.com/yanick/DBD-Oracle.git",
+         "web" : "http://github.com/yanick/DBD-Oracle/tree"
+      }
+   },
+   "version" : "1.38",
+   "x_authority" : "cpan:PYTHIAN"
+}
+
