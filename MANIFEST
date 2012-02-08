@@ -89,5 +89,6 @@ t/70meta.t
 t/80ora_charset.t
 t/nchar_test_lib.pl
 t/rt13865.t
+t/rt74753-utf8-encoded.t
 test.pl
 typemap
