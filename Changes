@@ -7,6 +7,8 @@ Revision history for DBD::Oracle
     [RT73798]
  - detect broken Win32::TieRegistry (patch by Rafael Kitover (Caelum))
     [RT74544]
+ - PL/SQL out values were not utf8 encoded [RT74753] 
+     (Steve Baldwin + Martin J. Evans)
 
  [DOCUMENTATION]
  - Mention the release of Oracle Instant Client 64 bit which does not work
