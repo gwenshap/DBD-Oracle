@@ -53,42 +53,50 @@ package DBD::Oracle;
     }
 
     sub driver{
-	return $drh if $drh;
-	my($class, $attr) = @_;
-	my $oci = DBD::Oracle::ORA_OCI();
+        return $drh if $drh;
 
-	$class .= "::dr";
+        my($class, $attr) = @_;
+        my $oci = DBD::Oracle::ORA_OCI();
 
-	# not a 'my' since we use it above to prevent multiple drivers
+        $class .= "::dr";
 
-	$drh = DBI::_new_drh($class, {
-	    'Name' => 'Oracle',
-	    'Version' => $VERSION,
-	    'Err'    => \my $err,
-	    'Errstr' => \my $errstr,
-	    'Attribution' => "DBD::Oracle $VERSION using OCI$oci by Tim Bunce",
-	    });
-	DBD::Oracle::dr::init_oci($drh) ;
-	$drh->STORE('ShowErrorStatement', 1);
-	DBD::Oracle::db->install_method("ora_lob_read");
-	DBD::Oracle::db->install_method("ora_lob_write");
-	DBD::Oracle::db->install_method("ora_lob_append");
-	DBD::Oracle::db->install_method("ora_lob_trim");
-	DBD::Oracle::db->install_method("ora_lob_length");
-	DBD::Oracle::db->install_method("ora_lob_chunk_size");
-	DBD::Oracle::db->install_method("ora_lob_is_init");
-	DBD::Oracle::db->install_method("ora_nls_parameters");
-	DBD::Oracle::db->install_method("ora_can_unicode");
-	DBD::Oracle::db->install_method("ora_can_taf");
-	DBD::Oracle::db->install_method("ora_db_startup");
-        DBD::Oracle::db->install_method("ora_db_shutdown");
-        DBD::Oracle::st->install_method("ora_fetch_scroll");
-	DBD::Oracle::st->install_method("ora_scroll_position");
-	DBD::Oracle::st->install_method("ora_ping");
-	DBD::Oracle::st->install_method("ora_stmt_type_name");
-	DBD::Oracle::st->install_method("ora_stmt_type");
-	$drh;
+        # not a 'my' since we use it above to prevent multiple drivers
 
+        $drh = DBI::_new_drh($class, {
+            'Name' => 'Oracle',
+            'Version' => $VERSION,
+            'Err'    => \my $err,
+            'Errstr' => \my $errstr,
+            'Attribution' => "DBD::Oracle $VERSION using OCI$oci by Tim Bunce",
+        });
+
+        DBD::Oracle::dr::init_oci($drh) ;
+        $drh->STORE('ShowErrorStatement', 1);
+
+        DBD::Oracle::db->install_method($_) for qw/
+            ora_lob_read
+            ora_lob_write
+            ora_lob_append
+            ora_lob_trim
+            ora_lob_length
+            ora_lob_chunk_size
+            ora_lob_is_init
+            ora_nls_parameters
+            ora_can_unicode
+            ora_can_taf
+            ora_db_startup
+            ora_db_shutdown
+        /;
+
+        DBD::Oracle::st->install_method($_) for qw/
+            ora_fetch_scroll
+            ora_scroll_position
+            ora_ping
+            ora_stmt_type_name
+            ora_stmt_type
+        /;
+
+        $drh;
     }
 
 
@@ -1071,24 +1079,21 @@ SQL
        return $sth->set_err($DBI::stderr, "executing $tuple_count generated $err_count errors")
        	   if $err_count;
 
-       if (!wantarray) {
-	   return $tuple_count;
-       }
-
-       return ($tuple_count, defined $row_count ? $row_count : undef);
-
-
+       return wantarray 
+                ? ($tuple_count, defined $row_count ? $row_count : undef)
+                : $tuple_count;
 
     }
 
     sub private_attribute_info {
-	return {ora_lengths		=> undef,
-		ora_types		=> undef,
-		ora_rowid		=> undef,
-		ora_est_row_width	=> undef,
-		ora_type		=> undef,
-		ora_fail_over		=> undef,
-    };
+        return { map { $_ => undef } qw/ 
+            ora_lengths 
+            ora_types 
+            ora_rowid
+            ora_est_row_width 
+            ora_type 
+            ora_fail_over
+        / };
    }
 }
 
