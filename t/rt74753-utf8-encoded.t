@@ -57,6 +57,25 @@ $sth->execute;
 
 is Encode::is_utf8($val) => 1, "utf8 encoded";
 
+$sth = $dbh->prepare(<<'END_SQL');
+declare
+    l_ret       varchar2(10);
+begin
+    select  ltrim(rtrim(to_char(0, 'L'))) 
+         || ltrim(rtrim(to_char(0, 'L'))) 
+         || ltrim(rtrim(to_char(0, 'L'))) 
+    into    l_ret
+    from    dual;
+    --
+    :ret := l_ret;
+end;
+END_SQL
+
+$sth->bind_param_inout(':ret', \$val, 1);
+$sth->execute;
+
+is Encode::is_utf8($val) => 1, "truncated, yet utf8 encoded";
+
 $dbh->disconnect;
 
 
