@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 2;
+use Test::More tests => 3;
 
 use DBI;
 use Encode;
@@ -57,18 +57,13 @@ $sth->execute;
 
 is Encode::is_utf8($val) => 1, "utf8 encoded";
 
-$dbh->disconnect;
-
-
-__END__
-
-undef $val;
-
 $sth = $dbh->prepare(<<'END_SQL');
 declare
     l_ret       varchar2(10);
 begin
-    select  ltrim(rtrim(to_char(0, 'L')))
+    select ltrim(rtrim(to_char(0, 'L'))) 
+        || ltrim(rtrim(to_char(0, 'L'))) 
+        || ltrim(rtrim(to_char(0, 'L'))) 
     into    l_ret
     from    dual;
     --
@@ -76,11 +71,13 @@ begin
 end;
 END_SQL
 
-$sth->bind_param_inout( ':ret', \$val, 100 );
+$val = undef;
+
+# WARNING: does *not* truncate. DBD::Oracle doesn't heed the 3rd parameter
+$sth->bind_param_inout(':ret', \$val, 1);
 $sth->execute;
 
-diag  "val=[$val] len=@{[ length($val) ]}" while $sth->fetch;
-
-diag "utf8 is ", Encode::is_utf8($val) ? 'on' : 'off';
+is Encode::is_utf8($val) => 1, "truncated, yet utf8 encoded";
 
 $dbh->disconnect;
+
