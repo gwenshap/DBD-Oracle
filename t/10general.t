@@ -38,8 +38,28 @@ SKIP: {
     # basic check that we can fork subprocesses and wait for the status
     # after having connected to Oracle
 
-    is system("exit 1;"), 1<<8, 'system exit 1 should return 256';
-    is system("exit 0;"),    0, 'system exit 0 should return 0';
+    # at some point, this should become a subtest
+    
+    my $success = is system("exit 1;"), 1<<8, 'system exit 1 should return 256';
+    $success &&= is system("exit 0;"),    0, 'system exit 0 should return 0';
+
+    unless ( $success ) {
+        diag <<END_NOTE;
+The test might have failed because you are using a
+a bequeather to connect to the server.
+
+If you need to continue using a bequeather to connect to a server on the
+same host as the client add
+
+    bequeath_detach = yes
+
+to your sqlnet.ora file or you won't be able to safely use fork/system
+functions in Perl.
+
+END_NOTE
+
+    }
+
 }
 
 $sth = $dbh->prepare(q{
