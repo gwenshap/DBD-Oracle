@@ -1,6 +1,6 @@
 Revision history for DBD::Oracle
 
-1.38      2012-02-10
+1.38      2012-02-24
 
  [BUG FIXES]
  - TAF supports now conditional to presence of OCI_ATTR_TAF_ENABLED
@@ -15,6 +15,7 @@ Revision history for DBD::Oracle
     on Lion. (Martin J. Evans)
  - fix DBD::Oracle::GetInfo blurb (patch by Julián Moreno Patiño) [rt74000]
  - fix typos. (patch by Julián Moreno Patiño) [rt73999]
+ - add troubleshoot doc and diag for error with bequeather. [rt75263]
 
  [OTHERS]
  - change the shebang line of examples to the more modern '/usr/bin/env perl'
