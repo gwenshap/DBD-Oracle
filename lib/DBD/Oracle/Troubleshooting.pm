@@ -76,6 +76,22 @@ Protocol Adapter".
 If it generates any errors which look relevant then please talk to your
 Oracle technical support (and not the dbi-users mailing list).
 
+=head2 Connecting using a bequeather
+
+If you are using a bequeather to connect to a server
+on the same host as the client, you might have 
+to add 
+
+    bequeath_detach = yes
+
+to your sqlnet.ora file or you won't be able to safely use fork/system
+functions in Perl.
+
+See the discussion at
+L<http://www.nntp.perl.org/group/perl.dbi.dev/2012/02/msg6837.html>
+and L<http://www.nntp.perl.org/group/perl.dbi.users/2009/06/msg34023.html>
+for more gory details.
+
 =head1 USING THE LONG TYPES
 
 Some examples related to the use of LONG types are available in
