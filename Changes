@@ -1,14 +1,20 @@
 Revision history for DBD::Oracle
 
-NEXT      
+NEXT
 
  [BUG FIXES]
  - TAF supports now conditional to presence of OCI_ATTR_TAF_ENABLED
     [RT73798]
  - detect broken Win32::TieRegistry (patch by Rafael Kitover (Caelum))
     [RT74544]
- - PL/SQL out values were not utf8 encoded [RT74753] 
+ - PL/SQL out values were not utf8 encoded [RT74753]
      (Steve Baldwin + Martin J. Evans)
+ - Applied patch from Rafael Kitover (Caelum) to column_info to handle
+   DEFAULT columns greater in length than the DBI default of 80. The
+   DEFAULT column is a long and it is a PITA to have to set
+   LongReadLen which you can only do on a connection handle in
+   DBD::Oracle. The default maximum size is now 1Mb; above that you
+   will still have to set LongReadLen (Martin J. Evans)
 
  [DOCUMENTATION]
  - Mention the release of Oracle Instant Client 64 bit which does not work
@@ -16,6 +22,8 @@ NEXT
  - fix DBD::Oracle::GetInfo blurb (patch by Julián Moreno Patiño) [rt74000]
  - fix typos. (patch by Julián Moreno Patiño) [rt73999]
  - add troubleshoot doc and diag for error with bequeather. [rt75263]
+ - clarification of when StrictlyTyped/DiscardString can be used and
+   LongReadLen (Martin J. Evans)
 
  [OTHERS]
  - change the shebang line of examples to the more modern '/usr/bin/env perl'
@@ -32,7 +40,7 @@ NEXT
 1.37_00   2011-12-30
 
  [ENHANCEMENTS]
-  - added SYSASM session mode. [RT651211] (patch from 
+  - added SYSASM session mode. [RT651211] (patch from
   Anthony DeRobertis, reported by Julián Moreno Patiño)
 
  [BUG FIXES]
@@ -50,7 +58,7 @@ NEXT
  - Fix documentation for 'ora_fetch_scroll()'
 
 Changes in DBD-Oracle 1.36 (6-12-2011)
-    
+
  - promote 1.35_00 to official release
 
 Changes in DBD-Oracle 1.35_00 (18-11-2011)
@@ -110,7 +118,7 @@ Changes in DBD-Oracle 1.31_00
  - don't gag diag() on the tests by default
  - SKIP condition in 10general.t was reversed (reported by Alois) [RT#46761]
  - Check for LD_LIBRARY_PATH_(32|64) as well for solaris [RT#46761]
- - convert a symbolically linked ORACLE_HOME to an absolute path 
+ - convert a symbolically linked ORACLE_HOME to an absolute path
     (patch by H.Merijn Brand, applied by Martin J. Evans) [rt70785]
 
  [DOCUMENTATION]
