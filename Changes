@@ -1,6 +1,21 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
+
+ [BUG FIXES]
+ - Applied patch from Rafael Kitover (Caelum) to column_info to handle
+   DEFAULT columns greater in length than the DBI default of 80. The
+   DEFAULT column is a long and it is a PITA to have to set
+   LongReadLen which you can only do on a connection handle in
+   DBD::Oracle. The default maximum size is now 1Mb; above that you
+   will still have to set LongReadLen (Martin J. Evans)
+
+
+ [DOCUMENTATION]
+ - clarification of when StrictlyTyped/DiscardString can be used and
+   LongReadLen (Martin J. Evans)
+
+1.40      2012-03-08
  - promote 1.39_00 to official release
 
 1.39_00   2012-02-24
@@ -12,12 +27,6 @@ Revision history for DBD::Oracle
     [RT74544]
  - PL/SQL out values were not utf8 encoded [RT74753]
      (Steve Baldwin + Martin J. Evans)
- - Applied patch from Rafael Kitover (Caelum) to column_info to handle
-   DEFAULT columns greater in length than the DBI default of 80. The
-   DEFAULT column is a long and it is a PITA to have to set
-   LongReadLen which you can only do on a connection handle in
-   DBD::Oracle. The default maximum size is now 1Mb; above that you
-   will still have to set LongReadLen (Martin J. Evans)
 
  [DOCUMENTATION]
  - Mention the release of Oracle Instant Client 64 bit which does not work
@@ -25,8 +34,6 @@ Revision history for DBD::Oracle
  - fix DBD::Oracle::GetInfo blurb (patch by Julián Moreno Patiño) [rt74000]
  - fix typos. (patch by Julián Moreno Patiño) [rt73999]
  - add troubleshoot doc and diag for error with bequeather. [rt75263]
- - clarification of when StrictlyTyped/DiscardString can be used and
-   LongReadLen (Martin J. Evans)
 
  [OTHERS]
  - change the shebang line of examples to the more modern '/usr/bin/env perl'
