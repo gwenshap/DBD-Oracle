@@ -1,5 +1,23 @@
 Revision history for DBD::Oracle
 
+1.40      2012-03-08
+
+ [BUG FIXES]
+ - Applied patch from Rafael Kitover (Caelum) to column_info to handle
+   DEFAULT columns greater in length than the DBI default of 80. The
+   DEFAULT column is a long and it is a PITA to have to set
+   LongReadLen which you can only do on a connection handle in
+   DBD::Oracle. The default maximum size is now 1Mb; above that you
+   will still have to set LongReadLen (Martin J. Evans)
+
+
+ [DOCUMENTATION]
+ - clarification of when StrictlyTyped/DiscardString can be used and
+   LongReadLen (Martin J. Evans)
+
+1.40      2012-03-08
+ - promote 1.39_00 to official release
+
 1.39_00   2012-02-24
 
  [BUG FIXES]
@@ -7,7 +25,7 @@ Revision history for DBD::Oracle
     [RT73798]
  - detect broken Win32::TieRegistry (patch by Rafael Kitover (Caelum))
     [RT74544]
- - PL/SQL out values were not utf8 encoded [RT74753] 
+ - PL/SQL out values were not utf8 encoded [RT74753]
      (Steve Baldwin + Martin J. Evans)
 
  [DOCUMENTATION]
@@ -28,7 +46,7 @@ Revision history for DBD::Oracle
 1.37_00   2011-12-30
 
  [ENHANCEMENTS]
-  - added SYSASM session mode. [RT651211] (patch from 
+  - added SYSASM session mode. [RT651211] (patch from
   Anthony DeRobertis, reported by Julián Moreno Patiño)
 
  [BUG FIXES]
@@ -46,7 +64,7 @@ Revision history for DBD::Oracle
  - Fix documentation for 'ora_fetch_scroll()'
 
 Changes in DBD-Oracle 1.36 (6-12-2011)
-    
+
  - promote 1.35_00 to official release
 
 Changes in DBD-Oracle 1.35_00 (18-11-2011)
@@ -106,7 +124,7 @@ Changes in DBD-Oracle 1.31_00
  - don't gag diag() on the tests by default
  - SKIP condition in 10general.t was reversed (reported by Alois) [RT#46761]
  - Check for LD_LIBRARY_PATH_(32|64) as well for solaris [RT#46761]
- - convert a symbolically linked ORACLE_HOME to an absolute path 
+ - convert a symbolically linked ORACLE_HOME to an absolute path
     (patch by H.Merijn Brand, applied by Martin J. Evans) [rt70785]
 
  [DOCUMENTATION]

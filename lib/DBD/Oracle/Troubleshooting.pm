@@ -1,6 +1,6 @@
 package DBD::Oracle::Troubleshooting;
 {
-  $DBD::Oracle::Troubleshooting::VERSION = '1.39_00';
+  $DBD::Oracle::Troubleshooting::VERSION = '1.40';
 }
 BEGIN {
   $DBD::Oracle::Troubleshooting::AUTHORITY = 'cpan:PYTHIAN';
@@ -17,7 +17,7 @@ DBD::Oracle::Troubleshooting - Tips and Hints to Troubleshoot DBD::Oracle
 
 =head1 VERSION
 
-version 1.39_00
+version 1.40
 
 =head1 CONNECTING TO ORACLE
 
