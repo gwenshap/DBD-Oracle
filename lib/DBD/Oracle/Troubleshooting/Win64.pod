@@ -1,4 +1,7 @@
-DBD::Oracle and Windows 64bit 
+#PODNAME: DBD::Oracle::Troubleshooting::Win64
+#ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle on Win64
+
+=head1 DBD::Oracle and Windows 64bit 
 
 I have successfully compiled and installed  DBD::Oracle on Windows 2008 server 64bit operating system today.  
 
@@ -115,6 +118,7 @@ The main thing to remember is you will have to compile using 32 bit Perl and com
 which sort of defeats the purpose of having a 64bit box.  
 So until 64bit Perl comes out we will be posing in this README any success stories we have come across
 
+
 -------- Original Message --------
 From: 	Alex Buttery, OCA, MCTS
 	Director, Database Architecture and Operations
@@ -161,11 +165,3 @@ else to support this configuration).
 
 	SET PATH=%ORACLE_HOME%\bin;%PATH%                 <== Add 32-bit Oracle Home to beginning of default PATH
 
- 
-
-Hopefully, you will be able to include these instructions in the next build of DBD::Oracle to help out other poor souls that are fighting
-this same battle.
-
- 
-
- 

@@ -1,0 +1,15 @@
+#PODNAME: DBD::Oracle::Troubleshooting::Sun
+#ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle on Sun
+
+=head1 General Info
+
+If you get this on a Solaris 9 and 10 box
+
+  "Outofmemory!
+   Callback called exit.
+   END failed--call queue aborted."
+
+The solution may be as simple as not having you "ORACLE_HOME" Defined in the
+environment.
+
+It seems that having it defined will prevent the error.

@@ -1,3 +1,6 @@
+#PODNAME: DBD::Oracle::Troubleshooting::Hpux
+#ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle on HP-UX
+
 =head1 INTRODUCTION
 
 Building a working dynamically linked version of the Oracle DBD driver
