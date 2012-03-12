@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 3;
+use Test::More;
 
 use DBI;
 use Encode;
@@ -18,8 +18,13 @@ $ENV{NLS_LANG} = 'AMERICAN_AMERICA.UTF8';
 $ENV{NLS_NCHAR} = 'UTF8';
 
 my $dbh = DBI->connect( $dsn, $dbuser, '',  { 
-        PrintError => 0, AutoCommit => 0, RaiseError => 1, 
-},);
+        PrintError => 0, AutoCommit => 0});
+if (!$dbh) {
+    plan skip_all => 'Unable to connect to Oracle';
+} else {
+    plan tests => 3;
+    $dbh->{RaiseError} = 1;
+}
 
 $dbh->do(q(alter session set nls_territory = 'GERMANY'));
 

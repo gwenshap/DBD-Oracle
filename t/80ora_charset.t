@@ -51,7 +51,7 @@ SKIP: {
 
         plan tests => $testcount;
     } else {
-        plan skip_all => "Unable to connect to Oraclee";
+        plan skip_all => "Unable to connect to Oracle";
     }
 
     show_test_data( $tdata ,0 );
