@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 3;
+use Test::More;
 
 use DBI;
 use Encode;
@@ -20,6 +20,11 @@ $ENV{NLS_NCHAR} = 'UTF8';
 my $dbh = DBI->connect( $dsn, $dbuser, '',  { 
         PrintError => 0, AutoCommit => 0, RaiseError => 1, 
 },);
+
+plan skip_all => "unable to connect to Oracle database" if not $dbh;
+plan skip_all => "database character set is not Unicode" unless db_ochar_is_utf($dbh);
+
+plan tests => 3;
 
 $dbh->do(q(alter session set nls_territory = 'GERMANY'));
 

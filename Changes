@@ -15,6 +15,9 @@ Revision history for DBD::Oracle
  - clarification of when StrictlyTyped/DiscardString can be used and
    LongReadLen (Martin J. Evans)
 
+1.42      2012-03-13
+ - skip rt74753-utf8-encoded.t if db is not unicode
+
 1.40      2012-03-08
  - promote 1.39_00 to official release
 
