@@ -12,10 +12,11 @@ $| = 1;
 
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect($dsn, $dbuser, '', { RaiseError => 1, PrintError => 0 });
+my $dbh = DBI->connect($dsn, $dbuser, '', {PrintError => 0 });
 
 if ($dbh) {
     plan tests=>21;
+    $dbh->{RaiseError} = 1;
 } else {
     plan skip_all => "Unable to connect to Oracle";
 }

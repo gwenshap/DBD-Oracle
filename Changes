@@ -10,6 +10,9 @@ Revision history for DBD::Oracle
    DBD::Oracle. The default maximum size is now 1Mb; above that you
    will still have to set LongReadLen (Martin J. Evans)
 
+ - Fixed 70meta and rt74753-utf8-encoded to not die if you cannot
+   connect to Oracle or you cannot install from cpan if you have not
+   set up a valid Oracle connection.
 
  [DOCUMENTATION]
  - clarification of when StrictlyTyped/DiscardString can be used and
