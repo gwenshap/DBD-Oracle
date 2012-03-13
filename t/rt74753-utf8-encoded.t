@@ -18,13 +18,13 @@ $ENV{NLS_LANG} = 'AMERICAN_AMERICA.UTF8';
 $ENV{NLS_NCHAR} = 'UTF8';
 
 my $dbh = DBI->connect( $dsn, $dbuser, '',  { 
-        PrintError => 0, AutoCommit => 0});
-if (!$dbh) {
-    plan skip_all => 'Unable to connect to Oracle';
-} else {
-    plan tests => 3;
-    $dbh->{RaiseError} = 1;
-}
+    PrintError => 0, AutoCommit => 0
+});
+
+plan skip_all => "unable to connect to Oracle database" if not $dbh;
+plan skip_all => "database character set is not Unicode" unless db_ochar_is_utf($dbh);
+
+plan tests => 3;
 
 $dbh->do(q(alter session set nls_territory = 'GERMANY'));
 
