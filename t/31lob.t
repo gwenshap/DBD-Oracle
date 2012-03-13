@@ -8,34 +8,23 @@ use DBI;
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
 
-plan skip_all => "see RT#69350"
-    if ORA_OCI() =~ /^11\.2\./;
-
-my $dbh;
-$| = 1;
-SKIP: {
-
-    my $dsn = oracle_test_dsn();
-    my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
+my $dsn = oracle_test_dsn();
+my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
     
-    $dbh = DBI->connect($dsn, $dbuser, '',{
-                               PrintError => 0,
-                       });
-    if ($dbh) {
-        plan tests => 12;
-    } else {
-        plan skip_all => "Unable to connect to Oracle";
-    }
+my $dbh = DBI->connect($dsn, $dbuser, '',{ PrintError => 0, });
 
-    my $table = table();
-    drop_table($dbh);
+plan $dbh ? ( tests => 12 ) 
+          : ( skip_all => "Unable to connect to Oracle" );
+
+my $table = table();
+drop_table($dbh);
     
-    $dbh->do(qq{
+$dbh->do( <<"END_SQL" );
 	CREATE TABLE $table (
 	    id INTEGER NOT NULL,
 	    data BLOB
 	)
-    });
+END_SQL
 
 my ($stmt, $sth, $id, $loc);
 ## test with insert empty blob and select locator.
@@ -76,23 +65,18 @@ is (ref $loc, "OCILobLocatorPtr", "returned valid locator");
 
 sub temp_lob_count {
     my $dbh  = shift;
-    my $stmt = "
-     SELECT cache_lobs + nocache_lobs AS temp_lob_count
-     FROM v\$temporary_lobs templob,
-          v\$session sess
-     WHERE sess.sid = templob.sid
-     AND sess.audsid = userenv('sessionid') ";
-    my ($count) = $dbh->selectrow_array($stmt);
-    return $count;
+    return $dbh->selectrow_array(<<'END_SQL');
+        SELECT cache_lobs + nocache_lobs AS temp_lob_count
+        FROM v$temporary_lobs templob,
+            v$session sess
+        WHERE sess.sid = templob.sid
+        AND sess.audsid = userenv('sessionid')
+END_SQL
 }
 
 sub have_v_session {
- 
- $dbh->do('select * from v$session where 0=1');
- if ($dbh->err){
-   return if ($dbh->err == 942);
- }
- return 1;
+    $dbh->do('select * from v$session where 0=1');
+    return $dbh->err != 942;
 }
 
 
@@ -117,7 +101,6 @@ sub have_v_session {
 
     is( $dbh->ora_lob_is_init($loc), 1, "returned initialized locator" );
   
-
     # write string > 32k
     $large_value = 'ABCD' x 10_000;
 
@@ -152,11 +135,20 @@ sub have_v_session {
               if $dbh->err == 6553 || $dbh->err == 600;
         }
 
-        is( $len, length($large_value), "returned length via PL/SQL" );
+        TODO: { 
+            local $TODO = "problem reported w/ lobs and Oracle 11.2.*, see RT#69350"
+                if ORA_OCI() =~ /^11\.2\./;
 
+            is( $len, length($large_value), "returned length via PL/SQL" );
+        }
 
-        
-        $stmt = "
+        $dbh->{LongReadLen} = length($large_value) * 2;
+
+        my $out;
+        my $inout = lc $large_value;
+
+        eval {
+            $sth = $dbh->prepare( <<'END_SQL', { ora_auto_lob => 1 } );
   DECLARE
     --  testing IN, OUT, and IN OUT:
     --  p_out   will be set to LOWER(p_in)
@@ -182,18 +174,19 @@ sub have_v_session {
     END;
   BEGIN
     lower_lob(:in, :out, :inout);
-  END; ";
+  END;
+END_SQL
 
-        my $out;
-        my $inout = lc $large_value;
+            $sth->bind_param( ':in', $large_value, { ora_type => ORA_BLOB });
 
-        local $dbh->{LongReadLen} = length($large_value) * 2;
+            $sth->bind_param_inout( ':out', \$out, 100, { ora_type => ORA_BLOB } );
+            $sth->bind_param_inout( ':inout', \$inout, 100, { ora_type => ORA_BLOB } );
+            $sth->execute;
 
-        $sth = $dbh->prepare( $stmt, { ora_auto_lob => 1 } );
-        $sth->bind_param( ':in', $large_value, { ora_type => ORA_BLOB });
-        $sth->bind_param_inout( ':out', \$out, 100, { ora_type => ORA_BLOB } );
-        $sth->bind_param_inout( ':inout', \$inout, 100, { ora_type => ORA_BLOB } );
-        $sth->execute;
+        };
+        
+        local $TODO = "problem reported w/ lobs and Oracle 11.2.*, see RT#69350"
+            if ORA_OCI() =~ /^11\.2\./;
 
         skip "Your Oracle PL/SQL installation does not implement temporary LOBS", 3
           if $dbh->err && $dbh->err == 6550;
@@ -210,7 +203,5 @@ sub have_v_session {
 
 $dbh->do("DROP TABLE $table");
 $dbh->disconnect;
-
-}
 
 1;
