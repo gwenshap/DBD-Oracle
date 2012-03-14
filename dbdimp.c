@@ -512,23 +512,23 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	if (DBD_ATTRIB_TRUE(attr,"ora_objects",11,svp))
 		DBD_ATTRIB_GET_IV(  attr, "ora_objects",11, svp, ora_objects);
 
-	if (DBIS->debug >= 6 || dbd_verbose >= 6 )
+	if (DBIc_DBISTATE(imp_dbh)->debug >= 6 || dbd_verbose >= 6 )
 		dump_env_to_trace();
 
 	/* dbi_imp_data code adapted from DBD::mysql */
 	if (DBIc_has(imp_dbh, DBIcf_IMPSET)) {
 		/* dbi_imp_data from take_imp_data */
 		if (DBIc_has(imp_dbh, DBIcf_ACTIVE)) {
-			if (DBIS->debug >= 2 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP, "dbd_db_login6 skip connect\n");
+			if (DBIc_DBISTATE(imp_dbh)->debug >= 2 || dbd_verbose >= 3 )
+				PerlIO_printf(DBIc_LOGPIO(imp_dbh), "dbd_db_login6 skip connect\n");
 			/* tell our parent we've adopted an active child */
 			++DBIc_ACTIVE_KIDS(DBIc_PARENT_COM(imp_dbh));
 
 			return 1;
 		}
 		/* not ACTIVE so connect not skipped */
-		if (DBIS->debug >= 2 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,
+		if (DBIc_DBISTATE(imp_dbh)->debug >= 2 || dbd_verbose >= 3 )
+			PerlIO_printf(DBIc_LOGPIO(imp_dbh),
 				"dbd_db_login6 IMPSET but not ACTIVE so connect not skipped\n");
 	}
 
@@ -566,8 +566,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			shared_dbh -> refcnt++ ;
 			imp_dbh -> shared_dbh_priv_sv = shared_dbh_priv_sv ;
 			imp_dbh -> shared_dbh		 = shared_dbh ;
-			if (DBIS->debug >= 2 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP, "	dbd_db_login: use shared Oracle database handles.\n");
+			if (DBIc_DBISTATE(imp_dbh)->debug >= 2 || dbd_verbose >= 3 )
+				PerlIO_printf(DBIc_LOGPIO(imp_dbh), "	dbd_db_login: use shared Oracle database handles.\n");
 		} else {
 			shared_dbh = NULL ;
 		}
@@ -717,17 +717,19 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	*  BTW: NLS_NCHAR is set as follows: NSL_LANG=AL32UTF8
 	*/
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 ) {
+    if (DBIc_DBISTATE(imp_dbh)->debug >= 3 || dbd_verbose >= 3 ) {
 		oratext  charsetname[OCI_NLS_MAXBUFSZ];
 		oratext  ncharsetname[OCI_NLS_MAXBUFSZ];
 		OCINlsCharSetIdToName(imp_dbh->envhp,charsetname, sizeof(charsetname),charsetid );
 		OCINlsCharSetIdToName(imp_dbh->envhp,ncharsetname, sizeof(ncharsetname),ncharsetid );
-		PerlIO_printf(DBILOGFP,"	   charset id=%d, name=%s, ncharset id=%d, name=%s"
-		" (csid: utf8=%d al32utf8=%d)\n",
-		 charsetid,charsetname, ncharsetid,ncharsetname, utf8_csid, al32utf8_csid);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_dbh),
+            "	   charset id=%d, name=%s, ncharset id=%d, name=%s"
+            " (csid: utf8=%d al32utf8=%d)\n",
+            charsetid,charsetname, ncharsetid,ncharsetname, utf8_csid, al32utf8_csid);
 #ifdef ORA_OCI_112
 		if (imp_dbh->using_drcp)
-			PerlIO_printf(DBILOGFP," Useing DRCP Connection\n ");
+			PerlIO_printf(DBIc_LOGPIO(imp_dbh)," Using DRCP Connection\n ");
 #endif
 	}
 
@@ -814,12 +816,17 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 					return 0;
 				}
 
-				if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
-					PerlIO_printf(DBILOGFP,"Using DRCP with session settings min=%d, max=%d, and increment=%d\n",imp_dbh->pool_min,
+				if (DBIc_DBISTATE(imp_dbh)->debug >= 4 || dbd_verbose >= 4 ) {
+					PerlIO_printf(
+                        DBIc_LOGPIO(imp_dbh),
+                        "Using DRCP with session settings min=%d, max=%d, and increment=%d\n",
+                        imp_dbh->pool_min,
 						imp_dbh->pool_max,
 						imp_dbh->pool_incr);
 					if (imp_dbh->pool_class)
-						PerlIO_printf(DBILOGFP,"with connection class=%s\n",imp_dbh->pool_class);
+						PerlIO_printf(
+                            DBIc_LOGPIO(imp_dbh),
+                            "with connection class=%s\n",imp_dbh->pool_class);
 					}
 
 				}
@@ -913,8 +920,11 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			croak("You are attempting to enable TAF on a server that is not TAF Enabled \n");
 		}
 
-		if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
-        	PerlIO_printf(DBILOGFP,"Setting up TAF with wait time of %d seconds\n",imp_dbh->taf_sleep);
+		if (DBIc_DBISTATE(imp_dbh)->debug >= 4 || dbd_verbose >= 4 ) {
+        	PerlIO_printf(
+                DBIc_LOGPIO(imp_dbh),
+                "Setting up TAF with wait time of %d seconds\n",
+                imp_dbh->taf_sleep);
 		}
 		status = reg_taf_callback(imp_dbh);
 		if (status != OCI_SUCCESS) {
