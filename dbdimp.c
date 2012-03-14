@@ -1382,12 +1382,12 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 	len 	= SvLEN(source);
 	bufp 	= SvPV(source, len);
 
-	if (DBIS->debug >=3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >=3 || dbd_verbose >= 3 )
         PerlIO_printf(DBIc_LOGPIO(imp_sth), " creating xml from string that is %lu long\n",(unsigned long)len);
 	if(len > MAX_OCISTRING_LEN) {
 		src_type = OCI_XMLTYPE_CREATE_CLOB;
 
-		if (DBIS->debug >=5 || dbd_verbose >= 5 )
+		if (DBIc_DBISTATE(imp_sth)->debug >=5 || dbd_verbose >= 5 )
 			PerlIO_printf(DBIc_LOGPIO(imp_sth),
                           " use a temp lob locator for large xml \n");
 
@@ -1413,7 +1413,7 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 
 	} else {
 		src_type = OCI_XMLTYPE_CREATE_OCISTRING;
-		if (DBIS->debug >=5 || dbd_verbose >= 5 )
+		if (DBIc_DBISTATE(imp_sth)->debug >=5 || dbd_verbose >= 5 )
 			PerlIO_printf(DBIc_LOGPIO(imp_sth),
                           " use a OCIStringAssignText for small xml \n");
 		OCIStringAssignText(imp_dbh->envhp,
@@ -1579,7 +1579,7 @@ phs_t *phs;
 	*dest = '\0';
 	if (imp_sth->all_params_hv) {
 		DBIc_NUM_PARAMS(imp_sth) = (int)HvKEYS(imp_sth->all_params_hv);
-		if (DBIS->debug >= 2 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 2 || dbd_verbose >= 3 )
 			PerlIO_printf(DBIc_LOGPIO(imp_sth),
                           "	dbd_preparse scanned %d distinct placeholders\n",
                           (int)DBIc_NUM_PARAMS(imp_sth));
@@ -1704,7 +1704,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	dTHX;
 	/*D_imp_dbh_from_sth ;*/
 	sword status;
-	int trace_level = DBIS->debug;
+	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	AV *arr;
 	ub1 csform;
 	ub2 csid;
@@ -2121,7 +2121,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	dTHX;
 	/*D_imp_dbh_from_sth ;*/
 	sword status;
-	int trace_level = DBIS->debug;
+	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	AV *arr;
 	int need_allocate_rows;
 	int buflen;
@@ -2576,7 +2576,7 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 	}
 
 
-	if (DBIS->debug >= 2 || dbd_verbose >= 3 ) {
+	if (DBIc_DBISTATE(imp_sth)->debug >= 2 || dbd_verbose >= 3 ) {
 		char *val = neatsvpv(phs->sv,10);
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
@@ -2656,7 +2656,7 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 
 	phs->alen = value_len + phs->alen_incnull;
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 ) {
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 ) {
 		UV neatsvpvlen = (UV)DBIc_DBISTATE(imp_sth)->neatsvpvlen;
 		char *val = neatsvpv(phs->sv,10);
 		PerlIO_printf(
@@ -2688,7 +2688,7 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	D_impdata(imp_sth_csr, imp_sth_t, sth_csr);
 	sword status;
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "	pp_rebind_ph_rset_in: BEGIN\n	calling OCIBindByName(stmhp=%p, "
@@ -2713,7 +2713,7 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		return 0;
 	}
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(DBIc_LOGPIO(imp_sth), "	pp_rebind_ph_rset_in: END\n");
 
 	return 2;
@@ -2732,7 +2732,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 		int count;
 		sword status;
 
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 " pp_exec_rset bind %s - allocating new sth...\n",
@@ -2792,7 +2792,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 		PUTBACK;
 		FREETMPS;
 		LEAVE;
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "   pp_exec_rset   bind %s - allocated %s...\n",
@@ -2804,7 +2804,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 		SV * sth_csr = phs->sv;
 		D_impdata(imp_sth_csr, imp_sth_t, sth_csr);
 
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "	   bind %s - initialising new %s for cursor 0x%lx...\n",
@@ -2851,7 +2851,7 @@ sword status;
  SV* ptr;
 
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(DBIc_LOGPIO(imp_sth), " in  dbd_rebind_ph_xml\n");
 
 /*go and create the XML dom from the passed in value*/
@@ -2896,7 +2896,7 @@ sword status;
 		oci_error(sth, imp_sth->errhp, status, "OCIBindByName SQLT_NTY");
 		return 0;
 	}
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
  		PerlIO_printf(DBIc_LOGPIO(imp_sth), "	pp_rebind_ph_nty: END\n");
 
 
@@ -2920,7 +2920,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	sword status;
 	int done = 0;
 	int at_exec;
-	int trace_level = DBIS->debug;
+	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	ub1 csform;
 	ub2 csid;
 
@@ -3124,7 +3124,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 	if (SvTYPE(newvalue) == SVt_PVLV && is_inout)	/* may allow later */
 		croak("Can't bind ``lvalue'' mode scalar as inout parameter (currently)");
 
-	if (DBIS->debug >= 2 || dbd_verbose >= 3 ) {
+	if (DBIc_DBISTATE(imp_sth)->debug >= 2 || dbd_verbose >= 3 ) {
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth), "dbd_bind_ph(1): bind %s <== %s (type %ld (%s)",
 		name, neatsvpv(newvalue,0), (long)sql_type,sql_typecode_name(sql_type));
@@ -3377,7 +3377,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 	dTHR;
 	dTHX;
 	ub4 row_count = 0;
-	int debug 	  = DBIS->debug;
+	int debug 	  = DBIc_DBISTATE(imp_sth)->debug;
 	int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
 	D_imp_dbh_from_sth;
 	sword status;
@@ -3576,7 +3576,7 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 	sword status;
 	ub1 csform;
 	ub2 csid;
-	int trace_level = DBIS->debug;
+	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	int i;
 	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 			(text*)phs->name, (sb4)strlen(phs->name),
@@ -3719,7 +3719,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 	dTHX;
 	dTHR;
 	ub4 row_count = 0;
-	int debug = DBIS->debug;
+	int debug = DBIc_DBISTATE(imp_sth)->debug;
 	D_imp_dbh_from_sth;
 	sword status, exe_status;
 	int is_select = (imp_sth->stmt_type == OCI_STMT_SELECT);
@@ -4020,7 +4020,7 @@ dbd_st_blob_read(SV *sth, imp_sth_t *imp_sth, int field, long offset, long len, 
 	}
 	ftype = ftype;	/* no unused */
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 	PerlIO_printf(
         DBIc_LOGPIO(imp_sth),
 		"	blob_read field %d+1, ftype %d, offset %ld, len %ld, "
@@ -4174,7 +4174,7 @@ ora_free_templob(SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc)
 	}
 
 	if (is_temporary) {
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 ) {
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 ) {
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "	   OCILobFreeTemporary %s\n", oci_status_name(status));
