@@ -1067,7 +1067,9 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 	OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->stmt_type, 0, OCI_ATTR_STMT_TYPE, status);
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	dbd_st_prepare'd sql %s ( auto_lob%d, check_sql%d)\n",
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "	dbd_st_prepare'd sql %s ( auto_lob%d, check_sql%d)\n",
 			oci_stmt_type_name(imp_sth->stmt_type),
 			imp_sth->auto_lob, ora_check_sql);
 
@@ -1228,8 +1230,6 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 	return OCI_CONTINUE;
 }
 
-
-
 /* --------------------------------------------------------------
 	Fetch callback fill buffers.
 	Finaly figured out how this fucntion works
@@ -1281,7 +1281,7 @@ presist_lob_fetch_cbk(dvoid *octxp, OCIDefine *dfnhp, ub4 iter, dvoid **bufpp,
 
 }
 
-/* TAF or Trasarent Application Failoever callback
+/* TAF or Transparent Application Failoever callback
    Works like this.  The fuction below is registered on the server,
    when the server is set up to use it, when an exe is called (not sure about other server round trips)
    and the server fails tt should get into this cbk error below.
@@ -1340,7 +1340,7 @@ reg_taf_callback( imp_dbh_t *imp_dbh)
 	strcpy((char *)cb->function,imp_dbh->taf_function);
 
 	if (dbd_verbose >= 5 ) {
-  		PerlIO_printf(DBILOGFP, " In reg_taf_callback\n");
+  		PerlIO_printf(DBIc_LOGPIO(imp_dbh), " In reg_taf_callback\n");
 	}
 
 /* set the context up as a pointer to the taf callback struct*/
@@ -1428,7 +1428,10 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 				}
 
 			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP, "		fetching field %d of %d. LONG value truncated from %lu to %lu.\n",
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "		fetching field %d of %d. LONG value truncated from "
+                    "%lu to %lu.\n",
 					fbh->field_num+1, DBIc_NUM_FIELDS(imp_sth),
 					ul_t(datalen), ul_t(bytelen));
 					datalen = bytelen;
@@ -1488,9 +1491,10 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	int count;
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP,
-		"	fetch_func_rset - allocating handle for cursor nested within %s ...\n",
-						neatsvpv(sth, 0));
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "	fetch_func_rset - allocating handle for cursor nested within %s ...\n",
+            neatsvpv(sth, 0));
 
 	ENTER; SAVETMPS; PUSHMARK(SP);
 	XPUSHs(sv_2mortal(newRV((SV*)DBIc_MY_H(imp_dbh))));
@@ -1508,9 +1512,10 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	PUTBACK; FREETMPS; LEAVE;
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP,
-		"	fetch_func_rset - ... allocated %s for nested cursor\n",
-				neatsvpv(dest_sv, 0));
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "	fetch_func_rset - ... allocated %s for nested cursor\n",
+            neatsvpv(dest_sv, 0));
 
 	fbh->special = (void *)newSVsv(dest_sv);
 
@@ -1543,7 +1548,10 @@ dbd_rebind_ph_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	dTHX;
 
 	if (DBIS->debug >= 6 || dbd_verbose >= 6 )
-		PerlIO_printf(DBILOGFP, "	 dbd_rebind_ph_rset phs->is_inout=%d\n",phs->is_inout);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "	 dbd_rebind_ph_rset phs->is_inout=%d\n",
+            phs->is_inout);
 
 /* Only do this part for inout cursor refs because pp_exec_rset only gets called for all the output params */
 	if (phs->is_inout) {
@@ -1674,7 +1682,9 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 			}
 
 			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP, "	  calling OCILobWrite phs->csid=%d phs->csform=%d amtp=%d\n",
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "	  calling OCILobWrite phs->csid=%d phs->csform=%d amtp=%d\n",
 					phs->csid, phs->csform, amtp );
 
 		/* write lob data */
@@ -1754,7 +1764,10 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 			  /* lab  0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status); */
 
 		if (dbis->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, "		OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "		OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, "
+                "BufLen %lu, Got %lu\n",
 				fbh->field_num+1, oci_status_name(status), ul_t(loblen),
 				ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
 		if (status != OCI_SUCCESS) {
@@ -1774,15 +1787,20 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 		assert(amtp == 0);
 		SvGROW(dest_sv, byte_destoffset + 1);
 		if (dbis->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,
-				"		OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
-					fbh->field_num+1, "SKIPPED", (unsigned long)loblen,
-					(unsigned long)imp_sth->long_readlen, (unsigned long)buflen,
-					(unsigned long)amtp);
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+				"		OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, "
+                "BufLen %lu, Got %lu\n",
+                fbh->field_num+1, "SKIPPED", (unsigned long)loblen,
+                (unsigned long)imp_sth->long_readlen, (unsigned long)buflen,
+                (unsigned long)amtp);
 	}
 
 	if (dbis->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	blob_read field %d, ftype %d, offset %ld, len %lu, destoffset %ld, retlen %lu\n",
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "	blob_read field %d, ftype %d, offset %ld, len %lu, "
+            "destoffset %ld, retlen %lu\n",
 			fbh->field_num+1, ftype, offset, len, destoffset, ul_t(amtp));
 
 	SvCUR_set(dest_sv, byte_destoffset+amtp);
@@ -1875,9 +1893,10 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	}
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP,
-		"		blob_read field %d: ftype %d %s, offset %ld, len %lu."
-				"LOB csform %d, len %lu, amtp %lu, (destoffset=%ld)\n",
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "		blob_read field %d: ftype %d %s, offset %ld, len %lu."
+            "LOB csform %d, len %lu, amtp %lu, (destoffset=%ld)\n",
 			fbh->field_num+1, ftype, type_name, offset, ul_t(len),
 			csform,(unsigned long) (loblen), ul_t(amtp), destoffset);
 
@@ -1890,8 +1909,10 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 			0, 0, (ub2)0 , csform, status);
 
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,
-			"		OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, amtp %lu\n",
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "		OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu,"
+                "BufLen %lu, amtp %lu\n",
 				fbh->field_num+1, oci_status_name(status), ul_t(loblen),
 				ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
 		if (status != OCI_SUCCESS) {
@@ -1905,8 +1926,10 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	else {
 		assert(amtp == 0);
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,
-				"		OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+				"		OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, "
+                "BufLen %lu, Got %lu\n",
 				fbh->field_num+1, "SKIPPED", ul_t(loblen),
 				ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
 	}
@@ -2052,10 +2075,13 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 		if (ftype == ORA_CLOB)
 			strcpy(buf,"characters");
 
-		PerlIO_printf(DBILOGFP,
-		"		OCILobRead %s %s: csform %d (%s), LOBlen %lu(%s), LongReadLen %lu(%s), BufLen %lu(%s), Got %lu(%s)\n",
-				name, oci_status_name(status), csform,oci_csform_name(csform), ul_t(loblen),buf ,
-				ul_t(imp_sth->long_readlen),buf, ul_t(buflen),buf, ul_t(amtp),buf);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "		OCILobRead %s %s: csform %d (%s), LOBlen %lu(%s), "
+            "LongReadLen %lu(%s), BufLen %lu(%s), Got %lu(%s)\n",
+            name, oci_status_name(status), csform, oci_csform_name(csform),
+            ul_t(loblen),buf ,
+            ul_t(imp_sth->long_readlen),buf, ul_t(buflen),buf, ul_t(amtp),buf);
 
     }
 	if (ftype == ORA_BFILE) {
@@ -2082,8 +2108,10 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 		SvCUR(dest_sv) = amtp;
 		*SvEND(dest_sv) = '\0';
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,
-			"		OCILobRead %s %s: LOBlen %lu, LongReadLen %lu, BufLen %lu, Got %lu\n",
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "		OCILobRead %s %s: LOBlen %lu, LongReadLen %lu, "
+                "BufLen %lu, Got %lu\n",
 				name, "SKIPPED", ul_t(loblen),
  				ul_t(imp_sth->long_readlen), ul_t(buflen), ul_t(amtp));
 	}
@@ -2644,7 +2672,7 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	sword status = OCI_NEED_DATA;
 
 	if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
-		PerlIO_printf(DBILOGFP, "in fetch_get_piece  \n");
+		PerlIO_printf(DBIc_LOGPIO(imp_sth), "in fetch_get_piece  \n");
 	}
 
 	while (status == OCI_NEED_DATA){
@@ -2701,10 +2729,18 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 
 	if (DBIS->debug >= 6 || dbd_verbose >= 6 ){
 		if (fb_ary->piece_count==1){
-			PerlIO_printf(DBILOGFP,"	 Fetch persistent lob of %d (Char/Bytes) with Polling in 1 piece\n",actual_bufl);
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "	 Fetch persistent lob of %d (Char/Bytes) with Polling "
+                "in 1 piece\n",
+                actual_bufl);
 
 		} else {
-			PerlIO_printf(DBILOGFP,"	 Fetch persistent lob of %d (Char/Bytes) with Polling in %d piece(s) of %d (Char/Bytes) and one piece of %d (Char/Bytes)\n",actual_bufl,fb_ary->piece_count,fbh->piece_size,buflen);
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "	 Fetch persistent lob of %d (Char/Bytes) with Polling "
+                "in %d piece(s) of %d (Char/Bytes) and one piece of %d (Char/Bytes)\n",
+                actual_bufl,fb_ary->piece_count,fbh->piece_size,buflen);
 		}
 	}
 	sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
@@ -2821,9 +2857,13 @@ void rs_array_init(imp_sth_t *imp_sth)
 	imp_sth->rs_array_status	=OCI_SUCCESS;
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	rs_array_init:imp_sth->rs_array_size=%d, rs_array_idx=%d, prefetch_rows=%d, rs_array_status=%s\n",imp_sth->rs_array_size,imp_sth->rs_array_idx,imp_sth->prefetch_rows,oci_status_name(imp_sth->rs_array_status));
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "	rs_array_init:imp_sth->rs_array_size=%d, rs_array_idx=%d, "
+            "prefetch_rows=%d, rs_array_status=%s\n",
+            imp_sth->rs_array_size, imp_sth->rs_array_idx, imp_sth->prefetch_rows,
+            oci_status_name(imp_sth->rs_array_status));
 }
-
 
 static int			/* --- Setup the row cache for this sth --- */
 sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields, int has_longs)
@@ -2949,11 +2989,14 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 || oci_warn) /*will also display if oci_warn is on*/
-		PerlIO_printf(DBILOGFP,
-			"	cache settings DB Handle RowCacheSize=%d,Statement Handle RowCacheSize=%d, OCI_ATTR_PREFETCH_ROWS=%lu, OCI_ATTR_PREFETCH_MEMORY=%lu, Rows per Fetch=%d, Multiple Row Fetch=%s\n",
-			imp_dbh->RowCacheSize,imp_sth->RowCacheSize,(unsigned long) (prefetch_rows), (unsigned long) (prefetch_mem),cache_rows,(imp_sth->row_cache_off)?"Off":"On");
-
-
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+			"	cache settings DB Handle RowCacheSize=%d,Statement Handle "
+            "RowCacheSize=%d, OCI_ATTR_PREFETCH_ROWS=%lu, "
+            "OCI_ATTR_PREFETCH_MEMORY=%lu, Rows per Fetch=%d, Multiple Row Fetch=%s\n",
+			imp_dbh->RowCacheSize, imp_sth->RowCacheSize,
+            (unsigned long) (prefetch_rows), (unsigned long) (prefetch_mem),
+            cache_rows,(imp_sth->row_cache_off)?"Off":"On");
 
 	return num_errors;
 }
@@ -2969,7 +3012,9 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 	OCIRef *type_ref;
 
 	if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
-		PerlIO_printf(DBILOGFP, "At level=%d in description an embedded object \n",level);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "At level=%d in description an embedded object \n",level);
 	}
 	/*Describe the field (OCIParm) we know it is a object or a collection */
 
@@ -3046,14 +3091,20 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 	}
 
 	if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
-		PerlIO_printf(DBILOGFP, "Getting the properties of object named =%s at level %d typecode=%d\n",obj->type_name,level,obj->typecode);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "Getting the properties of object named =%s at level %d typecode=%d\n",
+            obj->type_name,level,obj->typecode);
 	}
 
 	if (obj->typecode == OCI_TYPECODE_OBJECT || obj->typecode == OCI_TYPECODE_OPAQUE){
 		OCIParam *list_attr= (OCIParam *) 0;
 		ub2	  pos;
 		if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
-			PerlIO_printf(DBILOGFP, "Object named =%s at level %d is an Object\n",obj->type_name,level);
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "Object named =%s at level %d is an Object\n",
+                obj->type_name,level);
 		}
 
 		OCIAttrGet_parmdp(imp_sth, obj->parmdp, (dvoid *)&obj->obj_ref, 0, OCI_ATTR_REF_TDO, status);
@@ -3125,7 +3176,10 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 			}
 
 			if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
-				PerlIO_printf(DBILOGFP, "Getting property #%d, named=%s and its typecode is %d \n",pos,fld->type_name,fld->typecode);
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "Getting property #%d, named=%s and its typecode is %d \n",
+                    pos, fld->type_name, fld->typecode);
 			}
 
 			if (fld->typecode == OCI_TYPECODE_OBJECT || fld->typecode == OCI_TYPECODE_VARRAY || fld->typecode == OCI_TYPECODE_TABLE || fld->typecode == OCI_TYPECODE_NAMEDCOLLECTION){
@@ -3139,7 +3193,10 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 		/*well this is an embedded table or varray of some form so find out what is in it*/
 
 		if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
-			PerlIO_printf(DBILOGFP, "Object named =%s at level %d is an Varray or Table\n",obj->type_name,level);
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "Object named =%s at level %d is an Varray or Table\n",
+                obj->type_name,level);
 		}
 
 		OCIAttrGet_parmdp(imp_sth,  obj->parmdp, (dvoid *)&obj->col_typecode, 0, OCI_ATTR_COLLECTION_TYPECODE, status);
@@ -3184,28 +3241,40 @@ dump_struct(imp_sth_t *imp_sth,fbh_obj_t *obj,int level){
 	int i;
 /*dumps the contents of the current fbh->obj*/
 
-	PerlIO_printf(DBILOGFP, " level=%d	type_name = %s\n",level,obj->type_name);
-	PerlIO_printf(DBILOGFP, "	type_namel = %u\n",obj->type_namel);
-	PerlIO_printf(DBILOGFP, "	parmdp = %p\n",obj->parmdp);
-	PerlIO_printf(DBILOGFP, "	parmap = %p\n",obj->parmap);
-	PerlIO_printf(DBILOGFP, "	tdo = %p\n",obj->tdo);
-	PerlIO_printf(DBILOGFP, "	typecode = %s\n",oci_typecode_name(obj->typecode));
-	PerlIO_printf(DBILOGFP, "	col_typecode = %d\n",obj->col_typecode);
-	PerlIO_printf(DBILOGFP, "	element_typecode = %s\n",oci_typecode_name(obj->element_typecode));
-	PerlIO_printf(DBILOGFP, "	obj_ref = %p\n",obj->obj_ref);
-	PerlIO_printf(DBILOGFP, "	obj_value = %p\n",obj->obj_value);
-	PerlIO_printf(DBILOGFP, "	obj_type = %p\n",obj->obj_type);
-	PerlIO_printf(DBILOGFP, "	is_final_type = %u\n",obj->is_final_type);
-	PerlIO_printf(DBILOGFP, "	field_count = %d\n",obj->field_count);
-	PerlIO_printf(DBILOGFP, "	fields = %p\n",obj->fields);
+	PerlIO_printf(
+        DBIc_LOGPIO(imp_sth), " level=%d	type_name = %s\n",level,obj->type_name);
+	PerlIO_printf(
+        DBIc_LOGPIO(imp_sth), "	type_namel = %u\n",obj->type_namel);
+	PerlIO_printf(
+        DBIc_LOGPIO(imp_sth), "	parmdp = %p\n",obj->parmdp);
+	PerlIO_printf(
+        DBIc_LOGPIO(imp_sth), "	parmap = %p\n",obj->parmap);
+	PerlIO_printf(
+        DBIc_LOGPIO(imp_sth), "	tdo = %p\n",obj->tdo);
+	PerlIO_printf(
+        DBIc_LOGPIO(imp_sth), "	typecode = %s\n",oci_typecode_name(obj->typecode));
+	PerlIO_printf(
+        DBIc_LOGPIO(imp_sth), "	col_typecode = %d\n",obj->col_typecode);
+	PerlIO_printf(
+        DBIc_LOGPIO(imp_sth),
+        "	element_typecode = %s\n",oci_typecode_name(obj->element_typecode));
+	PerlIO_printf(
+        DBIc_LOGPIO(imp_sth), "	obj_ref = %p\n",obj->obj_ref);
+	PerlIO_printf(DBIc_LOGPIO(imp_sth), "	obj_value = %p\n",obj->obj_value);
+	PerlIO_printf(DBIc_LOGPIO(imp_sth), "	obj_type = %p\n",obj->obj_type);
+	PerlIO_printf(DBIc_LOGPIO(imp_sth), "	is_final_type = %u\n",obj->is_final_type);
+	PerlIO_printf(DBIc_LOGPIO(imp_sth), "	field_count = %d\n",obj->field_count);
+	PerlIO_printf(DBIc_LOGPIO(imp_sth), "	fields = %p\n",obj->fields);
 
 	for (i = 0; i < obj->field_count;i++){
 		fbh_obj_t *fld = &obj->fields[i];
-		PerlIO_printf(DBILOGFP, "  \n--->sub objects\n  ");
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "  \n--->sub objects\n  ");
 		dump_struct(imp_sth,fld,level+1);
 	}
 
-	PerlIO_printf(DBILOGFP, "  \n--->done %s\n  ",obj->type_name);
+	PerlIO_printf(DBIc_LOGPIO(imp_sth), "  \n--->done %s\n  ",obj->type_name);
 
 	return 1;
 }
@@ -3247,14 +3316,18 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 	if (imp_sth->stmt_type != OCI_STMT_SELECT) { /* XXX DISABLED, see num_fields test below */
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, "	dbd_describe skipped for %s\n",
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "	dbd_describe skipped for %s\n",
 				oci_stmt_type_name(imp_sth->stmt_type));
 	/* imp_sth memory was cleared when created so no setup required here	*/
 		return 1;
 	}
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	dbd_describe %s (%s, lb %lu)...\n",
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "	dbd_describe %s (%s, lb %lu)...\n",
 			oci_stmt_type_name(imp_sth->stmt_type),
 			DBIc_ACTIVE(imp_sth) ? "implicit" : "EXPLICIT", (unsigned long)long_readlen);
 
@@ -3278,8 +3351,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	}
 	if (num_fields == 0) {
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, "	dbd_describe skipped for %s (no fields returned)\n",
-			oci_stmt_type_name(imp_sth->stmt_type));
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "	dbd_describe skipped for %s (no fields returned)\n",
+                oci_stmt_type_name(imp_sth->stmt_type));
 		/* imp_sth memory was cleared when created so no setup required here	*/
 		return 1;
 	}
@@ -3339,7 +3414,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fbh->ftype	= 5;	/* default: return as null terminated string */
 
 		if (DBIS->debug >= 4 || dbd_verbose >= 4 )
-			PerlIO_printf(DBILOGFP, "Describe col #%d type=%d(%s)\n",i,fbh->dbtype,sql_typecode_name(fbh->dbtype));
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "Describe col #%d type=%d(%s)\n",
+                i,fbh->dbtype,sql_typecode_name(fbh->dbtype));
 
 		switch (fbh->dbtype) {
 		/*	the simple types	*/
@@ -3598,18 +3676,22 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				fbh->disize = fbh->dbsize;
 				p = "Field %d has an Oracle type (%d) which is not explicitly supported%s";
 				if (DBIS->debug >= 1 || dbd_verbose >= 3 )
-					PerlIO_printf(DBILOGFP, p, i, fbh->dbtype, "\n");
+					PerlIO_printf(DBIc_LOGPIO(imp_sth), p, i, fbh->dbtype, "\n");
 				if (PL_dowarn)
 					warn(p, i, fbh->dbtype, "");
 				break;
 		}
 
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			  PerlIO_printf(DBILOGFP,
-				"Described col %2d: dbtype %d(%s), scale %d, prec %d, nullok %d, name %s\n"
-				 "		  : dbsize %d, char_used %d, char_size %d, csid %d, csform %d(%s), disize %d\n",
-					i, fbh->dbtype, sql_typecode_name(fbh->dbtype),fbh->scale, fbh->prec, fbh->nullok, fbh->name,
-					fbh->dbsize, fbh->len_char_used, fbh->len_char_size, fbh->csid,fbh->csform,oci_csform_name(fbh->csform), fbh->disize);
+			  PerlIO_printf(
+                  DBIc_LOGPIO(imp_sth),
+                  "Described col %2d: dbtype %d(%s), scale %d, prec %d, nullok %d, "
+                  "name %s\n		  : dbsize %d, char_used %d, char_size %d, "
+                  "csid %d, csform %d(%s), disize %d\n",
+                  i, fbh->dbtype, sql_typecode_name(fbh->dbtype), fbh->scale,
+                  fbh->prec, fbh->nullok, fbh->name, fbh->dbsize,
+                  fbh->len_char_used, fbh->len_char_size,
+                  fbh->csid,fbh->csform,oci_csform_name(fbh->csform), fbh->disize);
 
 		if (fbh->ftype == 5)	/* XXX need to handle wide chars somehow */
 			fbh->disize += 1;	/* allow for null terminator */
@@ -3689,7 +3771,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 		if (fbh->ftype == 108)  { /* Embedded object bind it differently*/
 			if (DBIS->debug >= 5 || dbd_verbose >= 5 ){
-				PerlIO_printf(DBILOGFP,"Field #%d is a  object or colection of some sort. Using OCIDefineObject and or OCIObjectPin \n",i);
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "Field #%d is a  object or colection of some sort. "
+                    "Using OCIDefineObject and or OCIObjectPin \n",i);
 			}
 			Newz(1, fbh->obj, 1, fbh_obj_t);
 			fbh->obj->typecode=fbh->dbtype;
@@ -3719,7 +3804,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		if ( (fbh->dbtype == 1) && fbh->csform ) {
 		/* csform may be 0 when talking to Oracle 8.0 database*/
 			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP, "	calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d (%s)\n", fbh->csform,oci_csform_name(fbh->csform) );
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "	calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d (%s)\n",
+                    fbh->csform,oci_csform_name(fbh->csform) );
 				OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform,
 						 (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
 			if (status != OCI_SUCCESS) {
@@ -3732,9 +3820,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	}
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP,
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
 			"	dbd_describe'd %d columns (row bytes: %d max, %d est avg, cache: %d)\n",
-			(int)num_fields, imp_sth->t_dbsize, imp_sth->est_width, imp_sth->prefetch_rows);
+			(int)num_fields, imp_sth->t_dbsize, imp_sth->est_width,
+            imp_sth->prefetch_rows);
 
 	return (num_errors>0) ? 0 : 1;
 }
@@ -3775,7 +3865,9 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 	}
 	else {
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "	dbd_st_fetch %d fields...\n", DBIc_NUM_FIELDS(imp_sth));
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "	dbd_st_fetch %d fields...\n", DBIc_NUM_FIELDS(imp_sth));
 		}
 
 		if (imp_sth->fetch_orient != OCI_DEFAULT) {
@@ -3783,8 +3875,12 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				croak ("attempt to use a scrollable cursor without first setting ora_exe_mode to OCI_STMT_SCROLLABLE_READONLY\n") ;
 
 			if (DBIS->debug >= 4 || dbd_verbose >= 4 )
-				PerlIO_printf(DBILOGFP,"	Scrolling Fetch, postion before fetch=%d, Orientation = %s , Fetchoffset =%d\n",
-					imp_sth->fetch_position,oci_fetch_options(imp_sth->fetch_orient),imp_sth->fetch_offset);
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "	Scrolling Fetch, postion before fetch=%d, "
+                    "Orientation = %s , Fetchoffset =%d\n",
+					imp_sth->fetch_position, oci_fetch_options(imp_sth->fetch_orient),
+                    imp_sth->fetch_offset);
 
 			OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1, imp_sth->fetch_orient,imp_sth->fetch_offset, status);
 				/*this will work without a round trip so might as well open it up for all statments handles*/
@@ -3792,8 +3888,10 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->fetch_position, 0, OCI_ATTR_CURRENT_POSITION, status);
 
 			if (DBIS->debug >= 4 || dbd_verbose >= 4 )
-				PerlIO_printf(DBILOGFP,"	Scrolling Fetch, postion after fetch=%d\n",imp_sth->fetch_position);
-
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "	Scrolling Fetch, postion after fetch=%d\n",
+                    imp_sth->fetch_position);
 		}
 		else {
 
@@ -3808,7 +3906,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
  				imp_sth->rs_array_idx++;
 				if (imp_sth->rs_array_num_rows<=imp_sth->rs_array_idx && (imp_sth->rs_array_status==OCI_SUCCESS || imp_sth->rs_array_status==OCI_SUCCESS_WITH_INFO)) {
-/* 			PerlIO_printf(DBILOGFP, "	dbd_st_fetch fields...b\n");*/
+/* 			PerlIO_printf(DBIc_LOGPIO(imp_sth), "	dbd_st_fetch fields...b\n");*/
 
 					OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
 
@@ -3823,7 +3921,9 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 					imp_sth->RowsInCache =imp_sth->rs_array_size;
 
 					if (DBIS->debug >= 4 || dbd_verbose >= 4 || oci_warn)
-						PerlIO_printf(DBILOGFP,"...Fetched %d rows\n",imp_sth->rs_array_num_rows);
+						PerlIO_printf(
+                            DBIc_LOGPIO(imp_sth),
+                            "...Fetched %d rows\n",imp_sth->rs_array_num_rows);
 
 				}
 				imp_dbh->RowsInCache--;
@@ -3847,7 +3947,10 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			dTHR; 			/* for DBIc_ACTIVE_off	*/
 			DBIc_ACTIVE_off(imp_sth);	/* eg finish		*/
 			if (DBIS->debug >= 3 || dbd_verbose >= 3 || oci_warn)
-				PerlIO_printf(DBILOGFP, "	dbd_st_fetch no-more-data, fetch count=%d\n",imp_sth->rs_fetch_count-1);
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "	dbd_st_fetch no-more-data, fetch count=%d\n",
+                    imp_sth->rs_fetch_count-1);
 			return Nullav;
 		}
 		if (status != OCI_SUCCESS_WITH_INFO) {
@@ -3868,7 +3971,10 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 	av = DBIS->get_fbav(imp_sth);
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 ) {
-		PerlIO_printf(DBILOGFP, "	dbd_st_fetched %d fields with status of %d(%s)\n",	num_fields,status, oci_status_name(status));
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "	dbd_st_fetched %d fields with status of %d(%s)\n",
+            num_fields,status, oci_status_name(status));
 	}
 
 	ChopBlanks = DBIc_has(imp_sth, DBIcf_ChopBlanks);
@@ -3883,7 +3989,9 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 
 		if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
-			PerlIO_printf(DBILOGFP, "	field #%d with rc=%d(%s)\n",i+1,rc,oci_col_return_codes(rc));
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "	field #%d with rc=%d(%s)\n",i+1,rc,oci_col_return_codes(rc));
 		}
 
 		if (rc == 1406				/* field was truncated	*/
@@ -4003,7 +4111,9 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		}
 
 		if (DBIS->debug >= 5 || dbd_verbose >= 5 ){
-			PerlIO_printf(DBILOGFP, "\n		%p (field=%d): %s\n",	 av, i,neatsvpv(sv,10));
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "\n		%p (field=%d): %s\n",	 av, i,neatsvpv(sv,10));
 		}
 	}
 	return (err) ? Nullav : av;
@@ -4243,7 +4353,10 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		tablename=new_tablename;
 
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, "		lob refetch using a synonym named=%s for %s \n", syn_name,tablename);
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "		lob refetch using a synonym named=%s for %s \n",
+                syn_name,tablename);
 
 
 	}
@@ -4279,7 +4392,10 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	}
 
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "		lob refetch from table %s, %d columns:\n", tablename, numcols);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "		lob refetch from table %s, %d columns:\n",
+            tablename, numcols);
 
 	for (i = 1; i <= (long)numcols; i++) {
 		ub2 col_dbtype;
@@ -4300,7 +4416,9 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 			break;
 
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, "		lob refetch table col %d: '%.*s' otype %d\n",
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "		lob refetch table col %d: '%.*s' otype %d\n",
 				(int)i, (int)col_name_len,col_name, col_dbtype);
 
 		if (col_dbtype != SQLT_CLOB && col_dbtype != SQLT_BLOB)
@@ -4381,9 +4499,11 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 						if (phs->ftype != SvIV(sv_other))
 							continue;
 						if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-							PerlIO_printf(DBILOGFP,
-							"		both %s and %s have type %d - ambiguous\n",
-									neatsvpv(sv,0), neatsvpv(sv_other,0), (int)SvIV(sv_other));
+							PerlIO_printf(
+                                DBIc_LOGPIO(imp_sth),
+                                "		both %s and %s have type %d - ambiguous\n",
+                                neatsvpv(sv,0), neatsvpv(sv_other,0),
+                                (int)SvIV(sv_other));
 						Safefree(lr);
 						sv_free((SV*)lob_cols_hv);
 						return oci_error(sth, errhp, OCI_ERROR,
@@ -4398,8 +4518,9 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 			sv_catpv(sql_select, sql_field);
 
 			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP,
-				"		lob refetch %s param: otype %d, matched field '%s' %s(%s)\n",
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "		lob refetch %s param: otype %d, matched field '%s' %s(%s)\n",
 					phs->name, phs->ftype, p,
 					(phs->ora_field) ? "by name " : "by type ", sql_field);
 					(void)hv_delete(lob_cols_hv, p, i, G_DISCARD);
@@ -4417,7 +4538,8 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		if (!matched) {
 			++unmatched_params;
 			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP,
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
 					"		lob refetch %s param: otype %d, UNMATCHED\n",
 					phs->name, phs->ftype);
 		}
@@ -4434,7 +4556,8 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	sv_catpv(sql_select, tablename);
 	sv_catpv(sql_select, " where rowid = :rid for update"); /* get row with lock */
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP,
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
 			"		lob refetch sql: %s\n", SvPVX(sql_select));
 	lr->stmthp = NULL;
 	lr->bindhp = NULL;
@@ -4474,7 +4597,8 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		phs = (phs_t*)(void*)SvPVX(*phs_svp);
 		fbh->special = phs;
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
 				"		lob refetch %d for '%s' param: ftype %d setup\n",
 		(int)i+1,fbh->name, fbh->dbtype);
 		fbh->fb_ary = fb_ary_alloc(fbh->disize, 1);
@@ -4598,7 +4722,9 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 			}
 
 			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP, "	  calling OCILobWrite fbh->csid=%d fbh->csform=%d amtp=%d\n",
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "	  calling OCILobWrite fbh->csid=%d fbh->csform=%d amtp=%d\n",
 					fbh->csid, fbh->csform, amtp );
 
 			OCILobWrite_log_stat(imp_sth->svchp, errhp,
@@ -4619,7 +4745,8 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 		}
 
 		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
 			"		lob refetch %d for '%s' param: ftype %d, len %ld: %s %s\n",
 			i+1,fbh->name, fbh->dbtype, ul_t(amtp),
 			(rc==1405 ? "NULL" : (amtp > 0) ? "LobWrite" : "LobTrim"), oci_status_name(status));
