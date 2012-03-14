@@ -4651,7 +4651,7 @@ ora_free_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
 	for(i=0; i < lr->num_fields; ++i) {
 		imp_fbh_t *fbh = &lr->fbh_ary[i];
-		ora_free_fbh_contents(fbh);
+		ora_free_fbh_contents(sth, fbh);
 	}
 	sv_free(lr->fbh_ary_sv);
 	Safefree(imp_sth->lob_refetch);

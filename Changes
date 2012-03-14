@@ -14,6 +14,13 @@ NEXT
    connect to Oracle or you cannot install from cpan if you have not
    set up a valid Oracle connection.
 
+ - Fixed 75163. Bfile lobs were not being opened before fetching if
+   ora_auto_lobs was disabled (Martin J. Evans).
+
+   Note: this has a minor impact on non bfile lobs when ora_auto_lobs
+   is not in force as an additional call to OCILobFileIsOpen will be
+   made.
+ 
  [DOCUMENTATION]
  - clarification of when StrictlyTyped/DiscardString can be used and
    LongReadLen (Martin J. Evans)
