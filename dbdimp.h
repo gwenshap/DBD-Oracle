@@ -321,7 +321,7 @@ extern ub2 al16utf16_csid;
 void dbd_init_oci _((dbistate_t *dbistate));
 void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
 void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
-void ora_free_fbh_contents _((imp_fbh_t *fbh));
+void ora_free_fbh_contents _((SV *sth, imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
 fb_ary_t *fb_ary_alloc _((ub4 bufl, int size));

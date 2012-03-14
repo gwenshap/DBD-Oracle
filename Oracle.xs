@@ -560,6 +560,21 @@ ora_lob_read(dbh, locator, offset, length)
 	dest_sv = &PL_sv_undef;
 		return;
 	}
+    {
+        /* see rt 75163 */
+        boolean is_open;
+
+        OCILobFileIsOpen_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &is_open, status);
+        if (status == OCI_SUCCESS && !is_open) {
+            OCILobFileOpen_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
+                                    (ub1)OCI_FILE_READONLY, status);
+            if (status != OCI_SUCCESS) {
+                oci_error(dbh, imp_dbh->errhp, status, "OCILobFileOpen");
+                dest_sv = &PL_sv_undef;
+            }
+        }
+    }
+
 	OCILobRead_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
 		&amtp, (ub4)offset, /* offset starts at 1 */
 		bufp, (ub4)bufp_len,
