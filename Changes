@@ -21,6 +21,8 @@ NEXT
    is not in force as an additional call to OCILobFileIsOpen will be
    made.
  
+ - Start removing DBIS usage (Martin J. Evans).
+
  [DOCUMENTATION]
  - clarification of when StrictlyTyped/DiscardString can be used and
    LongReadLen (Martin J. Evans)
