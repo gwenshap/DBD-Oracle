@@ -305,9 +305,9 @@ ora_db_startup(dbh, attribs)
 			croak("ora_pfile is not a string");
 		str = (text*)SvPV(*svp, svp_len);
 		OCIHandleAlloc(imp_dbh->envhp, (dvoid**)&admhp, (ub4)OCI_HTYPE_ADMIN, (size_t)0, (dvoid**)0);
-		OCIAttrSet_log_stat((dvoid*)admhp, (ub4)OCI_HTYPE_ADMIN, (dvoid*)str, (ub4)svp_len, (ub4)OCI_ATTR_ADMIN_PFILE, (OCIError*)imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, (dvoid*)admhp, (ub4)OCI_HTYPE_ADMIN, (dvoid*)str, (ub4)svp_len, (ub4)OCI_ATTR_ADMIN_PFILE, (OCIError*)imp_dbh->errhp, status);
   }
-	OCIDBStartup_log_stat(imp_dbh->svchp, imp_dbh->errhp, admhp, mode, flags, status);
+	OCIDBStartup_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, admhp, mode, flags, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCIDBStartup");
 		ST(0) = &PL_sv_undef;
@@ -315,7 +315,7 @@ ora_db_startup(dbh, attribs)
 	else {
 		ST(0) = &PL_sv_yes;
 	}
-	if (admhp) OCIHandleFree_log_stat((dvoid*)admhp, (ub4)OCI_HTYPE_ADMIN, status);
+	if (admhp) OCIHandleFree_log_stat(imp_dbh, (dvoid*)admhp, (ub4)OCI_HTYPE_ADMIN, status);
 #else
 	croak("OCIDBStartup not available");
 #endif
@@ -338,7 +338,7 @@ ora_db_shutdown(dbh, attribs)
 	mode = OCI_DEFAULT;
 	DBD_ATTRIB_GET_IV(attribs, "ora_mode", 8, svp, mode);
 	admhp = (OCIAdmin*)0;
-	OCIDBShutdown_log_stat(imp_dbh->svchp, imp_dbh->errhp, admhp, mode, status);
+	OCIDBShutdown_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, admhp, mode, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCIDBShutdown");
 		ST(0) = &PL_sv_undef;
@@ -359,7 +359,7 @@ ora_can_taf(dbh)
 	ub4 can_taf = 0;
 	CODE:
 #ifdef OCI_ATTR_TAF_ENABLED
-	OCIAttrGet_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, &can_taf, NULL,
+	OCIAttrGet_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, &can_taf, NULL,
 				OCI_ATTR_TAF_ENABLED, imp_dbh->errhp, status);
 	if (status != OCI_SUCCESS) {
 # else
@@ -391,14 +391,14 @@ ora_ping(dbh)
 	/*so we should stay connected but we cannot get nay new connections*/
 	{
 #if !defined(ORA_OCI_102)
-	OCIServerVersion_log_stat(imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
+	OCIServerVersion_log_stat(imp_dbh, imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
 #else
 	vernum = ora_db_version(dbh,imp_dbh);
 	/* OCIPing causes server failures if called against server ver < 10.2 */
 	if (((int)((vernum>>24) & 0xFF) < 10 ) || (((int)((vernum>>24) & 0xFF) == 10 ) && ((int)((vernum>>20) & 0x0F) < 2 ))){
-		OCIServerVersion_log_stat(imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
+		OCIServerVersion_log_stat(imp_dbh, imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
 	} else {
-    	OCIPing_log_stat(imp_dbh->svchp,imp_dbh->errhp,status);
+    	OCIPing_log_stat(imp_dbh, imp_dbh->svchp,imp_dbh->errhp,status);
 	}
 #endif
 	if (status != OCI_SUCCESS){
@@ -441,7 +441,7 @@ ora_lob_write(dbh, locator, offset, data)
 	/* if (0 && SvUTF8(data) && !IN_BYTES) { amtp = sv_len_utf8(data); }  */
 	/* added by lab: */
 	/* LAB do something about length here? see above comment */
-	 OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
+	 OCILobCharSetForm_log_stat(imp_dbh, imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
 	ST(0) = &PL_sv_undef;
@@ -449,7 +449,12 @@ ora_lob_write(dbh, locator, offset, data)
 	}
 #ifdef OCI_ATTR_CHARSET_ID
 	/* Effectively only used so AL32UTF8 works properly */
-	OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
+	OCILobCharSetId_log_stat(imp_dbh,
+                             imp_dbh->envhp,
+                             imp_dbh->errhp,
+                             locator,
+                             &csid,
+                             status );
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
 	ST(0) = &PL_sv_undef;
@@ -459,7 +464,7 @@ ora_lob_write(dbh, locator, offset, data)
 	/* if data is utf8 but charset isn't then switch to utf8 csid */
 	csid = (SvUTF8(data) && !CS_IS_UTF8(csid)) ? utf8_csid : CSFORM_IMPLIED_CSID(csform);
 
-	OCILobWrite_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
+	OCILobWrite_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator,
 		&amtp, (ub4)offset,
 		bufp, (ub4)data_len, OCI_ONE_PIECE,
 		NULL, NULL,
@@ -497,7 +502,7 @@ ora_lob_append(dbh, locator, data)
 	/* if (1 && SvUTF8(data) && !IN_BYTES) */
 	/* added by lab: */
 	/* LAB do something about length here? see above comment */
-	OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
+	OCILobCharSetForm_log_stat(imp_dbh, imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
 	ST(0) = &PL_sv_undef;
@@ -505,7 +510,12 @@ ora_lob_append(dbh, locator, data)
 	}
 #ifdef OCI_ATTR_CHARSET_ID
 	/* Effectively only used so AL32UTF8 works properly */
-	OCILobCharSetId_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csid, status );
+	OCILobCharSetId_log_stat(imp_dbh,
+                             imp_dbh->envhp,
+                             imp_dbh->errhp,
+                             locator,
+                             &csid,
+                             status );
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetId");
 	ST(0) = &PL_sv_undef;
@@ -514,7 +524,7 @@ ora_lob_append(dbh, locator, data)
 #endif /* OCI_ATTR_CHARSET_ID */
 	/* if data is utf8 but charset isn't then switch to utf8 csid */
 	csid = (SvUTF8(data) && !CS_IS_UTF8(csid)) ? utf8_csid : CSFORM_IMPLIED_CSID(csform);
-	OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
+	OCILobWriteAppend_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator,
 				   &amtp, bufp, (ub4)data_len, OCI_ONE_PIECE,
 				   NULL, NULL,
 				   csid, csform, status);
@@ -554,7 +564,7 @@ ora_lob_read(dbh, locator, offset, length)
 	/* if locator is CLOB and data is UTF8 and not in bytes pragma */
 	/* if (0 && SvUTF8(dest_sv) && !IN_BYTES) { amtp = sv_len_utf8(dest_sv); }  */
 	/* added by lab: */
-	OCILobCharSetForm_log_stat( imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
+	OCILobCharSetForm_log_stat(imp_dbh,  imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
 	dest_sv = &PL_sv_undef;
@@ -564,9 +574,9 @@ ora_lob_read(dbh, locator, offset, length)
         /* see rt 75163 */
         boolean is_open;
 
-        OCILobFileIsOpen_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &is_open, status);
+        OCILobFileIsOpen_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator, &is_open, status);
         if (status == OCI_SUCCESS && !is_open) {
-            OCILobFileOpen_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
+            OCILobFileOpen_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator,
                                     (ub1)OCI_FILE_READONLY, status);
             if (status != OCI_SUCCESS) {
                 oci_error(dbh, imp_dbh->errhp, status, "OCILobFileOpen");
@@ -575,7 +585,7 @@ ora_lob_read(dbh, locator, offset, length)
         }
     }
 
-	OCILobRead_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator,
+	OCILobRead_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator,
 		&amtp, (ub4)offset, /* offset starts at 1 */
 		bufp, (ub4)bufp_len,
 		0, 0, (ub2)0, csform, status);
@@ -603,7 +613,7 @@ ora_lob_trim(dbh, locator, length)
 	D_imp_dbh(dbh);
 	sword status;
 	CODE:
-	OCILobTrim_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, length, status);
+	OCILobTrim_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator, length, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobTrim");
 	ST(0) = &PL_sv_undef;
@@ -621,7 +631,7 @@ ora_lob_is_init(dbh, locator)
 	sword status;
 	boolean is_init = 0;
 	CODE:
-	OCILobLocatorIsInit_log_stat(imp_dbh->envhp,imp_dbh->errhp,locator,&is_init,status);
+	OCILobLocatorIsInit_log_stat(imp_dbh, imp_dbh->envhp,imp_dbh->errhp,locator,&is_init,status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobLocatorIsInit ora_lob_is_init");
 	    ST(0) = &PL_sv_undef;
@@ -639,7 +649,7 @@ ora_lob_length(dbh, locator)
 	sword status;
 	ub4 len = 0;
 	CODE:
-	OCILobGetLength_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &len, status);
+	OCILobGetLength_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator, &len, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobGetLength ora_lob_length");
 	ST(0) = &PL_sv_undef;
@@ -658,7 +668,7 @@ ora_lob_chunk_size(dbh, locator)
 	sword status;
 	ub4 chunk_size = 0;
 	CODE:
-	OCILobGetChunkSize_log_stat(imp_dbh->svchp, imp_dbh->errhp, locator, &chunk_size, status);
+	OCILobGetChunkSize_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator, &chunk_size, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCILobGetChunkSize");
 		ST(0) = &PL_sv_undef;

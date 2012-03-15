@@ -109,7 +109,7 @@ oci_ptype_name(int ptype)
 	return SvPVX(sv);
 }
  */
- 
+
 char *
 oci_exe_mode(ub4 mode)
 {
@@ -812,7 +812,8 @@ oci_fetch_options(ub4 fetchtype)
 
 
 static sb4
-oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
+oci_error_get(imp_xxh_t *imp_xxh,
+              OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 {
 	dTHX;
 	text errbuf[1024];
@@ -834,12 +835,13 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 	}
 
 	while( ++recno
-		&& OCIErrorGet_log_stat(errhp, recno, (text*)NULL, &eg_errcode, errbuf,
+           && OCIErrorGet_log_stat(imp_xxh, errhp, recno, (text*)NULL, &eg_errcode, errbuf,
 		(ub4)sizeof(errbuf), OCI_HTYPE_ERROR, eg_status) != OCI_NO_DATA
 		&& eg_status != OCI_INVALID_HANDLE
 		&& recno < 100) {
 		if (debug >= 4 || recno>1/*XXX temp*/)
-			PerlIO_printf(DBILOGFP, "	OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
+			PerlIO_printf(DBIc_LOGPIO(imp_xxh),
+                          "	OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
 			what ? what : "<NULL>", (long)recno,
 			(eg_status==OCI_SUCCESS) ? "ok" : oci_status_name(eg_status),
 			status, (long)eg_errcode, errbuf);
@@ -873,7 +875,8 @@ oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 	sb4 errcode;
 	SV *errstr_sv = sv_newmortal();
 	SV *errcode_sv = sv_newmortal();
-	errcode = oci_error_get(errhp, status, what, errstr_sv, DBIS->debug);
+	errcode = oci_error_get(imp_xxh, errhp, status, what, errstr_sv,
+                            DBIc_DBISTATE(imp_xxh)->debug);
 	if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT)) {
 #ifdef sv_utf8_decode
 	sv_utf8_decode(errstr_sv);
@@ -1051,14 +1054,14 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 
 
 
-	OCIHandleAlloc_ok(imp_dbh->envhp, &imp_sth->stmhp, OCI_HTYPE_STMT, status);
-	OCIStmtPrepare_log_stat(imp_sth->stmhp, imp_sth->errhp,
+	OCIHandleAlloc_ok(imp_dbh, imp_dbh->envhp, &imp_sth->stmhp, OCI_HTYPE_STMT, status);
+	OCIStmtPrepare_log_stat(imp_sth, imp_sth->stmhp, imp_sth->errhp,
 			(text*)imp_sth->statement, (ub4)strlen(imp_sth->statement),
 			OCI_NTV_SYNTAX, OCI_DEFAULT, status);
 
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCIStmtPrepare");
-		OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
+		OCIHandleFree_log_stat(imp_sth, imp_sth->stmhp, OCI_HTYPE_STMT, status);
 
 		return 0;
 	}
@@ -1066,7 +1069,7 @@ dbd_st_prepare(SV *sth, imp_sth_t *imp_sth, char *statement, SV *attribs)
 
 	OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->stmt_type, 0, OCI_ATTR_STMT_TYPE, status);
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "	dbd_st_prepare'd sql %s ( auto_lob%d, check_sql%d)\n",
@@ -1348,9 +1351,9 @@ reg_taf_callback( imp_dbh_t *imp_dbh)
 	tafailover.callback_function = &taf_cbk;
 
 /* register the callback */
-	OCIAttrSet_log_stat(imp_dbh->srvhp, (ub4) OCI_HTYPE_SERVER,
-								(dvoid *) &tafailover, (ub4) 0,
-								(ub4) OCI_ATTR_FOCBK, imp_dbh->errhp, status);
+	OCIAttrSet_log_stat(imp_dbh, imp_dbh->srvhp, (ub4) OCI_HTYPE_SERVER,
+                        (dvoid *) &tafailover, (ub4) 0,
+                        (ub4) OCI_ATTR_FOCBK, imp_dbh->errhp, status);
 
 	return status;
 }
@@ -1427,7 +1430,7 @@ fetch_func_varfield(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 					return 0;
 				}
 
-			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+                if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
                     "		fetching field %d of %d. LONG value truncated from "
@@ -1454,6 +1457,7 @@ static void
 fetch_cleanup_rset(SV *sth, imp_fbh_t *fbh)
 {
 	dTHX;
+    D_imp_sth(sth);
 	SV *sth_nested = (SV *)fbh->special;
 	fbh->special = NULL;
 
@@ -1468,8 +1472,8 @@ fetch_cleanup_rset(SV *sth, imp_fbh_t *fbh)
 		if (fbh_nested->fetch_cleanup)
 		fbh_nested->fetch_cleanup(sth_nested, fbh_nested);
 	}
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP,
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
+		PerlIO_printf(DBIc_LOGPIO(imp_sth),
 			"	fetch_cleanup_rset - deactivating handle %s (defunct nested cursor)\n",
 						neatsvpv(sth_nested, 0));
 
@@ -1490,7 +1494,7 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	HV *init_attr = newHV();
 	int count;
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "	fetch_func_rset - allocating handle for cursor nested within %s ...\n",
@@ -1511,7 +1515,7 @@ fetch_func_rset(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 	SvREFCNT_dec(init_attr);
 	PUTBACK; FREETMPS; LEAVE;
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "	fetch_func_rset - ... allocated %s for nested cursor\n",
@@ -1547,7 +1551,7 @@ dbd_rebind_ph_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
 	dTHX;
 
-	if (DBIS->debug >= 6 || dbd_verbose >= 6 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 6 || dbd_verbose >= 6 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "	 dbd_rebind_ph_rset phs->is_inout=%d\n",
@@ -1600,11 +1604,11 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	if (!phs->desc_h) {
 		++imp_sth->has_lobs;
 		phs->desc_t = OCI_DTYPE_LOB;
-		OCIDescriptorAlloc_ok(imp_sth->envhp,
+		OCIDescriptorAlloc_ok(imp_sth, imp_sth->envhp,
 				&phs->desc_h, phs->desc_t);
 	}
 
-	OCIAttrSet_log_stat(phs->desc_h, phs->desc_t,
+	OCIAttrSet_log_stat(imp_sth, phs->desc_h, phs->desc_t,
 			&lobEmpty, 0, OCI_ATTR_LOBEMPTY, imp_sth->errhp, status);
 
 	if (status != OCI_SUCCESS)
@@ -1635,7 +1639,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		src = INT2PTR(OCILobLocator *, SvIV(SvRV(phs->sv)));
 		dest = (OCILobLocator **) phs->progv;
 
-		OCILobLocatorAssign_log_stat(imp_dbh->svchp, imp_sth->errhp, src, dest, status);
+		OCILobLocatorAssign_log_stat(imp_dbh, imp_dbh->svchp, imp_sth->errhp, src, dest, status);
 		if (status != OCI_SUCCESS) {
 			oci_error(sth, imp_sth->errhp, status, "OCILobLocatorAssign");
 			return 0;
@@ -1655,7 +1659,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 		if (amtp > 0) {
 			ub1 lobtype = (phs->ftype == 112 ? OCI_TEMP_CLOB : OCI_TEMP_BLOB);
-			OCILobCreateTemporary_log_stat(imp_dbh->svchp, imp_sth->errhp,
+			OCILobCreateTemporary_log_stat(imp_dbh, imp_dbh->svchp, imp_sth->errhp,
 				(OCILobLocator *) phs->desc_h, (ub2) OCI_DEFAULT,
 				(ub1) OCI_DEFAULT, lobtype, TRUE, OCI_DURATION_SESSION, status);
 			if (status != OCI_SUCCESS) {
@@ -1666,12 +1670,22 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 			if( ! phs->csid ) {
 				ub1 csform = SQLCS_IMPLICIT;
 				ub2 csid = 0;
-				OCILobCharSetForm_log_stat( imp_sth->envhp, imp_sth->errhp, (OCILobLocator*)phs->desc_h, &csform, status );
+				OCILobCharSetForm_log_stat(imp_sth,
+                                           imp_sth->envhp,
+                                           imp_sth->errhp,
+                                           (OCILobLocator*)phs->desc_h,
+                                           &csform,
+                                           status );
 				if (status != OCI_SUCCESS)
 					return oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
 #ifdef OCI_ATTR_CHARSET_ID
 			/* Effectively only used so AL32UTF8 works properly */
-				OCILobCharSetId_log_stat( imp_sth->envhp, imp_sth->errhp, (OCILobLocator*)phs->desc_h, &csid, status );
+				OCILobCharSetId_log_stat(imp_sth,
+                                         imp_sth->envhp,
+                                         imp_sth->errhp,
+                                         (OCILobLocator*)phs->desc_h,
+                                         &csid,
+                                         status );
 				if (status != OCI_SUCCESS)
 					return oci_error(sth, imp_sth->errhp, status, "OCILobCharSetId");
 #endif /* OCI_ATTR_CHARSET_ID */
@@ -1681,7 +1695,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 				phs->csform = csform;
 			}
 
-			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+			if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
                     "	  calling OCILobWrite phs->csid=%d phs->csform=%d amtp=%d\n",
@@ -1689,7 +1703,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 		/* write lob data */
 
-			OCILobWrite_log_stat(imp_sth->svchp, imp_sth->errhp,
+			OCILobWrite_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp,
 				(OCILobLocator*)phs->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
 					0,0, phs->csid, phs->csform, status);
 			if (status != OCI_SUCCESS) {
@@ -1722,7 +1736,12 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 	 */
 	ub1 csform = SQLCS_IMPLICIT;
 
-	OCILobCharSetForm_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csform, status );
+	OCILobCharSetForm_log_stat(imp_sth,
+                               imp_sth->envhp,
+                               imp_sth->errhp,
+                               lobl,
+                               &csform,
+                               status );
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
 		sv_set_undef(dest_sv);	/* signal error */
@@ -1737,7 +1756,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 		return 0;
 	}
 
-	OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp,
+	OCILobGetLength_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp,
 				 lobl, &loblen, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCILobGetLength ora_blob_read_mb_piece");
@@ -1758,7 +1777,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 
 		New(42, buffer, buflen, ub1);
 
-		OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
+		OCILobRead_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp, lobl,
 				&amtp, (ub4)1 + offset, buffer, buflen,
 				0, 0, (ub2)0 ,csform ,status );
 			  /* lab  0, 0, (ub2)0, (ub1)SQLCS_IMPLICIT, status); */
@@ -1842,14 +1861,19 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 		return 0;
 	}
 
-	OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, lobl, &loblen, status);
+	OCILobGetLength_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp, lobl, &loblen, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCILobGetLength ora_blob_read_piece");
 		sv_set_undef(dest_sv);	/* signal error */
 		return 0;
 	}
 
-	OCILobCharSetForm_log_stat( imp_sth->envhp, imp_sth->errhp, lobl, &csform, status );
+	OCILobCharSetForm_log_stat(imp_sth,
+                               imp_sth->envhp,
+                               imp_sth->errhp,
+                               lobl,
+                               &csform,
+                               status );
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
 		sv_set_undef(dest_sv);	/* signal error */
@@ -1892,7 +1916,7 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 		buflen = amtp;
 	}
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "		blob_read field %d: ftype %d %s, offset %ld, len %lu."
@@ -1904,11 +1928,11 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 		ub1 * bufp = (ub1 *)(SvPVX(dest_sv));
 		bufp += destoffset;
 
-		OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobl,
+		OCILobRead_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp, lobl,
 			&amtp, (ub4)1 + offset, bufp, buflen,
 			0, 0, (ub2)0 , csform, status);
 
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "		OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu,"
@@ -1925,7 +1949,7 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 	}
 	else {
 		assert(amtp == 0);
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
 				"		OCILobRead field %d %s: LOBlen %lu, LongReadLen %lu, "
@@ -1964,7 +1988,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 
 	/* The length is expressed in terms of bytes for BLOBs and BFILEs,	*/
 	/* and in terms of characters for CLOBs	and NCLOBS			*/
-	OCILobGetLength_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc, &loblen, status);
+	OCILobGetLength_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp, lobloc, &loblen, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCILobGetLength fetch_lob");
 		return 0;
@@ -2024,7 +2048,12 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 
 	if (loblen > 0) {
 		ub1  csform = 0;
-		OCILobCharSetForm_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &csform, status );
+		OCILobCharSetForm_log_stat(imp_sth,
+                                   imp_sth->envhp,
+                                   imp_sth->errhp,
+                                   lobloc,
+                                   &csform,
+                                   status );
 		if (status != OCI_SUCCESS) {
 			oci_error(sth, imp_sth->errhp, status, "OCILobCharSetForm");
 			sv_set_undef(dest_sv);
@@ -2032,7 +2061,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 		}
 
 	if (ftype == ORA_BFILE) {
-		OCILobFileOpen_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
+		OCILobFileOpen_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp, lobloc,
 				(ub1)OCI_FILE_READONLY, status);
 		if (status != OCI_SUCCESS) {
 			oci_error(sth, imp_sth->errhp, status, "OCILobFileOpen");
@@ -2041,7 +2070,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 		}
 	}
 
-	OCILobRead_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc,
+	OCILobRead_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp, lobloc,
 		&amtp, (ub4)1, SvPVX(dest_sv), buflen,
 		0, 0, (ub2)0, csform, status);
 
@@ -2069,7 +2098,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 
 
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 || oci_warn){
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 || oci_warn){
 		char buf[11];
 		strcpy(buf,"bytes");
 		if (ftype == ORA_CLOB)
@@ -2085,7 +2114,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 
     }
 	if (ftype == ORA_BFILE) {
-		OCILobFileClose_log_stat(imp_sth->svchp, imp_sth->errhp,
+		OCILobFileClose_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp,
 		lobloc, status);
 	}
 
@@ -2107,7 +2136,7 @@ fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *des
 		/* tell perl what we've put in its dest_sv */
 		SvCUR(dest_sv) = amtp;
 		*SvEND(dest_sv) = '\0';
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "		OCILobRead %s %s: LOBlen %lu, LongReadLen %lu, "
@@ -2143,18 +2172,18 @@ fetch_func_getrefpv(SV *sth, imp_fbh_t *fbh, SV *dest_sv)
 
 #ifdef OCI_DTYPE_REF
 static void
-fbh_setup_getrefpv(imp_fbh_t *fbh, int desc_t, char *bless)
+fbh_setup_getrefpv(imp_sth_t *imp_sth, imp_fbh_t *fbh, int desc_t, char *bless)
 {
 	dTHX;
 	if (DBIS->debug >= 2 || dbd_verbose >= 3 )
-	PerlIO_printf(DBILOGFP,
+        PerlIO_printf(DBIc_LOGPIO(imp_sth),
 		"	col %d: otype %d, desctype %d, %s", fbh->field_num, fbh->dbtype, desc_t, bless);
 	fbh->ftype  = fbh->dbtype;
 	fbh->disize = fbh->dbsize;
 	fbh->fetch_func = fetch_func_getrefpv;
 	fbh->bless  = bless;
 	fbh->desc_t = desc_t;
-	OCIDescriptorAlloc_ok(fbh->imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
+	OCIDescriptorAlloc_ok(imp_sth, fbh->imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
 }
 #endif
 
@@ -2211,6 +2240,7 @@ calc_cache_rows(int cache_rows, int num_fields, int est_width, int has_longs,ub4
 static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeCode  typecode, dvoid	*attr_value )
 {
 	dTHX;
+    D_imp_sth(sth);
 	text		str_buf[200];
 	double		dnum;
 	size_t		str_len;
@@ -2224,8 +2254,10 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 	SV			*raw_sv;
 
   /* get the data based on the type code*/
-	if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
-		PerlIO_printf(DBILOGFP, " getting value of object attribute named  %s with typecode=%s\n",name,oci_typecode_name(typecode));
+	if (DBIc_DBISTATE(imp_sth)->debug >= 5 || dbd_verbose >= 5 ) {
+		PerlIO_printf(DBIc_LOGPIO(imp_sth),
+                      " getting value of object attribute named  %s with typecode=%s\n",
+                      name,oci_typecode_name(typecode));
 	}
 
 	switch (typecode)
@@ -2234,13 +2266,14 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 	case OCI_TYPECODE_INTERVAL_YM  :
 	case OCI_TYPECODE_INTERVAL_DS  :
 
-		OCIIntervalToText_log_stat(fbh->imp_sth->envhp,
-		 						fbh->imp_sth->errhp,
-		 						attr_value,
-		 						str_buf,
-		 						(size_t) 200,
-		 						&str_len,
-							status);
+      OCIIntervalToText_log_stat(fbh->imp_sth,
+                                 fbh->imp_sth->envhp,
+                                 fbh->imp_sth->errhp,
+                                 attr_value,
+                                 str_buf,
+                                 (size_t) 200,
+                                 &str_len,
+                                 status);
 		str_buf[str_len+1] = '\0';
 		av_push(list, newSVpv( (char *) str_buf,0));
 		break;
@@ -2251,8 +2284,13 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 
 
 		ub4_str_len = 200;
-		OCIDateTimeToText_log_stat(fbh->imp_sth->envhp,
-									fbh->imp_sth->errhp,attr_value,&ub4_str_len,str_buf,status);
+		OCIDateTimeToText_log_stat(fbh->imp_sth,
+                                   fbh->imp_sth->envhp,
+                                   fbh->imp_sth->errhp,
+                                   attr_value,
+                                   &ub4_str_len,
+                                   str_buf,
+                                   status);
 
 		if (typecode == OCI_TYPECODE_TIMESTAMP_TZ || typecode == OCI_TYPECODE_TIMESTAMP_LTZ){
 			char s_tz_hour[3]="000";
@@ -2285,7 +2323,12 @@ static void get_attr_val(SV *sth,AV *list,imp_fbh_t *fbh, text  *name , OCITypeC
 
 	case OCI_TYPECODE_DATE :						 /* fixed length string*/
 		ub4_str_len = 200;
-		OCIDateToText_log_stat(fbh->imp_sth->errhp, (CONST OCIDate *) attr_value,&ub4_str_len,str_buf,status);
+		OCIDateToText_log_stat(fbh->imp_sth,
+                               fbh->imp_sth->errhp,
+                               (CONST OCIDate *) attr_value,
+                               &ub4_str_len,
+                               str_buf,
+                               status);
 		str_buf[ub4_str_len+1] = '\0';
 		av_push(list, newSVpv( (char *) str_buf,0));
 		break;
@@ -2373,6 +2416,7 @@ int
 get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObject *value, OCIType *instance_tdo, dvoid *obj_ind){
 
 	dTHX;
+    D_imp_sth(sth);
 	sword 		status;
 	dvoid		*element ;
 	dvoid		*attr_value;
@@ -2388,8 +2432,10 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 
 	 OCIType	*tdo = instance_tdo ? instance_tdo : obj->tdo;
 
-	if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
-		PerlIO_printf(DBILOGFP, " getting attributes of object named  %s with typecode=%s\n",obj->type_name,oci_typecode_name(obj->typecode));
+     if (DBIc_DBISTATE(imp_sth)->debug >= 5 || dbd_verbose >= 5 ) {
+         PerlIO_printf(DBIc_LOGPIO(imp_sth),
+                       " getting attributes of object named  %s with typecode=%s\n",
+                       obj->type_name,oci_typecode_name(obj->typecode));
 	}
 
 	switch (obj->typecode) {
@@ -2417,7 +2463,11 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 						return 0;
 					}
 
-					OCITypeByRef_log_stat(fbh->imp_sth->envhp,fbh->imp_sth->errhp,type_ref,&tdo,status);
+					OCITypeByRef_log_stat(fbh->imp_sth,
+                                          fbh->imp_sth->envhp,
+                                          fbh->imp_sth->errhp,
+                                          type_ref,
+                                          &tdo,status);
 
 					if (status != OCI_SUCCESS) {
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCITypeByRef");
@@ -2441,15 +2491,15 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 					}
 					if (tdo != obj->tdo) {
 						/* new subtyped -> get obj description */
-						if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
-							PerlIO_printf(DBILOGFP, " describe subtype (tdo=%p) of object type %s (tdo=%p)\n",(void*)tdo,base_obj->type_name,(void*)base_obj->tdo);
+						if (DBIc_DBISTATE(imp_sth)->debug >= 5 || dbd_verbose >= 5 ) {
+							PerlIO_printf(DBIc_LOGPIO(imp_sth), " describe subtype (tdo=%p) of object type %s (tdo=%p)\n",(void*)tdo,base_obj->type_name,(void*)base_obj->tdo);
 						}
 
 						Newz(1, obj->next_subtype, 1, fbh_obj_t);
 						obj->next_subtype->tdo = tdo;
 						if ( describe_obj_by_tdo(sth, fbh->imp_sth, obj->next_subtype, 0 /*unknown level there*/) ) {
 							obj = obj->next_subtype;
-							if (DBIS->debug >= 5 || dbd_verbose >= 5 ){
+							if (DBIc_DBISTATE(imp_sth)->debug >= 5 || dbd_verbose >= 5 ){
 								dump_struct(fbh->imp_sth,obj,0);
 							}
 						}
@@ -2458,8 +2508,8 @@ get_object (SV *sth, AV *list, imp_fbh_t *fbh,fbh_obj_t *base_obj,OCIComplexObje
 						}
 					}
 
-					if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
-						PerlIO_printf(DBILOGFP, " getting attributes of object subtype  %s\n",obj->type_name);
+					if (DBIc_DBISTATE(imp_sth)->debug >= 5 || dbd_verbose >= 5 ) {
+						PerlIO_printf(DBIc_LOGPIO(imp_sth), " getting attributes of object subtype  %s\n",obj->type_name);
 					}
 				}
 
@@ -2495,11 +2545,23 @@ if the object or any of its properties are NULL, This is one little line in a 20
 id only shows you examples with the C struct built in and only a single record. Nowhere does it say you can do it this way.
 */
 
-				status = OCIObjectGetAttr(fbh->imp_sth->envhp, fbh->imp_sth->errhp, value,
-										obj_ind, tdo,
-										(CONST oratext**)&fld->type_name, &fld->type_namel, 1,
-										(ub4 *)0, 0, &attr_null_status, &attr_null_struct,
-										&attr_value, &attr_tdo);
+				OCIObjectGetAttr_log_stat(
+                    fbh->imp_sth,
+                    fbh->imp_sth->envhp,
+                    fbh->imp_sth->errhp,
+                    value,                      /* instance */
+                    obj_ind,                    /* null_struct */
+                    tdo,                        /* tdo */
+                    (CONST oratext**)&fld->type_name, /* names */
+                    &fld->type_namel,                 /* lengths */
+                    1,                                /* name_count */
+                    (ub4 *)0,                         /* indexes */
+                    0,                                /* index_count */
+                    &attr_null_status,                /* attr_null_status */
+                    &attr_null_struct,                /* attr_null_struct */
+                    &attr_value,                      /* attr_value */
+                    &attr_tdo,                        /* attr_tdo */
+                    status);
 
 				if (status != OCI_SUCCESS) {
 					oci_error(sth, fbh->imp_sth->errhp, status, "OCIObjectGetAttr");
@@ -2538,8 +2600,12 @@ id only shows you examples with the C struct built in and only a single record. 
 				case OCI_TYPECODE_TABLE :					/* nested table */
 				case OCI_TYPECODE_VARRAY :					/* variable array */
 					fld = &obj->fields[0]; /*get the field */
-					OCIIterCreate_log_stat(fbh->imp_sth->envhp, fbh->imp_sth->errhp,
-						(OCIColl*) value, &itr,status);
+					OCIIterCreate_log_stat(fbh->imp_sth,
+                                           fbh->imp_sth->envhp,
+                                           fbh->imp_sth->errhp,
+                                           (OCIColl*) value,
+                                           &itr,
+                                           status);
 					if (status != OCI_SUCCESS) {
 						/*not really an error just no data
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterCreate");*/
@@ -2567,8 +2633,11 @@ id only shows you examples with the C struct built in and only a single record. 
 					}
 					/*nasty surprise here. one has to get rid of the iterator or you will leak memory
 					  not documented in oci or in demos */
-					OCIIterDelete_log_stat( fbh->imp_sth->envhp,
-							  fbh->imp_sth->errhp, &itr,status );
+					OCIIterDelete_log_stat(fbh->imp_sth,
+                                           fbh->imp_sth->envhp,
+                                           fbh->imp_sth->errhp,
+                                           &itr,
+                                           status );
 					if (status != OCI_SUCCESS) {
 						oci_error(sth, fbh->imp_sth->errhp, status, "OCIIterDelete");
 						return 0;
@@ -2597,8 +2666,12 @@ static int
 fetch_func_oci_object(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 {
 	dTHX;
-	if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
-		PerlIO_printf(DBILOGFP, " getting an embedded object named  %s with typecode=%s\n",fbh->obj->type_name,oci_typecode_name(fbh->obj->typecode));
+    D_imp_sth(sth);
+
+	if (DBIc_DBISTATE(imp_sth)->debug >= 4 || dbd_verbose >= 4 ) {
+		PerlIO_printf(DBIc_LOGPIO(imp_sth),
+                      " getting an embedded object named  %s with typecode=%s\n",
+                      fbh->obj->type_name,oci_typecode_name(fbh->obj->typecode));
 	}
 
 	if (fbh->obj->obj_ind && fbh->obj->obj_ind[0] == OCI_IND_NULL) {
@@ -2630,14 +2703,22 @@ fetch_clbk_lob(SV *sth, imp_fbh_t *fbh,SV *dest_sv){
 	ub4 actual_bufl=imp_sth->piece_size*(fb_ary->piece_count)+fb_ary->bufl;
 
 	if (fb_ary->piece_count==0){
-		if (DBIS->debug >= 6 || dbd_verbose >= 6 )
-			PerlIO_printf(DBILOGFP,"  Fetch persistent lob of %d (char/bytes) with callback in 1 piece of %d (Char/Bytes)\n",actual_bufl,fb_ary->bufl);
+		if (DBIc_DBISTATE(imp_sth)->debug >= 6 || dbd_verbose >= 6 )
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "  Fetch persistent lob of %d (char/bytes) with callback in 1 "
+                "piece of %d (Char/Bytes)\n",
+                actual_bufl,fb_ary->bufl);
 
 		memcpy(fb_ary->cb_abuf,fb_ary->abuf,fb_ary->bufl );
 
 	} else {
-			if (DBIS->debug >= 6 || dbd_verbose >= 6 )
-			PerlIO_printf(DBILOGFP,"  Fetch persistent lob of %d (Char/Bytes) with callback in %d piece(s) of %d (Char/Bytes) and one piece of %d (Char/Bytes)\n",actual_bufl,fb_ary->piece_count,fbh->piece_size,fb_ary->bufl);
+        if (DBIc_DBISTATE(imp_sth)->debug >= 6 || dbd_verbose >= 6 )
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "  Fetch persistent lob of %d (Char/Bytes) with callback in %d "
+                "piece(s) of %d (Char/Bytes) and one piece of %d (Char/Bytes)\n",
+                actual_bufl,fb_ary->piece_count,fbh->piece_size,fb_ary->bufl);
 
 		memcpy(fb_ary->cb_abuf+imp_sth->piece_size*(fb_ary->piece_count),fb_ary->abuf,fb_ary->bufl );
 	}
@@ -2671,21 +2752,22 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	ub2	rcode  = 0;
 	sword status = OCI_NEED_DATA;
 
-	if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
+	if (DBIc_DBISTATE(imp_sth)->debug >= 4 || dbd_verbose >= 4 ) {
 		PerlIO_printf(DBIc_LOGPIO(imp_sth), "in fetch_get_piece  \n");
 	}
 
 	while (status == OCI_NEED_DATA){
 
-			OCIStmtGetPieceInfo_log_stat(fbh->imp_sth->stmhp,
-										 fbh->imp_sth->errhp,
-										 &hdlptr,
-										 &hdltype,
-										 &in_out,
-										 &iter,
-										 &idx,
-										 &piece,
-										 status);
+        OCIStmtGetPieceInfo_log_stat(fbh->imp_sth,
+                                     fbh->imp_sth->stmhp,
+                                     fbh->imp_sth->errhp,
+                                     &hdlptr,
+                                     &hdltype,
+                                     &in_out,
+                                     &iter,
+                                     &idx,
+                                     &piece,
+                                     status);
 
 		/* This is how this works
 		First we get the piece Info above
@@ -2700,7 +2782,8 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 		*/
 		if ( hdlptr==fbh->defnp){
 
-			OCIStmtSetPieceInfo_log_stat(fbh->defnp,
+			OCIStmtSetPieceInfo_log_stat(fbh->imp_sth,
+                                         fbh->defnp,
 										 fbh->imp_sth->errhp,
 										 fb_ary->abuf,
 										 &buflen,
@@ -2709,7 +2792,7 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 										 &rcode,status);
 
 
-				OCIStmtFetch_log_stat(fbh->imp_sth->stmhp,fbh->imp_sth->errhp,1,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
+            OCIStmtFetch_log_stat(fbh->imp_sth, fbh->imp_sth->stmhp,fbh->imp_sth->errhp,1,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
 
 
 			if (status==OCI_SUCCESS_WITH_INFO && !DBIc_has(fbh->imp_sth,DBIcf_LongTruncOk)){
@@ -2727,7 +2810,7 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 	}
 
 
-	if (DBIS->debug >= 6 || dbd_verbose >= 6 ){
+	if (DBIc_DBISTATE(imp_sth)->debug >= 6 || dbd_verbose >= 6 ){
 		if (fb_ary->piece_count==1){
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
@@ -2815,6 +2898,8 @@ empty_oci_object(fbh_obj_t *obj){
 static void
 fetch_cleanup_pres_lobs(SV *sth,imp_fbh_t *fbh){
 	dTHX;
+    D_imp_sth(sth);
+
 	fb_ary_t *fb_ary = fbh->fb_ary;
 
 	if( sth ) { /* For GCC not to warn on unused parameter*/  }
@@ -2824,8 +2909,8 @@ fetch_cleanup_pres_lobs(SV *sth,imp_fbh_t *fbh){
 	fb_ary->cb_bufl=fbh->disize; /*reset this back to the max size for the fetch*/
 	memset( fb_ary->cb_abuf, '\0', fbh->disize ); /*clean out the call back buffer*/
 
- 	if (DBIS->debug >= 5 || dbd_verbose >= 5 )
-		PerlIO_printf(DBILOGFP,"  fetch_cleanup_pres_lobs \n");
+ 	if (DBIc_DBISTATE(imp_sth)->debug >= 5 || dbd_verbose >= 5 )
+		PerlIO_printf(DBIc_LOGPIO(imp_sth),"  fetch_cleanup_pres_lobs \n");
 
 	return;
 }
@@ -2833,6 +2918,7 @@ fetch_cleanup_pres_lobs(SV *sth,imp_fbh_t *fbh){
 static void
 fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 	dTHX;
+    D_imp_sth(sth);
 
 	if( sth ) { /* For GCC not to warn on unused parameter*/  }
 
@@ -2842,8 +2928,8 @@ fetch_cleanup_oci_object(SV *sth, imp_fbh_t *fbh){
 		}
 	}
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,"  fetch_cleanup_oci_object \n");
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
+        PerlIO_printf(DBIc_LOGPIO(imp_sth),"  fetch_cleanup_oci_object \n");
 	return;
 }
 
@@ -2856,7 +2942,7 @@ void rs_array_init(imp_sth_t *imp_sth)
 	imp_sth->rs_fetch_count		=0;
 	imp_sth->rs_array_status	=OCI_SUCCESS;
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "	rs_array_init:imp_sth->rs_array_size=%d, rs_array_idx=%d, "
@@ -2950,7 +3036,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 		/* is prefetch_rows are greater than the RowCahceSize then use prefetch_rows*/
 	}
 
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	OCIAttrSet_log_stat(imp_sth, imp_sth->stmhp, OCI_HTYPE_STMT,
 						&prefetch_mem,  sizeof(prefetch_mem), OCI_ATTR_PREFETCH_MEMORY,
 						imp_sth->errhp, status);
 
@@ -2960,7 +3046,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 		++num_errors;
 	}
 
-	OCIAttrSet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT,
+	OCIAttrSet_log_stat(imp_sth, imp_sth->stmhp, OCI_HTYPE_STMT,
 					&prefetch_rows, sizeof(prefetch_rows), OCI_ATTR_PREFETCH_ROWS,
 				imp_sth->errhp, status);
 
@@ -2988,7 +3074,7 @@ sth_set_row_cache(SV *h, imp_sth_t *imp_sth, int max_cache_rows, int num_fields,
 
 
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 || oci_warn) /*will also display if oci_warn is on*/
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 || oci_warn) /*will also display if oci_warn is on*/
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
 			"	cache settings DB Handle RowCacheSize=%d,Statement Handle "
@@ -3011,7 +3097,7 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 	sword status;
 	OCIRef *type_ref;
 
-	if (DBIS->debug >= 5 || dbd_verbose >= 5 ) {
+	if (DBIc_DBISTATE(imp_sth)->debug >= 5 || dbd_verbose >= 5 ) {
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "At level=%d in description an embedded object \n",level);
@@ -3026,7 +3112,12 @@ describe_obj(SV *sth,imp_sth_t *imp_sth,OCIParam *parm,fbh_obj_t *obj,int level 
 		return 0;
 	}
 
-	OCITypeByRef_log_stat(imp_sth->envhp,imp_sth->errhp,type_ref,&obj->tdo,status);
+	OCITypeByRef_log_stat(imp_sth,
+                          imp_sth->envhp,
+                          imp_sth->errhp,
+                          type_ref,
+                          &obj->tdo,
+                          status);
 
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCITypeByRef");
@@ -3044,7 +3135,7 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 	ub4  type_namel, schema_namel;
 
 
-	OCIDescribeAny_log_stat(imp_sth->svchp,imp_sth->errhp,obj->tdo,(ub4)0,OCI_OTYPE_PTR,(ub1)1,OCI_PTYPE_TYPE,imp_sth->dschp,status);
+	OCIDescribeAny_log_stat(imp_sth, imp_sth->svchp,imp_sth->errhp,obj->tdo,(ub4)0,OCI_OTYPE_PTR,(ub1)1,OCI_PTYPE_TYPE,imp_sth->dschp,status);
 	/*we have the Actual TDO  so lets see what it is made up of by a describe*/
 
 	if (status != OCI_SUCCESS) {
@@ -3090,7 +3181,7 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 		return 0;
 	}
 
-	if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
+	if (DBIc_DBISTATE(imp_sth)->debug >= 6 || dbd_verbose >= 6 ) {
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "Getting the properties of object named =%s at level %d typecode=%d\n",
@@ -3100,7 +3191,7 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 	if (obj->typecode == OCI_TYPECODE_OBJECT || obj->typecode == OCI_TYPECODE_OPAQUE){
 		OCIParam *list_attr= (OCIParam *) 0;
 		ub2	  pos;
-		if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
+		if (DBIc_DBISTATE(imp_sth)->debug >= 6 || dbd_verbose >= 6 ) {
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "Object named =%s at level %d is an Object\n",
@@ -3115,7 +3206,7 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 		}
 		/*we will need a reff to the TDO for the pin operation*/
 
-		OCIObjectPin_log_stat(imp_sth->envhp,imp_sth->errhp, obj->obj_ref,(dvoid  **)&obj->obj_type,status);
+		OCIObjectPin_log_stat(imp_sth, imp_sth->envhp,imp_sth->errhp, obj->obj_ref,(dvoid  **)&obj->obj_type,status);
 
 		if (status != OCI_SUCCESS) {
 			oci_error(sth,imp_sth->errhp, status, "OCIObjectPin");
@@ -3152,7 +3243,7 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 			OCIParam *parmdf= (OCIParam *) 0;
 			fbh_obj_t *fld = &obj->fields[pos-1]; /*get the field holder*/
 
-			OCIParamGet_log_stat((dvoid *) list_attr,(ub4) OCI_DTYPE_PARAM, imp_sth->errhp,(dvoid *)&parmdf, (ub4) pos ,status);
+			OCIParamGet_log_stat(imp_sth, (dvoid *) list_attr,(ub4) OCI_DTYPE_PARAM, imp_sth->errhp,(dvoid *)&parmdf, (ub4) pos ,status);
 
 			if (status != OCI_SUCCESS) {
 				oci_error(sth,imp_sth->errhp, status, "OCIParamGet");
@@ -3175,7 +3266,7 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 				return 0;
 			}
 
-			if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
+			if (DBIc_DBISTATE(imp_sth)->debug >= 6 || dbd_verbose >= 6 ) {
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
                     "Getting property #%d, named=%s and its typecode is %d \n",
@@ -3192,7 +3283,7 @@ describe_obj_by_tdo(SV *sth,imp_sth_t *imp_sth,fbh_obj_t *obj,ub2 level ) {
 	} else {
 		/*well this is an embedded table or varray of some form so find out what is in it*/
 
-		if (DBIS->debug >= 6 || dbd_verbose >= 6 ) {
+		if (DBIc_DBISTATE(imp_sth)->debug >= 6 || dbd_verbose >= 6 ) {
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "Object named =%s at level %d is an Varray or Table\n",
@@ -3315,7 +3406,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 
 	if (imp_sth->stmt_type != OCI_STMT_SELECT) { /* XXX DISABLED, see num_fields test below */
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "	dbd_describe skipped for %s\n",
@@ -3324,7 +3415,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		return 1;
 	}
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "	dbd_describe %s (%s, lb %lu)...\n",
@@ -3335,7 +3426,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 	/* sth is not 'active' (executing) then we need an explicit describe.	*/
 	if ( !DBIc_ACTIVE(imp_sth) ) {
 
-		OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
+		OCIStmtExecute_log_stat(imp_sth, imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
 			0, 0, 0, 0, OCI_DESCRIBE_ONLY, status);
 		if (status != OCI_SUCCESS) {
 			oci_error(h, imp_sth->errhp, status,
@@ -3350,7 +3441,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		return 0;
 	}
 	if (num_fields == 0) {
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "	dbd_describe skipped for %s (no fields returned)\n",
@@ -3374,7 +3465,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fbh->field_num	= i;
 		fbh->define_mode = OCI_DEFAULT;
 
-		OCIParamGet_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, imp_sth->errhp,
+		OCIParamGet_log_stat(imp_sth, imp_sth->stmhp, OCI_HTYPE_STMT, imp_sth->errhp,
 				(dvoid**)&fbh->parmdp, (ub4)i, status);
 
 		if (status != OCI_SUCCESS) {
@@ -3413,7 +3504,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		fbh->name	= SvPVX(fbh->name_sv);
 		fbh->ftype	= 5;	/* default: return as null terminated string */
 
-		if (DBIS->debug >= 4 || dbd_verbose >= 4 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 4 || dbd_verbose >= 4 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "Describe col #%d type=%d(%s)\n",
@@ -3555,7 +3646,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				fbh->fetch_cleanup = fetch_cleanup_oci_object; /* clean up any AV  from the fetch*/
 				fbh->desc_t = SQLT_NTY;
 				if (!imp_sth->dschp){
-					OCIHandleAlloc_ok(imp_sth->envhp, &imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
+					OCIHandleAlloc_ok(imp_sth, imp_sth->envhp, &imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 				 	if (status != OCI_SUCCESS) {
 						oci_error(h,imp_sth->errhp, status, "OCIHandleAlloc");
 						++num_errors;
@@ -3636,7 +3727,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 					fbh->bless  = "OCILobLocatorPtr";
 					fbh->desc_t = OCI_DTYPE_LOB;
-					OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
+					OCIDescriptorAlloc_ok(imp_sth, imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
 
 
 				}
@@ -3645,7 +3736,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 #ifdef OCI_DTYPE_REF
 			case	111:				/* REF		*/
-				fbh_setup_getrefpv(fbh, OCI_DTYPE_REF, "OCIRefPtr");
+              fbh_setup_getrefpv(imp_sth, fbh, OCI_DTYPE_REF, "OCIRefPtr");
 				break;
 #endif
 
@@ -3675,14 +3766,14 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				fbh->ftype  = fbh->dbtype;
 				fbh->disize = fbh->dbsize;
 				p = "Field %d has an Oracle type (%d) which is not explicitly supported%s";
-				if (DBIS->debug >= 1 || dbd_verbose >= 3 )
+				if (DBIc_DBISTATE(imp_sth)->debug >= 1 || dbd_verbose >= 3 )
 					PerlIO_printf(DBIc_LOGPIO(imp_sth), p, i, fbh->dbtype, "\n");
 				if (PL_dowarn)
 					warn(p, i, fbh->dbtype, "");
 				break;
 		}
 
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			  PerlIO_printf(
                   DBIc_LOGPIO(imp_sth),
                   "Described col %2d: dbtype %d(%s), scale %d, prec %d, nullok %d, "
@@ -3705,8 +3796,8 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 		est_width += avg_width;
 
-		if (DBIS->debug >= 2 || dbd_verbose >= 3 )
-			dbd_fbh_dump(fbh, (int)i, 0);
+		if (DBIc_DBISTATE(imp_sth)->debug >= 2 || dbd_verbose >= 3 )
+			dbd_fbh_dump(imp_sth, fbh, (int)i, 0);
 
 	}/* end define of filed struct[i] fbh*/
 
@@ -3745,12 +3836,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 		}
 
 		if (fbh->ftype == ORA_RSET) { /* RSET */
-			OCIHandleAlloc_ok(imp_sth->envhp,
+			OCIHandleAlloc_ok(imp_sth, imp_sth->envhp,
 			(dvoid*)&((OCIStmt **)fb_ary->abuf)[0],
 			 OCI_HTYPE_STMT, status);
 		}
 
-		OCIDefineByPos_log_stat(imp_sth->stmhp,
+		OCIDefineByPos_log_stat(imp_sth, imp_sth->stmhp,
 			&fbh->defnp,
 			imp_sth->errhp,
 			(ub4) i,
@@ -3766,11 +3857,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 		if (fbh->clbk_lob){
 			 /* use a dynamic callback for persistent binary and char lobs*/
-			OCIDefineDynamic_log_stat(fbh->defnp,imp_sth->errhp,(dvoid *) fbh,status);
+			OCIDefineDynamic_log_stat(imp_sth, fbh->defnp,imp_sth->errhp,(dvoid *) fbh,status);
 		}
 
 		if (fbh->ftype == 108)  { /* Embedded object bind it differently*/
-			if (DBIS->debug >= 5 || dbd_verbose >= 5 ){
+			if (DBIc_DBISTATE(imp_sth)->debug >= 5 || dbd_verbose >= 5 ){
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
                     "Field #%d is a  object or colection of some sort. "
@@ -3782,10 +3873,10 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 				++num_errors;
 			}
 
-			if (DBIS->debug >= 5 || dbd_verbose >= 5 ){
+			if (DBIc_DBISTATE(imp_sth)->debug >= 5 || dbd_verbose >= 5 ){
 				dump_struct(imp_sth,fbh->obj,0);
 			}
-			OCIDefineObject_log_stat(fbh->defnp,imp_sth->errhp,fbh->obj->tdo,(dvoid**)&fbh->obj->obj_value,(dvoid**)&fbh->obj->obj_ind,status);
+			OCIDefineObject_log_stat(imp_sth,fbh->defnp,imp_sth->errhp,fbh->obj->tdo,(dvoid**)&fbh->obj->obj_value,(dvoid**)&fbh->obj->obj_ind,status);
 
 			if (status != OCI_SUCCESS) {
 				oci_error(h,imp_sth->errhp, status, "OCIDefineObject");
@@ -3803,12 +3894,12 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 #ifdef OCI_ATTR_CHARSET_FORM
 		if ( (fbh->dbtype == 1) && fbh->csform ) {
 		/* csform may be 0 when talking to Oracle 8.0 database*/
-			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+			if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
                     "	calling OCIAttrSet OCI_ATTR_CHARSET_FORM with csform=%d (%s)\n",
                     fbh->csform,oci_csform_name(fbh->csform) );
-				OCIAttrSet_log_stat( fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform,
+            OCIAttrSet_log_stat(imp_sth, fbh->defnp, (ub4) OCI_HTYPE_DEFINE, (dvoid *) &fbh->csform,
 						 (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status );
 			if (status != OCI_SUCCESS) {
 				oci_error(h, imp_sth->errhp, status, "OCIAttrSet OCI_ATTR_CHARSET_FORM");
@@ -3819,7 +3910,7 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
 
 	}
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
 			"	dbd_describe'd %d columns (row bytes: %d max, %d est avg, cache: %d)\n",
@@ -3864,7 +3955,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		status = OCI_SUCCESS;
 	}
 	else {
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 ){
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 ){
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "	dbd_st_fetch %d fields...\n", DBIc_NUM_FIELDS(imp_sth));
@@ -3874,7 +3965,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			if (imp_sth->exe_mode!=OCI_STMT_SCROLLABLE_READONLY)
 				croak ("attempt to use a scrollable cursor without first setting ora_exe_mode to OCI_STMT_SCROLLABLE_READONLY\n") ;
 
-			if (DBIS->debug >= 4 || dbd_verbose >= 4 )
+			if (DBIc_DBISTATE(imp_sth)->debug >= 4 || dbd_verbose >= 4 )
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
                     "	Scrolling Fetch, postion before fetch=%d, "
@@ -3882,12 +3973,12 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 					imp_sth->fetch_position, oci_fetch_options(imp_sth->fetch_orient),
                     imp_sth->fetch_offset);
 
-			OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1, imp_sth->fetch_orient,imp_sth->fetch_offset, status);
+			OCIStmtFetch_log_stat(imp_sth, imp_sth->stmhp, imp_sth->errhp,1, imp_sth->fetch_orient,imp_sth->fetch_offset, status);
 				/*this will work without a round trip so might as well open it up for all statments handles*/
 				/* defualt and OCI_FETCH_NEXT are the same so this avoids miscaluation on the next value*/
 			OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->fetch_position, 0, OCI_ATTR_CURRENT_POSITION, status);
 
-			if (DBIS->debug >= 4 || dbd_verbose >= 4 )
+			if (DBIc_DBISTATE(imp_sth)->debug >= 4 || dbd_verbose >= 4 )
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
                     "	Scrolling Fetch, postion after fetch=%d\n",
@@ -3896,7 +3987,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		else {
 
 			if (imp_sth->row_cache_off){ /*Do not use array fetch or local cache */
-				OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp,1,(ub2)OCI_FETCH_NEXT, OCI_DEFAULT, status);
+				OCIStmtFetch_log_stat(imp_sth, imp_sth->stmhp, imp_sth->errhp,1,(ub2)OCI_FETCH_NEXT, OCI_DEFAULT, status);
 				imp_sth->rs_fetch_count++;
 				imp_sth->rs_array_idx=0;
 
@@ -3908,7 +3999,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 				if (imp_sth->rs_array_num_rows<=imp_sth->rs_array_idx && (imp_sth->rs_array_status==OCI_SUCCESS || imp_sth->rs_array_status==OCI_SUCCESS_WITH_INFO)) {
 /* 			PerlIO_printf(DBIc_LOGPIO(imp_sth), "	dbd_st_fetch fields...b\n");*/
 
-					OCIStmtFetch_log_stat(imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
+					OCIStmtFetch_log_stat(imp_sth, imp_sth->stmhp,imp_sth->errhp,imp_sth->rs_array_size,(ub2)OCI_FETCH_NEXT,OCI_DEFAULT,status);
 
 					imp_sth->rs_array_status=status;
 					imp_sth->rs_fetch_count++;
@@ -3920,7 +4011,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 					imp_dbh->RowsInCache =imp_sth->rs_array_size;
 					imp_sth->RowsInCache =imp_sth->rs_array_size;
 
-					if (DBIS->debug >= 4 || dbd_verbose >= 4 || oci_warn)
+					if (DBIc_DBISTATE(imp_sth)->debug >= 4 || dbd_verbose >= 4 || oci_warn)
 						PerlIO_printf(
                             DBIc_LOGPIO(imp_sth),
                             "...Fetched %d rows\n",imp_sth->rs_array_num_rows);
@@ -3946,7 +4037,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		if (status == OCI_NO_DATA) {
 			dTHR; 			/* for DBIc_ACTIVE_off	*/
 			DBIc_ACTIVE_off(imp_sth);	/* eg finish		*/
-			if (DBIS->debug >= 3 || dbd_verbose >= 3 || oci_warn)
+			if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 || oci_warn)
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
                     "	dbd_st_fetch no-more-data, fetch count=%d\n",
@@ -3968,9 +4059,9 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 	/* per-field rcode value be dealt with as we fetch the data	*/
 	}
 
-	av = DBIS->get_fbav(imp_sth);
+	av = DBIc_DBISTATE(imp_sth)->get_fbav(imp_sth);
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 ) {
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 ) {
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "	dbd_st_fetched %d fields with status of %d(%s)\n",
@@ -3988,7 +4079,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 		SV *sv 				= AvARRAY(av)[i]; /* Note: we (re)use the SV in the AV	*/;
 
 
-		if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
+		if (DBIc_DBISTATE(imp_sth)->debug >= 4 || dbd_verbose >= 4 ) {
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "	field #%d with rc=%d(%s)\n",i+1,rc,oci_col_return_codes(rc));
@@ -4110,7 +4201,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			oci_error(sth, imp_sth->errhp, OCI_ERROR, buf);
 		}
 
-		if (DBIS->debug >= 5 || dbd_verbose >= 5 ){
+		if (DBIc_DBISTATE(imp_sth)->debug >= 5 || dbd_verbose >= 5 ){
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "\n		%p (field=%d): %s\n",	 av, i,neatsvpv(sv,10));
@@ -4140,21 +4231,21 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 	}
 #ifdef ORA_OCI_112
     if (imp_dbh->using_drcp){
-		OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->authp, OCI_HTYPE_SESSION,
 			*uidp, strlen(*uidp),
 			(ub4) OCI_ATTR_USERNAME, imp_dbh->errhp, status);
 
-		OCIAttrSet_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->authp, OCI_HTYPE_SESSION,
 			(strlen(*pwdp)) ? *pwdp : NULL, strlen(*pwdp),
 			(ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
 	}
 	else {
 #endif
-		OCIAttrSet_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp, OCI_HTYPE_SESSION,
 				*uidp, strlen(*uidp),
 				(ub4) OCI_ATTR_USERNAME, imp_dbh->errhp, status);
 
-		OCIAttrSet_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp, OCI_HTYPE_SESSION,
 				(strlen(*pwdp)) ? *pwdp : NULL, strlen(*pwdp),
 			(ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
 #ifdef ORA_OCI_112
@@ -4171,9 +4262,9 @@ ora_db_reauthenticate(SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd)
 	sword status;
 	/* XXX should possibly create new session before ending the old so	*/
 	/* that if the new one can't be created, the old will still work.	*/
-	OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp,
+	OCISessionEnd_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp,
 			imp_dbh->seshp, OCI_DEFAULT, status); /* XXX check status here?*/
-	OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
+	OCISessionBegin_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
 			 ora_parse_uid(imp_dbh, &uid, &pwd), (ub4) OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
@@ -4317,14 +4408,14 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		"Unable to parse table name for LOB refetch");
 
  	if (!imp_sth->dschp){
-			OCIHandleAlloc_ok(imp_sth->envhp, &imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
+        OCIHandleAlloc_ok(imp_sth, imp_sth->envhp, &imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 			if (status != OCI_SUCCESS) {
 			oci_error(sth,imp_sth->errhp, status, "OCIHandleAlloc");
 		}
 
 	 }
 
-	OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
+	OCIDescribeAny_log_stat(imp_sth, imp_sth->svchp, errhp, tablename, strlen(tablename),
 		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_SYN, imp_sth->dschp, status);
 
 	if (status == OCI_SUCCESS) { /* There is a synonym, get the schema */
@@ -4335,14 +4426,14 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		strncpy(syn_name,tablename,strlen(tablename));
 		/* Put the synonym name here for later user */
 
-		OCIAttrGet_log_stat(imp_sth->dschp,  OCI_HTYPE_DESCRIBE,
+		OCIAttrGet_log_stat(imp_sth, imp_sth->dschp,  OCI_HTYPE_DESCRIBE,
 				&parmhp, 0, OCI_ATTR_PARAM, errhp, status);
 
-		OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
+		OCIAttrGet_log_stat(imp_sth, parmhp, OCI_DTYPE_PARAM,
 				&syn_schema, &syn_schema_len, OCI_ATTR_SCHEMA_NAME, errhp, status);
 
 
-		OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
+		OCIAttrGet_log_stat(imp_sth, parmhp, OCI_DTYPE_PARAM,
 				&tablename, &tn_len, OCI_ATTR_NAME, errhp, status);
 
 		strncpy(new_tablename,syn_schema,syn_schema_len);
@@ -4352,7 +4443,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
 		tablename=new_tablename;
 
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "		lob refetch using a synonym named=%s for %s \n",
@@ -4360,38 +4451,38 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
 
 	}
-	OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
+	OCIDescribeAny_log_stat(imp_sth, imp_sth->svchp, errhp, tablename, strlen(tablename),
 		(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_TABLE, imp_sth->dschp, status);
 
 	if (status != OCI_SUCCESS) {
 	/* XXX this OCI_PTYPE_TABLE->OCI_PTYPE_VIEW fallback should actually be	*/
 	/* a loop that includes synonyms etc */
-		OCIDescribeAny_log_stat(imp_sth->svchp, errhp, tablename, strlen(tablename),
+		OCIDescribeAny_log_stat(imp_sth, imp_sth->svchp, errhp, tablename, strlen(tablename),
 			(ub1)OCI_OTYPE_NAME, (ub1)1, (ub1)OCI_PTYPE_VIEW, imp_sth->dschp, status);
 		if (status != OCI_SUCCESS) {
-			OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
+			OCIHandleFree_log_stat(imp_sth, imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 			return oci_error(sth, errhp, status, "OCIDescribeAny(view)/LOB refetch");
 		}
 	}
 
-	OCIAttrGet_log_stat(imp_sth->dschp,  OCI_HTYPE_DESCRIBE,
+	OCIAttrGet_log_stat(imp_sth, imp_sth->dschp,  OCI_HTYPE_DESCRIBE,
 				&parmhp, 0, OCI_ATTR_PARAM, errhp, status);
 	if (!status ) {
-		OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
+		OCIAttrGet_log_stat(imp_sth, parmhp, OCI_DTYPE_PARAM,
 				&numcols, 0, OCI_ATTR_NUM_COLS, errhp, status);
 	}
 
 	if (!status ) {
-		OCIAttrGet_log_stat(parmhp, OCI_DTYPE_PARAM,
+		OCIAttrGet_log_stat(imp_sth, parmhp, OCI_DTYPE_PARAM,
 				&collisthd, 0, OCI_ATTR_LIST_COLUMNS, errhp, status);
 	}
 
 	if (status != OCI_SUCCESS) {
-		OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
+		OCIHandleFree_log_stat(imp_sth, imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 		return oci_error(sth, errhp, status, "OCIDescribeAny/OCIAttrGet/LOB refetch");
 	}
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
             "		lob refetch from table %s, %d columns:\n",
@@ -4401,21 +4492,21 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		ub2 col_dbtype;
 		char *col_name;
 		ub4  col_name_len;
-		OCIParamGet_log_stat(collisthd, OCI_DTYPE_PARAM, errhp, (dvoid**)&colhd, i, status);
+		OCIParamGet_log_stat(imp_sth, collisthd, OCI_DTYPE_PARAM, errhp, (dvoid**)&colhd, i, status);
 		if (status)
 			break;
 
-		OCIAttrGet_log_stat(colhd, OCI_DTYPE_PARAM, &col_dbtype, 0,
+		OCIAttrGet_log_stat(imp_sth, colhd, OCI_DTYPE_PARAM, &col_dbtype, 0,
 							OCI_ATTR_DATA_TYPE, errhp, status);
 		if (status)
 			break;
 
-		OCIAttrGet_log_stat(colhd, OCI_DTYPE_PARAM, &col_name, &col_name_len,
+		OCIAttrGet_log_stat(imp_sth, colhd, OCI_DTYPE_PARAM, &col_name, &col_name_len,
 				OCI_ATTR_NAME, errhp, status);
 		if (status)
 			break;
 
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
                 "		lob refetch table col %d: '%.*s' otype %d\n",
@@ -4435,17 +4526,17 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 
 		(void)SvIOK_on(sv);	/* "what a wonderful hack!" */
 		(void)hv_store(lob_cols_hv, col_name,col_name_len, sv,0);
-		OCIDescriptorFree(colhd, OCI_DTYPE_PARAM);
+		OCIDescriptorFree_log(imp_sth, colhd, OCI_DTYPE_PARAM);
 		colhd = NULL;
 	}
 
 	if (colhd)
-		OCIDescriptorFree(colhd, OCI_DTYPE_PARAM);
+		OCIDescriptorFree_log(imp_sth, colhd, OCI_DTYPE_PARAM);
 
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, errhp, status,
 			"OCIDescribeAny/OCIParamGet/OCIAttrGet/LOB refetch");
-		OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
+		OCIHandleFree_log_stat(imp_sth, imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 		return 0;
 	}
 
@@ -4498,7 +4589,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 					while( (sv_other = hv_iternextsv(lob_cols_hv, &p_other, &i)) != NULL ) {
 						if (phs->ftype != SvIV(sv_other))
 							continue;
-						if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+						if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 							PerlIO_printf(
                                 DBIc_LOGPIO(imp_sth),
                                 "		both %s and %s have type %d - ambiguous\n",
@@ -4517,7 +4608,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 			(SvCUR(sql_select)>7)?", ":"", p, &phs->name[1]);
 			sv_catpv(sql_select, sql_field);
 
-			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+			if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
                     "		lob refetch %s param: otype %d, matched field '%s' %s(%s)\n",
@@ -4530,14 +4621,14 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 					fbh->dbtype = phs->ftype;
 					fbh->disize = 99;
 					fbh->desc_t = OCI_DTYPE_LOB;
-					OCIDescriptorAlloc_ok(imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
+					OCIDescriptorAlloc_ok(imp_sth, imp_sth->envhp, &fbh->desc_h, fbh->desc_t);
 
 			break;	/* we're done with this placeholder now	*/
 
 		}
 		if (!matched) {
 			++unmatched_params;
-			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+			if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
 					"		lob refetch %s param: otype %d, UNMATCHED\n",
@@ -4555,7 +4646,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	sv_catpv(sql_select, " from ");
 	sv_catpv(sql_select, tablename);
 	sv_catpv(sql_select, " where rowid = :rid for update"); /* get row with lock */
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
 			"		lob refetch sql: %s\n", SvPVX(sql_select));
@@ -4564,8 +4655,8 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	lr->rowid  = NULL;
 	lr->parmdp_tmp = NULL;
 	lr->parmdp_lob = NULL;
-	OCIHandleAlloc_ok(imp_sth->envhp, &lr->stmthp, OCI_HTYPE_STMT, status);
-	OCIStmtPrepare_log_stat(lr->stmthp, errhp,
+	OCIHandleAlloc_ok(imp_sth, imp_sth->envhp, &lr->stmthp, OCI_HTYPE_STMT, status);
+	OCIStmtPrepare_log_stat(imp_sth, lr->stmthp, errhp,
 		(text*)SvPVX(sql_select), SvCUR(sql_select), OCI_NTV_SYNTAX,
 			OCI_DEFAULT, status);
 
@@ -4576,11 +4667,11 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	}
 
 	/* bind the rowid input */
-	OCIDescriptorAlloc_ok(imp_sth->envhp, &lr->rowid, OCI_DTYPE_ROWID);
-	OCIBindByName_log_stat(lr->stmthp, &lr->bindhp, errhp, (text*)":rid", 4,
+	OCIDescriptorAlloc_ok(imp_sth, imp_sth->envhp, &lr->rowid, OCI_DTYPE_ROWID);
+	OCIBindByName_log_stat(imp_sth, lr->stmthp, &lr->bindhp, errhp, (text*)":rid", 4,
 		&lr->rowid, sizeof(OCIRowid*), SQLT_RDD, 0,0,0,0,0, OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS) {
-		OCIDescriptorFree(lr->rowid, OCI_DTYPE_ROWID);
+		OCIDescriptorFree_log(imp_sth, lr->rowid, OCI_DTYPE_ROWID);
 		OCIHandleFree(lr->stmthp, OCI_HTYPE_STMT);
 		Safefree(lr);
 		return oci_error(sth, errhp, status, "OCIBindByPos/LOB refetch");
@@ -4596,17 +4687,17 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 			croak("panic: LOB refetch for '%s' param (%ld) - name not found",fbh->name,(unsigned long)i+1);
 		phs = (phs_t*)(void*)SvPVX(*phs_svp);
 		fbh->special = phs;
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
 				"		lob refetch %d for '%s' param: ftype %d setup\n",
 		(int)i+1,fbh->name, fbh->dbtype);
 		fbh->fb_ary = fb_ary_alloc(fbh->disize, 1);
-		OCIDefineByPos_log_stat(lr->stmthp, &defnp, errhp, (ub4)i+1,
+		OCIDefineByPos_log_stat(imp_sth, lr->stmthp, &defnp, errhp, (ub4)i+1,
 			&fbh->desc_h, -1, (ub2)fbh->ftype,
 		fbh->fb_ary->aindp, 0, fbh->fb_ary->arcode, OCI_DEFAULT, status);
 		if (status != OCI_SUCCESS) {
-			OCIDescriptorFree(lr->rowid, OCI_DTYPE_ROWID);
+			OCIDescriptorFree_log(imp_sth, lr->rowid, OCI_DTYPE_ROWID);
 			OCIHandleFree(lr->stmthp, OCI_HTYPE_STMT);
 			Safefree(lr);
 			fb_ary_free(fbh->fb_ary);
@@ -4615,7 +4706,7 @@ init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 		}
 	}
 
-	OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
+	OCIHandleFree_log_stat(imp_sth, imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 
 	imp_sth->lob_refetch = lr;	/* structure copy */
 	return 1;
@@ -4652,7 +4743,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 
 
 				if (phs->desc_h && !phs->is_inout){
-						OCILobFreeTemporary_log_stat(imp_sth->svchp, imp_sth->errhp, phs->desc_h, status);
+                    OCILobFreeTemporary_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp, phs->desc_h, status);
 
 
 				/*	boolean lobEmpty=1;*/
@@ -4682,7 +4773,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 	if (status != OCI_SUCCESS)
 		return oci_error(sth, errhp, status, "OCIAttrGet OCI_ATTR_ROWID /LOB refetch");
 
-	OCIStmtExecute_log_stat(imp_sth->svchp, lr->stmthp, errhp,1, 0, NULL, NULL, OCI_DEFAULT, status);	/* execute and fetch */
+	OCIStmtExecute_log_stat(imp_sth, imp_sth->svchp, lr->stmthp, errhp,1, 0, NULL, NULL, OCI_DEFAULT, status);	/* execute and fetch */
 
 	if (status != OCI_SUCCESS)
 		return oci_error(sth, errhp, status,
@@ -4706,12 +4797,22 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 			if( ! fbh->csid ) {
 				ub1 csform = SQLCS_IMPLICIT;
 				ub2 csid = 0;
-				OCILobCharSetForm_log_stat( imp_sth->envhp, errhp, (OCILobLocator*)fbh->desc_h, &csform, status );
+				OCILobCharSetForm_log_stat(imp_sth,
+                                           imp_sth->envhp,
+                                           errhp,
+                                           (OCILobLocator*)fbh->desc_h,
+                                           &csform,
+                                           status );
 				if (status != OCI_SUCCESS)
 					return oci_error(sth, errhp, status, "OCILobCharSetForm");
 #ifdef OCI_ATTR_CHARSET_ID
 		/* Effectively only used so AL32UTF8 works properly */
-				OCILobCharSetId_log_stat( imp_sth->envhp, errhp, (OCILobLocator*)fbh->desc_h, &csid, status );
+				OCILobCharSetId_log_stat(imp_sth,
+                                         imp_sth->envhp,
+                                         errhp,
+                                         (OCILobLocator*)fbh->desc_h,
+                                         &csid,
+                                         status );
 				if (status != OCI_SUCCESS)
 					return oci_error(sth, errhp, status, "OCILobCharSetId");
 #endif /* OCI_ATTR_CHARSET_ID */
@@ -4721,13 +4822,13 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 				fbh->csform = csform;
 			}
 
-			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+			if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
                     "	  calling OCILobWrite fbh->csid=%d fbh->csform=%d amtp=%d\n",
 					fbh->csid, fbh->csform, amtp );
 
-			OCILobWrite_log_stat(imp_sth->svchp, errhp,
+			OCILobWrite_log_stat(imp_sth, imp_sth->svchp, errhp,
 				(OCILobLocator*)fbh->desc_h, &amtp, 1, SvPVX(phs->sv), amtp, OCI_ONE_PIECE,
 				0,0, fbh->csid ,fbh->csform, status);
 
@@ -4736,7 +4837,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 			}
 
 		} else {			/* amtp==0 so truncate LOB to zero length */
-			OCILobTrim_log_stat(imp_sth->svchp, errhp, (OCILobLocator*)fbh->desc_h, 0, status);
+			OCILobTrim_log_stat(imp_sth, imp_sth->svchp, errhp, (OCILobLocator*)fbh->desc_h, 0, status);
 
 			if (status != OCI_SUCCESS) {
 				return oci_error(sth, errhp, status, "OCILobTrim in post_execute_lobs");
@@ -4744,7 +4845,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 
 		}
 
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
 			"		lob refetch %d for '%s' param: ftype %d, len %ld: %s %s\n",
@@ -4770,8 +4871,8 @@ ora_free_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 	int i;
 	sword status;
 	if (lr->rowid)
-		OCIDescriptorFree(lr->rowid, OCI_DTYPE_ROWID);
-	OCIHandleFree_log_stat(lr->stmthp, OCI_HTYPE_STMT, status);
+		OCIDescriptorFree_log(imp_sth, lr->rowid, OCI_DTYPE_ROWID);
+	OCIHandleFree_log_stat(imp_sth, lr->stmthp, OCI_HTYPE_STMT, status);
 
 	if (status != OCI_SUCCESS)
 		oci_error(sth, imp_sth->errhp, status, "ora_free_lob_refetch/OCIHandleFree");
@@ -4800,7 +4901,7 @@ ora_db_version(SV *dbh, imp_dbh_t *imp_dbh)
 
 	/* XXX should possibly create new session before ending the old so	*/
 	/* that if the new one can't be created, the old will still work.	*/
-	OCIServerRelease_log_stat(imp_dbh->svchp, imp_dbh->errhp, buf, 2,OCI_HTYPE_SVCCTX, &vernum , status);
+	OCIServerRelease_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, buf, 2,OCI_HTYPE_SVCCTX, &vernum , status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCISessionServerRelease");
 		return 0;
