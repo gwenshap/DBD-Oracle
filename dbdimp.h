@@ -320,7 +320,7 @@ extern ub2 al16utf16_csid;
 
 void dbd_init_oci _((dbistate_t *dbistate));
 void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
-void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
+void dbd_fbh_dump(imp_sth_t *imp_sth, imp_fbh_t *fbh, int i, int aidx);
 void ora_free_fbh_contents _((SV *sth, imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
@@ -329,8 +329,8 @@ fb_ary_t *fb_ary_cb_alloc _((ub4 piece_size,ub4 max_len, int size));
 
 int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
 
-void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
-void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));
+void dbd_phs_sv_complete _((imp_sth_t *imp_sth, phs_t *phs, SV *sv, I32 debug));
+void dbd_phs_avsv_complete _((imp_sth_t *imp_sth, phs_t *phs, I32 index, I32 debug));
 
 int pp_exec_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec));
 int pp_rebind_ph_rset_in _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
@@ -366,8 +366,8 @@ int ora_st_execute_array _((SV *sth, imp_sth_t *imp_sth, SV *tuples,
 SV * ora_create_xml _((SV *dbh, char *source));
 
 void ora_free_lob_refetch _((SV *sth, imp_sth_t *imp_sth));
-void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));
-void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
+void dbd_phs_avsv_complete _((imp_sth_t *imp_sth, phs_t *phs, I32 index, I32 debug));
+void dbd_phs_sv_complete _((imp_sth_t *imp_sth, phs_t *phs, SV *sv, I32 debug));
 int post_execute_lobs _((SV *sth, imp_sth_t *imp_sth, ub4 row_count));
 ub4 ora_parse_uid _((imp_dbh_t *imp_dbh, char **uidp, char **pwdp));
 char *ora_sql_error _((imp_sth_t *imp_sth, char *msg));

@@ -62,11 +62,12 @@ struct sql_fbh_st {
 };
 static sql_fbh_t ora2sql_type _((imp_fbh_t* fbh));
 
-void ora_free_phs_contents _((phs_t *phs));
-static void dump_env_to_trace();
+void ora_free_phs_contents _((imp_sth_t *imp_sth, phs_t *phs));
+static void dump_env_to_trace(imp_dbh_t *imp_dbh);
 
 static sb4
-oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
+oci_error_get(imp_xxh_t *imp_xxh,
+              OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 {
 	dTHX;
 	text errbuf[1024];
@@ -86,16 +87,17 @@ oci_error_get(OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 	}
 
 	while( ++recno
-	&& OCIErrorGet_log_stat(errhp, recno, (text*)NULL, &eg_errcode, errbuf,
+           && OCIErrorGet_log_stat(imp_xxh, errhp, recno, (text*)NULL, &eg_errcode, errbuf,
 		(ub4)sizeof(errbuf), OCI_HTYPE_ERROR, eg_status) != OCI_NO_DATA
-	&& eg_status != OCI_INVALID_HANDLE
-	&& recno < 100
+           && eg_status != OCI_INVALID_HANDLE
+           && recno < 100
 	) {
 		if (debug >= 4 || recno>1/*XXX temp*/  || dbd_verbose >= 4 )
-			PerlIO_printf(DBILOGFP, "	OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
-				what ? what : "<NULL>", (long)recno,
-				(eg_status==OCI_SUCCESS) ? "ok" : oci_status_name(eg_status),
-				status, (long)eg_errcode, errbuf);
+			PerlIO_printf(DBIc_LOGPIO(imp_xxh),
+                          "	OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
+                          what ? what : "<NULL>", (long)recno,
+                          (eg_status==OCI_SUCCESS) ? "ok" : oci_status_name(eg_status),
+                          status, (long)eg_errcode, errbuf);
 			errcode = eg_errcode;
 		sv_catpv(errstr, (char*)errbuf);
 		if (*(SvEND(errstr)-1) == '\n')
@@ -205,33 +207,31 @@ dbd_discon_all(SV *drh, imp_drh_t *imp_drh)
 {
 	dTHR;
 	dTHX;
-	/* The disconnect_all concept is flawed and needs more work */
+
+    /* The disconnect_all concept is flawed and needs more work */
 	if (!PL_dirty && !SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) {
-	DBIh_SET_ERR_CHAR(drh, (imp_xxh_t*)imp_drh, Nullch, 1, "disconnect_all not implemented", Nullch, Nullch);
-	return FALSE;
+        DBIh_SET_ERR_CHAR(drh, (imp_xxh_t*)imp_drh, Nullch, 1, "disconnect_all not implemented", Nullch, Nullch);
+        return FALSE;
 	}
 	return FALSE;
 }
 
 
-
 void
-dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx)
+dbd_fbh_dump(imp_sth_t *imp_sth, imp_fbh_t *fbh, int i, int aidx)
 {
 	dTHX;
-	PerlIO *fp = DBILOGFP;
-	PerlIO_printf(fp, "	fbh %d: '%s'\t%s, ",
+	PerlIO_printf(DBIc_LOGPIO(imp_sth), "	fbh %d: '%s'\t%s, ",
 		i, fbh->name, (fbh->nullok) ? "NULLable" : "NO null ");
-	PerlIO_printf(fp, "otype %3d->%3d, dbsize %ld/%ld, p%d.s%d\n",
+	PerlIO_printf(DBIc_LOGPIO(imp_sth), "otype %3d->%3d, dbsize %ld/%ld, p%d.s%d\n",
 		fbh->dbtype, fbh->ftype, (long)fbh->dbsize,(long)fbh->disize,
 		fbh->prec, fbh->scale);
 	if (fbh->fb_ary) {
-	PerlIO_printf(fp, "	  out: ftype %d, bufl %d. indp %d, rlen %d, rcode %d\n",
+	PerlIO_printf(DBIc_LOGPIO(imp_sth), "	  out: ftype %d, bufl %d. indp %d, rlen %d, rcode %d\n",
 		fbh->ftype, fbh->fb_ary->bufl, fbh->fb_ary->aindp[aidx],
 		fbh->fb_ary->arlen[aidx], fbh->fb_ary->arcode[aidx]);
 	}
 }
-
 
 int
 ora_dbtype_is_long(int dbtype)
@@ -430,10 +430,10 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			croak("ora_driver_name is not a string");
 		imp_dbh->driver_name = (char *) SvPV (*svp, svp_len );
 		imp_dbh->driver_namel= (ub4) svp_len;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
     }
     else {
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION,(text*)"DBDO1.28",7,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION,(text*)"DBDO1.28",7,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
 	}
 #endif /*ORA_OCI_112*/
 
@@ -443,7 +443,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			croak("ora_action is not a string");
 		imp_dbh->action = (char *) SvPV (*svp, svp_len );
 		imp_dbh->actionl= (ub4) svp_len;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
     }
 
 	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_module_name", 15)) && SvOK(*svp)) {
@@ -452,7 +452,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			croak("ora_module_name is not a string");
 		imp_dbh->module_name = (char *) SvPV (*svp, svp_len );
 		imp_dbh->module_namel= (ub4) svp_len;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->module_name,imp_dbh->module_namel,OCI_ATTR_MODULE,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->module_name,imp_dbh->module_namel,OCI_ATTR_MODULE,imp_dbh->errhp, status);
 
     }
     if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_client_identifier", 21)) && SvOK(*svp)) {
@@ -461,7 +461,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			croak("ora_client_identifier is not a string");
 		imp_dbh->client_identifier = (char *) SvPV (*svp, svp_len );
 		imp_dbh->client_identifierl= (ub4) svp_len;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_identifier,imp_dbh->client_identifierl,OCI_ATTR_CLIENT_IDENTIFIER,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_identifier,imp_dbh->client_identifierl,OCI_ATTR_CLIENT_IDENTIFIER,imp_dbh->errhp, status);
 
     }
     if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_client_info", 15)) && SvOK(*svp)) {
@@ -470,7 +470,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			croak("ora_client_info is not a string");
 		imp_dbh->client_info = (char *) SvPV (*svp, svp_len );
 		imp_dbh->client_infol= (ub4) svp_len;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_info,imp_dbh->client_infol,OCI_ATTR_CLIENT_INFO,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_info,imp_dbh->client_infol,OCI_ATTR_CLIENT_INFO,imp_dbh->errhp, status);
 
     }
 
@@ -512,23 +512,23 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	if (DBD_ATTRIB_TRUE(attr,"ora_objects",11,svp))
 		DBD_ATTRIB_GET_IV(  attr, "ora_objects",11, svp, ora_objects);
 
-	if (DBIS->debug >= 6 || dbd_verbose >= 6 )
-		dump_env_to_trace();
+	if (DBIc_DBISTATE(imp_dbh)->debug >= 6 || dbd_verbose >= 6 )
+		dump_env_to_trace(imp_dbh);
 
 	/* dbi_imp_data code adapted from DBD::mysql */
 	if (DBIc_has(imp_dbh, DBIcf_IMPSET)) {
 		/* dbi_imp_data from take_imp_data */
 		if (DBIc_has(imp_dbh, DBIcf_ACTIVE)) {
-			if (DBIS->debug >= 2 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP, "dbd_db_login6 skip connect\n");
+			if (DBIc_DBISTATE(imp_dbh)->debug >= 2 || dbd_verbose >= 3 )
+				PerlIO_printf(DBIc_LOGPIO(imp_dbh), "dbd_db_login6 skip connect\n");
 			/* tell our parent we've adopted an active child */
 			++DBIc_ACTIVE_KIDS(DBIc_PARENT_COM(imp_dbh));
 
 			return 1;
 		}
 		/* not ACTIVE so connect not skipped */
-		if (DBIS->debug >= 2 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,
+		if (DBIc_DBISTATE(imp_dbh)->debug >= 2 || dbd_verbose >= 3 )
+			PerlIO_printf(DBIc_LOGPIO(imp_dbh),
 				"dbd_db_login6 IMPSET but not ACTIVE so connect not skipped\n");
 	}
 
@@ -566,8 +566,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			shared_dbh -> refcnt++ ;
 			imp_dbh -> shared_dbh_priv_sv = shared_dbh_priv_sv ;
 			imp_dbh -> shared_dbh		 = shared_dbh ;
-			if (DBIS->debug >= 2 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP, "	dbd_db_login: use shared Oracle database handles.\n");
+			if (DBIc_DBISTATE(imp_dbh)->debug >= 2 || dbd_verbose >= 3 )
+				PerlIO_printf(DBIc_LOGPIO(imp_dbh), "	dbd_db_login: use shared Oracle database handles.\n");
 		} else {
 			shared_dbh = NULL ;
 		}
@@ -590,14 +590,14 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		{
 			size_t rsize = 0;
 			/* Get CLIENT char and nchar charset id values */
-			OCINlsEnvironmentVariableGet_log_stat( &charsetid,(size_t) 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
+			OCINlsEnvironmentVariableGet_log_stat(imp_dbh, &charsetid,(size_t) 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, NULL, status,
 					"OCINlsEnvironmentVariableGet(OCI_NLS_CHARSET_ID) Check NLS settings etc.");
 				return 0;
 			}
 
-			OCINlsEnvironmentVariableGet_log_stat( &ncharsetid,(size_t)  0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
+			OCINlsEnvironmentVariableGet_log_stat(imp_dbh, &ncharsetid,(size_t)  0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, NULL, status,
 					"OCINlsEnvironmentVariableGet(OCI_NLS_NCHARSET_ID) Check NLS settings etc.");
@@ -624,7 +624,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			form attribute.
 			}*/
 
-			OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
+			OCIEnvNlsCreate_log_stat(imp_dbh, &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
 				charsetid, ncharsetid, status );
 
 			if (status != OCI_SUCCESS) {
@@ -665,7 +665,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				if (new_charsetid) charsetid = new_charsetid;
 				if (new_ncharsetid) ncharsetid = new_ncharsetid;
 				imp_dbh->envhp = NULL;
-				OCIEnvNlsCreate_log_stat( &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
+				OCIEnvNlsCreate_log_stat(imp_dbh, &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
 							charsetid, ncharsetid, status );
 				if (status != OCI_SUCCESS) {
 					oci_error(dbh, NULL, status,
@@ -686,7 +686,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 	if (shared_dbh_ssv) { /*is this a cached or shared handle from DBI*/
 		if (!imp_dbh->envhp) { /*no hande so create a new one*/
-        	OCIEnvInit_log_stat( &imp_dbh->envhp, OCI_DEFAULT, 0, 0, status);
+        	OCIEnvInit_log_stat(imp_dbh, &imp_dbh->envhp, OCI_DEFAULT, 0, 0, status);
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, (OCIError*)imp_dbh->envhp, status, "OCIEnvInit");
 				return 0;
@@ -694,8 +694,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		}
 	}
 
-	OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
-	OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &charsetid, (ub4)0 ,
+	OCIHandleAlloc_ok(imp_dbh, imp_dbh->envhp, &imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+	OCIAttrGet_log_stat(imp_dbh, imp_dbh->envhp, OCI_HTYPE_ENV, &charsetid, (ub4)0 ,
 			OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
 
 	if (status != OCI_SUCCESS) {
@@ -703,7 +703,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		return 0;
 	}
 
-	OCIAttrGet_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, &ncharsetid, (ub4)0 ,
+	OCIAttrGet_log_stat(imp_dbh, imp_dbh->envhp, OCI_HTYPE_ENV, &ncharsetid, (ub4)0 ,
 			OCI_ATTR_ENV_NCHARSET_ID, imp_dbh->errhp, status);
 
 	if (status != OCI_SUCCESS) {
@@ -717,28 +717,30 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	*  BTW: NLS_NCHAR is set as follows: NSL_LANG=AL32UTF8
 	*/
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 ) {
+    if (DBIc_DBISTATE(imp_dbh)->debug >= 3 || dbd_verbose >= 3 ) {
 		oratext  charsetname[OCI_NLS_MAXBUFSZ];
 		oratext  ncharsetname[OCI_NLS_MAXBUFSZ];
 		OCINlsCharSetIdToName(imp_dbh->envhp,charsetname, sizeof(charsetname),charsetid );
 		OCINlsCharSetIdToName(imp_dbh->envhp,ncharsetname, sizeof(ncharsetname),ncharsetid );
-		PerlIO_printf(DBILOGFP,"	   charset id=%d, name=%s, ncharset id=%d, name=%s"
-		" (csid: utf8=%d al32utf8=%d)\n",
-		 charsetid,charsetname, ncharsetid,ncharsetname, utf8_csid, al32utf8_csid);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_dbh),
+            "	   charset id=%d, name=%s, ncharset id=%d, name=%s"
+            " (csid: utf8=%d al32utf8=%d)\n",
+            charsetid,charsetname, ncharsetid,ncharsetname, utf8_csid, al32utf8_csid);
 #ifdef ORA_OCI_112
 		if (imp_dbh->using_drcp)
-			PerlIO_printf(DBILOGFP," Useing DRCP Connection\n ");
+			PerlIO_printf(DBIc_LOGPIO(imp_dbh)," Using DRCP Connection\n ");
 #endif
 	}
 
 	if (!shared_dbh) {
 
-		OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+		OCIHandleAlloc_ok(imp_dbh, imp_dbh->envhp, &imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 
 		if (status != OCI_SUCCESS) {
 			oci_error(dbh, imp_dbh->errhp, status, "OCIServerAttach");
-			OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
-			OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+			OCIHandleFree_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+			OCIHandleFree_log_stat(imp_dbh, imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 			return 0;
 		}
 
@@ -760,94 +762,102 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				if (!imp_dbh->pool_incr)
 					imp_dbh->pool_incr = 2;
 
-				OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->poolhp, OCI_HTYPE_SPOOL, status);
+				OCIHandleAlloc_ok(imp_dbh, imp_dbh->envhp, &imp_dbh->poolhp, OCI_HTYPE_SPOOL, status);
 
-				OCISessionPoolCreate_log_stat(imp_dbh->envhp,
-						imp_dbh->errhp,
-						imp_dbh->poolhp,
-						(OraText **) &imp_dbh->pool_name,
-						(ub4 *) &imp_dbh->pool_namel,
-						(OraText *) dbname,
-						strlen(dbname),
-						imp_dbh->pool_min,
-						imp_dbh->pool_max,
-						imp_dbh->pool_incr,
-						(OraText *) uid,
-						strlen(uid),
-						(OraText *) pwd,
-						strlen(pwd),
-						status);
+				OCISessionPoolCreate_log_stat(
+                    imp_dbh,
+                    imp_dbh->envhp,
+                    imp_dbh->errhp,
+                    imp_dbh->poolhp,
+                    (OraText **) &imp_dbh->pool_name,
+                    (ub4 *) &imp_dbh->pool_namel,
+                    (OraText *) dbname,
+                    strlen(dbname),
+                    imp_dbh->pool_min,
+                    imp_dbh->pool_max,
+                    imp_dbh->pool_incr,
+                    (OraText *) uid,
+                    strlen(uid),
+                    (OraText *) pwd,
+                    strlen(pwd),
+                    status);
 
 				if (status != OCI_SUCCESS) {
 
 					oci_error(dbh, imp_dbh->errhp, status, "OCISessionPoolCreate");
-					OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
-					OCIHandleFree_log_stat(imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
-					OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
-					OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+					OCIServerDetach_log_stat(imp_dbh, imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
+					OCIHandleFree_log_stat(imp_dbh, imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
+					OCIHandleFree_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+					OCIHandleFree_log_stat(imp_dbh, imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 					return 0;
 				}
 
-				OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->authp, OCI_HTYPE_AUTHINFO, status);
+				OCIHandleAlloc_ok(imp_dbh, imp_dbh->envhp, &imp_dbh->authp, OCI_HTYPE_AUTHINFO, status);
 
-				OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
+				OCIAttrSet_log_stat(imp_dbh, imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
 							&purity, (ub4) 0,(ub4) OCI_ATTR_PURITY, imp_dbh->errhp, status);
 
 				if (imp_dbh->pool_class) /*pool_class may or may not be used */
-						OCIAttrSet_log_stat(imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
+                    OCIAttrSet_log_stat(imp_dbh, imp_dbh->authp, (ub4) OCI_HTYPE_AUTHINFO,
 								(OraText *) imp_dbh->pool_class, (ub4) imp_dbh->pool_classl,
 								(ub4) OCI_ATTR_CONNECTION_CLASS, imp_dbh->errhp, status);
 
 				cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
 
-				OCISessionGet_log_stat(imp_dbh->envhp, imp_dbh->errhp, &imp_dbh->svchp, imp_dbh->authp,
+				OCISessionGet_log_stat(imp_dbh, imp_dbh->envhp, imp_dbh->errhp, &imp_dbh->svchp, imp_dbh->authp,
 								imp_dbh->pool_name, (ub4)strlen((char *)imp_dbh->pool_name), status);
 
 				if (status != OCI_SUCCESS) {
 
 					oci_error(dbh, imp_dbh->errhp, status, "OCISessionGet");
-					OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
-					OCISessionPoolDestroy(imp_dbh->poolhp, imp_dbh->errhp,status);
-					OCIHandleFree_log_stat(imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
-					OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
-					OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+					OCIServerDetach_log_stat(imp_dbh, imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
+					OCISessionPoolDestroy_log_stat(
+                        imp_dbh, imp_dbh->poolhp, imp_dbh->errhp,status);
+					OCIHandleFree_log_stat(imp_dbh, imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
+					OCIHandleFree_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+					OCIHandleFree_log_stat(imp_dbh, imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 					return 0;
 				}
 
-				if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
-					PerlIO_printf(DBILOGFP,"Using DRCP with session settings min=%d, max=%d, and increment=%d\n",imp_dbh->pool_min,
+				if (DBIc_DBISTATE(imp_dbh)->debug >= 4 || dbd_verbose >= 4 ) {
+					PerlIO_printf(
+                        DBIc_LOGPIO(imp_dbh),
+                        "Using DRCP with session settings min=%d, max=%d, and increment=%d\n",
+                        imp_dbh->pool_min,
 						imp_dbh->pool_max,
 						imp_dbh->pool_incr);
 					if (imp_dbh->pool_class)
-						PerlIO_printf(DBILOGFP,"with connection class=%s\n",imp_dbh->pool_class);
+						PerlIO_printf(
+                            DBIc_LOGPIO(imp_dbh),
+                            "with connection class=%s\n",imp_dbh->pool_class);
 					}
 
 				}
 				else {
 #endif /* ORA_OCI_112 */
 
-					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+					OCIHandleAlloc_ok(imp_dbh, imp_dbh->envhp, &imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 					OCIServerAttach_log_stat(imp_dbh, dbname,OCI_DEFAULT, status);
                     if (status != OCI_SUCCESS) {
                         oci_error(dbh, imp_dbh->errhp, status, "OCIServerAttach");
-                        OCIHandleFree_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,status);
-                        OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
-                        OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR, status);
-                        OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+                        OCIHandleFree_log_stat(imp_dbh, imp_dbh->seshp, OCI_HTYPE_SESSION,status);
+                        OCIHandleFree_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+                        OCIHandleFree_log_stat(imp_dbh, imp_dbh->errhp, OCI_HTYPE_ERROR, status);
+                        OCIHandleFree_log_stat(imp_dbh, imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
                         if (forced_new_environment)
-                            OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
+                            OCIHandleFree_log_stat(imp_dbh, imp_dbh->envhp, OCI_HTYPE_ENV, status);
                         return 0;
                     }
 
 
-					OCIAttrSet_log_stat( imp_dbh->svchp, OCI_HTYPE_SVCCTX, imp_dbh->srvhp,
+					OCIAttrSet_log_stat(imp_dbh, imp_dbh->svchp, OCI_HTYPE_SVCCTX, imp_dbh->srvhp,
 									(ub4) 0, OCI_ATTR_SERVER, imp_dbh->errhp, status);
 
-					OCIHandleAlloc_ok(imp_dbh->envhp, &imp_dbh->seshp, OCI_HTYPE_SESSION, status);
+					OCIHandleAlloc_ok(imp_dbh, imp_dbh->envhp, &imp_dbh->seshp, OCI_HTYPE_SESSION, status);
 
 					cred_type = ora_parse_uid(imp_dbh, &uid, &pwd);
 
-					OCISessionBegin_log_stat( imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,cred_type, sess_mode_type, status);
+					OCISessionBegin_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,cred_type, sess_mode_type, status);
 
 					if (status == OCI_SUCCESS_WITH_INFO) {
 						/* eg ORA-28011: the account will expire soon; change your password now */
@@ -856,17 +866,17 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 					}
 					if (status != OCI_SUCCESS) {
 						oci_error(dbh, imp_dbh->errhp, status, "OCISessionBegin");
-						OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
-						OCIHandleFree_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,status);
-						OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
-						OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
-						OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+						OCIServerDetach_log_stat(imp_dbh, imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, status);
+						OCIHandleFree_log_stat(imp_dbh, imp_dbh->seshp, OCI_HTYPE_SESSION,status);
+						OCIHandleFree_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+						OCIHandleFree_log_stat(imp_dbh, imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+						OCIHandleFree_log_stat(imp_dbh, imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 						if (forced_new_environment)
-							OCIHandleFree_log_stat(imp_dbh->envhp, OCI_HTYPE_ENV, status);
+							OCIHandleFree_log_stat(imp_dbh, imp_dbh->envhp, OCI_HTYPE_ENV, status);
 						return 0;
 					}
 
-					OCIAttrSet_log_stat(imp_dbh->svchp, (ub4) OCI_HTYPE_SVCCTX,
+					OCIAttrSet_log_stat(imp_dbh, imp_dbh->svchp, (ub4) OCI_HTYPE_SVCCTX,
 								imp_dbh->seshp, (ub4) 0,(ub4) OCI_ATTR_SESSION, imp_dbh->errhp, status);
 #ifdef ORA_OCI_112
 				}
@@ -905,7 +915,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
         can_taf = 0;
 
 #ifdef OCI_ATTR_TAF_ENABLED
-		OCIAttrGet_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, &can_taf, NULL,
+		OCIAttrGet_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, &can_taf, NULL,
 				OCI_ATTR_TAF_ENABLED, imp_dbh->errhp, status);
 #endif
 
@@ -913,8 +923,11 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			croak("You are attempting to enable TAF on a server that is not TAF Enabled \n");
 		}
 
-		if (DBIS->debug >= 4 || dbd_verbose >= 4 ) {
-        	PerlIO_printf(DBILOGFP,"Setting up TAF with wait time of %d seconds\n",imp_dbh->taf_sleep);
+		if (DBIc_DBISTATE(imp_dbh)->debug >= 4 || dbd_verbose >= 4 ) {
+        	PerlIO_printf(
+                DBIc_LOGPIO(imp_dbh),
+                "Setting up TAF with wait time of %d seconds\n",
+                imp_dbh->taf_sleep);
 		}
 		status = reg_taf_callback(imp_dbh);
 		if (status != OCI_SUCCESS) {
@@ -933,7 +946,7 @@ dbd_db_commit(SV *dbh, imp_dbh_t *imp_dbh)
 {
 	dTHX;
 	sword status;
-	OCITransCommit_log_stat(imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
+	OCITransCommit_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(dbh, imp_dbh->errhp, status, "OCITransCommit");
 		return 0;
@@ -956,7 +969,7 @@ dbd_st_cancel(SV *sth, imp_sth_t *imp_sth)
 	 /* if we are using a scrolling cursor we should get rid of the
 		cursor by fetching row 0 */
 	if (imp_sth->exe_mode==OCI_STMT_SCROLLABLE_READONLY){
-		OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0,OCI_FETCH_NEXT,0,  status);
+		OCIStmtFetch_log_stat(imp_sth, imp_sth->stmhp, imp_sth->errhp, 0,OCI_FETCH_NEXT,0,  status);
 	}
 	return 1;
 }
@@ -968,7 +981,7 @@ dbd_db_rollback(SV *dbh, imp_dbh_t *imp_dbh)
 {
 	dTHX;
 	sword status;
-	OCITransRollback_log_stat(imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
+	OCITransRollback_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, OCI_DEFAULT, status);
 	if (status != OCI_SUCCESS) {
 	oci_error(dbh, imp_dbh->errhp, status, "OCITransRollback");
 	return 0;
@@ -1046,17 +1059,17 @@ dbd_db_disconnect(SV *dbh, imp_dbh_t *imp_dbh)
 		sword s_se, s_sd;
 #ifdef ORA_OCI_112
 		if (imp_dbh->using_drcp) {
-			OCISessionRelease_log_stat(imp_dbh->svchp, imp_dbh->errhp,s_se);
+			OCISessionRelease_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp,s_se);
 		}
 		else {
 #endif
-			OCISessionEnd_log_stat(imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
+			OCISessionEnd_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, imp_dbh->seshp,
 			  OCI_DEFAULT, s_se);
 #ifdef ORA_OCI_112
 		}
 #endif
 		if (s_se) oci_error(dbh, imp_dbh->errhp, s_se, "OCISessionEnd");
-		OCIServerDetach_log_stat(imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, s_sd);
+		OCIServerDetach_log_stat(imp_dbh, imp_dbh->srvhp, imp_dbh->errhp, OCI_DEFAULT, s_sd);
 		if (s_sd) oci_error(dbh, imp_dbh->errhp, s_sd, "OCIServerDetach");
 		if (s_se || s_sd)
 			return 0;
@@ -1094,29 +1107,29 @@ dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 			OCIFocbkStruct 	tafailover;
 			tafailover.fo_ctx = NULL;
 			tafailover.callback_function = NULL;
-			OCIAttrSet_log_stat(imp_dbh->srvhp, (ub4) OCI_HTYPE_SERVER,
+			OCIAttrSet_log_stat(imp_dbh, imp_dbh->srvhp, (ub4) OCI_HTYPE_SERVER,
 							(dvoid *) &tafailover, (ub4) 0,
 							(ub4) OCI_ATTR_FOCBK, imp_dbh->errhp, status);
 
 		}
 #ifdef ORA_OCI_112
 		if (imp_dbh->using_drcp) {
-			OCIHandleFree_log_stat(imp_dbh->authp, OCI_HTYPE_SESSION,status);
-			OCISessionPoolDestroy_log_stat(imp_dbh->poolhp, imp_dbh->errhp,status);
-			OCIHandleFree_log_stat(imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
+			OCIHandleFree_log_stat(imp_dbh, imp_dbh->authp, OCI_HTYPE_SESSION,status);
+			OCISessionPoolDestroy_log_stat(imp_dbh, imp_dbh->poolhp, imp_dbh->errhp,status);
+			OCIHandleFree_log_stat(imp_dbh, imp_dbh->poolhp, OCI_HTYPE_SPOOL,status);
 		}
 		else {
 #endif
-			OCIHandleFree_log_stat(imp_dbh->seshp, OCI_HTYPE_SESSION,status);
-			OCIHandleFree_log_stat(imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
+			OCIHandleFree_log_stat(imp_dbh, imp_dbh->seshp, OCI_HTYPE_SESSION,status);
+			OCIHandleFree_log_stat(imp_dbh, imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 
 #ifdef ORA_OCI_112
 		}
 #endif
-		OCIHandleFree_log_stat(imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
+		OCIHandleFree_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 
 	}
-	OCIHandleFree_log_stat(imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+	OCIHandleFree_log_stat(imp_dbh, imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
 dbd_db_destroy_out:
 	DBIc_IMPSET_off(imp_dbh);
 }
@@ -1140,7 +1153,7 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 	else if (kl==15 && strEQ(key, "ora_driver_name") ) {
 		imp_dbh->driver_name = (char *) SvPV (valuesv, vl );
 		imp_dbh->driver_namel= (ub4) vl;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
 	}
 	else if (kl==8 && strEQ(key, "ora_drcp") ) {
 		imp_dbh->using_drcp = 1;
@@ -1172,30 +1185,30 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 	else if (kl==10 && strEQ(key, "ora_action") ) {
 		imp_dbh->action = (char *) SvPV (valuesv, vl );
 		imp_dbh->actionl= (ub4) vl;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
 
 	}
 	else if (kl==10 && strEQ(key, "ora_action") ) {
 		imp_dbh->action = (char *) SvPV (valuesv, vl );
 		imp_dbh->actionl= (ub4) vl;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
 
 	}
 	else if (kl==21 && strEQ(key, "ora_client_identifier") ) {
 		imp_dbh->client_identifier = (char *) SvPV (valuesv, vl );
 		imp_dbh->client_identifierl= (ub4) vl;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_identifier,imp_dbh->client_identifierl,OCI_ATTR_CLIENT_IDENTIFIER,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_identifier,imp_dbh->client_identifierl,OCI_ATTR_CLIENT_IDENTIFIER,imp_dbh->errhp, status);
 
 	}
     else if (kl==15 && strEQ(key, "ora_client_info") ) {
 		imp_dbh->client_info = (char *) SvPV (valuesv, vl );
 		imp_dbh->client_infol= (ub4) vl;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_info,imp_dbh->client_infol,OCI_ATTR_CLIENT_INFO,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_info,imp_dbh->client_infol,OCI_ATTR_CLIENT_INFO,imp_dbh->errhp, status);
 	}
 	else if (kl==15 && strEQ(key, "ora_module_name") ) {
 		imp_dbh->module_name = (char *) SvPV (valuesv, vl );
 		imp_dbh->module_namel= (ub4) vl;
-		OCIAttrSet_log_stat(imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->module_name,imp_dbh->module_namel,OCI_ATTR_MODULE,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->module_name,imp_dbh->module_namel,OCI_ATTR_MODULE,imp_dbh->errhp, status);
 
 	}
 	else if (kl==20 && strEQ(key, "ora_oci_success_warn") ) {
@@ -1372,17 +1385,18 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 	len 	= SvLEN(source);
 	bufp 	= SvPV(source, len);
 
-	if (DBIS->debug >=3 || dbd_verbose >= 3 )
-        PerlIO_printf(DBILOGFP, " creating xml from string that is %lu long\n",(unsigned long)len);
+	if (DBIc_DBISTATE(imp_sth)->debug >=3 || dbd_verbose >= 3 )
+        PerlIO_printf(DBIc_LOGPIO(imp_sth), " creating xml from string that is %lu long\n",(unsigned long)len);
 	if(len > MAX_OCISTRING_LEN) {
 		src_type = OCI_XMLTYPE_CREATE_CLOB;
 
-		if (DBIS->debug >=5 || dbd_verbose >= 5 )
-			PerlIO_printf(DBILOGFP, " use a temp lob locator for large xml \n");
+		if (DBIc_DBISTATE(imp_sth)->debug >=5 || dbd_verbose >= 5 )
+			PerlIO_printf(DBIc_LOGPIO(imp_sth),
+                          " use a temp lob locator for large xml \n");
 
-		OCIDescriptorAlloc_ok(imp_dbh->envhp, &src_ptr, OCI_DTYPE_LOB);
+		OCIDescriptorAlloc_ok(imp_dbh, imp_dbh->envhp, &src_ptr, OCI_DTYPE_LOB);
 
-		OCILobCreateTemporary_log_stat(imp_dbh->svchp, imp_sth->errhp,
+		OCILobCreateTemporary_log_stat(imp_dbh, imp_dbh->svchp, imp_sth->errhp,
 					 (OCILobLocator *) src_ptr, (ub2) OCI_DEFAULT,
 					 (ub1) OCI_DEFAULT, OCI_TEMP_CLOB, FALSE, OCI_DURATION_SESSION, status);
 
@@ -1391,7 +1405,7 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 		}
 		csid = (SvUTF8(source) && !CS_IS_UTF8(csid)) ? utf8_csid : CSFORM_IMPLIED_CSID(csform);
 		buflen = len;
-		OCILobWriteAppend_log_stat(imp_dbh->svchp, imp_dbh->errhp, src_ptr,
+		OCILobWriteAppend_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, src_ptr,
 						&buflen, bufp, (ub4)len, OCI_ONE_PIECE,
 						NULL, NULL,
 						csid, csform, status);
@@ -1402,8 +1416,9 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 
 	} else {
 		src_type = OCI_XMLTYPE_CREATE_OCISTRING;
-		if (DBIS->debug >=5 || dbd_verbose >= 5 )
-			PerlIO_printf(DBILOGFP, " use a OCIStringAssignText for small xml \n");
+		if (DBIc_DBISTATE(imp_sth)->debug >=5 || dbd_verbose >= 5 )
+			PerlIO_printf(DBIc_LOGPIO(imp_sth),
+                          " use a OCIStringAssignText for small xml \n");
 		OCIStringAssignText(imp_dbh->envhp,
 					imp_dbh->errhp,
 					bufp,
@@ -1413,13 +1428,15 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 
 
 
-	status =	OCIXMLTypeCreateFromSrc(imp_dbh->svchp,
-					imp_dbh->errhp,
-					(OCIDuration)OCI_DURATION_CALLOUT,
-					(ub1)src_type,
-					(dvoid *)src_ptr,
-					(sb4)OCI_IND_NOTNULL,
-				&xml);
+	OCIXMLTypeCreateFromSrc_log_stat(imp_dbh,
+                                     imp_dbh->svchp,
+                                     imp_dbh->errhp,
+                                     (OCIDuration)OCI_DURATION_CALLOUT,
+                                     (ub1)src_type,
+                                     (dvoid *)src_ptr,
+                                     (sb4)OCI_IND_NOTNULL,
+                                     &xml,
+                                     status);
 
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCIXMLTypeCreateFromSrc");
@@ -1430,7 +1447,7 @@ createxmlfromstring(SV *sth, imp_sth_t *imp_sth, SV *source){
 		OCILobFreeTemporary(imp_dbh->svchp, imp_dbh->errhp,
 					(OCILobLocator*) src_ptr);
 
-		OCIDescriptorFree((dvoid *) src_ptr, (ub4) OCI_DTYPE_LOB);
+		OCIDescriptorFree_log(imp_dbh, (dvoid *) src_ptr, (ub4) OCI_DTYPE_LOB);
 	}
 
 
@@ -1567,9 +1584,10 @@ phs_t *phs;
 	*dest = '\0';
 	if (imp_sth->all_params_hv) {
 		DBIc_NUM_PARAMS(imp_sth) = (int)HvKEYS(imp_sth->all_params_hv);
-		if (DBIS->debug >= 2 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, "	dbd_preparse scanned %d distinct placeholders\n",
-			(int)DBIc_NUM_PARAMS(imp_sth));
+		if (DBIc_DBISTATE(imp_sth)->debug >= 2 || dbd_verbose >= 3 )
+			PerlIO_printf(DBIc_LOGPIO(imp_sth),
+                          "	dbd_preparse scanned %d distinct placeholders\n",
+                          (int)DBIc_NUM_PARAMS(imp_sth));
 	}
 }
 
@@ -1691,7 +1709,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	dTHX;
 	/*D_imp_dbh_from_sth ;*/
 	sword status;
-	int trace_level = DBIS->debug;
+	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	AV *arr;
 	ub1 csform;
 	ub2 csid;
@@ -1706,7 +1724,8 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	arr=(AV*)(SvRV(phs->sv));
 
 	if (trace_level >= 2 || dbd_verbose >= 3 ){
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): array_numstruct=%d\n",
+		PerlIO_printf(DBIc_LOGPIO(imp_sth),
+                      "dbd_rebind_ph_varchar2_table(): array_numstruct=%d\n",
 		  phs->array_numstruct);
 	}
 	/* If no number of entries to bind specified,
@@ -1718,15 +1737,18 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	if( numarrayentries >= 0 ){
 		phs->array_numstruct = numarrayentries+1;
 		if (trace_level >= 2 || dbd_verbose >= 3 ){
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): array_numstruct=%d (calculated) \n",
-			phs->array_numstruct);
+            PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "dbd_rebind_ph_varchar2_table(): array_numstruct=%d (calculated) \n",
+                phs->array_numstruct);
 		}
 	}
 	/* Fix charset */
 	csform = phs->csform;
 	if (trace_level >= 2 || dbd_verbose >= 3 ){
-	PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): original csform=%d\n",
-		(int)csform);
+        PerlIO_printf(DBIc_LOGPIO(imp_sth),
+                      "dbd_rebind_ph_varchar2_table(): original csform=%d\n",
+                      (int)csform);
 	}
 	/* Calculate each bound structure maxlen.
 	* If maxlen<=0, let maxlen=MAX ( length($$_) each @array );
@@ -1759,14 +1781,18 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 			maxlen=length+1;
 			}
 			if (trace_level >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): length(array[%d])=%d\n",
-				i,(int)length);
+                PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "dbd_rebind_ph_varchar2_table(): length(array[%d])=%d\n",
+                    i,(int)length);
 			}
 		}
 		if(SvUTF8(item) ){
 			flag_data_is_utf8=1;
 			if (trace_level >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): is_utf8(array[%d])=true\n", i);
+                PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "dbd_rebind_ph_varchar2_table(): is_utf8(array[%d])=true\n", i);
 			}
 			if (csform != SQLCS_NCHAR) {
 			/* try to default csform to avoid translation through non-unicode */
@@ -1776,14 +1802,19 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 				csform = SQLCS_IMPLICIT;
 			/* else leave csform == 0 */
 			if (trace_level  || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): rebinding %s with UTF8 value %s", phs->name,
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "dbd_rebind_ph_varchar2_table(): rebinding %s with UTF8 value %s",
+                    phs->name,
 					(csform == SQLCS_NCHAR)	? "so setting csform=SQLCS_IMPLICIT" :
 					(csform == SQLCS_IMPLICIT) ? "so setting csform=SQLCS_NCHAR" :
 					"but neither CHAR nor NCHAR are unicode\n");
 			}
 		}else{
 			if (trace_level >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): is_utf8(array[%d])=false\n", i);
+                PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "dbd_rebind_ph_varchar2_table(): is_utf8(array[%d])=false\n", i);
 			}
 		}
 		}
@@ -1791,13 +1822,17 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	if( phs->maxlen <=0 ){
 		phs->maxlen=maxlen;
 		if (trace_level >= 2 || dbd_verbose >= 3 ){
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): phs->maxlen calculated  =%ld\n",
-			(long)maxlen);
+            PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "dbd_rebind_ph_varchar2_table(): phs->maxlen calculated  =%ld\n",
+                (long)maxlen);
 		}
 	} else{
 		if (trace_level >= 2 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): phs->maxlen forsed =%ld\n",
-					(long)maxlen);
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "dbd_rebind_ph_varchar2_table(): phs->maxlen forsed =%ld\n",
+                (long)maxlen);
 		}
 	}
 	}
@@ -1823,13 +1858,16 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	buflen=need_allocate_rows* phs->maxlen; /* We need buffer for at least ora_maxarray_numentries entries */
 	/* Upgrade array buffer to new length */
 	if( ora_realloc_phs_array(phs,need_allocate_rows,buflen) ){
-	croak("Unable to bind %s - %d structures by %d bytes requires too much memory.",
-		phs->name, need_allocate_rows, buflen );
+        croak("Unable to bind %s - %d structures by %d bytes requires too much memory.",
+              phs->name, need_allocate_rows, buflen );
 	}else{
-	if (trace_level >= 2 || dbd_verbose >= 3 ){
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): ora_realloc_phs_array(,need_allocate_rows=%d,buflen=%d) succeeded.\n",
-			need_allocate_rows,buflen);
-	}
+        if (trace_level >= 2 || dbd_verbose >= 3 ){
+            PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "dbd_rebind_ph_varchar2_table(): ora_realloc_phs_array(,"
+                "need_allocate_rows=%d,buflen=%d) succeeded.\n",
+                need_allocate_rows,buflen);
+        }
 	}
 	/* If maximum allowed bind numentries is less than allowed,
 	 * do not bind full array
@@ -1840,51 +1878,57 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	/* Fill array buffer with string data */
 
 	{
-	int i; /* Not to require C99 mode */
-	for(i=0;i<av_len(arr)+1;i++){
-		SV *item;
-		item=*(av_fetch(arr,i,0));
-		if( item ){
-		STRLEN itemlen;
-		char *str=SvPV(item, itemlen);
-		if( str && (itemlen>0) ){
+        int i; /* Not to require C99 mode */
+        for(i=0;i<av_len(arr)+1;i++){
+            SV *item;
+            item=*(av_fetch(arr,i,0));
+            if( item ){
+                STRLEN itemlen;
+                char *str=SvPV(item, itemlen);
+                if( str && (itemlen>0) ){
 			/* Limit string length to maxlen. FIXME: This may corrupt UTF-8 data. */
-			if( itemlen > (unsigned int) phs->maxlen-1 ){
-				itemlen=phs->maxlen-1;
-			}
-			memcpy( phs->array_buf+phs->maxlen*i,
-				str,
-				itemlen);
-			/* Set last byte to zero */
-			phs->array_buf[ phs->maxlen*i + itemlen ]=0;
-			phs->array_indicators[i]=0;
-			phs->array_lengths[i]=itemlen+1; /* Zero byte */
-			if (trace_level >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): "
-				"Copying length=%lu array[%d]='%s'.\n",
-				(unsigned long)itemlen,i,str);
-			}
-		}else{
-			/* Mark NULL */
-			phs->array_indicators[i]=1;
-			if (trace_level >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): "
-				"Copying length=%lu array[%d]=NULL (length==0 or ! str) .\n",
-				(unsigned long)itemlen,i);
-			}
-		}
-		}else{
-		/* Mark NULL */
-		phs->array_indicators[i]=1;
-		if (trace_level >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): "
-				"Copying length=? array[%d]=NULL av_fetch failed.\n", i);
-		}
-		}
-	}
+                    if( itemlen > (unsigned int) phs->maxlen-1 ){
+                        itemlen=phs->maxlen-1;
+                    }
+                    memcpy( phs->array_buf+phs->maxlen*i,
+                            str,
+                            itemlen);
+                    /* Set last byte to zero */
+                    phs->array_buf[ phs->maxlen*i + itemlen ]=0;
+                    phs->array_indicators[i]=0;
+                    phs->array_lengths[i]=itemlen+1; /* Zero byte */
+                    if (trace_level >= 3 || dbd_verbose >= 3 ){
+                        PerlIO_printf(
+                            DBIc_LOGPIO(imp_sth),
+                            "dbd_rebind_ph_varchar2_table(): "
+                            "Copying length=%lu array[%d]='%s'.\n",
+                            (unsigned long)itemlen,i,str);
+                    }
+                }else{
+                    /* Mark NULL */
+                    phs->array_indicators[i]=1;
+                    if (trace_level >= 3 || dbd_verbose >= 3 ){
+                        PerlIO_printf(
+                            DBIc_LOGPIO(imp_sth),
+                            "dbd_rebind_ph_varchar2_table(): "
+                            "Copying length=%lu array[%d]=NULL (length==0 or ! str) .\n",
+                            (unsigned long)itemlen,i);
+                    }
+                }
+            }else{
+                /* Mark NULL */
+                phs->array_indicators[i]=1;
+                if (trace_level >= 3 || dbd_verbose >= 3 ) {
+                    PerlIO_printf(
+                        DBIc_LOGPIO(imp_sth),
+                        "dbd_rebind_ph_varchar2_table(): "
+                        "Copying length=? array[%d]=NULL av_fetch failed.\n", i);
+                }
+            }
+        }
 	}
 	/* Do actual bind */
-	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+	OCIBindByName_log_stat(imp_sth, imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 		(text*)phs->name, (sb4)strlen(phs->name),
 		phs->array_buf,
 		phs->maxlen,
@@ -1900,7 +1944,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
 	return 0;
 	}
-	OCIBindArrayOfStruct_log_stat(phs->bndhp, imp_sth->errhp,
+	OCIBindArrayOfStruct_log_stat(imp_sth, phs->bndhp, imp_sth->errhp,
 		(unsigned)phs->maxlen,			/* Skip parameter for the next data value */
 		(unsigned)sizeof (OCIInd),		/* Skip parameter for the next indicator value */
 		(unsigned)sizeof(unsigned short), /* Skip parameter for the next actual length value */
@@ -1913,7 +1957,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	/* Fixup charset */
 	if (csform) {
 		/* set OCI_ATTR_CHARSET_FORM before we get the default OCI_ATTR_CHARSET_ID */
-	OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+        OCIAttrSet_log_stat(imp_sth, phs->bndhp, (ub4) OCI_HTYPE_BIND,
 		&csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
 	if ( status != OCI_SUCCESS ) {
 		oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)"));
@@ -1922,7 +1966,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	}
 
 	if (!phs->csid_orig) {	/* get the default csid Oracle would use */
-		OCIAttrGet_log_stat(phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
+		OCIAttrGet_log_stat(imp_sth, phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
 			OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
 	}
 
@@ -1934,7 +1978,9 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		csid = utf8_csid; /* not al32utf8_csid here on purpose */
 
 	if (trace_level >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_varchar2_table(): bind %s <== %s "
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "dbd_rebind_ph_varchar2_table(): bind %s <== %s "
 			"(%s, %s, csid %d->%d->%d, ftype %d, csform %d (%s)->%d (%s), maxlen %lu, maxdata_size %lu)\n",
 			phs->name, neatsvpv(phs->sv,0),
 			(phs->is_inout) ? "inout" : "in",
@@ -1945,7 +1991,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 
 	if (csid) {
-		OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+		OCIAttrSet_log_stat(imp_sth, phs->bndhp, (ub4) OCI_HTYPE_BIND,
 			&csid, (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
 		if ( status != OCI_SUCCESS ) {
 			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)"));
@@ -1954,7 +2000,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	}
 
 	if (phs->maxdata_size) {
-	OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
+        OCIAttrSet_log_stat(imp_sth, phs->bndhp, (ub4)OCI_HTYPE_BIND,
 		phs->array_buf, (ub4)phs->array_buflen, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
 	if ( status != OCI_SUCCESS ) {
 		oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)"));
@@ -1968,10 +2014,10 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 /* Copy array data from array buffer into perl array */
 /* Returns false on error, true on success */
-int dbd_phs_varchar_table_posy_exe(phs_t *phs){
+int dbd_phs_varchar_table_posy_exe(imp_sth_t *imp_sth, phs_t *phs){
 	dTHX;
 
-	int trace_level = DBIS->debug;
+	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	AV *arr;
 
 	if( ( ! SvROK(phs->sv) )  || (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) ) { /* Allow only array binds */
@@ -1979,7 +2025,7 @@ int dbd_phs_varchar_table_posy_exe(phs_t *phs){
 			neatsvpv(phs->sv,0), phs->name);
 	}
 	if (trace_level >= 1 || dbd_verbose >= 3 ){
-	PerlIO_printf(DBILOGFP,
+        PerlIO_printf(DBIc_LOGPIO(imp_sth),
 		"dbd_phs_varchar_table_posy_exe(): Called for '%s' : array_numstruct=%d, maxlen=%ld \n",
 		phs->name,
 		phs->array_numstruct,
@@ -2019,14 +2065,14 @@ int dbd_phs_varchar_table_posy_exe(phs_t *phs){
 			if( item ){
 				SvSetMagicSV(item,&PL_sv_undef);
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
-					PerlIO_printf(DBILOGFP,
+					PerlIO_printf(DBIc_LOGPIO(imp_sth),
 						"dbd_phs_varchar_table_posy_exe(): arr[%d] = undef; SvSetMagicSV(item,&PL_sv_undef);\n",i);
 				}
 			}
 			else{
 				av_store(arr,i,&PL_sv_undef);
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
-					PerlIO_printf(DBILOGFP,
+					PerlIO_printf(DBIc_LOGPIO(imp_sth),
 						"dbd_phs_varchar_table_posy_exe(): arr[%d] = undef; av_store(arr,i,&PL_sv_undef);\n",i);
 				}
 			}
@@ -2035,7 +2081,7 @@ int dbd_phs_varchar_table_posy_exe(phs_t *phs){
 			if( (phs->array_indicators[i] == -2) || (phs->array_indicators[i] > 0) ){
 			/* Truncation occurred */
 				if (trace_level >= 2 || dbd_verbose >= 3 ){
-					PerlIO_printf(DBILOGFP,
+					PerlIO_printf(DBIc_LOGPIO(imp_sth),
 					"dbd_phs_varchar_table_posy_exe(): Placeholder '%s': data truncated at %d row.\n",
 							phs->name,i);
 				}
@@ -2047,7 +2093,7 @@ int dbd_phs_varchar_table_posy_exe(phs_t *phs){
 				sv_setpvn_mg(item,phs->array_buf+phs->maxlen*i,phs->array_lengths[i]);
 				SvPOK_only_UTF8(item);
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
-					PerlIO_printf(DBILOGFP,
+					PerlIO_printf(DBIc_LOGPIO(imp_sth),
 						"dbd_phs_varchar_table_posy_exe(): arr[%d] = '%s'; "
 						"sv_setpvn_mg(item,phs->array_buf+phs->maxlen*i,phs->array_lengths[i]); \n",
 						i, phs->array_buf+phs->maxlen*i
@@ -2057,7 +2103,7 @@ int dbd_phs_varchar_table_posy_exe(phs_t *phs){
 			else{
 				av_store(arr,i,newSVpvn(phs->array_buf+phs->maxlen*i,phs->array_lengths[i]));
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
-					PerlIO_printf(DBILOGFP,
+					PerlIO_printf(DBIc_LOGPIO(imp_sth),
 						"dbd_phs_varchar_table_posy_exe(): arr[%d] = '%s'; "
 						"av_store(arr,i,newSVpvn(phs->array_buf+phs->maxlen*i,phs->array_lengths[i])); \n",
 						i, phs->array_buf+phs->maxlen*i
@@ -2068,7 +2114,7 @@ int dbd_phs_varchar_table_posy_exe(phs_t *phs){
 	}
 	}
 	if (trace_level >= 2 || dbd_verbose >= 3 ){
-		PerlIO_printf(DBILOGFP,
+		PerlIO_printf(DBIc_LOGPIO(imp_sth),
 			"dbd_phs_varchar_table_posy_exe(): scalar(@arr)=%ld.\n",
 			(long)av_len(arr)+1);
 	}
@@ -2080,7 +2126,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	dTHX;
 	/*D_imp_dbh_from_sth ;*/
 	sword status;
-	int trace_level = DBIS->debug;
+	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	AV *arr;
 	int need_allocate_rows;
 	int buflen;
@@ -2105,8 +2151,10 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	arr=(AV*)(SvRV(phs->sv));
 
 	if (trace_level >= 2 || dbd_verbose >= 3 ){
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): array_numstruct=%d\n",
-		  phs->array_numstruct);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "dbd_rebind_ph_number_table(): array_numstruct=%d\n",
+            phs->array_numstruct);
 	}
 	/* If no number of entries to bind specified,*/
 	/* set phs->array_numstruct to the scalar(@array) bound.*/
@@ -2116,7 +2164,9 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	if( numarrayentries >= 0 ){
 		phs->array_numstruct = numarrayentries+1;
 		if (trace_level >= 2 || dbd_verbose >= 3 ){
-				PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): array_numstruct=%d (calculated) \n",
+            PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "dbd_rebind_ph_number_table(): array_numstruct=%d (calculated) \n",
 				phs->array_numstruct);
 		}
 	}
@@ -2134,8 +2184,10 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 		phs->maxlen=sizeof(double);
 	}
 	if (trace_level >= 2 || dbd_verbose >= 3 ){
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): phs->maxlen calculated  =%ld\n",
-		(long)phs->maxlen);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "dbd_rebind_ph_number_table(): phs->maxlen calculated  =%ld\n",
+            (long)phs->maxlen);
 	}
 
 	if( phs->array_numstruct == 0 ){
@@ -2147,13 +2199,18 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 		phs->ora_maxarray_numentries=phs->array_numstruct;
 
 		if (trace_level >= 2 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): ora_maxarray_numentries assumed=phs->array_numstruct=%d\n",
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "dbd_rebind_ph_number_table(): ora_maxarray_numentries "
+                "assumed=phs->array_numstruct=%d\n",
 				phs->array_numstruct);
 		}
 	}else{
 		if (trace_level >= 2 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): ora_maxarray_numentries=%d\n",
-			phs->ora_maxarray_numentries);
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "dbd_rebind_ph_number_table(): ora_maxarray_numentries=%d\n",
+                phs->ora_maxarray_numentries);
 		}
 	}
 
@@ -2166,19 +2223,22 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 
 	/* Upgrade array buffer to new length */
 	if( ora_realloc_phs_array(phs,need_allocate_rows,buflen) ){
-	croak("Unable to bind %s - %d structures by %d bytes requires too much memory.",
-		phs->name, need_allocate_rows, buflen );
+        croak("Unable to bind %s - %d structures by %d bytes requires too much memory.",
+              phs->name, need_allocate_rows, buflen );
 	}else{
-	if (trace_level >= 2 || dbd_verbose >= 3 ){
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): ora_realloc_phs_array(,need_allocate_rows=%d,buflen=%d) succeeded.\n",
-			need_allocate_rows,buflen);
-	}
+        if (trace_level >= 2 || dbd_verbose >= 3 ){
+            PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "dbd_rebind_ph_number_table(): ora_realloc_phs_array(,"
+                "need_allocate_rows=%d,buflen=%d) succeeded.\n",
+                need_allocate_rows,buflen);
+        }
 	}
 	/* If maximum allowed bind numentries is less than allowed,
 	 * do not bind full array
 	 */
 	if( phs->array_numstruct > phs->ora_maxarray_numentries ){
-	phs->array_numstruct = phs->ora_maxarray_numentries;
+        phs->array_numstruct = phs->ora_maxarray_numentries;
 	}
 	/* Fill array buffer with data */
 
@@ -2224,7 +2284,8 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 				}
 				phs->array_lengths[i]=sizeof(int);
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
-				PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): "
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth), "dbd_rebind_ph_number_table(): "
 					"(integer) array[%d]=%d%s\n",
 					i, *(int*)(phs->array_buf+phs->maxlen*i),
 					phs->array_indicators[i] ? " (NULL)" : "" );
@@ -2245,7 +2306,9 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 				*(double*)(phs->array_buf+phs->maxlen*i)=val;
 				phs->array_indicators[i]=0;
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
-					PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): "
+					PerlIO_printf(
+                        DBIc_LOGPIO(imp_sth),
+                        "dbd_rebind_ph_number_table(): "
 						"let (double) array[%d]=%lf - NOT NULL\n",
 						i, val);
 				}
@@ -2255,29 +2318,35 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 					*(double*)(phs->array_buf+phs->maxlen*i)=0;
 					phs->array_indicators[i]=0;
 					if (trace_level >= 2 || dbd_verbose >= 3 ){
-					STRLEN l;
-					char *p=SvPV(item,l);
+                        STRLEN l;
+                        char *p=SvPV(item,l);
 
-					PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): "
-						"let (double) array[%d]=\"%s\" =NaN. Set =0 - NOT NULL\n",
-						i, p ? p : "<NULL>" );
+                        PerlIO_printf(
+                            DBIc_LOGPIO(imp_sth),
+                            "dbd_rebind_ph_number_table(): "
+                            "let (double) array[%d]=\"%s\" =NaN. Set =0 - NOT NULL\n",
+                            i, p ? p : "<NULL>" );
 					}
 				}else{
 					/* NULL */
 					phs->array_indicators[i]=1;
 					if (trace_level >= 3 || dbd_verbose >= 3 ){
-					PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): "
-						"let (double) array[%d] NULL\n",
-						i);
+                        PerlIO_printf(
+                            DBIc_LOGPIO(imp_sth),
+                            "dbd_rebind_ph_number_table(): "
+                            "let (double) array[%d] NULL\n",
+                            i);
 					}
 				}
 				}
 				phs->array_lengths[i]=sizeof(double);
 				if (trace_level >= 3 || dbd_verbose >= 3 ){
-				PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): "
-					"(double) array[%d]=%lf%s\n",
-					i, *(double*)(phs->array_buf+phs->maxlen*i),
-					phs->array_indicators[i] ? " (NULL)" : "" );
+                    PerlIO_printf(
+                        DBIc_LOGPIO(imp_sth),
+                        "dbd_rebind_ph_number_table(): "
+                        "(double) array[%d]=%lf%s\n",
+                        i, *(double*)(phs->array_buf+phs->maxlen*i),
+                        phs->array_indicators[i] ? " (NULL)" : "" );
 				}
 			}
 			break;
@@ -2286,14 +2355,16 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 		/* item not defined, mark NULL */
 		phs->array_indicators[i]=1;
 		if (trace_level >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP, "dbd_rebind_ph_number_table(): "
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "dbd_rebind_ph_number_table(): "
 				"Copying length=? array[%d]=NULL av_fetch failed.\n", i);
 		}
 		}
 	}
 	}
 	/* Do actual bind */
-	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+	OCIBindByName_log_stat(imp_sth, imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 		(text*)phs->name, (sb4)strlen(phs->name),
 		phs->array_buf,
 		phs->maxlen,
@@ -2309,7 +2380,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
 	return 0;
 	}
-	OCIBindArrayOfStruct_log_stat(phs->bndhp, imp_sth->errhp,
+	OCIBindArrayOfStruct_log_stat(imp_sth, phs->bndhp, imp_sth->errhp,
 		(unsigned)phs->maxlen,			/* Skip parameter for the next data value */
 		(unsigned)sizeof(OCIInd),		/* Skip parameter for the next indicator value */
 		(unsigned)sizeof(unsigned short), /* Skip parameter for the next actual length value */
@@ -2320,7 +2391,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	return 0;
 	}
 	if (phs->maxdata_size) {
-	OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
+        OCIAttrSet_log_stat(imp_sth, phs->bndhp, (ub4)OCI_HTYPE_BIND,
 		phs->array_buf, (ub4)phs->array_buflen, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
 	if ( status != OCI_SUCCESS ) {
 		oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)"));
@@ -2334,10 +2405,10 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 
 /* Copy array data from array buffer into perl array */
 /* Returns false on error, true on success */
-int dbd_phs_number_table_post_exe(phs_t *phs){
+int dbd_phs_number_table_post_exe(imp_sth_t *imp_sth, phs_t *phs){
 	dTHX;
 
-	int trace_level = DBIS->debug;
+	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	AV *arr;
 
 	if( ( ! SvROK(phs->sv) )  || (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) ) { /* Allow only array binds */
@@ -2345,7 +2416,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 			neatsvpv(phs->sv,0), phs->name);
 	}
 	if (trace_level >= 1 || dbd_verbose >= 3 ){
-	PerlIO_printf(DBILOGFP,
+        PerlIO_printf(DBIc_LOGPIO(imp_sth),
 		"dbd_phs_number_table_post_exe(): Called for '%s' : array_numstruct=%d, maxlen=%ld \n",
 		phs->name,
 		phs->array_numstruct,
@@ -2391,7 +2462,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 		if( item ){
 			SvSetMagicSV(item,&PL_sv_undef);
 			if (trace_level >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP,
+                PerlIO_printf(DBIc_LOGPIO(imp_sth),
 				"dbd_phs_number_table_post_exe(): arr[%d] = undef; SvSetMagicSV(item,&PL_sv_undef);\n",
 				i
 				);
@@ -2399,7 +2470,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 		}else{
 			av_store(arr,i,&PL_sv_undef);
 			if (trace_level >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP,
+                PerlIO_printf(DBIc_LOGPIO(imp_sth),
 				"dbd_phs_number_table_post_exe(): arr[%d] = undef; av_store(arr,i,&PL_sv_undef);\n",
 				i
 				);
@@ -2409,7 +2480,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 		if( (phs->array_indicators[i] == -2) || (phs->array_indicators[i] > 0) ){
 			/* Truncation occurred */
 			if (trace_level >= 2 || dbd_verbose >= 3 ){
-			PerlIO_printf(DBILOGFP,
+                PerlIO_printf(DBIc_LOGPIO(imp_sth),
 				"dbd_phs_number_table_post_exe(): Placeholder '%s': data truncated at %d row.\n",
 				phs->name,i);
 			}
@@ -2420,7 +2491,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 			switch(phs->ora_internal_type){
 			case SQLT_INT:
 				if (trace_level >= 4 || dbd_verbose >= 4 ){
-				PerlIO_printf(DBILOGFP,
+                    PerlIO_printf(DBIc_LOGPIO(imp_sth),
 					"dbd_phs_number_table_post_exe(): (int) set arr[%d] = %d \n",
 					i, *(int*)(phs->array_buf+phs->maxlen*i)
 					);
@@ -2429,7 +2500,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 				break;
 			case SQLT_FLT:
 				if (trace_level >= 4 || dbd_verbose >= 4 ){
-				PerlIO_printf(DBILOGFP,
+                    PerlIO_printf(DBIc_LOGPIO(imp_sth),
 					"dbd_phs_number_table_post_exe(): (double) set arr[%d] = %lf \n",
 					i, *(double*)(phs->array_buf+phs->maxlen*i)
 					);
@@ -2439,7 +2510,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 			if (trace_level >= 3 || dbd_verbose >= 3 ){
 			STRLEN l;
 			char *str= SvPOK(item) ? SvPV(item,l) : "<unprintable>" ;
-			PerlIO_printf(DBILOGFP,
+			PerlIO_printf(DBIc_LOGPIO(imp_sth),
 				"dbd_phs_number_table_post_exe(): arr[%d] = '%s'\n",
 					i, str ? str : "<unprintable>"
 				);
@@ -2448,7 +2519,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 			switch(phs->ora_internal_type){
 			case SQLT_INT:
 				if (trace_level >= 4 || dbd_verbose >= 4 ){
-				PerlIO_printf(DBILOGFP,
+                    PerlIO_printf(DBIc_LOGPIO(imp_sth),
 					"dbd_phs_number_table_post_exe(): (int) store new arr[%d] = %d \n",
 					i, *(int*)(phs->array_buf+phs->maxlen*i)
 				);
@@ -2457,7 +2528,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 				break;
 			case SQLT_FLT:
 				if (trace_level >= 4 || dbd_verbose >= 4 ){
-				PerlIO_printf(DBILOGFP,
+                    PerlIO_printf(DBIc_LOGPIO(imp_sth),
 					"dbd_phs_number_table_post_exe(): (double) store new arr[%d] = %lf \n",
 					i, *(double*)(phs->array_buf+phs->maxlen*i)
 					);
@@ -2472,7 +2543,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 					item=*pitem;
 				}
 				str= item ? ( SvPOK(item) ? SvPV(item,l) : "<unprintable>"  ) : "<undef>";
-				PerlIO_printf(DBILOGFP,
+				PerlIO_printf(DBIc_LOGPIO(imp_sth),
 					"dbd_phs_number_table_post_exe(): arr[%d] = '%s'\n",
 					i, str ? str : "<unprintable>"
 				);
@@ -2482,7 +2553,7 @@ int dbd_phs_number_table_post_exe(phs_t *phs){
 	}
 	}
 	if (trace_level >= 2 || dbd_verbose >= 3 ){
-	PerlIO_printf(DBILOGFP,
+        PerlIO_printf(DBIc_LOGPIO(imp_sth),
 		"dbd_phs_number_table_post_exe(): scalar(@arr)=%ld.\n",
 		(long)av_len(arr)+1);
 	}
@@ -2510,15 +2581,22 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 	}
 
 
-	if (DBIS->debug >= 2 || dbd_verbose >= 3 ) {
+	if (DBIc_DBISTATE(imp_sth)->debug >= 2 || dbd_verbose >= 3 ) {
 		char *val = neatsvpv(phs->sv,10);
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (1): bind %s <== %.1000s (", phs->name, val);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "dbd_rebind_ph_char() (1): bind %s <== %.1000s (", phs->name, val);
 		if (!SvOK(phs->sv))
-			PerlIO_printf(DBILOGFP, "NULL, ");
-		PerlIO_printf(DBILOGFP, "size %ld/%ld/%ld, ",(long)SvCUR(phs->sv),(long)SvLEN(phs->sv),(long)phs->maxlen);
-		PerlIO_printf(DBILOGFP, "ptype %d(%s), otype %d %s)\n",(int)SvTYPE(phs->sv), sql_typecode_name(phs->ftype),phs->ftype,(phs->is_inout) ? ", inout" : "");
-
-
+			PerlIO_printf(DBIc_LOGPIO(imp_sth), "NULL, ");
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "size %ld/%ld/%ld, ",
+            (long)SvCUR(phs->sv),(long)SvLEN(phs->sv),(long)phs->maxlen);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "ptype %d(%s), otype %d %s)\n",
+            (int)SvTYPE(phs->sv), sql_typecode_name(phs->ftype),
+            phs->ftype,(phs->is_inout) ? ", inout" : "");
 	}
 
 	/* At the moment we always do sv_setsv() and rebind.	*/
@@ -2583,14 +2661,18 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 
 	phs->alen = value_len + phs->alen_incnull;
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 ) {
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 ) {
 		UV neatsvpvlen = (UV)DBIc_DBISTATE(imp_sth)->neatsvpvlen;
 		char *val = neatsvpv(phs->sv,10);
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph_char() (2): bind %s <== '%.*s' (size %ld/%ld, otype %d(%s), indp %d, at_exec %d)\n",
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "dbd_rebind_ph_char() (2): bind %s <== '%.*s' (size %ld/%ld, "
+            "otype %d(%s), indp %d, at_exec %d)\n",
 			phs->name,
 			(int)(phs->alen > neatsvpvlen ? neatsvpvlen : phs->alen),
 			(phs->progv) ?  val: "",
-			(long)phs->alen, (long)phs->maxlen, phs->ftype,sql_typecode_name(phs->ftype), phs->indp, at_exec);
+			(long)phs->alen, (long)phs->maxlen,
+            phs->ftype,sql_typecode_name(phs->ftype), phs->indp, at_exec);
 	}
 
 	return 1;
@@ -2611,10 +2693,15 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	D_impdata(imp_sth_csr, imp_sth_t, sth_csr);
 	sword status;
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	pp_rebind_ph_rset_in: BEGIN\n	calling OCIBindByName(stmhp=%p, bndhp=%p, errhp=%p, name=%s, csrstmhp=%p, ftype=%d)\n", imp_sth->stmhp, phs->bndhp, imp_sth->errhp, phs->name, imp_sth_csr->stmhp, phs->ftype);
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "	pp_rebind_ph_rset_in: BEGIN\n	calling OCIBindByName(stmhp=%p, "
+            "bndhp=%p, errhp=%p, name=%s, csrstmhp=%p, ftype=%d)\n",
+            imp_sth->stmhp, phs->bndhp, imp_sth->errhp, phs->name,
+            imp_sth_csr->stmhp, phs->ftype);
 
-	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+	OCIBindByName_log_stat(imp_sth, imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 			(text*)phs->name, (sb4)strlen(phs->name),
 			&imp_sth_csr->stmhp,
 			0,
@@ -2631,8 +2718,8 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		return 0;
 	}
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	pp_rebind_ph_rset_in: END\n");
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
+		PerlIO_printf(DBIc_LOGPIO(imp_sth), "	pp_rebind_ph_rset_in: END\n");
 
 	return 2;
 }
@@ -2641,7 +2728,7 @@ pp_rebind_ph_rset_in(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 int
 pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 {
-dTHX;
+    dTHX;
 
 	if (pre_exec) {	/* pre-execute - allocate a statement handle */
 		dSP;
@@ -2650,27 +2737,30 @@ dTHX;
 		int count;
 		sword status;
 
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, " pp_exec_rset bind %s - allocating new sth...\n", phs->name);
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                " pp_exec_rset bind %s - allocating new sth...\n",
+                phs->name);
 
-	/* extproc deallocates everything for us */
+        /* extproc deallocates everything for us */
 		if (is_extproc)
 			return 1;
 
 		if (!phs->desc_h || 1) { /* XXX phs->desc_t != OCI_HTYPE_STMT) */
 			if (phs->desc_h) {
-				OCIHandleFree_log_stat(phs->desc_h, phs->desc_t, status);
+				OCIHandleFree_log_stat(imp_sth, phs->desc_h, phs->desc_t, status);
 				phs->desc_h = NULL;
 			}
 			phs->desc_t = OCI_HTYPE_STMT;
-			OCIHandleAlloc_ok(imp_sth->envhp, &phs->desc_h, phs->desc_t, status);
+			OCIHandleAlloc_ok(imp_sth, imp_sth->envhp, &phs->desc_h, phs->desc_t, status);
 		 }
 
 
 		phs->progv = (char*)&phs->desc_h;
 		phs->maxlen = 0;
 
-		OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+		OCIBindByName_log_stat(imp_sth, imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 			(text*)phs->name,
 			(sb4)strlen(phs->name),
 			phs->progv,
@@ -2707,9 +2797,11 @@ dTHX;
 		PUTBACK;
 		FREETMPS;
 		LEAVE;
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, "   pp_exec_rset   bind %s - allocated %s...\n",
-			phs->name, neatsvpv(phs->sv, 0));
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "   pp_exec_rset   bind %s - allocated %s...\n",
+                phs->name, neatsvpv(phs->sv, 0));
 
 	}
 	else {		/* post-execute - setup the statement handle */
@@ -2717,9 +2809,11 @@ dTHX;
 		SV * sth_csr = phs->sv;
 		D_impdata(imp_sth_csr, imp_sth_t, sth_csr);
 
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, "	   bind %s - initialising new %s for cursor 0x%lx...\n",
-		phs->name, neatsvpv(sth_csr,0), (unsigned long)phs->progv);
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "	   bind %s - initialising new %s for cursor 0x%lx...\n",
+                phs->name, neatsvpv(sth_csr,0), (unsigned long)phs->progv);
 
 		/* copy appropriate handles and atributes from parent statement	*/
 		imp_sth_csr->envhp		= imp_sth->envhp;
@@ -2762,8 +2856,8 @@ sword status;
  SV* ptr;
 
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, " in  dbd_rebind_ph_xml\n");
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
+		PerlIO_printf(DBIc_LOGPIO(imp_sth), " in  dbd_rebind_ph_xml\n");
 
 /*go and create the XML dom from the passed in value*/
 
@@ -2775,12 +2869,19 @@ sword status;
 	/* ensure that the value is a support named object type */
 	/* (currently only OCIXMLType*)						 */
 	if ( sv_isa(phs->sv, "OCIXMLTypePtr") ) {
-		OCITypeByName(imp_sth->envhp, imp_sth->errhp, imp_sth->svchp,
-			(CONST text*)"SYS", 3,
-			(CONST text*)"XMLTYPE", 7,
-			(CONST text*)0, 0,
-			OCI_DURATION_CALLOUT, OCI_TYPEGET_HEADER,
-			&tdo);
+        /* TO_DO not logging: */
+		OCITypeByName_log(
+            imp_sth,
+            imp_sth->envhp,
+            imp_sth->errhp,
+            imp_sth->svchp,
+            (CONST text*)"SYS", 3,    /* schema_name, schema_length */
+            (CONST text*)"XMLTYPE", 7, /* type_name, type_length */
+            (CONST text*)0, 0,         /* version_name, version_length */
+            OCI_DURATION_CALLOUT,      /* pin_duration */
+            OCI_TYPEGET_HEADER,        /* get_option */
+            &tdo,                      /* tdo */
+            status);
 		ptr = SvRV(phs->sv);
 		phs->progv  = (void*) SvIV(ptr);
 		phs->maxlen = sizeof(OCIXMLType*);
@@ -2791,7 +2892,7 @@ sword status;
 
 	/* bind by name */
 
-	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+	OCIBindByName_log_stat(imp_sth, imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
  			(text*)phs->name, (sb4)strlen(phs->name),
  			(dvoid *) NULL, /* value supplied in BindObject later */
  			0,
@@ -2807,8 +2908,8 @@ sword status;
 		oci_error(sth, imp_sth->errhp, status, "OCIBindByName SQLT_NTY");
 		return 0;
 	}
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
- 		PerlIO_printf(DBILOGFP, "	pp_rebind_ph_nty: END\n");
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
+ 		PerlIO_printf(DBIc_LOGPIO(imp_sth), "	pp_rebind_ph_nty: END\n");
 
 
 	 /* bind the object */
@@ -2831,14 +2932,19 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	sword status;
 	int done = 0;
 	int at_exec;
-	int trace_level = DBIS->debug;
+	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	ub1 csform;
 	ub2 csid;
 
 	if (trace_level >= 5 || dbd_verbose >= 5 )
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph() (1): rebinding %s as %s (%s, ftype %d (%s), csid %d, csform %d(%s), inout %d)\n",
-		phs->name, (SvPOK(phs->sv) ? neatsvpv(phs->sv,10) : "NULL"),(SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
-		phs->ftype,sql_typecode_name(phs->ftype),phs->csid, phs->csform,oci_csform_name(phs->csform), phs->is_inout);
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "dbd_rebind_ph() (1): rebinding %s as %s (%s, ftype %d (%s), "
+            "csid %d, csform %d(%s), inout %d)\n",
+            phs->name, (SvPOK(phs->sv) ? neatsvpv(phs->sv,10) : "NULL"),
+            (SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
+            phs->ftype,sql_typecode_name(phs->ftype), phs->csid, phs->csform,
+            oci_csform_name(phs->csform), phs->is_inout);
 
 	switch (phs->ftype) {
 		case ORA_VARCHAR2_TABLE:
@@ -2863,13 +2969,14 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 	if (done == 2) { /* the dbd_rebind_* did the OCI bind call itself successfully */
 		if (trace_level >= 3 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, "	  rebind %s done with ftype %d (%s)\n",
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth), "	  rebind %s done with ftype %d (%s)\n",
 				phs->name, phs->ftype,sql_typecode_name(phs->ftype));
 		return 1;
 	}
 
 	if (trace_level >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "	  bind %s as ftype %d (%s)\n",
+		PerlIO_printf(DBIc_LOGPIO(imp_sth), "	  bind %s as ftype %d (%s)\n",
 		phs->name, phs->ftype,sql_typecode_name(phs->ftype));
 
 	if (done != 1) {
@@ -2879,7 +2986,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	at_exec = (phs->desc_h == NULL);
 
 
-	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+	OCIBindByName_log_stat(imp_sth, imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 		(text*)phs->name, (sb4)strlen(phs->name),
 		phs->progv,
 		phs->maxlen ? (sb4)phs->maxlen : 1,	/* else bind "" fails	*/
@@ -2896,7 +3003,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		return 0;
 	}
 	if (at_exec) {
-		OCIBindDynamic_log(phs->bndhp, imp_sth->errhp,
+		OCIBindDynamic_log(imp_sth, phs->bndhp, imp_sth->errhp,
 			(dvoid *)phs, dbd_phs_in,
 			(dvoid *)phs, dbd_phs_out, status);
 
@@ -2917,7 +3024,9 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		else if (CSFORM_IMPLIES_UTF8(SQLCS_NCHAR))
 			csform = SQLCS_NCHAR;	/* else leave csform == 0 */
 	if (trace_level || dbd_verbose >= 3)
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph() (2): rebinding %s with UTF8 value %s", phs->name,
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "dbd_rebind_ph() (2): rebinding %s with UTF8 value %s", phs->name,
 		(csform == SQLCS_IMPLICIT) ? "so setting csform=SQLCS_IMPLICIT" :
 		(csform == SQLCS_NCHAR)	? "so setting csform=SQLCS_NCHAR" :
 		"but neither CHAR nor NCHAR are unicode\n");
@@ -2925,7 +3034,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 
 	if (csform) {
 		/* set OCI_ATTR_CHARSET_FORM before we get the default OCI_ATTR_CHARSET_ID */
-		OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+		OCIAttrSet_log_stat(imp_sth, phs->bndhp, (ub4) OCI_HTYPE_BIND,
 		&csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
 		if ( status != OCI_SUCCESS ) {
 			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)"));
@@ -2934,7 +3043,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	}
 
 	if (!phs->csid_orig) {	/* get the default csid Oracle would use */
-		OCIAttrGet_log_stat(phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
+		OCIAttrGet_log_stat(imp_sth, phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
 		OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
 	}
 
@@ -2946,18 +3055,21 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		csid = utf8_csid; /* not al32utf8_csid here on purpose */
 
 	if (trace_level >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "dbd_rebind_ph(): bind %s <== %s "
-		"(%s, %s, csid %d->%d->%d, ftype %d (%s), csform %d(%s)->%d(%s), maxlen %lu, maxdata_size %lu)\n",
-		  phs->name, neatsvpv(phs->sv,10),
-		  (phs->is_inout) ? "inout" : "in",
-		  (SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
-		  phs->csid_orig, phs->csid, csid,
-		  phs->ftype,sql_typecode_name(phs->ftype), phs->csform, oci_csform_name(phs->csform), csform, oci_csform_name(csform),
-		  (unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
-
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "dbd_rebind_ph(): bind %s <== %s "
+            "(%s, %s, csid %d->%d->%d, ftype %d (%s), csform %d(%s)->%d(%s), "
+            "maxlen %lu, maxdata_size %lu)\n",
+            phs->name, neatsvpv(phs->sv,10),
+            (phs->is_inout) ? "inout" : "in",
+            (SvUTF8(phs->sv) ? "is-utf8" : "not-utf8"),
+            phs->csid_orig, phs->csid, csid,
+            phs->ftype, sql_typecode_name(phs->ftype), phs->csform,
+            oci_csform_name(phs->csform), csform, oci_csform_name(csform),
+            (unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
 
 	if (csid) {
-		OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+		OCIAttrSet_log_stat(imp_sth, phs->bndhp, (ub4) OCI_HTYPE_BIND,
 			&csid, (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
 		if ( status != OCI_SUCCESS ) {
 			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)"));
@@ -2966,7 +3078,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 	}
 
 	if (phs->maxdata_size) {
-		OCIAttrSet_log_stat(phs->bndhp, (ub4)OCI_HTYPE_BIND,
+		OCIAttrSet_log_stat(imp_sth, phs->bndhp, (ub4)OCI_HTYPE_BIND,
 			neatsvpv(phs->sv,0), (ub4)phs->maxdata_size, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
 		if ( status != OCI_SUCCESS ) {
 			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)"));
@@ -3024,15 +3136,16 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 	if (SvTYPE(newvalue) == SVt_PVLV && is_inout)	/* may allow later */
 		croak("Can't bind ``lvalue'' mode scalar as inout parameter (currently)");
 
-	if (DBIS->debug >= 2 || dbd_verbose >= 3 ) {
-		PerlIO_printf(DBILOGFP, "dbd_bind_ph(1): bind %s <== %s (type %ld (%s)",
+	if (DBIc_DBISTATE(imp_sth)->debug >= 2 || dbd_verbose >= 3 ) {
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth), "dbd_bind_ph(1): bind %s <== %s (type %ld (%s)",
 		name, neatsvpv(newvalue,0), (long)sql_type,sql_typecode_name(sql_type));
 		if (is_inout)
-			PerlIO_printf(DBILOGFP, ", inout 0x%lx, maxlen %ld",
+			PerlIO_printf(DBIc_LOGPIO(imp_sth), ", inout 0x%lx, maxlen %ld",
 			(long)newvalue, (long)maxlen);
 		if (attribs)
-			PerlIO_printf(DBILOGFP, ", attribs: %s", neatsvpv(attribs,0));
-		PerlIO_printf(DBILOGFP, ")\n");
+			PerlIO_printf(DBIc_LOGPIO(imp_sth), ", attribs: %s", neatsvpv(attribs,0));
+		PerlIO_printf(DBIc_LOGPIO(imp_sth), ")\n");
 	}
 
 	phs_svp = hv_fetch(imp_sth->all_params_hv, name, name_len, 0);
@@ -3177,7 +3290,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 /* --- functions to 'complete' the fetch of a value --- */
 
 void
-dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
+dbd_phs_sv_complete(imp_sth_t *imp_sth, phs_t *phs, SV *sv, I32 debug)
 {
 	dTHX;
 	char *note = "";
@@ -3255,14 +3368,15 @@ dbd_phs_sv_complete(phs_t *phs, SV *sv, I32 debug)
 	}
 }
 void
-dbd_phs_avsv_complete(phs_t *phs, I32 index, I32 debug)
+dbd_phs_avsv_complete(imp_sth_t *imp_sth, phs_t *phs, I32 index, I32 debug)
 {
 	dTHX;
 	AV *av = (AV*)SvRV(phs->sv);
 	SV *sv = *av_fetch(av, index, 1);
-	dbd_phs_sv_complete(phs, sv, 0);
+	dbd_phs_sv_complete(imp_sth, phs, sv, 0);
 	if (debug >= 2 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, " dbd_phs_avsv_complete out '%s'[%ld] = %s (arcode %d, ind %d, len %d)\n",
+		PerlIO_printf(DBIc_LOGPIO(imp_sth),
+                      " dbd_phs_avsv_complete out '%s'[%ld] = %s (arcode %d, ind %d, len %d)\n",
 		phs->name, (long)index, neatsvpv(sv,0), phs->arcode, phs->indp, phs->alen);
 }
 
@@ -3276,7 +3390,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 	dTHR;
 	dTHX;
 	ub4 row_count = 0;
-	int debug 	  = DBIS->debug;
+	int debug 	  = DBIc_DBISTATE(imp_sth)->debug;
 	int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
 	D_imp_dbh_from_sth;
 	sword status;
@@ -3284,9 +3398,10 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 
 
 	if (debug >= 2 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "   dbd_st_execute %s (out%d, lob%d)...\n",
-		oci_stmt_type_name(imp_sth->stmt_type), outparams, imp_sth->has_lobs);
-
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "   dbd_st_execute %s (out%d, lob%d)...\n",
+            oci_stmt_type_name(imp_sth->stmt_type), outparams, imp_sth->has_lobs);
 
 	/* Don't attempt execute for nested cursor. It would be meaningless,
 		and Oracle code has been seen to core dump */
@@ -3316,11 +3431,12 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 			else
 			if (SvTYPE(sv) == SVt_RV && SvTYPE(SvRV(sv)) == SVt_PVAV) {
 				if (debug >= 2 || dbd_verbose >= 3 )
-					PerlIO_printf(DBILOGFP,
-					"	  with %s = [] (len %ld/%ld, indp %d, otype %d, ptype %d)\n",
-				phs->name,
-				(long)phs->alen, (long)phs->maxlen, phs->indp,
-				phs->ftype, (int)SvTYPE(sv));
+					PerlIO_printf(
+                        DBIc_LOGPIO(imp_sth),
+                        "	  with %s = [] (len %ld/%ld, indp %d, otype %d, ptype %d)\n",
+                        phs->name,
+                        (long)phs->alen, (long)phs->maxlen, phs->indp,
+                        phs->ftype, (int)SvTYPE(sv));
 				av_clear((AV*)SvRV(sv));
 			}
 			else
@@ -3341,12 +3457,15 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 					ub2 prev_alen = phs->alen;
 					phs->alen = (SvOK(sv)) ? SvCUR(sv) + phs->alen_incnull : 0+phs->alen_incnull;
 					if (debug >= 2 || dbd_verbose >= 3 )
-						PerlIO_printf(DBILOGFP,
-						"	  with %s = '%.*s' (len %ld(%ld)/%ld, indp %d, otype %d, ptype %d)\n",
+						PerlIO_printf(
+                            DBIc_LOGPIO(imp_sth),
+                            "	  with %s = '%.*s' (len %ld(%ld)/%ld, indp %d, "
+                            "otype %d, ptype %d)\n",
 							phs->name, (int)phs->alen,
-						(phs->indp == -1) ? "" : SvPVX(sv),
-						(long)phs->alen, (long)prev_alen, (long)phs->maxlen, phs->indp,
-						phs->ftype, (int)SvTYPE(sv));
+                            (phs->indp == -1) ? "" : SvPVX(sv),
+                            (long)phs->alen, (long)prev_alen,
+                            (long)phs->maxlen, phs->indp,
+                            phs->ftype, (int)SvTYPE(sv));
 				}
 			}
 		}
@@ -3362,9 +3481,12 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 
 
 		if (debug >= 2 || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP,"Statement Execute Mode is %d (%s)\n",imp_sth->exe_mode,oci_exe_mode(imp_sth->exe_mode));
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "Statement Execute Mode is %d (%s)\n",
+                imp_sth->exe_mode,oci_exe_mode(imp_sth->exe_mode));
 
-		OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
+		OCIStmtExecute_log_stat(imp_sth, imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
 					(ub4)(is_select ? 0: 1),
 					0, 0, 0,(ub4)imp_sth->exe_mode,status);
 
@@ -3392,7 +3514,8 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 	if (debug >= 2 || dbd_verbose >= 3 ) {
 		ub2 sqlfncode;
 		OCIAttrGet_stmhp_stat(imp_sth, &sqlfncode, 0, OCI_ATTR_SQLFNCODE, status);
-		PerlIO_printf(DBILOGFP,
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
 			"	dbd_st_execute %s returned (%s, rpc%ld, fn%d, out%d)\n",
 			oci_stmt_type_name(imp_sth->stmt_type),
 			oci_status_name(status),
@@ -3417,16 +3540,18 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 			phs_t *phs = (phs_t*)(void*)SvPVX(AvARRAY(imp_sth->out_params_av)[i]);
 			SV *sv = phs->sv;
 			if (debug >= 2 || dbd_verbose >= 3 ) {
-				PerlIO_printf(DBILOGFP,
-					"dbd_st_execute(): Analyzing inout  a parameter '%s of type=%d  name=%s'\n",
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+					"dbd_st_execute(): Analyzing inout  a parameter '%s"
+                    "of type=%d  name=%s'\n",
 					phs->name,phs->ftype,sql_typecode_name(phs->ftype));
 			}
 			if( phs->ftype == ORA_VARCHAR2_TABLE ){
-				dbd_phs_varchar_table_posy_exe(phs);
+				dbd_phs_varchar_table_posy_exe(imp_sth, phs);
 				continue;
 			}
 			if( phs->ftype == ORA_NUMBER_TABLE ){
-				dbd_phs_number_table_post_exe(phs);
+				dbd_phs_number_table_post_exe(imp_sth, phs);
 				continue;
 			}
 
@@ -3439,10 +3564,10 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 					AV *av = (AV*)SvRV(sv);
 					I32 avlen = AvFILL(av);
 					if (avlen >= 0)
-						 dbd_phs_avsv_complete(phs, avlen, debug);
+                        dbd_phs_avsv_complete(imp_sth, phs, avlen, debug);
 				}
 				else {
-					dbd_phs_sv_complete(phs, sv, debug);
+					dbd_phs_sv_complete(imp_sth, phs, sv, debug);
 				}
 			}
 		}
@@ -3464,9 +3589,9 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 	sword status;
 	ub1 csform;
 	ub2 csid;
-	int trace_level = DBIS->debug;
+	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	int i;
-	OCIBindByName_log_stat(imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
+	OCIBindByName_log_stat(imp_sth, imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 			(text*)phs->name, (sb4)strlen(phs->name),
 			0,
 			phs->maxlen ? (sb4)phs->maxlen : 1, /* else bind "" fails */
@@ -3483,7 +3608,7 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 	}
 
 
-	OCIBindDynamic_log(phs->bndhp, imp_sth->errhp,
+	OCIBindDynamic_log(imp_sth, phs->bndhp, imp_sth->errhp,
 					(dvoid *)phs, dbd_phs_in,
 					(dvoid *)phs, dbd_phs_out, status);
 	if (status != OCI_SUCCESS) {
@@ -3501,7 +3626,9 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 		else if (CSFORM_IMPLIES_UTF8(SQLCS_NCHAR))
 			csform = SQLCS_NCHAR;   /* else leave csform == 0 */
 		if (trace_level || dbd_verbose >= 3 )
-			PerlIO_printf(DBILOGFP, "do_bind_array_exec() (2): rebinding %s with UTF8 value %s", phs->name,
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "do_bind_array_exec() (2): rebinding %s with UTF8 value %s", phs->name,
 				(csform == SQLCS_IMPLICIT) ? "so setting csform=SQLCS_IMPLICIT" :
 				(csform == SQLCS_NCHAR)	? "so setting csform=SQLCS_NCHAR" :
 				 "but neither CHAR nor NCHAR are unicode\n");
@@ -3509,7 +3636,7 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 
 	if (csform) {
 		/* set OCI_ATTR_CHARSET_FORM before we get the default OCI_ATTR_CHARSET_ID */
-		OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+		OCIAttrSet_log_stat(imp_sth, phs->bndhp, (ub4) OCI_HTYPE_BIND,
 			&csform, (ub4) 0, (ub4) OCI_ATTR_CHARSET_FORM, imp_sth->errhp, status);
 		if ( status != OCI_SUCCESS ) {
 			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_FORM)"));
@@ -3518,7 +3645,7 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 	}
 
 	if (!phs->csid_orig) {	  /* get the default csid Oracle would use */
-		OCIAttrGet_log_stat(phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
+		OCIAttrGet_log_stat(imp_sth, phs->bndhp, OCI_HTYPE_BIND, &phs->csid_orig, (ub4)0 ,
 			OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
 	}
 
@@ -3550,18 +3677,21 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 	}
 
 	if (trace_level >= 3 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "do_bind_array_exec(): bind %s <== [array of values] "
-			"(%s, %s, csid %d->%d->%d, ftype %d (%s), csform %d (%s)->%d (%s), maxlen %lu, maxdata_size %lu)\n",
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "do_bind_array_exec(): bind %s <== [array of values] "
+			"(%s, %s, csid %d->%d->%d, ftype %d (%s), csform %d (%s)->%d (%s)"
+            ", maxlen %lu, maxdata_size %lu)\n",
 			phs->name,
 			(phs->is_inout) ? "inout" : "in",
 			(utf8 ? "is-utf8" : "not-utf8"),
 			phs->csid_orig, phs->csid, csid,
-			phs->ftype,sql_typecode_name(phs->ftype), phs->csform,oci_csform_name(phs->csform), csform,oci_csform_name(csform),
+			phs->ftype, sql_typecode_name(phs->ftype),
+            phs->csform,oci_csform_name(phs->csform), csform,oci_csform_name(csform),
 			(unsigned long)phs->maxlen, (unsigned long)phs->maxdata_size);
 
-
 	if (csid) {
-		OCIAttrSet_log_stat(phs->bndhp, (ub4) OCI_HTYPE_BIND,
+		OCIAttrSet_log_stat(imp_sth, phs->bndhp, (ub4) OCI_HTYPE_BIND,
 			&csid, (ub4) 0, (ub4) OCI_ATTR_CHARSET_ID, imp_sth->errhp, status);
 		if ( status != OCI_SUCCESS ) {
 			oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_CHARSET_ID)"));
@@ -3602,7 +3732,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 	dTHX;
 	dTHR;
 	ub4 row_count = 0;
-	int debug = DBIS->debug;
+	int debug = DBIc_DBISTATE(imp_sth)->debug;
 	D_imp_dbh_from_sth;
 	sword status, exe_status;
 	int is_select = (imp_sth->stmt_type == OCI_STMT_SELECT);
@@ -3623,10 +3753,12 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 	tuples_utf8_av=newAV();
 
 	if (debug >= 2 || dbd_verbose >= 3 )
-		PerlIO_printf(DBILOGFP, "  ora_st_execute_array %s count=%d (%s %s %s)...\n",
-					oci_stmt_type_name(imp_sth->stmt_type), exe_count,
-					neatsvpv(tuples,0), neatsvpv(tuples_status,0),
-					neatsvpv(columns, 0));
+		PerlIO_printf(
+            DBIc_LOGPIO(imp_sth),
+            "  ora_st_execute_array %s count=%d (%s %s %s)...\n",
+            oci_stmt_type_name(imp_sth->stmt_type), exe_count,
+            neatsvpv(tuples,0), neatsvpv(tuples_status,0),
+            neatsvpv(columns, 0));
 
 	if (is_select) {
 		croak("ora_st_execute_array(): SELECT statement not supported "
@@ -3781,7 +3913,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 	if(autocommit)
 		oci_mode |= OCI_COMMIT_ON_SUCCESS;
 
-	OCIStmtExecute_log_stat(imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
+	OCIStmtExecute_log_stat(imp_sth, imp_sth->svchp, imp_sth->stmhp, imp_sth->errhp,
 							exe_count, 0, 0, 0, oci_mode, exe_status);
 
 	OCIAttrGet_stmhp_stat(imp_sth, &row_count, 0, OCI_ATTR_ROW_COUNT, status);
@@ -3803,7 +3935,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 				AV *av = (AV*)SvRV(sv);
 				I32 avlen = AvFILL(av);
 				for (j=0;j<=avlen;j++){
-					dbd_phs_avsv_complete(phs, j, debug);
+					dbd_phs_avsv_complete(imp_sth, phs, j, debug);
 				}
 			}
 		}
@@ -3812,8 +3944,10 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 	OCIAttrGet_stmhp_stat(imp_sth, &num_errs, 0, OCI_ATTR_NUM_DML_ERRORS, status);
 
 	if (debug >= 6 || dbd_verbose >= 6 )
-		 PerlIO_printf(DBILOGFP, "	ora_st_execute_array %d errors in batch.\n",
-					  num_errs);
+		 PerlIO_printf(
+             DBIc_LOGPIO(imp_sth),
+             "	ora_st_execute_array %d errors in batch.\n",
+             num_errs);
 
 	if(num_errs && tuples_status_av) {
 		OCIError *row_errhp, *tmp_errhp;
@@ -3825,30 +3959,32 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 		err_svs[0] = newSViv((IV)0);
 		err_svs[1] = newSVpvn("", 0);
 		err_svs[2] = newSVpvn("S1000",5);
-		OCIHandleAlloc_ok(imp_sth->envhp, &row_errhp, OCI_HTYPE_ERROR, status);
-		OCIHandleAlloc_ok(imp_sth->envhp, &tmp_errhp, OCI_HTYPE_ERROR, status);
+		OCIHandleAlloc_ok(imp_sth, imp_sth->envhp, &row_errhp, OCI_HTYPE_ERROR, status);
+		OCIHandleAlloc_ok(imp_sth, imp_sth->envhp, &tmp_errhp, OCI_HTYPE_ERROR, status);
 		for(i = 0; (unsigned int) i < num_errs; i++) {
-			OCIParamGet_log_stat(imp_sth->errhp, OCI_HTYPE_ERROR,
+			OCIParamGet_log_stat(imp_sth, imp_sth->errhp, OCI_HTYPE_ERROR,
 								 tmp_errhp, (dvoid *)&row_errhp,
 								 (ub4)i, status);
-			OCIAttrGet_log_stat(row_errhp, OCI_HTYPE_ERROR, &row_off, 0,
+			OCIAttrGet_log_stat(imp_sth, row_errhp, OCI_HTYPE_ERROR, &row_off, 0,
 								OCI_ATTR_DML_ROW_OFFSET, imp_sth->errhp, status);
 			if (debug >= 6 || dbd_verbose >= 6 )
-				PerlIO_printf(DBILOGFP, "	ora_st_execute_array error in row %d.\n",
-							  row_off);
+				PerlIO_printf(
+                    DBIc_LOGPIO(imp_sth),
+                    "	ora_st_execute_array error in row %d.\n",
+                    row_off);
 			sv_setpv(err_svs[1], "");
-			err_code = oci_error_get(row_errhp, exe_status, NULL, err_svs[1], debug);
+			err_code = oci_error_get((imp_xxh_t *)imp_sth, row_errhp, exe_status, NULL, err_svs[1], debug);
 			sv_setiv(err_svs[0], (IV)err_code);
 			av_store(tuples_status_av, row_off,
 					 newRV_noinc((SV *)(av_make(3, err_svs))));
 		}
-		OCIHandleFree_log_stat(tmp_errhp, OCI_HTYPE_ERROR,  status);
-		OCIHandleFree_log_stat(row_errhp, OCI_HTYPE_ERROR,  status);
+		OCIHandleFree_log_stat(imp_sth, tmp_errhp, OCI_HTYPE_ERROR,  status);
+		OCIHandleFree_log_stat(imp_sth, row_errhp, OCI_HTYPE_ERROR,  status);
 
 		/* Do a commit here if autocommit is set, since Oracle
 			doesn't do that for us when some rows are in error. */
 		if(autocommit) {
-			OCITransCommit_log_stat(imp_sth->svchp, imp_sth->errhp,
+			OCITransCommit_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp,
 									OCI_DEFAULT, status);
 			if (status != OCI_SUCCESS) {
 				oci_error(sth, imp_sth->errhp, status, "OCITransCommit");
@@ -3897,9 +4033,11 @@ dbd_st_blob_read(SV *sth, imp_sth_t *imp_sth, int field, long offset, long len, 
 	}
 	ftype = ftype;	/* no unused */
 
-	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-	PerlIO_printf(DBILOGFP,
-		"	blob_read field %d+1, ftype %d, offset %ld, len %ld, destoffset %ld, retlen %ld\n",
+	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
+	PerlIO_printf(
+        DBIc_LOGPIO(imp_sth),
+		"	blob_read field %d+1, ftype %d, offset %ld, len %ld, "
+        "destoffset %ld, retlen %ld\n",
 		field, imp_sth->fbh[field].ftype, offset, len, destoffset, (long)retl);
 
 	SvCUR_set(bufsv, destoffset+retl);
@@ -3965,7 +4103,7 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
 	not sure if we need this for non scrolling cursors they should die on
 	a OER(1403) no records)*/
 
-	OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0,
+	OCIStmtFetch_log_stat(imp_sth, imp_sth->stmhp, imp_sth->errhp, 0,
 		OCI_FETCH_NEXT,0,  status);
 
 	if (status != OCI_SUCCESS && status != OCI_SUCCESS_WITH_INFO) {
@@ -3992,14 +4130,14 @@ ora_free_fbh_contents(SV *sth, imp_fbh_t *fbh)
         boolean is_open;
         sword status;
 
-        OCILobFileIsOpen_log_stat(imp_dbh->svchp, imp_dbh->errhp, fbh->desc_h, &is_open, status);
+        OCILobFileIsOpen_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, fbh->desc_h, &is_open, status);
         if (status == OCI_SUCCESS && is_open) {
-            OCILobFileClose_log_stat(imp_sth->svchp, imp_sth->errhp,
+            OCILobFileClose_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp,
                                      fbh->desc_h, status);
         }
 
 
-        OCIDescriptorFree_log(fbh->desc_h, fbh->desc_t);
+        OCIDescriptorFree_log(imp_sth, fbh->desc_h, fbh->desc_t);
     }
 
 	if (fbh->obj) {
@@ -4011,11 +4149,11 @@ ora_free_fbh_contents(SV *sth, imp_fbh_t *fbh)
 }
 
 void
-ora_free_phs_contents(phs_t *phs)
+ora_free_phs_contents(imp_sth_t *imp_sth, phs_t *phs)
 {
 	dTHX;
 	if (phs->desc_h)
-	OCIDescriptorFree_log(phs->desc_h, phs->desc_t);
+        OCIDescriptorFree_log(imp_sth, phs->desc_h, phs->desc_t);
 	if( phs->array_buf ){
 		free(phs->array_buf);
 		phs->array_buf=NULL;
@@ -4042,17 +4180,19 @@ ora_free_templob(SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc)
 #if defined(OCI_HTYPE_DIRPATH_FN_CTX)	/* >= 9.0 */
 	boolean is_temporary = 0;
 	sword status;
-	OCILobIsTemporary_log_stat(imp_sth->envhp, imp_sth->errhp, lobloc, &is_temporary, status);
+	OCILobIsTemporary_log_stat(imp_sth, imp_sth->envhp, imp_sth->errhp, lobloc, &is_temporary, status);
 	if (status != OCI_SUCCESS) {
 		oci_error(sth, imp_sth->errhp, status, "OCILobIsTemporary");
 		return;
 	}
 
 	if (is_temporary) {
-		if (DBIS->debug >= 3 || dbd_verbose >= 3 ) {
-			PerlIO_printf(DBILOGFP, "	   OCILobFreeTemporary %s\n", oci_status_name(status));
+		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 ) {
+			PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "	   OCILobFreeTemporary %s\n", oci_status_name(status));
 		}
-		OCILobFreeTemporary_log_stat(imp_sth->svchp, imp_sth->errhp, lobloc, status);
+		OCILobFreeTemporary_log_stat(imp_sth, imp_sth->svchp, imp_sth->errhp, lobloc, status);
 		if (status != OCI_SUCCESS) {
 			oci_error(sth, imp_sth->errhp, status, "OCILobFreeTemporary");
 			return;
@@ -4081,11 +4221,11 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 	cursor by fetching row 0 */
 
 	if (imp_sth->exe_mode==OCI_STMT_SCROLLABLE_READONLY){
-		OCIStmtFetch_log_stat(imp_sth->stmhp, imp_sth->errhp, 0,OCI_FETCH_NEXT,0,  status);
+		OCIStmtFetch_log_stat(imp_sth, imp_sth->stmhp, imp_sth->errhp, 0,OCI_FETCH_NEXT,0,  status);
 	}
 
 	if (imp_sth->dschp){
-		OCIHandleFree_log_stat(imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
+		OCIHandleFree_log_stat(imp_sth, imp_sth->dschp, OCI_HTYPE_DESCRIBE, status);
 	}
 
 
@@ -4096,7 +4236,7 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 
 	if (!PL_dirty) { /* XXX not ideal, leak may be a problem in some cases */
 		if (!imp_sth->nested_cursor) {
-			OCIHandleFree_log_stat(imp_sth->stmhp, OCI_HTYPE_STMT, status);
+			OCIHandleFree_log_stat(imp_sth, imp_sth->stmhp, OCI_HTYPE_STMT, status);
 			if (status != OCI_SUCCESS)
 				oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
 		}
@@ -4133,7 +4273,7 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 			  	phs_t *phs = (phs_t*)(void*)SvPVX(sv);
 				if (phs->desc_h && phs->desc_t == OCI_DTYPE_LOB)
 					ora_free_templob(sth, imp_sth, (OCILobLocator*)phs->desc_h);
-		  		ora_free_phs_contents(phs);
+		  		ora_free_phs_contents(imp_sth, phs);
 			}
 		}
 		sv_free((SV*)imp_sth->all_params_hv);
@@ -4355,9 +4495,8 @@ ora2sql_type(imp_fbh_t* fbh) {
 }
 
 static void
-dump_env_to_trace() {
+dump_env_to_trace(imp_dbh_t *imp_dbh) {
 	dTHX;
-	PerlIO *fp = DBILOGFP;
 	int i = 0;
 	char *p;
 
@@ -4369,10 +4508,10 @@ dump_env_to_trace() {
 #endif
 
 
-	PerlIO_printf(fp, "Environment variables:\n");
+	PerlIO_printf(DBIc_LOGPIO(imp_dbh), "Environment variables:\n");
 	do {
-	p = (char*)environ[i++];
-	PerlIO_printf(fp,"\t%s\n",p);
+        p = (char*)environ[i++];
+        PerlIO_printf(DBIc_LOGPIO(imp_dbh),"\t%s\n",p);
 	} while ((char*)environ[i] != '\0');
 }
 
