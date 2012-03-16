@@ -3977,16 +3977,36 @@ dbd_st_finish(SV *sth, imp_sth_t *imp_sth)
 
 
 void
-ora_free_fbh_contents(imp_fbh_t *fbh)
+ora_free_fbh_contents(SV *sth, imp_fbh_t *fbh)
 {
 	dTHX;
+    D_imp_sth(sth);
+    D_imp_dbh_from_sth;
+
 	if (fbh->fb_ary)
 	fb_ary_free(fbh->fb_ary);
 	sv_free(fbh->name_sv);
-	if (fbh->desc_h)
-	OCIDescriptorFree_log(fbh->desc_h, fbh->desc_t);
-	if (fbh->obj)
+
+    /* see rt 75163 */
+	if (fbh->desc_h) {
+        boolean is_open;
+        sword status;
+
+        OCILobFileIsOpen_log_stat(imp_dbh->svchp, imp_dbh->errhp, fbh->desc_h, &is_open, status);
+        if (status == OCI_SUCCESS && is_open) {
+            OCILobFileClose_log_stat(imp_sth->svchp, imp_sth->errhp,
+                                     fbh->desc_h, status);
+        }
+
+
+        OCIDescriptorFree_log(fbh->desc_h, fbh->desc_t);
+    }
+
+	if (fbh->obj) {
+		if (fbh->obj->obj_value)
+			OCIObjectFree(fbh->imp_sth->envhp, fbh->imp_sth->errhp, fbh->obj->obj_value, (ub2)0);
 		Safefree(fbh->obj);
+	}
 
 }
 
@@ -4092,7 +4112,7 @@ dbd_st_destroy(SV *sth, imp_sth_t *imp_sth)
 	imp_sth->eod_errno = 1403;
 	for(i=0; i < fields; ++i) {
 		imp_fbh_t *fbh = &imp_sth->fbh[i];
-		ora_free_fbh_contents(fbh);
+		ora_free_fbh_contents(sth, fbh);
 	}
 	Safefree(imp_sth->fbh);
 	if (imp_sth->fbh_cbuf)
