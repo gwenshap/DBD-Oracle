@@ -24,6 +24,8 @@ NEXT
  - Removed almost all DBIS usage fixing and speeding up threaded
    Perls (Martin J. Evans).
 
+ - Minor fix to avoid use of uninitialised variable in 31lob.t (Martin J. Evans)
+
  [DOCUMENTATION]
  - clarification of when StrictlyTyped/DiscardString can be used and
    LongReadLen (Martin J. Evans)

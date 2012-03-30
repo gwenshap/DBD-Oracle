@@ -76,7 +76,7 @@ END_SQL
 
 sub have_v_session {
     $dbh->do('select * from v$session where 0=1');
-    return $dbh->err != 942;
+    return defined($dbh->err) ? $dbh->err != 942 : 1;
 }
 
 
