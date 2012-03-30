@@ -1138,10 +1138,15 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 			*alenp  = phs->alen;
 			*indpp  = &phs->indp;
 			*piecep = OCI_ONE_PIECE;
+            /* MJE commented out as we are avoiding DBIS now but as this is
+               an Oracle callback there is no way to pass something non
+               OCI into this func.
+               
 			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
 				PerlIO_printf(DBILOGFP, "		in  '%s' [%lu,%lu]: len %2lu, ind %d%s, value=%s\n",
 					phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
 					(phs->desc_h) ? " via descriptor" : "",neatsvpv(phs->sv,10));
+            */
 			if (!tuples_av && (index > 0 || iter > 0))
 				croak(" Arrays and multiple iterations not currently supported by DBD::Oracle (in %d/%d)", index,iter);
 
@@ -1225,10 +1230,15 @@ dbd_phs_out(dvoid *octxp, OCIBind *bindp,
 	*alenpp = &phs->alen;
 	*indpp  = &phs->indp;
 	*rcodepp= &phs->arcode;
+    /* MJE commented out as we are avoiding DBIS now but as this is
+       an Oracle callback there is no way to pass something non
+       OCI into this func.
+
 	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
  		PerlIO_printf(DBILOGFP, "		out '%s' [%ld,%ld]: alen %2ld, piece %d%s\n",
 			phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), *piecep,
 			(phs->desc_h) ? " via descriptor" : "");
+    */
 	*piecep = OCI_ONE_PIECE;
 	return OCI_CONTINUE;
 }
@@ -2175,7 +2185,7 @@ static void
 fbh_setup_getrefpv(imp_sth_t *imp_sth, imp_fbh_t *fbh, int desc_t, char *bless)
 {
 	dTHX;
-	if (DBIS->debug >= 2 || dbd_verbose >= 3 )
+	if (DBIc_DBISTATE(imp_sth)->debug >= 2 || dbd_verbose >= 3 )
         PerlIO_printf(DBIc_LOGPIO(imp_sth),
 		"	col %d: otype %d, desctype %d, %s", fbh->field_num, fbh->dbtype, desc_t, bless);
 	fbh->ftype  = fbh->dbtype;
