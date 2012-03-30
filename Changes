@@ -21,7 +21,7 @@ NEXT
    is not in force as an additional call to OCILobFileIsOpen will be
    made.
 
- - Removed almost all DBIS usage fixing and speeding up threaded
+ - Removed all DBIS usage fixing and speeding up threaded
    Perls (Martin J. Evans).
 
  - Minor fix to avoid use of uninitialised variable in 31lob.t (Martin J. Evans)
