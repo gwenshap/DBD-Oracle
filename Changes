@@ -2,6 +2,8 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+1.43_00   2012-03-30
+
  [BUG FIXES]
  - Applied patch from Rafael Kitover (Caelum) to column_info to handle
    DEFAULT columns greater in length than the DBI default of 80. The
