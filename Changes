@@ -11,7 +11,7 @@ NEXT
    will still have to set LongReadLen (Martin J. Evans)
 
  - Fixed 70meta and rt74753-utf8-encoded to not die if you cannot
-   connect to Oracle or you cannot install from cpan if you have not
+   connect to Oracle or you cannot install from CPAN if you have not
    set up a valid Oracle connection.
 
  - Fixed 75163. Bfile lobs were not being opened before fetching if
@@ -20,13 +20,16 @@ NEXT
    Note: this has a minor impact on non bfile lobs when ora_auto_lobs
    is not in force as an additional call to OCILobFileIsOpen will be
    made.
- 
+
  - Removed almost all DBIS usage fixing and speeding up threaded
    Perls (Martin J. Evans).
 
  [DOCUMENTATION]
  - clarification of when StrictlyTyped/DiscardString can be used and
    LongReadLen (Martin J. Evans)
+
+ - Documented the 3rd type of placeholder and rewrote the existing
+   pod for placeholders (Martin J. Evans).
 
 1.42      2012-03-13
  - skip rt74753-utf8-encoded.t if db is not unicode
