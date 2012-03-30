@@ -3978,7 +3978,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			if (DBIc_DBISTATE(imp_sth)->debug >= 4 || dbd_verbose >= 4 )
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
-                    "	Scrolling Fetch, postion before fetch=%d, "
+                    "	Scrolling Fetch, position before fetch=%d, "
                     "Orientation = %s , Fetchoffset =%d\n",
 					imp_sth->fetch_position, oci_fetch_options(imp_sth->fetch_orient),
                     imp_sth->fetch_offset);
