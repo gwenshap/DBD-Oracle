@@ -2,7 +2,7 @@ NAME
     DBD::Oracle - Oracle database driver for the DBI module
 
 VERSION
-    version 1.40
+    version 1.43_00
 
 SYNOPSIS
       use DBI;
@@ -1030,21 +1030,33 @@ DATABASE HANDLE METHODS
         See "Row Prefetching" for more details.
 
    Placeholders
-    There are two types of placeholders that can be used in DBD::Oracle. The
-    first is the "question mark" type, in which each placeholder is
-    represented by a single question mark character. This is the method
-    recommended by the DBI specs and is the most portable. Each question
-    mark is internally replaced by a "dollar sign number" in the order in
-    which they appear in the query (important when using "bind_param").
+    There are three types of placeholders that can be used in DBD::Oracle.
 
-    The other placeholder type is "named parameters" in the format ":foo"
-    which is the one Oralce prefers.
+    The first is the "question mark" type, in which each placeholder is
+    represented by a single question mark character. This is the method
+    recommended by the DBI and is the most portable. Each question mark is
+    internally replaced by a "dollar sign number" in the order in which they
+    appear in the query (important when using "bind_param").
+
+    The second type of placeholder is "named parameters" in the format
+    ":foo" which is the one Oracle prefers.
 
        $dbh->{RaiseError} = 1;        # save having to check each method call
        $sth = $dbh->prepare("SELECT name, age FROM people WHERE name LIKE :name");
        $sth->bind_param(':name', "John%");
        $sth->execute;
        DBI::dump_results($sth);
+
+    Note when calling bind_param with named parameters you must include the
+    leading colon. The advantage of this placeholder type is that you can
+    use the same placeholder more than once in the same SQL statement but
+    you only need to bind it once.
+
+    The last placeholder type is a variation of the two above where you name
+    each placeholder :N (where N is a number). Like the named placeholders
+    above you can use the same placeholder multiple times in the SQL but
+    when you call bind_param you only need to pass the N (e.g., for :1 you
+    use bind_param(1,...) and not bind_param(':1',...).
 
     The different types of placeholders cannot be mixed within a statement,
     but you may use different ones for each statement handle you have. This
