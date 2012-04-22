@@ -16,18 +16,17 @@ $| = 1;
 SKIP: {
     plan skip_all => "Unable to run 8bit char test, perl version is less than 5.6" unless ( $] >= 5.006 );
     plan skip_all => "Oracle charset tests unreliable for Oracle 8 client"
-	if ORA_OCI() < 9.0 and !$ENV{DBD_ALL_TESTS};
-
+        if ORA_OCI() < 9.0 and !$ENV{DBD_ALL_TESTS};
     $dbh = db_handle();	# just to check connection and db NCHAR character set
-    
-    
+
     plan skip_all => "Unable to connect to Oracle" if not $dbh;
     plan skip_all => "Database NCHAR character set is not Unicode" if not db_nchar_is_utf($dbh) ;
+    plan skip_all => "database character set is not Unicode" unless db_ochar_is_utf($dbh);
     $dbh->disconnect();
 
     # testing implicit csform (dbhimp.c sets csform implicitly)
     my $tdata = test_data( 'wide_nchar' );
-    my $testcount = 0 
+    my $testcount = 0
                   + insert_test_count( $tdata )
                   + select_test_count( $tdata ) * 1;
                   ;
@@ -40,8 +39,8 @@ SKIP: {
         $dbh->disconnect() if $dbh;
 	undef $dbh;
         # testing with NLS_NCHAR=$nchar_cset
-        SKIP: { 
-            set_nls_nchar( $nchar_cset ,1 ); 
+        SKIP: {
+            set_nls_nchar( $nchar_cset ,1 );
             $dbh = db_handle();
 	    show_db_charsets($dbh);
             skip "failed to connect to oracle with NLS_NCHAR=$nchar_cset" ,$testcount if not $dbh;
