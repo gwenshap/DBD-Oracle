@@ -24,7 +24,7 @@ eval {$dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1,
                                                AutoCommit=>1,
                                                PrintError => 0 })};
 if ($dbh) {
-    plan tests => 32;
+    plan tests => 36;
 } else {
     plan skip_all => "Unable to connect to Oracle";
 }
@@ -112,6 +112,21 @@ cmp_ok($value->[0], '==', 1, '... we should get the 1st record');
 #check the ora_scroll_position one more time
 
 cmp_ok($sth->ora_scroll_position(), '==', 1, '... we should get the 1 for the ora_scroll_position');
+
+# rt 76695 - fetch after fetch scroll maintains offset
+# now fetch forward 2 places then just call fetch
+# it should give us the 4th rcord and not the 5th
+
+$value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,2);
+is($value->[0], 3, '... we should get the 3rd record');
+($value) = $sth->fetchrow;
+is($value, 4, '... we should get the 4th record');
+
+# rt 76410 - fetch after fetch absolute always returns the same row
+$value = $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE, 2);
+is($value->[0], 2, "... we should get the 2nd row");
+($value) = $sth->fetchrow;
+is($value, 3, "... we should get the 3rd row");
 
 $sth->finish();
 drop_table($dbh);

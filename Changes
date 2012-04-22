@@ -1,6 +1,18 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
+ [BUG FIXES]
+
+ - Fixed RT76695 - offset passed to ora_fetch_scroll should not affect
+   normal fetches (Martin J. Evans)
+
+ - Fixed part of RT76410 - fetch after fetch absolute always returns
+   the same row (Martin J. Evans);
+
+ [MISCELLANEOUS]
+
+ - minor change to confusing debug output for input parameters
+   (Martin J. Evans)
 
 1.43_00   2012-03-30
 
