@@ -3,8 +3,11 @@ Revision history for DBD::Oracle
 NEXT
  [BUG FIXES]
 
- - Fixed 76695 - offset passed to ora_fetch_scroll should not affect
+ - Fixed RT76695 - offset passed to ora_fetch_scroll should not affect
    normal fetches (Martin J. Evans)
+
+ - Fixed part of RT76410 - fetch after fetch absolute always returns
+   the same row (Martin J. Evans);
 
  [MISCELLANEOUS]
 
