@@ -161,6 +161,7 @@ ora_fetch_scroll(sth,fetch_orient,fetch_offset)
 	imp_sth->fetch_offset=fetch_offset;
 	av = dbd_st_fetch(sth,imp_sth);
     imp_sth->fetch_offset = 1;                  /* default back to 1 for fetch */
+ 	imp_sth->fetch_orient=OCI_FETCH_NEXT;       /* default back to fetch next */
 	ST(0) = (av) ? sv_2mortal(newRV((SV *)av)) : &PL_sv_undef;
 }
 
