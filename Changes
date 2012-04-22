@@ -12,9 +12,9 @@ Revision history for DBD::Oracle
  - Fixed RT75721 - does not build with Oracle 9.2 (Martin J. Evans)
 
  - Fixed RT71343 - Oracle 9i does not have OCI_ATTR_TAF_ENABLED
-   or OCI_ATTR_RESERVED_15/16 so cannot build.
+   or OCI_ATTR_RESERVED_15/16 so cannot build (Martin J. Evans)
 
- - skip 24implicit_utf8.t if chr set is not UTF-8
+ - skip 24implicit_utf8.t if chr set is not UTF-8 (Martin J. Evans)
 
  [MISCELLANEOUS]
 
