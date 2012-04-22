@@ -9,8 +9,10 @@ NEXT
  - Fixed RT76410 - fetch after fetch absolute always returns
    the same row (Martin J. Evans);
 
- - Fixed RT75721 - DBD::Oracle does not build with Oracle 9.2
-   (Martin J. Evans)
+ - Fixed RT75721 - does not build with Oracle 9.2 (Martin J. Evans)
+
+ - Fixed RT71343 - Oracle 9i does not have OCI_ATTR_TAF_ENABLED
+   or OCI_ATTR_RESERVED_15/16 so cannot build.
 
  [MISCELLANEOUS]
 
