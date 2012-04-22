@@ -1389,7 +1389,7 @@ callback with
 
 If you try to set up a callback without it being enabled DBD::Oracle will croak.
 
-It is outside the scope of this documents to go through all of the
+It is outside the scope of this document to go through all of the
 possible TAF situations you might want to set up but here is a simple
 example:
 
@@ -1607,6 +1607,8 @@ monitoring and performance tuning purposes. For example:
 
 The maximum size is 48 bytes.
 
+NOTE: You will need an Oracle client 10.1 or later to use this.
+
 =head4 ora_driver_name
 
 For 11g and later you can now set the name of the driver layer using OCI.
@@ -1628,6 +1630,8 @@ retrieved on the server side from the C<V$SESSION>a view.
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_info => 'Remote2' });
 
   $dbh->{ora_client_info} = "Remote2";
+
+NOTE: You will need an Oracle client 10.1 or later to use this.
 
 =head4 ora_client_identifier
 
@@ -1652,6 +1656,8 @@ on the server side using C<V$SESSION> view.
    my $dbh = DBI->connect($dsn, $user, $passwd, { ora_action => "Login"});
 
    $dbh->{ora_action} = "New Long Query 22";
+
+NOTE: You will need an Oracle client 10.1 or later to use this.
 
 =head4 ora_dbh_share
 
