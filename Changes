@@ -1,5 +1,16 @@
 Revision history for DBD::Oracle
 
+NEXT
+ [BUG FIXES]
+
+ - Fixed 76695 - offset passed to ora_fetch_scroll should not affect
+   normal fetches (Martin J. Evans)
+
+ [MISCELLANEOUS]
+
+ - minor change to confusing debug output for input parameters
+   (Martin J. Evans)
+
 1.43_00   2012-03-30
 
  [BUG FIXES]
