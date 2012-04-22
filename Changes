@@ -14,6 +14,8 @@ NEXT
  - Fixed RT71343 - Oracle 9i does not have OCI_ATTR_TAF_ENABLED
    or OCI_ATTR_RESERVED_15/16 so cannot build.
 
+ - skip 24implicit_utf8.t if chr set is not UTF-8
+
  [MISCELLANEOUS]
 
  - minor change to confusing debug output for input parameters
