@@ -1413,6 +1413,8 @@ attempts another event.
   #import the ora fail over constants
 
   #set up TAF on the connection
+  # NOTE since DBD::Oracle uses call_pv you may need to pass a full
+  # name space as the function e.g., 'main::handle_taf'
   my $dbh = DBI->connect('dbi:Oracle:XE','hr','hr',{ora_taf=>1,taf_sleep=>5,ora_taf_function=>'handle_taf'});
 
   #create the perl TAF event function
