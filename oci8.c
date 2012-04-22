@@ -778,9 +778,12 @@ oci_attr_name(ub4 attr)
 	case OCI_ATTR_RESERVED_13:			return "OCI_ATTR_RESERVED_13";		/* reserved */
 
 	/* OCI_ATTR_RESERVED_14 */
-
+#ifdef OCI_ATTR_RESERVED_15
 	case OCI_ATTR_RESERVED_15:			return "OCI_ATTR_RESERVED_15";		/* reserved */
+#endif
+#ifdef OCI_ATTR_RESERVED_16
 	case OCI_ATTR_RESERVED_16:			return "OCI_ATTR_RESERVED_16";		/* reserved */
+#endif
 
 	}
 	sv = sv_2mortal(newSViv((IV)attr));
