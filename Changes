@@ -6,8 +6,11 @@ Revision history for DBD::Oracle
  - Fixed RT76695 - offset passed to ora_fetch_scroll should not affect
    normal fetches (Martin J. Evans)
 
- - Fixed part of RT76410 - fetch after fetch absolute always returns
+ - Fixed RT76410 - fetch after fetch absolute always returns
    the same row (Martin J. Evans);
+
+ - Fixed RT75721 - DBD::Oracle does not build with Oracle 9.2
+   (Martin J. Evans)
 
  [MISCELLANEOUS]
 

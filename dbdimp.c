@@ -437,6 +437,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	}
 #endif /*ORA_OCI_112*/
 
+#ifdef OCI_ATTR_ACTION
 	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_action", 10)) && SvOK(*svp)) {
 		STRLEN  svp_len;
 		if (!SvPOK(*svp))
@@ -445,7 +446,9 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		imp_dbh->actionl= (ub4) svp_len;
 		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
     }
+#endif
 
+#ifdef OCI_ATTR_MODULE
 	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_module_name", 15)) && SvOK(*svp)) {
 		STRLEN  svp_len;
 		if (!SvPOK(*svp))
@@ -455,6 +458,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->module_name,imp_dbh->module_namel,OCI_ATTR_MODULE,imp_dbh->errhp, status);
 
     }
+#endif
     if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_client_identifier", 21)) && SvOK(*svp)) {
 		STRLEN  svp_len;
 		if (!SvPOK(*svp))
@@ -464,6 +468,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_identifier,imp_dbh->client_identifierl,OCI_ATTR_CLIENT_IDENTIFIER,imp_dbh->errhp, status);
 
     }
+#ifdef OCI_ATTR_CLIENT_INFO
     if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_client_info", 15)) && SvOK(*svp)) {
 		STRLEN  svp_len;
 		if (!SvPOK(*svp))
@@ -473,7 +478,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_info,imp_dbh->client_infol,OCI_ATTR_CLIENT_INFO,imp_dbh->errhp, status);
 
     }
-
+#endif
     /* TAF Events */
 	imp_dbh->using_taf = 0;
 
@@ -1182,35 +1187,35 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 	else if (kl==13 && strEQ(key, "ora_taf_sleep") ) {
 			imp_dbh->taf_sleep = SvIV (valuesv);
 	}
+#ifdef OCI_ATTR_ACTION
 	else if (kl==10 && strEQ(key, "ora_action") ) {
 		imp_dbh->action = (char *) SvPV (valuesv, vl );
 		imp_dbh->actionl= (ub4) vl;
 		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
 
 	}
-	else if (kl==10 && strEQ(key, "ora_action") ) {
-		imp_dbh->action = (char *) SvPV (valuesv, vl );
-		imp_dbh->actionl= (ub4) vl;
-		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
-
-	}
+#endif
 	else if (kl==21 && strEQ(key, "ora_client_identifier") ) {
 		imp_dbh->client_identifier = (char *) SvPV (valuesv, vl );
 		imp_dbh->client_identifierl= (ub4) vl;
 		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_identifier,imp_dbh->client_identifierl,OCI_ATTR_CLIENT_IDENTIFIER,imp_dbh->errhp, status);
 
 	}
+#ifdef OCI_ATTR_CLIENT_INFO
     else if (kl==15 && strEQ(key, "ora_client_info") ) {
 		imp_dbh->client_info = (char *) SvPV (valuesv, vl );
 		imp_dbh->client_infol= (ub4) vl;
 		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_info,imp_dbh->client_infol,OCI_ATTR_CLIENT_INFO,imp_dbh->errhp, status);
 	}
+#endif
+#ifdef OCI_ATTR_MODULE
 	else if (kl==15 && strEQ(key, "ora_module_name") ) {
 		imp_dbh->module_name = (char *) SvPV (valuesv, vl );
 		imp_dbh->module_namel= (ub4) vl;
 		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->module_name,imp_dbh->module_namel,OCI_ATTR_MODULE,imp_dbh->errhp, status);
 
 	}
+#endif
 	else if (kl==20 && strEQ(key, "ora_oci_success_warn") ) {
 		oci_warn = SvIV (valuesv);
 	}
@@ -1301,9 +1306,11 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 	else if (kl==13 && strEQ(key, "ora_taf_sleep") ) {
 		retsv = newSViv(imp_dbh->taf_sleep);
 	}
+#ifdef OCI_ATTR_ACTION
 	else if (kl==10 && strEQ(key, "ora_action")) {
 		retsv =  newSVpv((char *)imp_dbh->action,0);
 	}
+#endif
     else if (kl==21 && strEQ(key, "ora_client_identifier")) {
 		retsv =  newSVpv((char *)imp_dbh->client_identifier,0);
 	}
