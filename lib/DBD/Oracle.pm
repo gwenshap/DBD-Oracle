@@ -12,7 +12,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 {
 package DBD::Oracle;
 {
-  $DBD::Oracle::VERSION = '1.43_00';
+  $DBD::Oracle::VERSION = '1.45_00';
 }
 BEGIN {
   $DBD::Oracle::AUTHORITY = 'cpan:PYTHIAN';
@@ -125,7 +125,7 @@ BEGIN {
 
 {   package DBD::Oracle::dr;
 {
-  $DBD::Oracle::dr::VERSION = '1.43_00';
+  $DBD::Oracle::dr::VERSION = '1.45_00';
 }
 BEGIN {
   $DBD::Oracle::dr::AUTHORITY = 'cpan:PYTHIAN';
@@ -330,7 +330,7 @@ BEGIN {
 
 {   package DBD::Oracle::db;
 {
-  $DBD::Oracle::db::VERSION = '1.43_00';
+  $DBD::Oracle::db::VERSION = '1.45_00';
 }
 BEGIN {
   $DBD::Oracle::db::AUTHORITY = 'cpan:PYTHIAN';
@@ -1059,7 +1059,7 @@ SQL
 
 {   package DBD::Oracle::st;
 {
-  $DBD::Oracle::st::VERSION = '1.43_00';
+  $DBD::Oracle::st::VERSION = '1.45_00';
 }
 BEGIN {
   $DBD::Oracle::st::AUTHORITY = 'cpan:PYTHIAN';
@@ -1164,7 +1164,7 @@ DBD::Oracle - Oracle database driver for the DBI module
 
 =head1 VERSION
 
-version 1.43_00
+version 1.45_00
 
 =head1 SYNOPSIS
 
@@ -1389,7 +1389,7 @@ callback with
 
 If you try to set up a callback without it being enabled DBD::Oracle will croak.
 
-It is outside the scope of this documents to go through all of the
+It is outside the scope of this document to go through all of the
 possible TAF situations you might want to set up but here is a simple
 example:
 
@@ -1413,6 +1413,8 @@ attempts another event.
   #import the ora fail over constants
 
   #set up TAF on the connection
+  # NOTE since DBD::Oracle uses call_pv you may need to pass a full
+  # name space as the function e.g., 'main::handle_taf'
   my $dbh = DBI->connect('dbi:Oracle:XE','hr','hr',{ora_taf=>1,taf_sleep=>5,ora_taf_function=>'handle_taf'});
 
   #create the perl TAF event function
@@ -1607,6 +1609,8 @@ monitoring and performance tuning purposes. For example:
 
 The maximum size is 48 bytes.
 
+NOTE: You will need an Oracle client 10.1 or later to use this.
+
 =head4 ora_driver_name
 
 For 11g and later you can now set the name of the driver layer using OCI.
@@ -1628,6 +1632,8 @@ retrieved on the server side from the C<V$SESSION>a view.
   my $dbh = DBI->connect($dsn, $user, $passwd, { ora_client_info => 'Remote2' });
 
   $dbh->{ora_client_info} = "Remote2";
+
+NOTE: You will need an Oracle client 10.1 or later to use this.
 
 =head4 ora_client_identifier
 
@@ -1652,6 +1658,8 @@ on the server side using C<V$SESSION> view.
    my $dbh = DBI->connect($dsn, $user, $passwd, { ora_action => "Login"});
 
    $dbh->{ora_action} = "New Long Query 22";
+
+NOTE: You will need an Oracle client 10.1 or later to use this.
 
 =head4 ora_dbh_share
 

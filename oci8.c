@@ -778,9 +778,12 @@ oci_attr_name(ub4 attr)
 	case OCI_ATTR_RESERVED_13:			return "OCI_ATTR_RESERVED_13";		/* reserved */
 
 	/* OCI_ATTR_RESERVED_14 */
-
+#ifdef OCI_ATTR_RESERVED_15
 	case OCI_ATTR_RESERVED_15:			return "OCI_ATTR_RESERVED_15";		/* reserved */
+#endif
+#ifdef OCI_ATTR_RESERVED_16
 	case OCI_ATTR_RESERVED_16:			return "OCI_ATTR_RESERVED_16";		/* reserved */
+#endif
 
 	}
 	sv = sv_2mortal(newSViv((IV)attr));
@@ -3985,7 +3988,7 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 
 			OCIStmtFetch_log_stat(imp_sth, imp_sth->stmhp, imp_sth->errhp,1, imp_sth->fetch_orient,imp_sth->fetch_offset, status);
 				/*this will work without a round trip so might as well open it up for all statments handles*/
-				/* defualt and OCI_FETCH_NEXT are the same so this avoids miscaluation on the next value*/
+				/* default and OCI_FETCH_NEXT are the same so this avoids miscaluation on the next value*/
 			OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->fetch_position, 0, OCI_ATTR_CURRENT_POSITION, status);
 
 			if (DBIc_DBISTATE(imp_sth)->debug >= 4 || dbd_verbose >= 4 )
