@@ -21,6 +21,9 @@ Revision history for DBD::Oracle
  - minor change to confusing debug output for input parameters
    (Martin J. Evans)
 
+1.44      2012-04-23
+ - promote 1.43_00 to official release
+
 1.43_00   2012-03-30
 
  [BUG FIXES]
