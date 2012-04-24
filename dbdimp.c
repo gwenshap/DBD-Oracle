@@ -487,7 +487,6 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		imp_dbh->taf_sleep = 5; /* 5 second default */
 
     	DBD_ATTRIB_GET_IV( attr, "ora_taf_sleep",  13, svp, imp_dbh->taf_sleep);
-
 		if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_taf_function",  16)) && SvOK(*svp)) {
 			STRLEN  svp_len;
 			if (!SvPOK(*svp))
@@ -495,6 +494,11 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			imp_dbh->taf_function = (char *) SvPV (*svp, svp_len );
 
 		}
+        if (DBIc_DBISTATE(imp_dbh)->debug || dbd_verbose >= 3)
+            PerlIO_printf(
+                DBIc_LOGPIO(imp_dbh),
+                "taf sleep = %d, taf_function = %s\n",
+                imp_dbh->taf_sleep, imp_dbh->taf_function ? imp_dbh->taf_function : "");
 	}
 
     imp_dbh->server_version = 0;

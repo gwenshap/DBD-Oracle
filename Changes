@@ -16,6 +16,11 @@ Revision history for DBD::Oracle
 
  - skip 24implicit_utf8.t if chr set is not UTF-8 (Martin J. Evans)
 
+ - Fixed RT76268 - ora_taf_sleep was documented as taf_sleep by
+   accident. There was no way to stop the TAF reconnect attempts.
+   If you want to try another connect attempt in your taf handler you
+   now need to return OCI_FO_RETRY from it. (Martin J. Evans)
+
  [MISCELLANEOUS]
 
  - minor change to confusing debug output for input parameters
