@@ -1308,6 +1308,8 @@ sb4
 taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
 {
 	dTHX;
+    int return_count;
+    int ret;
 	taf_callback_t *cb =(taf_callback_t*)fo_ctx;
 
 	dSP;
@@ -1315,8 +1317,15 @@ taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
 	XPUSHs(sv_2mortal(newSViv(fo_event)));
 	XPUSHs(sv_2mortal(newSViv(fo_type)));
 	PUTBACK;
-	call_pv(cb->function, G_DISCARD);
+	return_count = call_pv(cb->function, G_SCALAR);
 
+    SPAGAIN;
+    
+    if (return_count != 1)
+        croak("Expected one scalar back from taf handler");
+
+    ret = POPi;
+    
 	switch (fo_event){
 
 		case OCI_FO_BEGIN:
@@ -1328,8 +1337,10 @@ taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
 		}
 		case OCI_FO_ERROR:
 		{
-			sleep(cb->sleep);
-			return OCI_FO_RETRY;
+            if (ret == OCI_FO_RETRY) {
+                sleep(cb->sleep);
+                return OCI_FO_RETRY;
+            }
 			break;
 		}
 
@@ -1338,6 +1349,8 @@ taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
 			break;
 		}
 	}
+    PUTBACK;
+    
 	return 0;
 }
 

@@ -39,7 +39,7 @@ BEGIN {
     	ora_exe_modes     => [ qw( OCI_STMT_SCROLLABLE_READONLY)],
     	ora_fail_over     => [ qw( OCI_FO_END OCI_FO_ABORT OCI_FO_REAUTH OCI_FO_BEGIN
     				   OCI_FO_ERROR OCI_FO_NONE OCI_FO_SESSION OCI_FO_SELECT
-    				   OCI_FO_TXNAL)],
+    				   OCI_FO_TXNAL OCI_FO_RETRY)],
     );
     @EXPORT_OK = qw(OCI_FETCH_NEXT OCI_FETCH_CURRENT OCI_FETCH_FIRST OCI_FETCH_LAST OCI_FETCH_PRIOR
     		    OCI_FETCH_ABSOLUTE 	OCI_FETCH_RELATIVE ORA_OCI SQLCS_IMPLICIT SQLCS_NCHAR ora_env_var ora_cygwin_set_env );
@@ -1251,7 +1251,7 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 =item :ora_fail_over
 
   OCI_FO_END OCI_FO_ABORT OCI_FO_REAUTH OCI_FO_BEGIN OCI_FO_ERROR
-  OCI_FO_NONE OCI_FO_SESSION OCI_FO_SELECT OCI_FO_TXNAL
+  OCI_FO_NONE OCI_FO_SESSION OCI_FO_SELECT OCI_FO_TXNAL OCI_FO_RETRY
 
 =back
 
@@ -1415,7 +1415,7 @@ attempts another event.
   #set up TAF on the connection
   # NOTE since DBD::Oracle uses call_pv you may need to pass a full
   # name space as the function e.g., 'main::handle_taf'
-  my $dbh = DBI->connect('dbi:Oracle:XE','hr','hr',{ora_taf=>1,taf_sleep=>5,ora_taf_function=>'handle_taf'});
+  my $dbh = DBI->connect('dbi:Oracle:XE','hr','hr',{ora_taf=>1,ora_taf_sleep=>5,ora_taf_function=>'handle_taf'});
 
   #create the perl TAF event function
 
@@ -1444,6 +1444,9 @@ attempts another event.
     }
     elsif ($fo_event == OCI_FO_ERROR){
        print " Failover error Sleeping...\n";
+       # DBD::Oracle will sleep for ora_taf_sleep if you return OCI_FO_RETRY
+       # If you want to stop retrying just return 0
+       return OCI_FO_RETRY;
     }
     else {
        printf(" Bad Failover Event: %d.\n",  $fo_event);
@@ -1557,10 +1560,15 @@ and the failover type. Below is an example of a TAF function
      return;
   }
 
+Note you'll probably have to use the full name space when setting the
+TAF function e.g., 'main::my_taf_function' and not just
+'my_taf_function'.
+
 =head4 ora_taf_sleep
 
-The amount of time in seconds the OCI client will sleep between attempting
-successive failover events when the event is OCI_FO_ERROR.
+The amount of time in seconds DBD::Oracle will sleep between attempting
+successive failover events when the event is OCI_FO_ERROR and OCI_FO_RETRY
+is returned from the TAF handler.
 
 =head4 ora_session_mode
 
