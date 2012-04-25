@@ -21,6 +21,14 @@ NEXT
    If you want to try another connect attempt in your taf handler you
    now need to return OCI_FO_RETRY from it. (Martin J. Evans)
 
+ [CHANGE IN BEHAVIOUR]
+
+ - In future versions of DBD::Oracle ora_verbose will be changed
+   so that it is simply a switch to turn DBI's DBD tracing on or off.
+   A true value will turn it on and a false value will turn it off.
+   DBI's "DBD" tracing was not available when ora_verbose was created
+   and ora_verbose adds an additional test to every trace test.
+
  [MISCELLANEOUS]
 
  - minor change to confusing debug output for input parameters
