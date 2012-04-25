@@ -1726,6 +1726,12 @@ or set it directly on the DB handle like this;
 In both cases the DBD::Oracle trace level is set to 6, which is the highest
 level tracing most of the calls to OCI.
 
+NOTE: In future versions of DBD::Oracle ora_verbose will be changed so
+that it is simply a switch to turn DBI's DBD tracing on or off.  A
+true value will turn it on and a false value will turn it off.  DBI's
+"DBD" tracing was not available when ora_verbose was created and
+ora_verbose adds an additional test to every trace test.
+
 =head4 ora_oci_success_warn
 
 Use this value to print otherwise silent OCI warnings that may happen
