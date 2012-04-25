@@ -363,6 +363,18 @@ oracle table implementation, and no UTF support.
 Oracle 9.0 is uncertain, since testing has not been possible yet,
 but the remedy will not hurt :)
 
+=head1 Miscellaneous
+
+=head2 Crash with an open connection and Module::Runtime in mod_perl2
+
+See RT 72989 (https://rt.cpan.org/Ticket/Display.html?id=72989)
+
+Apache2 MPM Prefork with mod_perl2 will crash if Module::Runtime is
+loaded, and an Oracle connection is opened through PerlRequire (before
+forking).
+
+It looks like this was fixed in 0.012 of Module::Runtime.
+
 =head1 AUTHORS
 
 =over 4
@@ -378,6 +390,10 @@ John Scoles
 =item *
 
 Yanick Champoux <yanick@cpan.org>
+
+=item *
+
+Martin J. Evans <mjevans@cpan.org>
 
 =back
 

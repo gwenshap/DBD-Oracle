@@ -34,6 +34,9 @@ NEXT
  - minor change to confusing debug output for input parameters
    (Martin J. Evans)
 
+ - RT72989 - add note to trouble shooting guide re this RT and
+   Module::Runtime (Martin J. Evans)
+
 1.44      2012-04-23
  - promote 1.43_00 to official release
 
