@@ -2673,14 +2673,13 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 	phs->alen = value_len + phs->alen_incnull;
 
 	if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 ) {
-		UV neatsvpvlen = (UV)DBIc_DBISTATE(imp_sth)->neatsvpvlen;
+		/*UV neatsvpvlen = (UV)DBIc_DBISTATE(imp_sth)->neatsvpvlen;*/
 		char *val = neatsvpv(phs->sv,10);
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
-            "dbd_rebind_ph_char() (2): bind %s <== '%.*s' (size %ld/%ld, "
+            "dbd_rebind_ph_char() (2): bind %s <== %.1000s (size %ld/%ld, "
             "otype %d(%s), indp %d, at_exec %d)\n",
 			phs->name,
-			(int)(phs->alen > neatsvpvlen ? neatsvpvlen : phs->alen),
 			(phs->progv) ?  val: "",
 			(long)phs->alen, (long)phs->maxlen,
             phs->ftype,sql_typecode_name(phs->ftype), phs->indp, at_exec);
