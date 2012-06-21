@@ -3,10 +3,11 @@
    "author" : [
       "Tim Bunce <timb@cpan.org>",
       "John Scoles",
-      "Yanick Champoux <yanick@cpan.org>"
+      "Yanick Champoux <yanick@cpan.org>",
+      "Martin J. Evans <mjevans@cpan.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 4.300009, CPAN::Meta::Converter version 2.120630",
+   "generated_by" : "Dist::Zilla version 4.300016, CPAN::Meta::Converter version 2.120630",
    "license" : [
       "perl_5"
    ],

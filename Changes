@@ -1,6 +1,15 @@
 Revision history for DBD::Oracle
 
-NEXT
+1.45_00   2012-06-21
+
+ [CHANGE IN BEHAVIOUR]
+
+ - In future versions of DBD::Oracle ora_verbose will be changed
+   so that it is simply a switch to turn DBI's DBD tracing on or off.
+   A true value will turn it on and a false value will turn it off.
+   DBI's "DBD" tracing was not available when ora_verbose was created
+   and ora_verbose adds an additional test to every trace test.
+
  [BUG FIXES]
 
  - Fixed RT76695 - offset passed to ora_fetch_scroll should not affect
@@ -20,14 +29,6 @@ NEXT
    accident. There was no way to stop the TAF reconnect attempts.
    If you want to try another connect attempt in your taf handler you
    now need to return OCI_FO_RETRY from it. (Martin J. Evans)
-
- [CHANGE IN BEHAVIOUR]
-
- - In future versions of DBD::Oracle ora_verbose will be changed
-   so that it is simply a switch to turn DBI's DBD tracing on or off.
-   A true value will turn it on and a false value will turn it off.
-   DBI's "DBD" tracing was not available when ora_verbose was created
-   and ora_verbose adds an additional test to every trace test.
 
  [MISCELLANEOUS]
 

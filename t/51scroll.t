@@ -34,7 +34,7 @@ ok ($dbh->{RowCacheSize} = 10);
 isa_ok($dbh, "DBI::db");
 
 my $table = table();
-#drop_table($dbh);
+
 
 $dbh->do(qq{
 	CREATE TABLE $table (
