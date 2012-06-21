@@ -3050,7 +3050,7 @@ and B<SYS.DBMS_SQL.NUMBER_TABLE> datatypes. The simple example is here:
 
 =item B<Note:>
 
-=item   Take careful note that we use '\\@arr' here because  the 'bind_param_inout'
+=item Take careful note that we use '\\@arr' here because  the 'bind_param_inout'
    will only take a reference to a scalar.
 
 =back
@@ -4872,8 +4872,7 @@ Examples:
   print "$i0 to $o0, $i1 to $o1\n";
   # Result is : "'' to '(undef)', 'Something else' to '1'"
 
-
-=head4 Support for Insert of XMLType (ORA_XMLTYPE)
+=head2 Support for Insert of XMLType (ORA_XMLTYPE)
 
 Inserting large XML data sets into tables with XMLType fields is now supported by DBD::Oracle. The only special
 requirement is the use of bind_param() with an attribute hash parameter that specifies ora_type as ORA_XMLTYPE. For
@@ -4903,7 +4902,7 @@ one can insert data using this code
 In the above case we will assume that $xml has 10000 Book nodes and is over 32k in size and is well formed XML.
 This will also work for XML that is smaller than 32k as well. Attempting to insert malformed XML will cause an error.
 
-=head4 Binding Cursors
+=head2 Binding Cursors
 
 Cursors can be returned from PL/SQL blocks, either from stored
 functions (or procedures with OUT parameters) or
@@ -4973,7 +4972,7 @@ PL/SQL handle is re-bound, re-executed or destroyed.
 See the C<curref.pl> script in the Oracle.ex directory in the DBD::Oracle
 source distribution for a complete working example.
 
-=head4 Fetching Nested Cursors
+=head2 Fetching Nested Cursors
 
 Oracle supports the use of select list expressions of type REF CURSOR.
 These may be explicit cursor expressions - C<CURSOR(SELECT ...)>, or
@@ -5020,7 +5019,6 @@ shows:
         }
     }
 
-
 The cursor returned by the function C<sp_ListEmp> defined in the
 previous section can be fetched as a nested cursor as follows:
 
@@ -5029,7 +5027,7 @@ previous section can be fetched as a nested cursor as follows:
     my ($nested) = $sth->fetchrow_array;
     while ( my @row = $nested->fetchrow_array ) { ... }
 
-=head4 Pre-fetching Nested Cursors
+=head2 Pre-fetching Nested Cursors
 
 By default, DBD::Oracle pre-fetches rows in order to reduce the number of
 round trips to the server. For queries which do not involve nested cursors,
