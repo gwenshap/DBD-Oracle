@@ -2,6 +2,8 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+1.45_00   2012-06-21
+
  [CHANGE IN BEHAVIOUR]
 
  - In future versions of DBD::Oracle ora_verbose will be changed
