@@ -313,6 +313,10 @@ John Scoles
 
 Yanick Champoux <yanick@cpan.org>
 
+=item *
+
+Martin J. Evans <mjevans@cpan.org>
+
 =back
 
 =head1 COPYRIGHT AND LICENSE

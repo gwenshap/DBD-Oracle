@@ -89,7 +89,7 @@ These constants are used to set the orientation of a fetch on a scrollable curso
 - :ora_fail_over
 
   OCI_FO_END OCI_FO_ABORT OCI_FO_REAUTH OCI_FO_BEGIN OCI_FO_ERROR
-  OCI_FO_NONE OCI_FO_SESSION OCI_FO_SELECT OCI_FO_TXNAL
+  OCI_FO_NONE OCI_FO_SESSION OCI_FO_SELECT OCI_FO_TXNAL OCI_FO_RETRY
 
 # DBI CLASS METHODS
 
@@ -247,7 +247,7 @@ attempts another event.
   #set up TAF on the connection
   # NOTE since DBD::Oracle uses call_pv you may need to pass a full
   # name space as the function e.g., 'main::handle_taf'
-  my $dbh = DBI->connect('dbi:Oracle:XE','hr','hr',{ora_taf=>1,taf_sleep=>5,ora_taf_function=>'handle_taf'});
+  my $dbh = DBI->connect('dbi:Oracle:XE','hr','hr',{ora_taf=>1,ora_taf_sleep=>5,ora_taf_function=>'handle_taf'});
 
   #create the perl TAF event function
 
@@ -276,6 +276,9 @@ attempts another event.
     }
     elsif ($fo_event == OCI_FO_ERROR){
        print " Failover error Sleeping...\n";
+       # DBD::Oracle will sleep for ora_taf_sleep if you return OCI_FO_RETRY
+       # If you want to stop retrying just return 0
+       return OCI_FO_RETRY;
     }
     else {
        printf(" Bad Failover Event: %d.\n",  $fo_event);
@@ -389,10 +392,15 @@ and the failover type. Below is an example of a TAF function
      return;
   }
 
+Note you'll probably have to use the full name space when setting the
+TAF function e.g., 'main::my_taf_function' and not just
+'my_taf_function'.
+
 #### ora_taf_sleep
 
-The amount of time in seconds the OCI client will sleep between attempting
-successive failover events when the event is OCI_FO_ERROR.
+The amount of time in seconds DBD::Oracle will sleep between attempting
+successive failover events when the event is OCI_FO_ERROR and OCI_FO_RETRY
+is returned from the TAF handler.
 
 #### ora_session_mode
 
@@ -549,6 +557,12 @@ or set it directly on the DB handle like this;
 
 In both cases the DBD::Oracle trace level is set to 6, which is the highest
 level tracing most of the calls to OCI.
+
+NOTE: In future versions of DBD::Oracle ora_verbose will be changed so
+that it is simply a switch to turn DBI's DBD tracing on or off.  A
+true value will turn it on and a false value will turn it off.  DBI's
+"DBD" tracing was not available when ora_verbose was created and
+ora_verbose adds an additional test to every trace test.
 
 #### ora_oci_success_warn
 
@@ -3649,7 +3663,7 @@ Examples:
   print "$i0 to $o0, $i1 to $o1\n";
   # Result is : "'' to '(undef)', 'Something else' to '1'"
 
-#### Support for Insert of XMLType (ORA_XMLTYPE)
+## Support for Insert of XMLType (ORA_XMLTYPE)
 
 Inserting large XML data sets into tables with XMLType fields is now supported by DBD::Oracle. The only special
 requirement is the use of bind_param() with an attribute hash parameter that specifies ora_type as ORA_XMLTYPE. For
@@ -3679,7 +3693,7 @@ one can insert data using this code
 In the above case we will assume that $xml has 10000 Book nodes and is over 32k in size and is well formed XML.
 This will also work for XML that is smaller than 32k as well. Attempting to insert malformed XML will cause an error.
 
-#### Binding Cursors
+## Binding Cursors
 
 Cursors can be returned from PL/SQL blocks, either from stored
 functions (or procedures with OUT parameters) or
@@ -3749,7 +3763,7 @@ PL/SQL handle is re-bound, re-executed or destroyed.
 See the `curref.pl` script in the Oracle.ex directory in the DBD::Oracle
 source distribution for a complete working example.
 
-#### Fetching Nested Cursors
+## Fetching Nested Cursors
 
 Oracle supports the use of select list expressions of type REF CURSOR.
 These may be explicit cursor expressions - `CURSOR(SELECT ...)`, or
@@ -3804,7 +3818,7 @@ previous section can be fetched as a nested cursor as follows:
     my ($nested) = $sth->fetchrow_array;
     while ( my @row = $nested->fetchrow_array ) { ... }
 
-#### Pre-fetching Nested Cursors
+## Pre-fetching Nested Cursors
 
 By default, DBD::Oracle pre-fetches rows in order to reduce the number of
 round trips to the server. For queries which do not involve nested cursors,
@@ -4251,6 +4265,10 @@ John Scoles
 - *
 
 Yanick Champoux <yanick@cpan.org>
+
+- *
+
+Martin J. Evans <mjevans@cpan.org>
 
 # COPYRIGHT AND LICENSE
 
