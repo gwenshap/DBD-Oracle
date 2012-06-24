@@ -2,6 +2,11 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  [MISCELLANEOUS]
+
+  - Added a troubleshooting entry for RT71819 - bound output
+    parameters may be returned in the wrong order.
+
 1.45_00   2012-06-21
 
  [CHANGE IN BEHAVIOUR]

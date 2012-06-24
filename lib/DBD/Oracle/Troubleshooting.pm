@@ -363,4 +363,15 @@ forking).
 
 It looks like this was fixed in 0.012 of Module::Runtime.
 
+=head2 bin_param_inout swapping return values
+
+See RT 71819 (https://rt.cpan.org/Ticket/Display.html?id=71819)
+
+It seems that in some older versions of Oracle Instant Client
+(certainly 10.2.0.4.0) when output parameters are bound with lengths
+greater than 3584 the output parameters can be returned in the wrong
+placeholders.
+
+It is reported fixed in Instant Client 11.2.0.2.0.
+
 =cut
