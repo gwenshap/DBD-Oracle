@@ -2,10 +2,14 @@ Revision history for DBD::Oracle
 
 1.NN next release
 
+  [BUG FIXES]
+
+  - fixed redclaration of $len in 31lob.t - (Martin J, Evans)
+
   [MISCELLANEOUS]
 
   - Added a trouble shooting entry for RT71819 - bound output
-    parameters may be returned in the wrong order.
+    parameters may be returned in the wrong order (Martin J. Evans)
 
 1.45_00   2012-06-21
 
