@@ -4188,6 +4188,12 @@ handle are lost, the handle is destroyed and the locators are freed.
 Read a portion of the LOB. $offset starts at 1.
 Uses the Oracle OCILobRead function.
 
+NOTE: DBD::Oracle post 1.46 will return undef for any read lob if the
+length specified in the ora_lob_read is 0. See RT 55028. This avoids
+the potential problem with empty lobs (created with empty_clob) which
+return a length of 0 from ora_lob_length and prior to 1.46 a call to
+ora_lob_read with a 0 length would segfault.
+
 =item ora_lob_write
 
   $rc = $dbh->ora_lob_write($lob_locator, $offset, $data);

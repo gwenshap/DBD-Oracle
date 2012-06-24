@@ -4,7 +4,10 @@ Revision history for DBD::Oracle
 
   [BUG FIXES]
 
-  - fixed redclaration of $len in 31lob.t - (Martin J, Evans)
+  - fixed redeclaration of $len in 31lob.t - (Martin J, Evans)
+
+  - RT55028 - stop segfaulting when attempting to read empty lobs
+    (Martin J. Evans)
 
   [MISCELLANEOUS]
 
