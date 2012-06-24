@@ -557,54 +557,61 @@ ora_lob_read(dbh, locator, offset, length)
 	sword status;
 	ub1 csform;
 	CODE:
-	csform = SQLCS_IMPLICIT;
-	dest_sv = sv_2mortal(newSV(length*4)); /*LAB: crude hack that works... tim did it else where XXX */
-	SvPOK_on(dest_sv);
-	bufp_len = SvLEN(dest_sv);	/* XXX bytes not chars? (lab: yes) */
-	bufp = SvPVX(dest_sv);
-	amtp = length;	/* if utf8 and clob/nclob: in: chars, out: bytes */
-	/* http://www.lc.leidenuniv.nl/awcourse/oracle/appdev.920/a96584/oci16m40.htm#427818 */
-	/* if locator is CLOB and data is UTF8 and not in bytes pragma */
-	/* if (0 && SvUTF8(dest_sv) && !IN_BYTES) { amtp = sv_len_utf8(dest_sv); }  */
-	/* added by lab: */
-	OCILobCharSetForm_log_stat(imp_dbh,  imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
-	if (status != OCI_SUCCESS) {
-		oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
-	dest_sv = &PL_sv_undef;
-		return;
-	}
-    {
-        /* see rt 75163 */
-        boolean is_open;
 
-        OCILobFileIsOpen_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator, &is_open, status);
-        if (status == OCI_SUCCESS && !is_open) {
-            OCILobFileOpen_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator,
-                                    (ub1)OCI_FILE_READONLY, status);
-            if (status != OCI_SUCCESS) {
-                oci_error(dbh, imp_dbh->errhp, status, "OCILobFileOpen");
-                dest_sv = &PL_sv_undef;
+	csform = SQLCS_IMPLICIT;
+    /* NOTE, if length is 0 this will create an empty SV of undef
+       see RT55028 */
+	dest_sv = sv_2mortal(newSV(length*4)); /*LAB: crude hack that works... tim did it else where XXX */
+
+    if (length > 0) {
+        SvPOK_on(dest_sv);
+        bufp_len = SvLEN(dest_sv);	/* XXX bytes not chars? (lab: yes) */
+        bufp = SvPVX(dest_sv);
+        amtp = length;	/* if utf8 and clob/nclob: in: chars, out: bytes */
+        /* http://www.lc.leidenuniv.nl/awcourse/oracle/appdev.920/a96584/oci16m40.htm#427818 */
+        /* if locator is CLOB and data is UTF8 and not in bytes pragma */
+        /* if (0 && SvUTF8(dest_sv) && !IN_BYTES) { amtp = sv_len_utf8(dest_sv); }  */
+        /* added by lab: */
+        OCILobCharSetForm_log_stat(imp_dbh,  imp_dbh->envhp, imp_dbh->errhp, locator, &csform, status );
+        if (status != OCI_SUCCESS) {
+            oci_error(dbh, imp_dbh->errhp, status, "OCILobCharSetForm");
+            dest_sv = &PL_sv_undef;
+            return;
+        }
+        {
+            /* see rt 75163 */
+            boolean is_open;
+
+            OCILobFileIsOpen_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator, &is_open, status);
+            if (status == OCI_SUCCESS && !is_open) {
+                OCILobFileOpen_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator,
+                                        (ub1)OCI_FILE_READONLY, status);
+                if (status != OCI_SUCCESS) {
+                    oci_error(dbh, imp_dbh->errhp, status, "OCILobFileOpen");
+                    dest_sv = &PL_sv_undef;
+                }
             }
         }
-    }
 
-	OCILobRead_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator,
-		&amtp, (ub4)offset, /* offset starts at 1 */
-		bufp, (ub4)bufp_len,
-		0, 0, (ub2)0, csform, status);
-	if (status != OCI_SUCCESS) {
-		oci_error(dbh, imp_dbh->errhp, status, "OCILobRead");
-		dest_sv = &PL_sv_undef;
-	}
-	else {
-		SvCUR(dest_sv) = amtp; /* always bytes here */
-		*SvEND(dest_sv) = '\0';
-		if (csform){
-			if (CSFORM_IMPLIES_UTF8(csform)){
-				SvUTF8_on(dest_sv);
-			}
-  	  	}
-	}
+        OCILobRead_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp, locator,
+                            &amtp, (ub4)offset, /* offset starts at 1 */
+                            bufp, (ub4)bufp_len,
+                            0, 0, (ub2)0, csform, status);
+        if (status != OCI_SUCCESS) {
+            oci_error(dbh, imp_dbh->errhp, status, "OCILobRead");
+            dest_sv = &PL_sv_undef;
+        }
+        else {
+            SvCUR(dest_sv) = amtp; /* always bytes here */
+            *SvEND(dest_sv) = '\0';
+            if (csform){
+                if (CSFORM_IMPLIES_UTF8(csform)){
+                    SvUTF8_on(dest_sv);
+                }
+            }
+        }
+    } /* length > 0 */
+
 	ST(0) = dest_sv;
 
 void
