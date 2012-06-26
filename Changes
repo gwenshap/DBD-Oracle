@@ -9,6 +9,10 @@ Revision history for DBD::Oracle
   - RT55028 - stop segfaulting when attempting to read empty lobs
     (Martin J. Evans)
 
+  - RT69059 - Despite OCIPing being documented as added in 10.2 AIX
+    does not seem to have it in 10.2 leading to undefined symbol -
+    Martin J. Evans
+
   [MISCELLANEOUS]
 
   - Added a troubleshooting entry for RT71819 - bound output

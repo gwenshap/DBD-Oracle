@@ -393,7 +393,14 @@ ora_ping(dbh)
 	/*If the listener goes down it is another case as the Listener is needed to establish the connection not maintain it*/
 	/*so we should stay connected but we cannot get nay new connections*/
 	{
-#if !defined(ORA_OCI_102)
+        /* RT 69059 - despite OCIPing being introduced in 10.2
+         * it is not available in all versions of 10.2 for AIX
+         * e.g., 10.2.0.4 does not have it and 10.2.0.5 does
+         * see http://comments.gmane.org/gmane.comp.lang.perl.modules.dbi.general/16206
+         * We don't do versions to that accuracy so for AIX you have
+         * to wait until 11.2 for OCIPing.
+         */
+#if !defined(ORA_OCI_102) || (defined(_AIX) && !defined(ORA_OCI_112))
 	OCIServerVersion_log_stat(imp_dbh, imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
 #else
 	vernum = ora_db_version(dbh,imp_dbh);
