@@ -399,6 +399,10 @@ ora_ping(dbh)
          * see http://comments.gmane.org/gmane.comp.lang.perl.modules.dbi.general/16206
          * We don't do versions to that accuracy so for AIX you have
          * to wait until 11.2 for OCIPing.
+         *
+         * Further comments on dbi-dev
+         * "DBD::Oracle RTs a summary and request for help" suggested it
+         * was Oracle bug 5759845 and fixes in 10.2.0.2.
          */
 #if !defined(ORA_OCI_102) || (defined(_AIX) && !defined(ORA_OCI_112))
 	OCIServerVersion_log_stat(imp_dbh, imp_dbh->svchp,imp_dbh->errhp,buf,2,OCI_HTYPE_SVCCTX,status);
