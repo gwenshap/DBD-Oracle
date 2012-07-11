@@ -13,7 +13,9 @@ Revision history for DBD::Oracle
     does not seem to have it in 10.2 leading to undefined symbol -
     Martin J. Evans
 
-  [MISCELLANEOUS]
+  [DOCUMENTATION]
+  - Promoted the troubleshooting for the different architectures to 
+    POD documents, for easier/prettier access.
 
   - Added a troubleshooting entry for RT71819 - bound output
     parameters may be returned in the wrong order (Martin J. Evans)
