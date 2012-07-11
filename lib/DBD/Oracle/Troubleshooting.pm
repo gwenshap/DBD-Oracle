@@ -1,6 +1,6 @@
 package DBD::Oracle::Troubleshooting;
 {
-  $DBD::Oracle::Troubleshooting::VERSION = '1.45_00';
+  $DBD::Oracle::Troubleshooting::VERSION = '1.46';
 }
 BEGIN {
   $DBD::Oracle::Troubleshooting::AUTHORITY = 'cpan:PYTHIAN';
@@ -17,7 +17,7 @@ DBD::Oracle::Troubleshooting - Tips and Hints to Troubleshoot DBD::Oracle
 
 =head1 VERSION
 
-version 1.45_00
+version 1.46
 
 =head1 CONNECTING TO ORACLE
 
@@ -375,7 +375,7 @@ forking).
 
 It looks like this was fixed in 0.012 of Module::Runtime.
 
-=head2 bin_param_inout spapping return values
+=head2 bin_param_inout swapping return values
 
 See RT 71819 (https://rt.cpan.org/Ticket/Display.html?id=71819)
 

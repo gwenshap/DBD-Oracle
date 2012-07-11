@@ -1,6 +1,6 @@
 Revision history for DBD::Oracle
 
-1.NN next release
+{{$NEXT}}
 
   [BUG FIXES]
 
@@ -15,8 +15,11 @@ Revision history for DBD::Oracle
 
   [MISCELLANEOUS]
 
-  - Added a trouble shooting entry for RT71819 - bound output
+  - Added a troubleshooting entry for RT71819 - bound output
     parameters may be returned in the wrong order (Martin J. Evans)
+
+1.46      2012-07-11
+ - promote 1.45_00 to official release
 
 1.45_00   2012-06-21
 
