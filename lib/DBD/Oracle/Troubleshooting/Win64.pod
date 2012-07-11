@@ -1,4 +1,19 @@
-DBD::Oracle and Windows 64bit 
+#PODNAME: DBD::Oracle::Troubleshooting::Win64
+#ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle on Win64
+
+
+__END__
+=pod
+
+=head1 NAME
+
+DBD::Oracle::Troubleshooting::Win64 - Tips and Hints to Troubleshoot DBD::Oracle on Win64
+
+=head1 VERSION
+
+version 1.47_00
+
+=head1 DBD::Oracle and Windows 64bit 
 
 I have successfully compiled and installed  DBD::Oracle on Windows 2008 server 64bit operating system today.  
 
@@ -7,11 +22,9 @@ version 11.2.0.1.0 for 64bit windows of Oracle's
 <a href='http://www.oracle.com/technology/software/tech/oci/instantclient/htdocs/winx64soft.html'>Instant Client Package - Basic</a>
 along with the Instant Client Package - SQL*Plus and finally the Instant Client Package - SDK.
 
-
 To get it to Make and compile correctly I had to download Microsoft's <a href='http://www.microsoft.com/visualstudio/en-ca/download'>Visual Studio Ultimate</a>
 
 which should contain all the files you need.  It is rather portly at 2+gb so you might want to grab lunch while you are downloading it.
-
 
 After all the above downloading DBB::Oracle installed right out of the box.
 
@@ -38,9 +51,7 @@ and then a
 
 c:\DBD-Oracle>nmake install
 
-
 Which will produce a whole of warnings (the make you can ignore them for now as they do not seem to effect DBD::Oracle at all) and near the end it should output something like this;
-
 
 Generating code
 Finished generating code
@@ -65,15 +76,11 @@ You will need a TNSNAMES.ORA file that points to a valid DB in the Instant Clien
 
 Next you will need to set the ORACLE_USER_ID to a valid user
 
-
 c:\DBD-Oracle>set ORACLE_USER_ID=system/system@XE
-
 
 You will have to set up TNS_ADMIN to point to the Instant Client Directory
 
-
 c:\DBD-Oracle>set TNS_ADMIN=c:\IC_11
-
 
 Most importantly you will have to add the Instant Client directory to your path like this
 
@@ -88,7 +95,6 @@ Error later on after the compile when you try to use DBD::Oracle.
 What is actually going on is that Perl cannot find oci.dll (or one of the other .dlls it needs to run) the 'C:/Perl/lib/auto/DBD/Oracle/Oracle.dll' and the DynaLoader error
 are just a false trails. For more info on this check out this page <a href='http://www.alexander-foken.de/Censored%20copy%20of%20Oracle%20Troubleshooter%20HOWTO.html#oneoci'>Oracle Troubleshooter'</a>
 by Alexander Foken.  It is rather dated but the facts of why perl did not find a dll are still valid.
-
 
 now you can do this
 
@@ -106,10 +112,6 @@ That is about it.
 
 At this point you might want to add the Instant Client directory permanently to your path so you will not run into the Dynaloader error again.
 
-
-
-
-
 In general compiling DBD:Oracle for 64 bit machines has been a hit or miss operation.  
 The main thing to remember is you will have to compile using 32 bit Perl and compile DBD::Oracle against a 32bit client
 which sort of defeats the purpose of having a 64bit box.  
@@ -119,7 +121,6 @@ So until 64bit Perl comes out we will be posing in this README any success stori
 From: 	Alex Buttery, OCA, MCTS
 	Director, Database Architecture and Operations
 	Impact Rx, Inc.
-
 
 I needed to get perl working on a 64-bit Windows Server so I got creative. Since I was unable to build DBD::Oracle on the Windows Server
 (even with Visual Studio 6 installed), I decided that I would try another approach. Here are the steps I took to get it working 
@@ -161,11 +162,34 @@ else to support this configuration).
 
 	SET PATH=%ORACLE_HOME%\bin;%PATH%                 <== Add 32-bit Oracle Home to beginning of default PATH
 
- 
+=head1 AUTHORS
 
-Hopefully, you will be able to include these instructions in the next build of DBD::Oracle to help out other poor souls that are fighting
-this same battle.
+=over 4
 
- 
+=item *
 
- 
+Tim Bunce <timb@cpan.org>
+
+=item *
+
+John Scoles
+
+=item *
+
+Yanick Champoux <yanick@cpan.org>
+
+=item *
+
+Martin J. Evans <mjevans@cpan.org>
+
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 1994 by Tim Bunce.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
+

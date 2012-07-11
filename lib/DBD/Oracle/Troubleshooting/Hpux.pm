@@ -1,3 +1,18 @@
+#PODNAME: DBD::Oracle::Troubleshooting::Hpux
+#ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle on HP-UX
+
+
+__END__
+=pod
+
+=head1 NAME
+
+DBD::Oracle::Troubleshooting::Hpux - Tips and Hints to Troubleshoot DBD::Oracle on HP-UX
+
+=head1 VERSION
+
+version 1.47_00
+
 =head1 INTRODUCTION
 
 Building a working dynamically linked version of the Oracle DBD driver
@@ -23,7 +38,7 @@ See L<APPENDICES> for exact build configurations used by me an others.
 For HPUX 11 on Itanium see also
 http://www.nntp.perl.org/group/perl.dbi.users/23840
 
-=head1  First things First:  Introduction
+=head1 First things First:  Introduction
 
 The reason you are even reading this file is because you want to connect
 to an Oracle database from your perl program using the DBD::Oracle DBI
@@ -59,8 +74,7 @@ this file.
 
    -- Lincoln
 
-
-=head1  Build your own Perl
+=head1 Build your own Perl
 
 HP's default Perl is no good (and antique).
 
@@ -330,9 +344,9 @@ If you have trouble, see the L<Trouble Shooting> instructions below, for
 hints of what might be wrong... and send me a note, describing your
 configuration, and what you did to fix it.
 
-=head1	Trouble Shooting
+=head1 Trouble Shooting
 
-=head2	"Unresolved symbol"
+=head2 "Unresolved symbol"
 
 In general, find the symbols, edit the Makefile, and make test.
 
@@ -413,7 +427,7 @@ You can edit the Makefile in 2 ways:
 Perform a make test, if symbols are still unresolved repeat the editing
 of the Makefile and make test again.
 
-=head1  DBD-Oracle-1.06
+=head1 DBD-Oracle-1.06
 
 You are strongly urged to upgrade. However here is what you may need to
 know to get it or work, if you insist on using an earlier version.
@@ -955,14 +969,14 @@ To work around this problem, complete the following procedure:
    $ORACLE_HOME/rdbms/admin/shrept.lst
 
 =itme 3 Add the following line: 
-   
+
    rdbms:OCILobLocatorAssign
 
 =item 4 (optional) Add the names of any other missing functions needed by applications, other than WebLogic Server 7.0, that you want to execute. 
 Note: The OCILobLocatorAssign function is not the only missing function that WebLogic Server 7.0 should be able to call, but it is the only missing function that WebLogic Server 7.0 requires. Other functions that WebLogic Server should be able to call, such as OCIEnvCreate and OCIerminate, are also missing. If these functions are required by other applications that you plan to run, you must add them to your environment by specifying them, too, in $ORACLE_HOME/rdbms/admin/shrept.lst.
 
 =item 5 Rebuild the shared client library: 
-   
+
    $ cd $ORACLE_HOME/rdbms/lib 
    $ make -f ins_rdbms.mk client_sharedlib 
 
@@ -980,4 +994,34 @@ Because OCILobLocatorAssign is now visible in libclntsh.so, WebLogic Server can 
 
 =back
 
+=head1 AUTHORS
+
+=over 4
+
+=item *
+
+Tim Bunce <timb@cpan.org>
+
+=item *
+
+John Scoles
+
+=item *
+
+Yanick Champoux <yanick@cpan.org>
+
+=item *
+
+Martin J. Evans <mjevans@cpan.org>
+
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 1994 by Tim Bunce.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
 =cut
+

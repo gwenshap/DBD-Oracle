@@ -1,3 +1,20 @@
+#PODNAME: DBD::Oracle::Troubleshooting::Macos
+#ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle on MacOs
+
+
+__END__
+=pod
+
+=head1 NAME
+
+DBD::Oracle::Troubleshooting::Macos - Tips and Hints to Troubleshoot DBD::Oracle on MacOs
+
+=head1 VERSION
+
+version 1.47_00
+
+=head1 General Info 
+
 These instructions allow for the compilation and successful testing of
 DBD::Oracle on MacOS X 10.2.4 and higher, using Oracle 9iR2 DR
 (Release 9.2.0.1.0) or the 10g Instant Client release (10.1.0.3 at the
@@ -47,8 +64,7 @@ if you are on 10.3 (Panther) and you do not intend to run the Oracle
 database server on your MacOSX box. See below (Instructions for
 10.3.x) for details.
 
-======================================================================
-Instructions for 10.7.x (Lion)
+=head1 Instructions for 10.7.x (Lion)
 
 Because the 64 bit instantclient (version 10gr2)is currently
 [incompatible with Lion][], DBD::Oracle can only be compiled with the
@@ -62,9 +78,9 @@ is released.
 If you have a 32-bit Perl, however, then the following steps should work:
 
 * Download and install the 32-bit basic, sqlplus, and sdk instantclient
-  libraries and install them in a central location, such as
-  `/usr/oracle_instantclient`. [Downloads here][].
-  
+libraries and install them in a central location, such as
+`/usr/oracle_instantclient`. [Downloads here][].
+
   [Downloads here]: http://www.oracle.com/technetwork/topics/intel-macsoft-096467.html
 
 * Create a symlink from `libclntsh.dylib.10.1` to `libclntsh.dylib`:
@@ -81,8 +97,7 @@ If you have a 32-bit Perl, however, then the following steps should work:
 
      cpan DBD::Oracle
 
-======================================================================
-Instructions for 10.6.x (Snow Leopard)
+=head1 Instructions for 10.6.x (Snow Leopard)
 
 These are taken from a stackoverflow answer by "nickisfat" who gave
 his/her permission for its inclusion here. You can see the original
@@ -170,9 +185,7 @@ install DBI
 
 Now you're all set - enjoy your perly oracley new life
 
-
-======================================================================
-Instructions for 10.2.x (Jaguar)
+=head1 Instructions for 10.2.x (Jaguar)
 
 1) Install Oracle exactly per Oracle documentation. If you change
 install locations, then you'll need to modify paths accordingly.
@@ -227,102 +240,102 @@ follow nonetheless.
       compile with Perl 5.6.0; they may not be necessary with other
       versions of IO and Perl, respectively.
 
-+=+=+=+=+=+=+= Cut after this line
-diff -c ../IO-orig/IO-1.20/IO.xs ./IO.xs
-*** ../IO-orig/IO-1.20/IO.xs	Mon Jul 13 23:36:24 1998
---- ./IO.xs	Sat May 10 15:20:02 2003
-***************
-*** 205,211 ****
-  	    ST(0) = sv_2mortal(newSVpv((char*)&pos, sizeof(Fpos_t)));
-  	}
-  	else {
-! 	    ST(0) = &sv_undef;
-  	    errno = EINVAL;
-  	}
+        +=+=+=+=+=+=+= Cut after this line
+        diff -c ../IO-orig/IO-1.20/IO.xs ./IO.xs
+        *** ../IO-orig/IO-1.20/IO.xs	Mon Jul 13 23:36:24 1998
+        --- ./IO.xs	Sat May 10 15:20:02 2003
+        ***************
+        *** 205,211 ****
+                ST(0) = sv_2mortal(newSVpv((char*)&pos, sizeof(Fpos_t)));
+            }
+            else {
+        ! 	    ST(0) = &sv_undef;
+                errno = EINVAL;
+            }
 
---- 205,211 ----
-  	    ST(0) = sv_2mortal(newSVpv((char*)&pos, sizeof(Fpos_t)));
-  	}
-  	else {
-! 	    ST(0) = &PL_sv_undef;
-  	    errno = EINVAL;
-  	}
+        --- 205,211 ----
+                ST(0) = sv_2mortal(newSVpv((char*)&pos, sizeof(Fpos_t)));
+            }
+            else {
+        ! 	    ST(0) = &PL_sv_undef;
+                errno = EINVAL;
+            }
 
-***************
-*** 249,255 ****
-  	    SvREFCNT_dec(gv);   /* undo increment in newRV() */
-  	}
-  	else {
-! 	    ST(0) = &sv_undef;
-  	    SvREFCNT_dec(gv);
-  	}
+        ***************
+        *** 249,255 ****
+                SvREFCNT_dec(gv);   /* undo increment in newRV() */
+            }
+            else {
+        ! 	    ST(0) = &sv_undef;
+                SvREFCNT_dec(gv);
+            }
 
---- 249,255 ----
-  	    SvREFCNT_dec(gv);   /* undo increment in newRV() */
-  	}
-  	else {
-! 	    ST(0) = &PL_sv_undef;
-  	    SvREFCNT_dec(gv);
-  	}
+        --- 249,255 ----
+                SvREFCNT_dec(gv);   /* undo increment in newRV() */
+            }
+            else {
+        ! 	    ST(0) = &PL_sv_undef;
+                SvREFCNT_dec(gv);
+            }
 
-***************
-*** 272,278 ****
-  	i++;
-  	fds[j].revents = 0;
-      }
-!     if((ret = poll(fds,nfd,timeout)) >= 0) {
-  	for(i=1, j=0 ; j < nfd ; j++) {
-  	    sv_setiv(ST(i), fds[j].fd); i++;
-  	    sv_setiv(ST(i), fds[j].revents); i++;
---- 272,278 ----
-  	i++;
-  	fds[j].revents = 0;
-      }
-!     if((ret = io_poll(fds,nfd,timeout)) >= 0) {
-  	for(i=1, j=0 ; j < nfd ; j++) {
-  	    sv_setiv(ST(i), fds[j].fd); i++;
-  	    sv_setiv(ST(i), fds[j].revents); i++;
-diff -c ../IO-orig/IO-1.20/poll.c ./poll.c
-*** ../IO-orig/IO-1.20/poll.c	Wed Mar 18 21:34:00 1998
---- ./poll.c	Sat May 10 14:28:22 2003
-***************
-*** 35,41 ****
-  # define POLL_EVENTS_MASK (POLL_CAN_READ | POLL_CAN_WRITE | POLL_HAS_EXCP)
+        ***************
+        *** 272,278 ****
+            i++;
+            fds[j].revents = 0;
+            }
+        !     if((ret = poll(fds,nfd,timeout)) >= 0) {
+            for(i=1, j=0 ; j < nfd ; j++) {
+                sv_setiv(ST(i), fds[j].fd); i++;
+                sv_setiv(ST(i), fds[j].revents); i++;
+        --- 272,278 ----
+            i++;
+            fds[j].revents = 0;
+            }
+        !     if((ret = io_poll(fds,nfd,timeout)) >= 0) {
+            for(i=1, j=0 ; j < nfd ; j++) {
+                sv_setiv(ST(i), fds[j].fd); i++;
+                sv_setiv(ST(i), fds[j].revents); i++;
+        diff -c ../IO-orig/IO-1.20/poll.c ./poll.c
+        *** ../IO-orig/IO-1.20/poll.c	Wed Mar 18 21:34:00 1998
+        --- ./poll.c	Sat May 10 14:28:22 2003
+        ***************
+        *** 35,41 ****
+        # define POLL_EVENTS_MASK (POLL_CAN_READ | POLL_CAN_WRITE | POLL_HAS_EXCP)
 
-  int
-! poll(fds, nfds, timeout)
-  struct pollfd *fds;
-  unsigned long nfds;
-  int timeout;
---- 35,41 ----
-  # define POLL_EVENTS_MASK (POLL_CAN_READ | POLL_CAN_WRITE | POLL_HAS_EXCP)
+        int
+        ! poll(fds, nfds, timeout)
+        struct pollfd *fds;
+        unsigned long nfds;
+        int timeout;
+        --- 35,41 ----
+        # define POLL_EVENTS_MASK (POLL_CAN_READ | POLL_CAN_WRITE | POLL_HAS_EXCP)
 
-  int
-! io_poll(fds, nfds, timeout)
-  struct pollfd *fds;
-  unsigned long nfds;
-  int timeout;
-diff -c ../IO-orig/IO-1.20/poll.h ./poll.h
-*** ../IO-orig/IO-1.20/poll.h	Wed Apr 15 20:33:02 1998
---- ./poll.h	Sat May 10 14:29:11 2003
-***************
-*** 44,50 ****
-  #define	POLLHUP		0x0010
-  #define	POLLNVAL	0x0020
+        int
+        ! io_poll(fds, nfds, timeout)
+        struct pollfd *fds;
+        unsigned long nfds;
+        int timeout;
+        diff -c ../IO-orig/IO-1.20/poll.h ./poll.h
+        *** ../IO-orig/IO-1.20/poll.h	Wed Apr 15 20:33:02 1998
+        --- ./poll.h	Sat May 10 14:29:11 2003
+        ***************
+        *** 44,50 ****
+        #define	POLLHUP		0x0010
+        #define	POLLNVAL	0x0020
 
-! int poll _((struct pollfd *, unsigned long, int));
+        ! int poll _((struct pollfd *, unsigned long, int));
 
-  #ifndef HAS_POLL
-  #  define HAS_POLL
---- 44,50 ----
-  #define	POLLHUP		0x0010
-  #define	POLLNVAL	0x0020
+        #ifndef HAS_POLL
+        #  define HAS_POLL
+        --- 44,50 ----
+        #define	POLLHUP		0x0010
+        #define	POLLNVAL	0x0020
 
-! int io_poll _((struct pollfd *, unsigned long, int));
+        ! int io_poll _((struct pollfd *, unsigned long, int));
 
-  #ifndef HAS_POLL
-  #  define HAS_POLL
-+=+=+=+=+=+=+= Cut to the previous line
+        #ifndef HAS_POLL
+        #  define HAS_POLL
+        +=+=+=+=+=+=+= Cut to the previous line
 
     - compile and install as you usually would, making sure that
       existing but conflicting modules get removed:
@@ -344,8 +357,7 @@ diff -c ../IO-orig/IO-1.20/poll.h ./poll.h
       $ make test
       $ make install
 
-======================================================================
-Instructions for 10.3.x (Panther)
+=head1 Instructions for 10.3.x (Panther)
 
 I highly recommend you install and use the Oracle 10g Instant Client
 for MacOSX 10.3. Compared to traditional Oracle client installations
@@ -389,34 +401,34 @@ That said, here are the details.
 
    Here is the patch:
 
-+=+=+=+=+=+=+= Cut after this line
-*** Makefile.PL.orig	Fri Oct 22 02:07:04 2004
---- Makefile.PL	Fri May 13 14:28:53 2005
-***************
-*** 1252,1257 ****
---- 1252,1258 ----
-  	print "Found $dir/$_\n" if $::opt_d;
-      }, "$OH/rdbms",
-         "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0)
-+        "$OH/sdk", # Oracle Instant Client default location (10g)
-      );
-      @h_dir = keys %h_dir;
-      print "Found header files in @h_dir.\n" if @h_dir;
-***************
-*** 1286,1292 ****
---- 1287,1297 ----
-  	open FH, ">define.sql" or warn "Can't create define.sql: $!";
-  	print FH "DEFINE _SQLPLUS_RELEASE\nQUIT\n";
-  	close FH;
-+ 	# we need to temporarily disable login sql scripts
-+ 	my $sqlpath = $ENV{SQLPATH};
-+ 	delete $ENV{SQLPATH};
-  	my $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
-+ 	$ENV{SQLPATH} = $sqlpath if $sqlpath;
-  	unlink "define.sql";
-  	print $sqlplus_release;
-  	if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
-+=+=+=+=+=+=+= Cut to the previous line
+    +=+=+=+=+=+=+= Cut after this line
+    *** Makefile.PL.orig	Fri Oct 22 02:07:04 2004
+    --- Makefile.PL	Fri May 13 14:28:53 2005
+    ***************
+    *** 1252,1257 ****
+    --- 1252,1258 ----
+        print "Found $dir/$_\n" if $::opt_d;
+        }, "$OH/rdbms",
+            "$OH/plsql", # oratypes.h sometimes here (eg HPUX 11.23 Itanium Oracle 9.2.0)
+    +        "$OH/sdk", # Oracle Instant Client default location (10g)
+        );
+        @h_dir = keys %h_dir;
+        print "Found header files in @h_dir.\n" if @h_dir;
+    ***************
+    *** 1286,1292 ****
+    --- 1287,1297 ----
+        open FH, ">define.sql" or warn "Can't create define.sql: $!";
+        print FH "DEFINE _SQLPLUS_RELEASE\nQUIT\n";
+        close FH;
+    + 	# we need to temporarily disable login sql scripts
+    + 	my $sqlpath = $ENV{SQLPATH};
+    + 	delete $ENV{SQLPATH};
+        my $sqlplus_release = `$sqlplus_exe -S /nolog \@define.sql 2>&1`;
+    + 	$ENV{SQLPATH} = $sqlpath if $sqlpath;
+        unlink "define.sql";
+        print $sqlplus_release;
+        if ($sqlplus_release =~ /^DEFINE _SQLPLUS_RELEASE = "(\d?\d)(\d\d)(\d\d)(\d\d)(\d\d)"/) {
+    +=+=+=+=+=+=+= Cut to the previous line
 
    The first hunk allows Makefile.PL to find the header files which
    are in a subdirectory sdk, and the second temporarily disables any
@@ -499,16 +511,13 @@ instructions, and the Perl IO patch is credit to Hilmar Lapp, hlapp at
 gmx.net.
 
 Earlier and original instructions thanks to:
-	Andy Lester <andy@petdance.com>
-	Steve Sapovits <sapovitss@gsicommerce.com>
-	Tom Mornini <tmornini@infomania.com>
-
+	Andy Lester 
+	Steve Sapovits
+	Tom Mornini
 
 Date: Tue, 15 Apr 2003 16:02:17 +1000
 Subject: Compilation bug in DBI on OSX with threaded Perl 5.8.0
-From: Danial Pearce <danial@infoxchange.net.au>
-To: <dbi-users@perl.org>
-Message-ID: <BAC1DD89.E5E1%danial@infoxchange.net.au>
+From: Danial Pearce 
 
 In regards to a previous message on this list:
 
@@ -548,5 +557,34 @@ anything Apple are going to do about it.
 cheers
 Danial
 
-PS: Personal replies please, I have not subscribed to this list.
+=head1 AUTHORS
+
+=over 4
+
+=item *
+
+Tim Bunce <timb@cpan.org>
+
+=item *
+
+John Scoles
+
+=item *
+
+Yanick Champoux <yanick@cpan.org>
+
+=item *
+
+Martin J. Evans <mjevans@cpan.org>
+
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 1994 by Tim Bunce.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
 
