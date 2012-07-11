@@ -2,6 +2,8 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+1.47_00   2012-07-11
+
   [BUG FIXES]
 
   - fixed redeclaration of $len in 31lob.t - (Martin J, Evans)
