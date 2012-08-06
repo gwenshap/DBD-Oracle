@@ -594,6 +594,17 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			forced_new_environment = 1;
 		}
 	}
+    /* RT46739 */
+    if (imp_dbh->envhp) {
+        OCIError *errhp;
+        OCIHandleAlloc_ok(imp_dbh, imp_dbh->envhp, &errhp, OCI_HTYPE_ERROR,  status);
+        if (status != OCI_SUCCESS) {
+            imp_dbh->envhp = NULL;
+        } else {
+			OCIHandleFree_log_stat(imp_dbh, errhp, OCI_HTYPE_ERROR,  status);
+        }
+    }
+
     if (!imp_dbh->envhp ) {
 		SV **init_mode_sv;
 		ub4 init_mode = OCI_OBJECT;	/* needed for LOBs (8.0.4)	*/
