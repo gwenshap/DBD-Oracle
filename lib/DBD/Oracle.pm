@@ -1349,9 +1349,9 @@ allows for clients to automatically reconnect to an instance in the
 event of a failure of the instance. The reconnect happens
 automatically from within the OCI (Oracle Call Interface) library.
 DBD::Oracle now supports a callback function that will fire when a TAF
-event takes place. The main use of the callback is to give your
-program the opportunity to inform the user that a failover is taking
-place.
+event takes place. You may use the callback to inform the
+user a failover is taking place or to setup the session again
+once the failover has succeeded.
 
 You will have to set up TAF on your instance before you can use this
 callback.  You can test your instance to see if you can use TAF
@@ -1359,7 +1359,11 @@ callback with
 
   $dbh->ora_can_taf();
 
-If you try to set up a callback without it being enabled DBD::Oracle will croak.
+If you try to set up a callback without it being enabled DBD::Oracle
+will croak.
+
+NOTE: Currently, you must enable TAF during DBI's connect. However
+once enabled you can change the TAF settings.
 
 It is outside the scope of this document to go through all of the
 possible TAF situations you might want to set up but here is a simple
@@ -1517,6 +1521,10 @@ variable.
 If your Oracle instance has been configured to use TAF events you can
 enable the TAF callback by setting this option to any I<true> value.
 
+NOTE: All the ora_taf* attributes must currently be set in the connect
+method if you want TAF enabled at the moment i.e., after connect you
+can change the callback but you cannot disable TAF.
+
 =head4 ora_taf_function
 
 The name of the Perl subroutine that will be called from OCI when a
@@ -1541,6 +1549,10 @@ TAF function e.g., 'main::my_taf_function' and not just
 The amount of time in seconds DBD::Oracle will sleep between attempting
 successive failover events when the event is OCI_FO_ERROR and OCI_FO_RETRY
 is returned from the TAF handler.
+
+NOTE: This attribute will be withdrawn in the future so I suggest you
+don't use it and if you want to sleep, add it to your own callback
+sub.
 
 =head4 ora_session_mode
 

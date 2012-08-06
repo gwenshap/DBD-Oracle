@@ -1205,7 +1205,16 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 		imp_dbh->using_taf = 1;
 	}
 	else if (kl==16 && strEQ(key, "ora_taf_function") ) {
-			imp_dbh->taf_function = (char *) SvPV (valuesv, vl );
+        STRLEN  svp_len;
+        char *fn;
+
+        if (imp_dbh->taf_function) {
+            Safefree(imp_dbh->taf_function);
+        }
+
+        fn = SvPV(valuesv, svp_len);
+        imp_dbh->taf_function = (char *)safemalloc(svp_len + 1);
+        strcpy(imp_dbh->taf_function, fn);
 	}
 	else if (kl==13 && strEQ(key, "ora_taf_sleep") ) {
 			imp_dbh->taf_sleep = SvIV (valuesv);

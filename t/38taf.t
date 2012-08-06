@@ -19,8 +19,6 @@ my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh = eval { DBI->connect($dsn, $dbuser, '',) }
     or plan skip_all => "Unable to connect to Oracle";
 
-plan tests => 1;
-
 $dbh->disconnect;
 
 if ( !$dbh->ora_can_taf ){
@@ -38,7 +36,11 @@ else {
    ok $dbh = DBI->connect($dsn, $dbuser, '',
                           {ora_taf=>1, ora_taf_sleep=>15,
                            ora_taf_function=>'taf'});
-
+   is($dbh->{ora_taf}, 1, 'TAF enabled');
+   is($dbh->{ora_taf_sleep}, 15, 'TAF sleep set');
+   is($dbh->{ora_taf_function}, 'taf', 'TAF callback');
 }
 
 $dbh->disconnect;
+
+done_testing();
