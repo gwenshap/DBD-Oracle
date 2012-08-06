@@ -33,7 +33,7 @@
 
 DBISTATE_DECLARE;
 
-int ora_fetchtest;	/* intrnal test only, not thread safe */
+int ora_fetchtest;         /* internal test only, not thread safe */
 int is_extproc	  	  = 0; /* not ProC but ExtProc.pm */
 int dbd_verbose		  = 0; /* DBD only debugging*/
 int oci_warn		  = 0; /* show oci warnings */
@@ -489,10 +489,13 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     	DBD_ATTRIB_GET_IV( attr, "ora_taf_sleep",  13, svp, imp_dbh->taf_sleep);
 		if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_taf_function",  16)) && SvOK(*svp)) {
 			STRLEN  svp_len;
+            char *fn;
+
 			if (!SvPOK(*svp))
 				croak("ora_taf_function is not a string");
-			imp_dbh->taf_function = (char *) SvPV (*svp, svp_len );
-
+            fn = SvPV(*svp, svp_len);
+            imp_dbh->taf_function = (char *)safemalloc(svp_len + 1);
+			strcpy(imp_dbh->taf_function, fn);
 		}
         if (DBIc_DBISTATE(imp_dbh)->debug || dbd_verbose >= 3)
             PerlIO_printf(
@@ -1121,6 +1124,11 @@ dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 							(ub4) OCI_ATTR_FOCBK, imp_dbh->errhp, status);
 
 		}
+        if (imp_dbh->taf_function) {
+            Safefree(imp_dbh->taf_function);
+            imp_dbh->taf_function = NULL;
+        }
+
 #ifdef ORA_OCI_112
 		if (imp_dbh->using_drcp) {
 			OCIHandleFree_log_stat(imp_dbh, imp_dbh->authp, OCI_HTYPE_SESSION,status);

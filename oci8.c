@@ -1361,19 +1361,16 @@ reg_taf_callback( imp_dbh_t *imp_dbh)
 	dTHX;
 	OCIFocbkStruct 	tafailover;
 	sword 			status;
-	taf_callback_t  *cb = NULL;
-/*allocate space for the callback */
-	Newz(1, cb, 1, taf_callback_t);
-	cb->function= (char*)safemalloc(strlen(imp_dbh->taf_function) + 1);
-	cb->sleep   = imp_dbh->taf_sleep;
-	strcpy((char *)cb->function,imp_dbh->taf_function);
+
+    imp_dbh->taf_ctx.function = imp_dbh->taf_function;
+    imp_dbh->taf_ctx.sleep = imp_dbh->taf_sleep;
 
 	if (dbd_verbose >= 5 ) {
   		PerlIO_printf(DBIc_LOGPIO(imp_dbh), " In reg_taf_callback\n");
 	}
 
 /* set the context up as a pointer to the taf callback struct*/
-	tafailover.fo_ctx = cb;
+	tafailover.fo_ctx = &imp_dbh->taf_ctx;
 	tafailover.callback_function = &taf_cbk;
 
 /* register the callback */

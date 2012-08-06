@@ -9,6 +9,12 @@ Revision history for DBD::Oracle
   - fix finding client in situation where client and server both
     installed but different architectures (patch by H.Merijn Brand)
 
+  - fix memeory leak in TAF handling - the TAF function was leaked
+    (Martin J. Evans)
+
+  - fix issue with taf_function being set to a scalar which goes
+    out of scope before the callback is made (Martin J. Evans)
+
   [MISCELLANEOUS]
 
   - hide dr, db and st packages from PAUSE
