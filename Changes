@@ -15,6 +15,9 @@ Revision history for DBD::Oracle
   - fix issue with taf_function being set to a scalar which goes
     out of scope before the callback is made (Martin J. Evans)
 
+  - fix RT46739 if a connection breaks the environment handle is
+    not thrown away (Martin J. Evans)
+
   [MISCELLANEOUS]
 
   - hide dr, db and st packages from PAUSE
