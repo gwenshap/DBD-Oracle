@@ -1144,7 +1144,7 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
             /* MJE commented out as we are avoiding DBIS now but as this is
                an Oracle callback there is no way to pass something non
                OCI into this func.
-               
+
 			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
 				PerlIO_printf(DBILOGFP, "		in  '%s' [%lu,%lu]: len %2lu, ind %d%s, value=%s\n",
 					phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
@@ -1320,12 +1320,12 @@ taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
 	return_count = call_pv(cb->function, G_SCALAR);
 
     SPAGAIN;
-    
+
     if (return_count != 1)
         croak("Expected one scalar back from taf handler");
 
     ret = POPi;
-    
+
 	switch (fo_event){
 
 		case OCI_FO_BEGIN:
@@ -1350,7 +1350,7 @@ taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
 		}
 	}
     PUTBACK;
-    
+
 	return 0;
 }
 
@@ -1364,7 +1364,7 @@ reg_taf_callback( imp_dbh_t *imp_dbh)
 	taf_callback_t  *cb = NULL;
 /*allocate space for the callback */
 	Newz(1, cb, 1, taf_callback_t);
-	cb->function= (char*)safemalloc(strlen(imp_dbh->taf_function));
+	cb->function= (char*)safemalloc(strlen(imp_dbh->taf_function) + 1);
 	cb->sleep   = imp_dbh->taf_sleep;
 	strcpy((char *)cb->function,imp_dbh->taf_function);
 

@@ -123,7 +123,8 @@ BEGIN {
 }
 
 
-{   package DBD::Oracle::dr;
+{   package                     # hide from PAUSE
+    DBD::Oracle::dr;
 {
   $DBD::Oracle::dr::VERSION = '1.47_00';
 }
@@ -328,7 +329,8 @@ BEGIN {
 }
 
 
-{   package DBD::Oracle::db;
+{   package                     # hide from PAUSE
+    DBD::Oracle::db;
 {
   $DBD::Oracle::db::VERSION = '1.47_00';
 }
@@ -753,7 +755,7 @@ SQL
 	    }
 	}
 	$SQL .= " ORDER BY TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION\n";
-        
+
 
         # Since DATA_DEFAULT is a LONG, DEFAULT values longer than 80 chars will
         # throw an ORA-24345 by default; so we check if LongReadLen is set at
@@ -1057,7 +1059,8 @@ SQL
 }   # end of package DBD::Oracle::db
 
 
-{   package DBD::Oracle::st;
+{   package                     # hide from PAUSE
+    DBD::Oracle::st;
 {
   $DBD::Oracle::st::VERSION = '1.47_00';
 }
@@ -1134,19 +1137,19 @@ BEGIN {
        return $sth->set_err($DBI::stderr, "executing $tuple_count generated $err_count errors")
        	   if $err_count;
 
-       return wantarray 
+       return wantarray
                 ? ($tuple_count, defined $row_count ? $row_count : undef)
                 : $tuple_count;
 
     }
 
     sub private_attribute_info {
-        return { map { $_ => undef } qw/ 
-            ora_lengths 
-            ora_types 
+        return { map { $_ => undef } qw/
+            ora_lengths
+            ora_types
             ora_rowid
-            ora_est_row_width 
-            ora_type 
+            ora_est_row_width
+            ora_type
             ora_fail_over
         / };
    }
