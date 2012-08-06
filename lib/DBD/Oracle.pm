@@ -117,7 +117,8 @@ package DBD::Oracle;
 }
 
 
-{   package DBD::Oracle::dr; # ====== DRIVER ======
+{   package                     # hide from PAUSE
+    DBD::Oracle::dr;            # ====== DRIVER ======
     use strict;
 
     my %dbnames = ();	# holds list of known databases (oratab + tnsnames)
@@ -316,7 +317,8 @@ package DBD::Oracle;
 }
 
 
-{   package DBD::Oracle::db; # ====== DATABASE ======
+{   package                     # hide from PAUSE
+    DBD::Oracle::db;            # ====== DATABASE ======
     use strict;
     use DBI qw(:sql_types);
 
@@ -735,7 +737,7 @@ SQL
 	    }
 	}
 	$SQL .= " ORDER BY TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION\n";
-        
+
 
         # Since DATA_DEFAULT is a LONG, DEFAULT values longer than 80 chars will
         # throw an ORA-24345 by default; so we check if LongReadLen is set at
@@ -1039,7 +1041,8 @@ SQL
 }   # end of package DBD::Oracle::db
 
 
-{   package DBD::Oracle::st; # ====== STATEMENT ======
+{   package                     # hide from PAUSE
+    DBD::Oracle::st;            # ====== STATEMENT ======
 
 
    sub bind_param_inout_array {
@@ -1110,19 +1113,19 @@ SQL
        return $sth->set_err($DBI::stderr, "executing $tuple_count generated $err_count errors")
        	   if $err_count;
 
-       return wantarray 
+       return wantarray
                 ? ($tuple_count, defined $row_count ? $row_count : undef)
                 : $tuple_count;
 
     }
 
     sub private_attribute_info {
-        return { map { $_ => undef } qw/ 
-            ora_lengths 
-            ora_types 
+        return { map { $_ => undef } qw/
+            ora_lengths
+            ora_types
             ora_rowid
-            ora_est_row_width 
-            ora_type 
+            ora_est_row_width
+            ora_type
             ora_fail_over
         / };
    }

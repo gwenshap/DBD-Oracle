@@ -2,6 +2,14 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  [BUG FIXES]
+
+  - fix serious memory corruption in TAF support (Martin J. Evans)
+
+  [MISCELLANEOUS]
+
+  - hide dr, db and st packages from PAUSE
+
 1.48      2012-08-09
  - promote 1.47_00 to official release
 
@@ -19,7 +27,7 @@ Revision history for DBD::Oracle
     Martin J. Evans
 
   [DOCUMENTATION]
-  - Promoted the troubleshooting for the different architectures to 
+  - Promoted the troubleshooting for the different architectures to
     POD documents, for easier/prettier access.
 
   - Added a troubleshooting entry for RT71819 - bound output
