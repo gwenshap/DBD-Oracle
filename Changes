@@ -6,6 +6,9 @@ Revision history for DBD::Oracle
 
   - fix serious memory corruption in TAF support (Martin J. Evans)
 
+  - fix finding client in situation where client and server both
+    installed but different architectures (patch by H.Merijn Brand)
+
   [MISCELLANEOUS]
 
   - hide dr, db and st packages from PAUSE
