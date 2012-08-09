@@ -12,7 +12,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 {
 package DBD::Oracle;
 {
-  $DBD::Oracle::VERSION = '1.47_00';
+  $DBD::Oracle::VERSION = '1.49_00';
 }
 BEGIN {
   $DBD::Oracle::AUTHORITY = 'cpan:PYTHIAN';
@@ -124,13 +124,7 @@ BEGIN {
 
 
 {   package                     # hide from PAUSE
-    DBD::Oracle::dr;
-{
-  $DBD::Oracle::dr::VERSION = '1.47_00';
-}
-BEGIN {
-  $DBD::Oracle::dr::AUTHORITY = 'cpan:PYTHIAN';
-} # ====== DRIVER ======
+    DBD::Oracle::dr;            # ====== DRIVER ======
     use strict;
 
     my %dbnames = ();	# holds list of known databases (oratab + tnsnames)
@@ -330,13 +324,7 @@ BEGIN {
 
 
 {   package                     # hide from PAUSE
-    DBD::Oracle::db;
-{
-  $DBD::Oracle::db::VERSION = '1.47_00';
-}
-BEGIN {
-  $DBD::Oracle::db::AUTHORITY = 'cpan:PYTHIAN';
-} # ====== DATABASE ======
+    DBD::Oracle::db;            # ====== DATABASE ======
     use strict;
     use DBI qw(:sql_types);
 
@@ -1060,13 +1048,7 @@ SQL
 
 
 {   package                     # hide from PAUSE
-    DBD::Oracle::st;
-{
-  $DBD::Oracle::st::VERSION = '1.47_00';
-}
-BEGIN {
-  $DBD::Oracle::st::AUTHORITY = 'cpan:PYTHIAN';
-} # ====== STATEMENT ======
+    DBD::Oracle::st;            # ====== STATEMENT ======
 
 
    sub bind_param_inout_array {
@@ -1167,7 +1149,7 @@ DBD::Oracle - Oracle database driver for the DBI module
 
 =head1 VERSION
 
-version 1.47_00
+version 1.49_00
 
 =head1 SYNOPSIS
 
