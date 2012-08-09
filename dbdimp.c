@@ -20,8 +20,6 @@
 
 #include "Oracle.h"
 
-
-
 /* XXX DBI should provide a better version of this */
 #define IS_DBI_HANDLE(h) \
 	(SvROK(h) && SvTYPE(SvRV(h)) == SVt_PVHV && \
@@ -422,63 +420,17 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		DBD_ATTRIB_GET_IV( attr, "ora_drcp_max",  12, svp, imp_dbh->pool_max);
 	if (DBD_ATTRIB_TRUE(attr,"ora_drcp_incr",13,svp))
 		DBD_ATTRIB_GET_IV( attr, "ora_drcp_incr",  13, svp, imp_dbh->pool_incr);
-
-
-	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_driver_name", 15)) && SvOK(*svp)) {
-		STRLEN  svp_len;
-		if (!SvPOK(*svp))
-			croak("ora_driver_name is not a string");
-		imp_dbh->driver_name = (char *) SvPV (*svp, svp_len );
-		imp_dbh->driver_namel= (ub4) svp_len;
-		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
-    }
-    else {
-		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION,(text*)"DBDO1.28",7,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
-	}
-#endif /*ORA_OCI_112*/
-
-#ifdef OCI_ATTR_ACTION
-	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_action", 10)) && SvOK(*svp)) {
-		STRLEN  svp_len;
-		if (!SvPOK(*svp))
-			croak("ora_action is not a string");
-		imp_dbh->action = (char *) SvPV (*svp, svp_len );
-		imp_dbh->actionl= (ub4) svp_len;
-		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->action,imp_dbh->actionl,OCI_ATTR_ACTION,imp_dbh->errhp, status);
-    }
 #endif
 
-#ifdef OCI_ATTR_MODULE
-	if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_module_name", 15)) && SvOK(*svp)) {
-		STRLEN  svp_len;
-		if (!SvPOK(*svp))
-			croak("ora_module_name is not a string");
-		imp_dbh->module_name = (char *) SvPV (*svp, svp_len );
-		imp_dbh->module_namel= (ub4) svp_len;
-		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->module_name,imp_dbh->module_namel,OCI_ATTR_MODULE,imp_dbh->errhp, status);
+    imp_dbh->driver_name = "DBD01.47_00";
 
-    }
+#ifdef ORA_OCI_112
+    OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION,
+                        imp_dbh->driver_name,
+                        (ub4)strlen(imp_dbh->driver_name),
+                        OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
 #endif
-    if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_client_identifier", 21)) && SvOK(*svp)) {
-		STRLEN  svp_len;
-		if (!SvPOK(*svp))
-			croak("ora_client_identifier is not a string");
-		imp_dbh->client_identifier = (char *) SvPV (*svp, svp_len );
-		imp_dbh->client_identifierl= (ub4) svp_len;
-		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_identifier,imp_dbh->client_identifierl,OCI_ATTR_CLIENT_IDENTIFIER,imp_dbh->errhp, status);
 
-    }
-#ifdef OCI_ATTR_CLIENT_INFO
-    if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_client_info", 15)) && SvOK(*svp)) {
-		STRLEN  svp_len;
-		if (!SvPOK(*svp))
-			croak("ora_client_info is not a string");
-		imp_dbh->client_info = (char *) SvPV (*svp, svp_len );
-		imp_dbh->client_infol= (ub4) svp_len;
-		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->client_info,imp_dbh->client_infol,OCI_ATTR_CLIENT_INFO,imp_dbh->errhp, status);
-
-    }
-#endif
     /* TAF Events */
 	imp_dbh->using_taf = 0;
 
@@ -486,22 +438,37 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		imp_dbh->using_taf = 1;
 		imp_dbh->taf_sleep = 5; /* 5 second default */
 
-    	DBD_ATTRIB_GET_IV( attr, "ora_taf_sleep",  13, svp, imp_dbh->taf_sleep);
-		if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_taf_function",  16)) && SvOK(*svp)) {
-			STRLEN  svp_len;
-            char *fn;
+        /* avoid later STORE: */
+        /* See DBI::DBB problem with ATTRIBI_DELETE until DBI 1.607 */
+        /* DBD_ATTRIB_DELETE(attr, "ora_taf", 7); */
+        (void)hv_delete((HV*)SvRV(attr), "ora_taf", 7, G_DISCARD);
 
-			if (!SvPOK(*svp))
-				croak("ora_taf_function is not a string");
-            fn = SvPV(*svp, svp_len);
-            imp_dbh->taf_function = (char *)safemalloc(svp_len + 1);
-			strcpy(imp_dbh->taf_function, fn);
+    	DBD_ATTRIB_GET_IV( attr, "ora_taf_sleep",  13, svp, imp_dbh->taf_sleep);
+        /* avoid later STORE: */
+        /* See DBI::DBB problem with ATTRIBI_DELETE until DBI 1.607 */
+        /* DBD_ATTRIB_DELETE(attr, "ora_taf_sleep", 13); */
+        (void)hv_delete((HV*)SvRV(attr), "ora_taf_sleep", 13, G_DISCARD);
+
+		if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_taf_function",  16)) && SvOK(*svp)) {
+            if ((SvROK(*svp) && (SvTYPE(SvRV(*svp)) == SVt_PVCV)) ||
+                (SvPOK(*svp))) {
+                imp_dbh->taf_function = newSVsv(*svp);
+            } else {
+				croak("ora_taf_function needs to be a string or code reference");
+            }
+            /* avoid later STORE: */
+            /* See DBI::DBB problem with ATTRIB_DELETE until DBI 1.607 */
+            /* DBD_ATTRIB_DELETE(attr, "ora_taf_function", 16); */
+            (void)hv_delete((HV*)SvRV(attr), "ora_taf_function", 16, G_DISCARD);
 		}
+#ifdef DONT_DO_NOW
         if (DBIc_DBISTATE(imp_dbh)->debug || dbd_verbose >= 3)
             PerlIO_printf(
                 DBIc_LOGPIO(imp_dbh),
                 "taf sleep = %d, taf_function = %s\n",
-                imp_dbh->taf_sleep, imp_dbh->taf_function ? imp_dbh->taf_function : "");
+                imp_dbh->taf_sleep,
+                (imp_dbh->taf_function ? imp_dbh->taf_function : "");
+#endif
 	}
 
     imp_dbh->server_version = 0;
@@ -511,18 +478,6 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		DBD_ATTRIB_GET_IV(  attr, "dbd_verbose",  11, svp, dbd_verbose);
 	if (DBD_ATTRIB_TRUE(attr,"ora_verbose",11,svp))
 		DBD_ATTRIB_GET_IV(  attr, "ora_verbose",  11, svp, dbd_verbose);
-
-
-	/* check to see if success_warn is set. This will */
-	/* warn after some sucessfull operations for tuning results */
-	if (DBD_ATTRIB_TRUE(attr,"ora_oci_success_warn",20,svp))
-		DBD_ATTRIB_GET_IV(  attr, "ora_oci_success_warn",  20, svp, oci_warn);
-
-	/* check to see if ora_objects set*/
-	/* with this set any embedded types will go into a DBD::Oracle::Object */
-	/* rather than just an ref array */
-	if (DBD_ATTRIB_TRUE(attr,"ora_objects",11,svp))
-		DBD_ATTRIB_GET_IV(  attr, "ora_objects",11, svp, ora_objects);
 
 	if (DBIc_DBISTATE(imp_dbh)->debug >= 6 || dbd_verbose >= 6 )
 		dump_env_to_trace(imp_dbh);
@@ -945,14 +900,15 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		if (!can_taf){
 			croak("You are attempting to enable TAF on a server that is not TAF Enabled \n");
 		}
-
+#ifdef DONT_DO_KNOW
 		if (DBIc_DBISTATE(imp_dbh)->debug >= 4 || dbd_verbose >= 4 ) {
         	PerlIO_printf(
                 DBIc_LOGPIO(imp_dbh),
                 "Setting up TAF with wait time of %d seconds\n",
                 imp_dbh->taf_sleep);
 		}
-		status = reg_taf_callback(imp_dbh);
+#endif
+		status = reg_taf_callback(dbh, imp_dbh);
 		if (status != OCI_SUCCESS) {
 			oci_error(dbh, NULL, status,
 				"Setting TAF Callback Failed! ");
@@ -1135,10 +1091,16 @@ dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 							(ub4) OCI_ATTR_FOCBK, imp_dbh->errhp, status);
 
 		}
+
         if (imp_dbh->taf_function) {
-            Safefree(imp_dbh->taf_function);
+            SvREFCNT_dec(imp_dbh->taf_function);
             imp_dbh->taf_function = NULL;
         }
+        if (imp_dbh->taf_ctx.dbh_ref) {
+            SvREFCNT_dec(SvRV(imp_dbh->taf_ctx.dbh_ref));
+            imp_dbh->taf_ctx.dbh_ref = NULL;
+        }
+
 
 #ifdef ORA_OCI_112
 		if (imp_dbh->using_drcp) {
@@ -1180,8 +1142,9 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 #ifdef ORA_OCI_112
 	else if (kl==15 && strEQ(key, "ora_driver_name") ) {
 		imp_dbh->driver_name = (char *) SvPV (valuesv, vl );
-		imp_dbh->driver_namel= (ub4) vl;
-		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp,OCI_HTYPE_SESSION, imp_dbh->driver_name,imp_dbh->driver_namel,OCI_ATTR_DRIVER_NAME,imp_dbh->errhp, status);
+		OCIAttrSet_log_stat(
+            imp_dbh, imp_dbh->seshp, OCI_HTYPE_SESSION, imp_dbh->driver_name,
+            (ub4)vl, OCI_ATTR_DRIVER_NAME, imp_dbh->errhp, status);
 	}
 	else if (kl==8 && strEQ(key, "ora_drcp") ) {
 		imp_dbh->using_drcp = 1;
@@ -1205,16 +1168,9 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 		imp_dbh->using_taf = 1;
 	}
 	else if (kl==16 && strEQ(key, "ora_taf_function") ) {
-        STRLEN  svp_len;
-        char *fn;
-
-        if (imp_dbh->taf_function) {
-            Safefree(imp_dbh->taf_function);
-        }
-
-        fn = SvPV(valuesv, svp_len);
-        imp_dbh->taf_function = (char *)safemalloc(svp_len + 1);
-        strcpy(imp_dbh->taf_function, fn);
+        if (imp_dbh->taf_function)
+            SvREFCNT_dec(imp_dbh->taf_function);
+        imp_dbh->taf_function = newSVsv(valuesv);
 	}
 	else if (kl==13 && strEQ(key, "ora_taf_sleep") ) {
 			imp_dbh->taf_sleep = SvIV (valuesv);
@@ -1333,7 +1289,9 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 		retsv = newSViv(imp_dbh->using_taf);
 	}
 	else if (kl==16 && strEQ(key, "ora_taf_function") ) {
-		retsv = newSVpv((char *)imp_dbh->taf_function,0);
+        if (imp_dbh->taf_function) {
+            retsv = newSVsv(imp_dbh->taf_function);
+        }
 	}
 	else if (kl==13 && strEQ(key, "ora_taf_sleep") ) {
 		retsv = newSViv(imp_dbh->taf_sleep);
