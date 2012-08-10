@@ -1404,12 +1404,18 @@ attempts another event.
   #set up TAF on the connection
   # NOTE since DBD::Oracle uses call_pv you may need to pass a full
   # name space as the function e.g., 'main::handle_taf'
-  my $dbh = DBI->connect('dbi:Oracle:XE','hr','hr',{ora_taf=>1,ora_taf_sleep=>5,ora_taf_function=>'handle_taf'});
+  # NOTE from 1.49_00 ora_taf_function can accept a code ref as well
+  #      as a sub name as it now uses call_sv
+  my $dbh = DBI->connect('dbi:Oracle:XE', 'hr', 'hr',
+                         {ora_taf => 1,
+                          ora_taf_sleep => 5,
+                          ora_taf_function => 'main::handle_taf'});
 
   #create the perl TAF event function
 
   sub handle_taf {
-    my ($fo_event,$fo_type) = @_;
+    # NOTE from 1.49_00 the $dbh handle was passed to your callback
+    my ($fo_event,$fo_type, $dbh) = @_;
     if ($fo_event == OCI_FO_BEGIN){
 
       print " Instance Unavailable Please stand by!! \n";
@@ -1540,22 +1546,25 @@ can change the callback but you cannot disable TAF.
 
 =head4 ora_taf_function
 
-The name of the Perl subroutine that will be called from OCI when a
-TAF event occurs. You must supply a perl function to use the callback
-and it will always receive two parameters, the failover event value
-and the failover type. Below is an example of a TAF function
+The name of the Perl subroutine (or a code ref from 1.49_00) that will
+be called from OCI when a TAF event occurs. You must supply a perl
+function to use the callback and it will always receive at least two
+parameters; the failover event value and the failover type. From
+1.49_00 the dbh is passed as the third argument. Below is an example
+of a TAF function
 
   sub taf_event{
-     my ($event, $type) = @_;
+     # NOTE from 1.49_00 the $dbh handle is passed to the callback
+     my ($event, $type, $dbh) = @_;
 
      print "My TAF event=$event\n";
      print "My TAF type=$type\n";
      return;
   }
 
-Note you'll probably have to use the full name space when setting the
-TAF function e.g., 'main::my_taf_function' and not just
-'my_taf_function'.
+Note if passing a sub name you will probably have to use the full name
+space when setting the TAF function e.g., 'main::my_taf_function' and
+not just 'my_taf_function'.
 
 =head4 ora_taf_sleep
 
@@ -2243,7 +2252,7 @@ If true (the default), fetching retrieves the contents of the CLOB or
 BLOB column in most circumstances.  If false, fetching retrieves the
 Oracle "LOB Locator" of the CLOB or BLOB value.
 
-See L</LOBs and LONGs> for more details.
+See L</LOBS AND LONGS> for more details.
 
 See also the LOB tests in 05dbi.t of Oracle::OCI for examples
 of how to use LOB Locators.
@@ -2283,7 +2292,7 @@ only one mode is supported;
 
   OCI_STMT_SCROLLABLE_READONLY - make result set scrollable
 
-See L</Scrollable Cursors> for more details.
+See L</SCROLLABLE CURSORS> for more details.
 
 =item ora_prefetch_rows
 
@@ -2797,13 +2806,13 @@ Additional values when DBD::Oracle was built using OCI 9.2 and later:
 
 See L</Binding Cursors> for the correct way to use ORA_RSET.
 
-See L</LOBs and LONGs> for how to use ORA_CLOB and ORA_BLOB.
+See L</LOBS AND LONGS> for how to use ORA_CLOB and ORA_BLOB.
 
 See L</SYS.DBMS_SQL datatypes> for ORA_VARCHAR2_TABLE, ORA_NUMBER_TABLE.
 
 See L</Data Interface for Persistent LOBs> for the correct way to use SQLT_CHR and SQLT_BIN.
 
-See L</Other Data Types> for more information.
+See L</OTHER DATA TYPES> for more information.
 
 See also L<DBI/Placeholders and Bind Values>.
 
