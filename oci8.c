@@ -1316,8 +1316,10 @@ taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
 	PUSHMARK(SP);
 	XPUSHs(sv_2mortal(newSViv(fo_event)));
 	XPUSHs(sv_2mortal(newSViv(fo_type)));
+    XPUSHs(SvRV(cb->dbh_ref));
+
 	PUTBACK;
-	return_count = call_pv(cb->function, G_SCALAR);
+	return_count = call_sv(cb->function, G_SCALAR);
 
     SPAGAIN;
 
@@ -1356,7 +1358,7 @@ taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
 
 
 sb4
-reg_taf_callback( imp_dbh_t *imp_dbh)
+reg_taf_callback(SV *dbh, imp_dbh_t *imp_dbh)
 {
 	dTHX;
 	OCIFocbkStruct 	tafailover;
@@ -1364,6 +1366,7 @@ reg_taf_callback( imp_dbh_t *imp_dbh)
 
     imp_dbh->taf_ctx.function = imp_dbh->taf_function;
     imp_dbh->taf_ctx.sleep = imp_dbh->taf_sleep;
+    imp_dbh->taf_ctx.dbh_ref = newRV_inc(dbh);
 
 	if (dbd_verbose >= 5 ) {
   		PerlIO_printf(DBIc_LOGPIO(imp_dbh), " In reg_taf_callback\n");

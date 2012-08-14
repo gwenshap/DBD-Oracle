@@ -9,7 +9,7 @@ Revision history for DBD::Oracle
   - fix finding client in situation where client and server both
     installed but different architectures (patch by H.Merijn Brand)
 
-  - fix memeory leak in TAF handling - the TAF function was leaked
+  - fix memory leak in TAF handling - the TAF function was leaked
     (Martin J. Evans)
 
   - fix issue with taf_function being set to a scalar which goes
@@ -17,6 +17,21 @@ Revision history for DBD::Oracle
 
   - fix RT46739 if a connection breaks the environment handle is
     not thrown away (Martin J. Evans)
+
+  - ora_driver_name was not defaulted to the correct DBD::Oracle
+    version (Martin J. Evans)
+
+  - ora_driver_name, ora_client_info, ora_client_identifier,
+    ora_action and ora_oci_success_warn were set twice (if specified)
+    on connect as they were not deleted from the connect attributes
+    once handled. Code now leaves the setting to the later STORE DBI
+    calls (Martin J. Evans)
+
+  - ora_taf_function can now be a code reference as well as a string
+    (Martin J. Evans)
+
+  - the ora_taf_function is now passed a third argument of the
+    connection handle (Martin J. Evans)
 
   [CHANGE IN BEHAVIOUR]
 
