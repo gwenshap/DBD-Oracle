@@ -1,6 +1,8 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
+
+1.50      2012-08-15
  - RT78965 - Remove Oraperl tests (which were forcing a require on Oraperl)
 
 1.48      2012-08-09
