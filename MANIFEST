@@ -10,7 +10,6 @@ Oracle.xs
 Oraperl.pm
 README
 README.help.txt
-README.mkdn
 Todo
 dbdimp.c
 dbdimp.h
