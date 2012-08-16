@@ -12,7 +12,6 @@ require 'nchar_test_lib.pl';
 
 $| = 1;
 
-
 # create a database handle
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
@@ -27,7 +26,7 @@ if ( !$dbh->ora_can_taf ){
     eval {
         $dbh = DBI->connect(
             $dsn, $dbuser, '',
-            {ora_taf=>1, ora_taf_sleep=>15,ora_taf_function=>'taf'})
+            {ora_taf_function=>'taf'})
     };
   ok($@    =~ /You are attempting to enable TAF/, "'$@' expected! ");
 
@@ -35,18 +34,9 @@ if ( !$dbh->ora_can_taf ){
 }
 else {
    ok $dbh = DBI->connect($dsn, $dbuser, '',
-                          {ora_taf=>1, ora_taf_sleep=>15,
-                           ora_taf_function=>'taf'});
+                          {ora_taf_function=>'taf'});
 
-   is($dbh->{ora_taf}, 1, 'TAF enabled');
-   is($dbh->{ora_taf_sleep}, 15, 'TAF sleep set');
    is($dbh->{ora_taf_function}, 'taf', 'TAF callback');
-
-   $dbh->{ora_taf} = 0;
-   is($dbh->{ora_taf}, 0, 'TAF disabled');
-
-   $dbh->{ora_taf_sleep} = 10;
-   is($dbh->{ora_taf_sleep}, 10, 'TAF sleep set');
 
    my $x = sub {};
 #   diag(SvREFCNT($x));

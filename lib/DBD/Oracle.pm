@@ -401,10 +401,7 @@ BEGIN {
                  ora_client_info	=> undef,
                  ora_client_identifier	=> undef,
                  ora_action		=> undef,
-                 ora_taf		=> undef,
                  ora_taf_function	=> undef,
-                 ora_taf_sleep		=> undef,
-
                  };
     }
 
@@ -1407,9 +1404,7 @@ attempts another event.
   # NOTE from 1.49_00 ora_taf_function can accept a code ref as well
   #      as a sub name as it now uses call_sv
   my $dbh = DBI->connect('dbi:Oracle:XE', 'hr', 'hr',
-                         {ora_taf => 1,
-                          ora_taf_sleep => 5,
-                          ora_taf_function => 'main::handle_taf'});
+                         {ora_taf_function => 'main::handle_taf'});
 
   #create the perl TAF event function
 
@@ -1438,9 +1433,8 @@ attempts another event.
        print " Failed over user. Resuming services\n";
     }
     elsif ($fo_event == OCI_FO_ERROR){
-       print " Failover error Sleeping...\n";
-       # DBD::Oracle will sleep for ora_taf_sleep if you return OCI_FO_RETRY
-       # If you want to stop retrying just return 0
+       print " Failover error ...\n";
+       sleep 5;                 # sleep before having another go
        return OCI_FO_RETRY;
     }
     else {
@@ -1537,14 +1531,13 @@ variable.
 
 =head4 ora_taf
 
-If your Oracle instance has been configured to use TAF events you can
-enable the TAF callback by setting this option to any I<true> value.
-
-NOTE: All the ora_taf* attributes must currently be set in the connect
-method if you want TAF enabled at the moment i.e., after connect you
-can change the callback but you cannot disable TAF.
+This attribute was removed in 1.49_00 as it was redundant. To
+enable TAF simply set L</ora_taf_function>.
 
 =head4 ora_taf_function
+
+If your Oracle instance has been configured to use TAF events you can
+enable the TAF callback by setting this option.
 
 The name of the Perl subroutine (or a code ref from 1.49_00) that will
 be called from OCI when a TAF event occurs. You must supply a perl
@@ -1568,13 +1561,8 @@ not just 'my_taf_function'.
 
 =head4 ora_taf_sleep
 
-The amount of time in seconds DBD::Oracle will sleep between attempting
-successive failover events when the event is OCI_FO_ERROR and OCI_FO_RETRY
-is returned from the TAF handler.
-
-NOTE: This attribute will be withdrawn in the future so I suggest you
-don't use it and if you want to sleep, add it to your own callback
-sub.
+This attribute was removed in 1.49_00 as it was redundant. If you want
+to sleep between retries simple add a sleep to your callback sub.
 
 =head4 ora_session_mode
 
