@@ -27,16 +27,25 @@ NEXTRELEASE
     once handled. Code now leaves the setting to the later STORE DBI
     calls (Martin J. Evans)
 
+  [CHANGE IN BEHAVIOUR]
+
+  - ora_taf and ora_taf_sleep were redundant and have been removed.
+    To enable/disable TAF simply set ora_taf_function and if you
+    want to sleep do it in your callback (Martin J. Evans)
+
   - ora_taf_function can now be a code reference as well as a string
+    (Martin J. Evans)
+
+  [ENHANCEMENTS]
+
+  - the ora_can_taf method was virtually useless since you can only
+    call it after connecting and to enable TAF you had to do it in the
+    connect call. Now you enable and disable TAF at any time by
+    simply setting or clearing the ora_taf_function (see RT78811)
     (Martin J. Evans)
 
   - the ora_taf_function is now passed a third argument of the
     connection handle (Martin J. Evans)
-
-  [CHANGE IN BEHAVIOUR]
-
-  - In future versions taf_sleep will be withdrawn as you can simply
-    sleep in your own callback.
 
   [MISCELLANEOUS]
 
