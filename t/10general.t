@@ -4,7 +4,6 @@ use warnings;
 use Test::More;
 
 use DBI;
-use Oraperl;
 use Config;
 use DBD::Oracle qw(ORA_OCI);
 
@@ -22,7 +21,7 @@ my $dbh = DBI->connect($dsn, $dbuser, '',
                        });
 
 if ($dbh) {
-    plan tests => 30;
+    plan tests => 28;
 } else {
     plan skip_all => "Unable to connect to Oracle";
 }
@@ -114,8 +113,6 @@ ok($@    =~ /DBD::Oracle::db do failed:/, "eval error: ``$@'' expected 'do faile
 #print "''$warn''";
 ok($warn =~ /DBD::Oracle::db do failed:/, "warn error: ``$warn'' expected 'do failed:'");
 ok($DBI::err, 'err defined');
-ok($ora_errno, 'ora_errno defined');
-is($ora_errno, $DBI::err, 'ora_errno and err equal');
 $dbh->{RaiseError} = 0;
 $dbh->{PrintError} = 0;
 # ---

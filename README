@@ -2,7 +2,7 @@ NAME
     DBD::Oracle - Oracle database driver for the DBI module
 
 VERSION
-    version 1.49_00
+    version 1.50
 
 SYNOPSIS
       use DBI;
@@ -248,12 +248,16 @@ DBI CLASS METHODS
       #set up TAF on the connection
       # NOTE since DBD::Oracle uses call_pv you may need to pass a full
       # name space as the function e.g., 'main::handle_taf'
-      my $dbh = DBI->connect('dbi:Oracle:XE','hr','hr',{ora_taf=>1,ora_taf_sleep=>5,ora_taf_function=>'handle_taf'});
+      # NOTE from 1.49_00 ora_taf_function can accept a code ref as well
+      #      as a sub name as it now uses call_sv
+      my $dbh = DBI->connect('dbi:Oracle:XE', 'hr', 'hr',
+                             {ora_taf_function => 'main::handle_taf'});
 
       #create the perl TAF event function
 
       sub handle_taf {
-        my ($fo_event,$fo_type) = @_;
+        # NOTE from 1.49_00 the $dbh handle was passed to your callback
+        my ($fo_event,$fo_type, $dbh) = @_;
         if ($fo_event == OCI_FO_BEGIN){
 
           print " Instance Unavailable Please stand by!! \n";
@@ -276,9 +280,8 @@ DBI CLASS METHODS
            print " Failed over user. Resuming services\n";
         }
         elsif ($fo_event == OCI_FO_ERROR){
-           print " Failover error Sleeping...\n";
-           # DBD::Oracle will sleep for ora_taf_sleep if you return OCI_FO_RETRY
-           # If you want to stop retrying just return 0
+           print " Failover error ...\n";
+           sleep 5;                 # sleep before having another go
            return OCI_FO_RETRY;
         }
         else {
@@ -367,38 +370,36 @@ DBI CLASS METHODS
     variable.
 
    ora_taf
-    If your Oracle instance has been configured to use TAF events you can
-    enable the TAF callback by setting this option to any *true* value.
-
-    NOTE: All the ora_taf* attributes must currently be set in the connect
-    method if you want TAF enabled at the moment i.e., after connect you can
-    change the callback but you cannot disable TAF.
+    This attribute was removed in 1.49_00 as it was redundant. To enable TAF
+    simply set "ora_taf_function".
 
    ora_taf_function
-    The name of the Perl subroutine that will be called from OCI when a TAF
-    event occurs. You must supply a perl function to use the callback and it
-    will always receive two parameters, the failover event value and the
-    failover type. Below is an example of a TAF function
+    If your Oracle instance has been configured to use TAF events you can
+    enable the TAF callback by setting this option.
+
+    The name of the Perl subroutine (or a code ref from 1.49_00) that will
+    be called from OCI when a TAF event occurs. You must supply a perl
+    function to use the callback and it will always receive at least two
+    parameters; the failover event value and the failover type. From 1.49_00
+    the dbh is passed as the third argument. Below is an example of a TAF
+    function
 
       sub taf_event{
-         my ($event, $type) = @_;
+         # NOTE from 1.49_00 the $dbh handle is passed to the callback
+         my ($event, $type, $dbh) = @_;
 
          print "My TAF event=$event\n";
          print "My TAF type=$type\n";
          return;
       }
 
-    Note you'll probably have to use the full name space when setting the
-    TAF function e.g., 'main::my_taf_function' and not just
-    'my_taf_function'.
+    Note if passing a sub name you will probably have to use the full name
+    space when setting the TAF function e.g., 'main::my_taf_function' and
+    not just 'my_taf_function'.
 
    ora_taf_sleep
-    The amount of time in seconds DBD::Oracle will sleep between attempting
-    successive failover events when the event is OCI_FO_ERROR and
-    OCI_FO_RETRY is returned from the TAF handler.
-
-    NOTE: This attribute will be withdrawn in the future so I suggest you
-    don't use it and if you want to sleep, add it to your own callback sub.
+    This attribute was removed in 1.49_00 as it was redundant. If you want
+    to sleep between retries simple add a sleep to your callback sub.
 
    ora_session_mode
     The ora_session_mode attribute can be used to connect with SYSDBA,
@@ -1007,7 +1008,7 @@ DATABASE HANDLE METHODS
         or BLOB column in most circumstances. If false, fetching retrieves
         the Oracle "LOB Locator" of the CLOB or BLOB value.
 
-        See "LOBs and LONGs" for more details.
+        See "LOBS AND LONGS" for more details.
 
         See also the LOB tests in 05dbi.t of Oracle::OCI for examples of how
         to use LOB Locators.
@@ -1043,7 +1044,7 @@ DATABASE HANDLE METHODS
 
           OCI_STMT_SCROLLABLE_READONLY - make result set scrollable
 
-        See "Scrollable Cursors" for more details.
+        See "SCROLLABLE CURSORS" for more details.
 
     ora_prefetch_rows
         Sets the number of rows to be prefetched. If it is not set, then the
@@ -1399,8 +1400,8 @@ DATABASE HANDLE ATTRIBUTES
       $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>10000});
 
     In the above example 10 rows will be prefetched up to a maximum of 10000
-    bytes of data. The Oracle® Call Interface Programmer's Guide, suggests
-    a good row cache value for a scrollable cursor is about 20% of expected
+    bytes of data. The Oracle® Call Interface Programmer's Guide, suggests a
+    good row cache value for a scrollable cursor is about 20% of expected
     size of the record set.
 
     The prefetch settings tell the DBD::Oracle to grab x rows (or x-bytes)
@@ -1547,7 +1548,7 @@ DBI STATEMENT HANDLE OBJECT METHODS
 
         See "Binding Cursors" for the correct way to use ORA_RSET.
 
-        See "LOBs and LONGs" for how to use ORA_CLOB and ORA_BLOB.
+        See "LOBS AND LONGS" for how to use ORA_CLOB and ORA_BLOB.
 
         See "SYS.DBMS_SQL datatypes" for ORA_VARCHAR2_TABLE,
         ORA_NUMBER_TABLE.
@@ -1555,7 +1556,7 @@ DBI STATEMENT HANDLE OBJECT METHODS
         See "Data Interface for Persistent LOBs" for the correct way to use
         SQLT_CHR and SQLT_BIN.
 
-        See "Other Data Types" for more information.
+        See "OTHER DATA TYPES" for more information.
 
         See also "Placeholders and Bind Values" in DBI.
 
@@ -4240,4 +4241,12 @@ COPYRIGHT AND LICENSE
 
     This is free software; you can redistribute it and/or modify it under
     the same terms as the Perl 5 programming language system itself.
+
+POD ERRORS
+    Hey! The above document had some coding errors, which are explained
+    below:
+
+    Around line 2655:
+        Non-ASCII character seen before =encoding in 'Oracle®'. Assuming
+        UTF-8
 
