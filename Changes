@@ -44,6 +44,9 @@ Revision history for DBD::Oracle
 
   - added a few more simple TAF tests (Martin J. Evans)
 
+1.50      2012-08-15
+ - RT78965 - Remove Oraperl tests (which were forcing a require on Oraperl)
+
 1.48      2012-08-09
  - promote 1.47_00 to official release
 
