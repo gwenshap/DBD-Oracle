@@ -3,7 +3,6 @@
 use Test::More;
 
 use DBI;
-use Oraperl;
 use Config;
 use DBD::Oracle qw(:ora_types);
 
