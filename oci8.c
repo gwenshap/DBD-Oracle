@@ -1340,7 +1340,6 @@ taf_cbk(dvoid *svchp, dvoid *envhp, dvoid *fo_ctx,ub4 fo_type, ub4 fo_event )
 		case OCI_FO_ERROR:
 		{
             if (ret == OCI_FO_RETRY) {
-                sleep(cb->sleep);
                 return OCI_FO_RETRY;
             }
 			break;
@@ -1365,7 +1364,6 @@ reg_taf_callback(SV *dbh, imp_dbh_t *imp_dbh)
 	sword 			status;
 
     imp_dbh->taf_ctx.function = imp_dbh->taf_function;
-    imp_dbh->taf_ctx.sleep = imp_dbh->taf_sleep;
     imp_dbh->taf_ctx.dbh_ref = newRV_inc(dbh);
 
 	if (dbd_verbose >= 5 ) {

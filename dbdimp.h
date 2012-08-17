@@ -12,7 +12,6 @@ typedef struct taf_callback_st taf_callback_t;
 
 struct taf_callback_st {
 	SV   *function; /*User supplied TAF functiomn*/
-	int  sleep;
     SV   *dbh_ref;
 };
 
@@ -57,9 +56,7 @@ struct imp_dbh_st {
 	ub4			pool_incr;
 	char		*driver_name;/*driver name user defined*/
 #endif
-    bool		using_taf; /*TAF stuff*/
     SV          *taf_function; /*User supplied TAF functiomn*/
-    int			taf_sleep;
     taf_callback_t taf_ctx;
     char		*client_info;  /*user defined*/
     ub4			client_infol;

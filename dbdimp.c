@@ -59,6 +59,8 @@ struct sql_fbh_st {
 	int scale;
 };
 static sql_fbh_t ora2sql_type _((imp_fbh_t* fbh));
+static void disable_taf(imp_dbh_t *imp_dbh);
+static int enable_taf(SV *dbh, imp_dbh_t *imp_dbh);
 
 void ora_free_phs_contents _((imp_sth_t *imp_sth, phs_t *phs));
 static void dump_env_to_trace(imp_dbh_t *imp_dbh);
@@ -432,43 +434,17 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 #endif
 
     /* TAF Events */
-	imp_dbh->using_taf = 0;
-
-	if (DBD_ATTRIB_TRUE(attr,"ora_taf",7,svp)){
-		imp_dbh->using_taf = 1;
-		imp_dbh->taf_sleep = 5; /* 5 second default */
-
+    if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_taf_function",  16)) && SvOK(*svp)) {
+        if ((SvROK(*svp) && (SvTYPE(SvRV(*svp)) == SVt_PVCV)) ||
+            (SvPOK(*svp))) {
+            imp_dbh->taf_function = newSVsv(*svp);
+        } else {
+            croak("ora_taf_function needs to be a string or code reference");
+        }
         /* avoid later STORE: */
-        /* See DBI::DBB problem with ATTRIBI_DELETE until DBI 1.607 */
-        /* DBD_ATTRIB_DELETE(attr, "ora_taf", 7); */
-        (void)hv_delete((HV*)SvRV(attr), "ora_taf", 7, G_DISCARD);
-
-    	DBD_ATTRIB_GET_IV( attr, "ora_taf_sleep",  13, svp, imp_dbh->taf_sleep);
-        /* avoid later STORE: */
-        /* See DBI::DBB problem with ATTRIBI_DELETE until DBI 1.607 */
-        /* DBD_ATTRIB_DELETE(attr, "ora_taf_sleep", 13); */
-        (void)hv_delete((HV*)SvRV(attr), "ora_taf_sleep", 13, G_DISCARD);
-
-		if ((svp=DBD_ATTRIB_GET_SVP(attr, "ora_taf_function",  16)) && SvOK(*svp)) {
-            if ((SvROK(*svp) && (SvTYPE(SvRV(*svp)) == SVt_PVCV)) ||
-                (SvPOK(*svp))) {
-                imp_dbh->taf_function = newSVsv(*svp);
-            } else {
-				croak("ora_taf_function needs to be a string or code reference");
-            }
-            /* avoid later STORE: */
-            /* See DBI::DBB problem with ATTRIB_DELETE until DBI 1.607 */
-            /* DBD_ATTRIB_DELETE(attr, "ora_taf_function", 16); */
-            (void)hv_delete((HV*)SvRV(attr), "ora_taf_function", 16, G_DISCARD);
-		}
-#ifdef DONT_DO_NOW
-        if (DBIc_DBISTATE(imp_dbh)->debug || dbd_verbose >= 3)
-            PerlIO_printf(
-                DBIc_LOGPIO(imp_dbh),
-                "taf sleep = %d, taf_function = %s\n",
-                imp_dbh->taf_sleep,
-                (imp_dbh->taf_function ? imp_dbh->taf_function : "");
-#endif
+        /* See DBI::DBB problem with ATTRIB_DELETE until DBI 1.607 */
+        /* DBD_ATTRIB_DELETE(attr, "ora_taf_function", 16); */
+        (void)hv_delete((HV*)SvRV(attr), "ora_taf_function", 16, G_DISCARD);
 	}
 
     imp_dbh->server_version = 0;
@@ -887,33 +863,8 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
     /* set up TAF callback if wanted */
 
-
-    if (imp_dbh->using_taf){
-		bool	can_taf;
-        can_taf = 0;
-
-#ifdef OCI_ATTR_TAF_ENABLED
-		OCIAttrGet_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, &can_taf, NULL,
-				OCI_ATTR_TAF_ENABLED, imp_dbh->errhp, status);
-#endif
-
-		if (!can_taf){
-			croak("You are attempting to enable TAF on a server that is not TAF Enabled \n");
-		}
-#ifdef DONT_DO_KNOW
-		if (DBIc_DBISTATE(imp_dbh)->debug >= 4 || dbd_verbose >= 4 ) {
-        	PerlIO_printf(
-                DBIc_LOGPIO(imp_dbh),
-                "Setting up TAF with wait time of %d seconds\n",
-                imp_dbh->taf_sleep);
-		}
-#endif
-		status = reg_taf_callback(dbh, imp_dbh);
-		if (status != OCI_SUCCESS) {
-			oci_error(dbh, NULL, status,
-				"Setting TAF Callback Failed! ");
-			return 0;
-		}
+    if (imp_dbh->taf_function){
+        if (enable_taf(dbh, imp_dbh) == 0) return 0;
 	}
 
 	return 1;
@@ -1082,14 +1033,8 @@ dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 		if (is_extproc)
 			goto dbd_db_destroy_out;
 
-		if (imp_dbh->using_taf){
-			OCIFocbkStruct 	tafailover;
-			tafailover.fo_ctx = NULL;
-			tafailover.callback_function = NULL;
-			OCIAttrSet_log_stat(imp_dbh, imp_dbh->srvhp, (ub4) OCI_HTYPE_SERVER,
-							(dvoid *) &tafailover, (ub4) 0,
-							(ub4) OCI_ATTR_FOCBK, imp_dbh->errhp, status);
-
+		if (imp_dbh->taf_function){
+            disable_taf(imp_dbh);
 		}
 
         if (imp_dbh->taf_function) {
@@ -1164,16 +1109,16 @@ dbd_db_STORE_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv, SV *valuesv)
 		imp_dbh->pool_incr = SvIV (valuesv);
 	}
 #endif
-	else if (kl==7 && strEQ(key, "ora_taf") ) {
-		imp_dbh->using_taf = 1;
-	}
 	else if (kl==16 && strEQ(key, "ora_taf_function") ) {
         if (imp_dbh->taf_function)
             SvREFCNT_dec(imp_dbh->taf_function);
         imp_dbh->taf_function = newSVsv(valuesv);
-	}
-	else if (kl==13 && strEQ(key, "ora_taf_sleep") ) {
-			imp_dbh->taf_sleep = SvIV (valuesv);
+
+        if (SvTRUE(valuesv)) {
+            enable_taf(dbh, imp_dbh);
+        } else {
+            disable_taf(imp_dbh);
+        }
 	}
 #ifdef OCI_ATTR_ACTION
 	else if (kl==10 && strEQ(key, "ora_action") ) {
@@ -1285,16 +1230,10 @@ dbd_db_FETCH_attrib(SV *dbh, imp_dbh_t *imp_dbh, SV *keysv)
 		retsv = newSViv(imp_dbh->pool_incr);
 	}
 #endif
-	else if (kl==7 && strEQ(key, "ora_taf") ) {
-		retsv = newSViv(imp_dbh->using_taf);
-	}
 	else if (kl==16 && strEQ(key, "ora_taf_function") ) {
         if (imp_dbh->taf_function) {
             retsv = newSVsv(imp_dbh->taf_function);
         }
-	}
-	else if (kl==13 && strEQ(key, "ora_taf_sleep") ) {
-		retsv = newSViv(imp_dbh->taf_sleep);
 	}
 #ifdef OCI_ATTR_ACTION
 	else if (kl==10 && strEQ(key, "ora_action")) {
@@ -4510,4 +4449,43 @@ dump_env_to_trace(imp_dbh_t *imp_dbh) {
         PerlIO_printf(DBIc_LOGPIO(imp_dbh),"\t%s\n",p);
 	} while ((char*)environ[i] != '\0');
 }
+
+static void disable_taf(
+    imp_dbh_t *imp_dbh) {
+
+    sword status;
+    OCIFocbkStruct 	tafailover;
+
+    tafailover.fo_ctx = NULL;
+    tafailover.callback_function = NULL;
+    OCIAttrSet_log_stat(imp_dbh, imp_dbh->srvhp, (ub4) OCI_HTYPE_SERVER,
+                        (dvoid *) &tafailover, (ub4) 0,
+                        (ub4) OCI_ATTR_FOCBK, imp_dbh->errhp, status);
+    return;
+}
+
+static int enable_taf(
+    SV *dbh,
+    imp_dbh_t *imp_dbh) {
+
+    bool can_taf = 0;
+    sword status;
+
+#ifdef OCI_ATTR_TAF_ENABLED
+    OCIAttrGet_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, &can_taf, NULL,
+                        OCI_ATTR_TAF_ENABLED, imp_dbh->errhp, status);
+#endif
+
+    if (!can_taf){
+        croak("You are attempting to enable TAF on a server that is not TAF Enabled \n");
+    }
+
+	status = reg_taf_callback(dbh, imp_dbh);
+    if (status != OCI_SUCCESS) {
+        oci_error(dbh, NULL, status, "Setting TAF Callback Failed! ");
+        return 0;
+    }
+    return 1;
+}
+
 
