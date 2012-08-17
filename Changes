@@ -38,6 +38,9 @@ Revision history for DBD::Oracle
   - In future versions taf_sleep will be withdrawn as you can simply
     sleep in your own callback.
 
+  - RT78987 - removed Oraperl.pm and oraperl.ph; these files will be available
+    in a separate distribution named "Oraperl" (David Perry)
+
   [MISCELLANEOUS]
 
   - hide dr, db and st packages from PAUSE (Martin J. Evans)
