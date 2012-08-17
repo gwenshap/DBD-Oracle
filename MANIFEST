@@ -7,7 +7,6 @@ META.yml
 Makefile.PL
 Oracle.h
 Oracle.xs
-Oraperl.pm
 README
 README.help.txt
 README.mkdn
@@ -51,7 +50,6 @@ mkta.pl
 oci.def
 oci8.c
 ocitrace.h
-oraperl.ph
 t/000-report-versions.t
 t/00versions.t
 t/01base.t

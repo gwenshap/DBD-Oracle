@@ -1753,21 +1753,9 @@ sub symbol_search {
     sub post_initialize {
 	my $self = shift;
 
-	if (-f "$Config{installprivlib}/DBD/Oraperl.pm"){ # very old now
-	    print "
-Please note: the Oraperl.pm installation location has changed.
-It was: $Config{installprivlib}/DBD/Oraperl.pm
-Is now: $Config{installprivlib}/Oraperl.pm
-You have an old copy which you should delete when installing this one.\n";
-	}
-
 	print "\nNote: \$ORACLE_HOME/lib must be added to your $need_ldlp_env environment variable\n",
 	      "before running \"make test\" and whenever DBD::Oracle is used.\n\n"
 	    if $need_ldlp_env && ($ENV{$need_ldlp_env}||'') !~ m:\Q$OH/lib\b:;
-
-	# Ensure Oraperl.pm and oraperl.ph are installed into top lib dir
-	$self->{PM}->{'Oraperl.pm'} = '$(INST_LIB)/Oraperl.pm';
-	$self->{PM}->{'oraperl.ph'} = '$(INST_LIB)/oraperl.ph';
 
 	eval {	# This chunk is for Oracle::OCI
 	    require Data::Dumper;
