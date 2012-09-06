@@ -27,6 +27,8 @@ Revision history for DBD::Oracle
     once handled. Code now leaves the setting to the later STORE DBI
     calls (Martin J. Evans)
 
+  - fixed some compiler warnings for %lf (Martin J. Evans)
+
   [CHANGE IN BEHAVIOUR]
 
   - ora_taf and ora_taf_sleep were redundant and have been removed.
