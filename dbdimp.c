@@ -2245,7 +2245,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 					PerlIO_printf(
                         DBIc_LOGPIO(imp_sth),
                         "dbd_rebind_ph_number_table(): "
-						"let (double) array[%d]=%lf - NOT NULL\n",
+						"let (double) array[%d]=%f - NOT NULL\n",
 						i, val);
 				}
 				}else{
@@ -2280,7 +2280,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
                     PerlIO_printf(
                         DBIc_LOGPIO(imp_sth),
                         "dbd_rebind_ph_number_table(): "
-                        "(double) array[%d]=%lf%s\n",
+                        "(double) array[%d]=%f%s\n",
                         i, *(double*)(phs->array_buf+phs->maxlen*i),
                         phs->array_indicators[i] ? " (NULL)" : "" );
 				}
@@ -2437,7 +2437,7 @@ int dbd_phs_number_table_post_exe(imp_sth_t *imp_sth, phs_t *phs){
 			case SQLT_FLT:
 				if (trace_level >= 4 || dbd_verbose >= 4 ){
                     PerlIO_printf(DBIc_LOGPIO(imp_sth),
-					"dbd_phs_number_table_post_exe(): (double) set arr[%d] = %lf \n",
+					"dbd_phs_number_table_post_exe(): (double) set arr[%d] = %f \n",
 					i, *(double*)(phs->array_buf+phs->maxlen*i)
 					);
 				}
@@ -2465,7 +2465,7 @@ int dbd_phs_number_table_post_exe(imp_sth_t *imp_sth, phs_t *phs){
 			case SQLT_FLT:
 				if (trace_level >= 4 || dbd_verbose >= 4 ){
                     PerlIO_printf(DBIc_LOGPIO(imp_sth),
-					"dbd_phs_number_table_post_exe(): (double) store new arr[%d] = %lf \n",
+					"dbd_phs_number_table_post_exe(): (double) store new arr[%d] = %f \n",
 					i, *(double*)(phs->array_buf+phs->maxlen*i)
 					);
 				}
@@ -3210,8 +3210,7 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 		sv_setsv(phs->sv, newvalue);
 		if (SvAMAGIC(phs->sv)) /* overloaded. XXX hack, logic ought to be pushed deeper */
 			sv_pvn_force(phs->sv, &PL_na);
-	}
-	else if (newvalue != phs->sv) {
+	} else if (newvalue != phs->sv) {
 		if (phs->sv)
 			SvREFCNT_dec(phs->sv);
 
