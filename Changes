@@ -29,6 +29,9 @@ NEXTRELEASE
 
   - fixed some compiler warnings for %lf (Martin J. Evans)
 
+  - fixed RT78700 - column_info reports wrong size for char semantic
+    char type columns (Douglas Wilson).
+
   [CHANGE IN BEHAVIOUR]
 
   - ora_taf and ora_taf_sleep were redundant and have been removed.
