@@ -45,15 +45,15 @@ NEXTRELEASE
 
   - the ora_can_taf method was virtually useless since you can only
     call it after connecting and to enable TAF you had to do it in the
-    connect call. Now you enable and disable TAF at any time by
+    connect call. Now you can enable and disable TAF at any time by
     simply setting or clearing the ora_taf_function (see RT78811)
     (Martin J. Evans)
 
   - the ora_taf_function is now passed a third argument of the
     connection handle (Martin J. Evans)
 
-  - RT78987 - removed Oraperl.pm and oraperl.ph; these files will be available
-    in a separate distribution named "Oraperl" (David Perry)
+  - RT78987 - removed Oraperl.pm and oraperl.ph; these files will be
+    available in a separate distribution named "Oraperl" (David Perry)
 
   [MISCELLANEOUS]
 
