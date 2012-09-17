@@ -26,11 +26,10 @@ if ( !$dbh->ora_can_taf ){
     eval {
         $dbh = DBI->connect(
             $dsn, $dbuser, '',
-            {ora_taf_function=>'taf'})
+            {ora_taf_function => 'taf'})
     };
-  ok($@    =~ /You are attempting to enable TAF/, "'$@' expected! ");
-
-
+    my $ev = $@;
+    like($ev, qr/You are attempting to enable TAF/, "'$ev' (expected)");
 }
 else {
    ok $dbh = DBI->connect($dsn, $dbuser, '',

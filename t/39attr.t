@@ -7,7 +7,7 @@
 # because DBI passes attributes to STORE for you.
 #
 use DBI;
-use DBD::Oracle(qw(:ora_fail_over));
+use DBD::Oracle(qw(ORA_OCI));
 use strict;
 #use Devel::Peek qw(SvREFCNT Dump);
 
@@ -19,7 +19,6 @@ $| = 1;
 
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-
 #use Devel::Leak;
 #use Test::LeakTrace;
 
@@ -34,15 +33,24 @@ sub do_it {
     my $dbh = eval { DBI->connect($dsn, $dbuser, '',) }
         or plan skip_all => "Unable to connect to Oracle";
 
-    like($dbh->{ora_driver_name}, qr/DBD/, 'Default driver name');
-    foreach my $attr (qw(ora_module_name
-                         ora_driver_name
-                         ora_client_info
-                         ora_client_identifier
-                         ora_action)) {
-        $dbh->{$attr} = 'fred';
-        is($dbh->{$attr}, 'fred', "attribute $attr set and retrieved");
-    }
+  SKIP: {
+        my @attrs = (qw(ora_module_name
+                             ora_driver_name
+                             ora_client_info
+                             ora_client_identifier
+                             ora_action));
+        skip('Oracle OCI too old', 1 + @attrs) if ORA_OCI() < 11;
+
+        like($dbh->{ora_driver_name}, qr/DBD/, 'Default driver name');
+        foreach my $attr (qw(ora_module_name
+                             ora_driver_name
+                             ora_client_info
+                             ora_client_identifier
+                             ora_action)) {
+            $dbh->{$attr} = 'fred';
+            is($dbh->{$attr}, 'fred', "attribute $attr set and retrieved");
+        }
+    };
 
     foreach my $attr (qw(ora_oci_success_warn
                          ora_objects)) {
