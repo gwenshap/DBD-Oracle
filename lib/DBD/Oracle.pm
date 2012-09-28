@@ -12,7 +12,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 {
 package DBD::Oracle;
 {
-  $DBD::Oracle::VERSION = '1.50';
+  $DBD::Oracle::VERSION = '1.51_00';
 }
 BEGIN {
   $DBD::Oracle::AUTHORITY = 'cpan:PYTHIAN';
@@ -1149,7 +1149,7 @@ DBD::Oracle - Oracle database driver for the DBI module
 
 =head1 VERSION
 
-version 1.50
+version 1.51_00
 
 =head1 SYNOPSIS
 
@@ -2655,7 +2655,7 @@ Prepare Attribute 'ora_prefetch_memory'. Tweaking these values may yield improve
   $dbh->{RowCacheSize} = 100;
   $sth=$dbh->prepare($SQL,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>10000});
 
-In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle® Call Interface Programmer's Guide,
+In the above example 10 rows will be prefetched up to a maximum of 10000 bytes of data.  The Oracle Call Interface Programmer's Guide,
 suggests a good row cache value for a scrollable cursor is about 20% of expected size of the record set.
 
 The prefetch settings tell the DBD::Oracle to grab x rows (or x-bytes) when it needs to get new rows. This happens on the first
