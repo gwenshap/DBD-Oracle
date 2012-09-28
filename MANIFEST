@@ -39,7 +39,7 @@ lib/DBD/Oracle/Object.pm
 lib/DBD/Oracle/Troubleshooting.pod
 lib/DBD/Oracle/Troubleshooting/Aix.pod
 lib/DBD/Oracle/Troubleshooting/Cygwin.pod
-lib/DBD/Oracle/Troubleshooting/Hpux.pm
+lib/DBD/Oracle/Troubleshooting/Hpux.pod
 lib/DBD/Oracle/Troubleshooting/Linux.pod
 lib/DBD/Oracle/Troubleshooting/Macos.pod
 lib/DBD/Oracle/Troubleshooting/Sun.pod
