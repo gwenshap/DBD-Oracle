@@ -1,6 +1,6 @@
 package DBD::Oracle::GetInfo;
 {
-  $DBD::Oracle::GetInfo::VERSION = '1.51_00';
+  $DBD::Oracle::GetInfo::VERSION = '1.52';
 }
 BEGIN {
   $DBD::Oracle::GetInfo::AUTHORITY = 'cpan:PYTHIAN';
@@ -285,7 +285,7 @@ our %info = (
 
 1;
 
-
+__END__
 
 =pod
 
@@ -295,7 +295,7 @@ DBD::Oracle::GetInfo - Wrapper to get Oracle information
 
 =head1 VERSION
 
-version 1.51_00
+version 1.52
 
 =head1 AUTHORS
 
@@ -327,6 +327,3 @@ This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
 
 =cut
-
-
-__END__

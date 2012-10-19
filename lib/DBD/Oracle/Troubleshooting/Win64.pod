@@ -1,8 +1,8 @@
 #PODNAME: DBD::Oracle::Troubleshooting::Win64
 #ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle on Win64
 
-
 __END__
+
 =pod
 
 =head1 NAME
@@ -11,7 +11,7 @@ DBD::Oracle::Troubleshooting::Win64 - Tips and Hints to Troubleshoot DBD::Oracle
 
 =head1 VERSION
 
-version 1.51_00
+version 1.52
 
 =head1 DBD::Oracle and Windows 64bit 
 
@@ -192,4 +192,3 @@ This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
 
 =cut
-

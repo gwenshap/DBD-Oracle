@@ -1,6 +1,6 @@
 package DBD::Oracle::Object;
 {
-  $DBD::Oracle::Object::VERSION = '1.51_00';
+  $DBD::Oracle::Object::VERSION = '1.52';
 }
 BEGIN {
   $DBD::Oracle::Object::AUTHORITY = 'cpan:PYTHIAN';
@@ -31,6 +31,7 @@ sub attr {
 1;
 
 __END__
+
 =pod
 
 =head1 NAME
@@ -39,7 +40,7 @@ DBD::Oracle::Object - Wrapper for Oracle objects
 
 =head1 VERSION
 
-version 1.51_00
+version 1.52
 
 =head1 AUTHORS
 
@@ -71,4 +72,3 @@ This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
 
 =cut
-

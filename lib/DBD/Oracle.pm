@@ -12,7 +12,7 @@ my $ORACLE_ENV  = ($^O eq 'VMS') ? 'ORA_ROOT' : 'ORACLE_HOME';
 {
 package DBD::Oracle;
 {
-  $DBD::Oracle::VERSION = '1.51_00';
+  $DBD::Oracle::VERSION = '1.52';
 }
 BEGIN {
   $DBD::Oracle::AUTHORITY = 'cpan:PYTHIAN';
@@ -1139,7 +1139,7 @@ SQL
 
 1;
 
-
+__END__
 
 =pod
 
@@ -1149,7 +1149,7 @@ DBD::Oracle - Oracle database driver for the DBI module
 
 =head1 VERSION
 
-version 1.51_00
+version 1.52
 
 =head1 SYNOPSIS
 
@@ -5505,8 +5505,3 @@ This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
 
 =cut
-
-
-__END__
-
-
