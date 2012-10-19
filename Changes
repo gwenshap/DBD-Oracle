@@ -1,5 +1,9 @@
 Revision history for DBD::Oracle
 
+1.52      2012-10-19
+
+ - promote 1.51_00 to official release
+
 1.51_00   2012-09-28
 
   [BUG FIXES]
