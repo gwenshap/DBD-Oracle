@@ -1,6 +1,12 @@
 Revision history for DBD::Oracle
 
-{{$NEXT}}
+NEXT_VERSION
+
+  [BUG FIXES]
+
+  - Fix RT80349 - The error message in execute_for_fetch when a row fails
+    can contain the wrong error count. Thanks to Steffen Goeldner for
+    RT and patch.
 
 1.52      2012-10-19
 
