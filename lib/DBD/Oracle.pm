@@ -1076,7 +1076,7 @@ SQL
     sub execute_for_fetch {
        my ($sth, $fetch_tuple_sub, $tuple_status) = @_;
        my $row_count = 0;
-       my $err_count = 0;
+       my $err_total = 0;
        my $tuple_count="0E0";
        my $tuple_batch_status;
        my $dbh = $sth->{Database};
@@ -1096,6 +1096,7 @@ SQL
            }
            last unless @tuple_batch;
 
+           my $err_count = 0;
            my $res = ora_execute_array($sth,
                                            \@tuple_batch,
                                            scalar(@tuple_batch),
@@ -1108,6 +1109,7 @@ SQL
                 $row_count = undef;
            }
 
+           $err_total += $err_count;
            $tuple_count+=@$tuple_batch_status;
            push @$tuple_status, @$tuple_batch_status
                 if defined($tuple_status);
@@ -1116,8 +1118,8 @@ SQL
 
        }
        #error check here
-       return $sth->set_err($DBI::stderr, "executing $tuple_count generated $err_count errors")
-       	   if $err_count;
+       return $sth->set_err($DBI::stderr, "executing $tuple_count generated $err_total errors")
+       	   if $err_total;
 
        return wantarray
                 ? ($tuple_count, defined $row_count ? $row_count : undef)
