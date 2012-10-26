@@ -2070,19 +2070,19 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	/*int flag_data_is_utf8=0;*/
 
 	if( ( ! SvROK(phs->sv) )  || (SvTYPE(SvRV(phs->sv))!=SVt_PVAV) ) { /* Allow only array binds */
-	croak("dbd_rebind_ph_number_table(): bad bind variable. ARRAY reference required, but got %s for '%s'.",
-			neatsvpv(phs->sv,0), phs->name);
+        croak("dbd_rebind_ph_number_table(): bad bind variable. ARRAY reference required, but got %s for '%s'.",
+              neatsvpv(phs->sv,0), phs->name);
 	}
 	/* Default bind type for number table is double. */
 	if( ! phs->ora_internal_type ){
-	phs->ora_internal_type=SQLT_FLT;
+        phs->ora_internal_type=SQLT_FLT;
 	}else{
-	if(	 (phs->ora_internal_type != SQLT_FLT) &&
-		(phs->ora_internal_type != SQLT_INT) ){
-		croak("dbd_rebind_ph_number_table(): Specified internal bind type %d unsupported. "
-			"SYS.DBMS_SQL.NUMBER_TABLE can be bound only to SQLT_FLT or SQLT_INT datatypes.",
-			phs->ora_internal_type);
-	}
+        if(	 (phs->ora_internal_type != SQLT_FLT) &&
+             (phs->ora_internal_type != SQLT_INT) ){
+            croak("dbd_rebind_ph_number_table(): Specified internal bind type %d unsupported. "
+                  "SYS.DBMS_SQL.NUMBER_TABLE can be bound only to SQLT_FLT or SQLT_INT datatypes.",
+                  phs->ora_internal_type);
+        }
 	}
 	arr=(AV*)(SvRV(phs->sv));
 
@@ -2112,11 +2112,11 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	 * maxlen(double) = sizeof(double);
 	 */
 	switch( phs->ora_internal_type ){
-	case SQLT_INT:
+      case SQLT_INT:
 		phs->maxlen=sizeof(int);
 		break;
-	case SQLT_FLT:
-	default:
+      case SQLT_FLT:
+      default:
 		phs->maxlen=sizeof(double);
 	}
 	if (trace_level >= 2 || dbd_verbose >= 3 ){
@@ -2131,7 +2131,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 		phs->array_numstruct=1;
 	}
 	if( phs->ora_maxarray_numentries== 0 ){
-	/* Zero means "use current array length". */
+        /* Zero means "use current array length". */
 		phs->ora_maxarray_numentries=phs->array_numstruct;
 
 		if (trace_level >= 2 || dbd_verbose >= 3 ){
@@ -2153,7 +2153,7 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	need_allocate_rows=phs->ora_maxarray_numentries;
 
 	if( need_allocate_rows< phs->array_numstruct ){
-	need_allocate_rows=phs->array_numstruct;
+        need_allocate_rows=phs->array_numstruct;
 	}
 	buflen=need_allocate_rows* phs->maxlen; /* We need buffer for at least ora_maxarray_numentries entries */
 
@@ -2179,160 +2179,160 @@ int dbd_rebind_ph_number_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs) {
 	/* Fill array buffer with data */
 
 	{
-	int i; /* Not to require C99 mode */
-	for(i=0;i<av_len(arr)+1;i++){
-		SV *item;
-		item=*(av_fetch(arr,i,0));
-		if( item ){
-		switch( phs->ora_internal_type ){
-			case SQLT_INT:
-			{
-				int ival	 =0;
-				int val_found=0;
-				/* Double values are converted as int(val) */
-				if( SvOK( item ) && ! SvIOK( item ) ){
-				double val=SvNVx( item );
-				if( SvNOK( item ) ){
-					ival=(int) val;
-					val_found=1;
-				}
-				}
-				/* Convert item, if possible. */
-				if( (!val_found) && SvOK( item ) && ! SvIOK( item ) ){
-				SvIVx( item );
-				}
-				if( SvIOK( item ) || val_found ){
-				if( ! val_found ){
-					ival=SvIV( item );
-				}
-				/* as phs->array_buf=malloc(), proper alignment is guaranteed */
-				*(int*)(phs->array_buf+phs->maxlen*i)=ival;
-				phs->array_indicators[i]=0;
-				}else{
-				if( SvOK( item ) ){
-					/* Defined NaN assumed =0 */
-					*(int*)(phs->array_buf+phs->maxlen*i)=0;
-					phs->array_indicators[i]=0;
-				}else{
-					/* NULL */
-					phs->array_indicators[i]=1;
-				}
-				}
-				phs->array_lengths[i]=sizeof(int);
-				if (trace_level >= 3 || dbd_verbose >= 3 ){
-				PerlIO_printf(
-                    DBIc_LOGPIO(imp_sth), "dbd_rebind_ph_number_table(): "
-					"(integer) array[%d]=%d%s\n",
-					i, *(int*)(phs->array_buf+phs->maxlen*i),
-					phs->array_indicators[i] ? " (NULL)" : "" );
-				}
-			}
-			break;
-			case SQLT_FLT:
-			default:
-			{
-				phs->ora_internal_type=SQLT_FLT; /* Just in case */
-				/* Convert item, if possible. */
-				if( SvOK( item ) && ! SvNOK( item ) ){
-				SvNVx( item );
-				}
-				if( SvNOK( item ) ){
-				double val=SvNVx( item );
-				/* as phs->array_buf=malloc(), proper alignment is guaranteed */
-				*(double*)(phs->array_buf+phs->maxlen*i)=val;
-				phs->array_indicators[i]=0;
-				if (trace_level >= 3 || dbd_verbose >= 3 ){
-					PerlIO_printf(
-                        DBIc_LOGPIO(imp_sth),
-                        "dbd_rebind_ph_number_table(): "
-						"let (double) array[%d]=%f - NOT NULL\n",
-						i, val);
-				}
-				}else{
-				if( SvOK( item ) ){
-					/* Defined NaN assumed =0 */
-					*(double*)(phs->array_buf+phs->maxlen*i)=0;
-					phs->array_indicators[i]=0;
-					if (trace_level >= 2 || dbd_verbose >= 3 ){
-                        STRLEN l;
-                        char *p=SvPV(item,l);
+        int i; /* Not to require C99 mode */
+        for(i=0;i<av_len(arr)+1;i++){
+            SV *item;
+            item=*(av_fetch(arr,i,0));
+            if( item ){
+                switch( phs->ora_internal_type ){
+                  case SQLT_INT:
+                  {
+                      int ival	 =0;
+                      int val_found=0;
+                      /* Double values are converted as int(val) */
+                      if( SvOK( item ) && ! SvIOK( item ) ){
+                          double val=SvNVx( item );
+                          if( SvNOK( item ) ){
+                              ival=(int) val;
+                              val_found=1;
+                          }
+                      }
+                      /* Convert item, if possible. */
+                      if( (!val_found) && SvOK( item ) && ! SvIOK( item ) ){
+                          SvIVx( item );
+                      }
+                      if( SvIOK( item ) || val_found ){
+                          if( ! val_found ){
+                              ival=SvIV( item );
+                          }
+                          /* as phs->array_buf=malloc(), proper alignment is guaranteed */
+                          *(int*)(phs->array_buf+phs->maxlen*i)=ival;
+                          phs->array_indicators[i]=0;
+                      }else{
+                          if( SvOK( item ) ){
+                              /* Defined NaN assumed =0 */
+                              *(int*)(phs->array_buf+phs->maxlen*i)=0;
+                              phs->array_indicators[i]=0;
+                          }else{
+                              /* NULL */
+                              phs->array_indicators[i]=1;
+                          }
+                      }
+                      phs->array_lengths[i]=sizeof(int);
+                      if (trace_level >= 3 || dbd_verbose >= 3 ){
+                          PerlIO_printf(
+                              DBIc_LOGPIO(imp_sth), "dbd_rebind_ph_number_table(): "
+                              "(integer) array[%d]=%d%s\n",
+                              i, *(int*)(phs->array_buf+phs->maxlen*i),
+                              phs->array_indicators[i] ? " (NULL)" : "" );
+                      }
+                  }
+                  break;
+                  case SQLT_FLT:
+                  default:
+                  {
+                      phs->ora_internal_type=SQLT_FLT; /* Just in case */
+                      /* Convert item, if possible. */
+                      if( SvOK( item ) && ! SvNOK( item ) ){
+                          SvNVx( item );
+                      }
+                      if( SvNOK( item ) ){
+                          double val=SvNVx( item );
+                          /* as phs->array_buf=malloc(), proper alignment is guaranteed */
+                          *(double*)(phs->array_buf+phs->maxlen*i)=val;
+                          phs->array_indicators[i]=0;
+                          if (trace_level >= 3 || dbd_verbose >= 3 ){
+                              PerlIO_printf(
+                                  DBIc_LOGPIO(imp_sth),
+                                  "dbd_rebind_ph_number_table(): "
+                                  "let (double) array[%d]=%f - NOT NULL\n",
+                                  i, val);
+                          }
+                      }else{
+                          if( SvOK( item ) ){
+                              /* Defined NaN assumed =0 */
+                              *(double*)(phs->array_buf+phs->maxlen*i)=0;
+                              phs->array_indicators[i]=0;
+                              if (trace_level >= 2 || dbd_verbose >= 3 ){
+                                  STRLEN l;
+                                  char *p=SvPV(item,l);
 
-                        PerlIO_printf(
-                            DBIc_LOGPIO(imp_sth),
-                            "dbd_rebind_ph_number_table(): "
-                            "let (double) array[%d]=\"%s\" =NaN. Set =0 - NOT NULL\n",
-                            i, p ? p : "<NULL>" );
-					}
-				}else{
-					/* NULL */
-					phs->array_indicators[i]=1;
-					if (trace_level >= 3 || dbd_verbose >= 3 ){
-                        PerlIO_printf(
-                            DBIc_LOGPIO(imp_sth),
-                            "dbd_rebind_ph_number_table(): "
-                            "let (double) array[%d] NULL\n",
-                            i);
-					}
-				}
-				}
-				phs->array_lengths[i]=sizeof(double);
-				if (trace_level >= 3 || dbd_verbose >= 3 ){
+                                  PerlIO_printf(
+                                      DBIc_LOGPIO(imp_sth),
+                                      "dbd_rebind_ph_number_table(): "
+                                      "let (double) array[%d]=\"%s\" =NaN. Set =0 - NOT NULL\n",
+                                      i, p ? p : "<NULL>" );
+                              }
+                          }else{
+                              /* NULL */
+                              phs->array_indicators[i]=1;
+                              if (trace_level >= 3 || dbd_verbose >= 3 ){
+                                  PerlIO_printf(
+                                      DBIc_LOGPIO(imp_sth),
+                                      "dbd_rebind_ph_number_table(): "
+                                      "let (double) array[%d] NULL\n",
+                                      i);
+                              }
+                          }
+                      }
+                      phs->array_lengths[i]=sizeof(double);
+                      if (trace_level >= 3 || dbd_verbose >= 3 ){
+                          PerlIO_printf(
+                              DBIc_LOGPIO(imp_sth),
+                              "dbd_rebind_ph_number_table(): "
+                              "(double) array[%d]=%f%s\n",
+                              i, *(double*)(phs->array_buf+phs->maxlen*i),
+                              phs->array_indicators[i] ? " (NULL)" : "" );
+                      }
+                  }
+                  break;
+                }
+            }else{
+                /* item not defined, mark NULL */
+                phs->array_indicators[i]=1;
+                if (trace_level >= 3 || dbd_verbose >= 3 ){
                     PerlIO_printf(
                         DBIc_LOGPIO(imp_sth),
                         "dbd_rebind_ph_number_table(): "
-                        "(double) array[%d]=%f%s\n",
-                        i, *(double*)(phs->array_buf+phs->maxlen*i),
-                        phs->array_indicators[i] ? " (NULL)" : "" );
-				}
-			}
-			break;
-		}
-		}else{
-		/* item not defined, mark NULL */
-		phs->array_indicators[i]=1;
-		if (trace_level >= 3 || dbd_verbose >= 3 ){
-			PerlIO_printf(
-                DBIc_LOGPIO(imp_sth),
-                "dbd_rebind_ph_number_table(): "
-				"Copying length=? array[%d]=NULL av_fetch failed.\n", i);
-		}
-		}
-	}
+                        "Copying length=? array[%d]=NULL av_fetch failed.\n", i);
+                }
+            }
+        }
 	}
 	/* Do actual bind */
 	OCIBindByName_log_stat(imp_sth, imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
-		(text*)phs->name, (sb4)strlen(phs->name),
-		phs->array_buf,
-		phs->maxlen,
-		(ub2)phs->ora_internal_type, phs->array_indicators,
-		phs->array_lengths,
-		(ub2)0,
-		(ub4)phs->ora_maxarray_numentries, /* max elements that can fit in allocated array	*/
-		(ub4 *)&(phs->array_numstruct),	/* (ptr to) current number of elements in array	*/
-		OCI_DEFAULT,				/* OCI_DATA_AT_EXEC (bind with callbacks) or OCI_DEFAULT  */
-		status
-	);
+                           (text*)phs->name, (sb4)strlen(phs->name),
+                           phs->array_buf,
+                           phs->maxlen,
+                           (ub2)phs->ora_internal_type, phs->array_indicators,
+                           phs->array_lengths,
+                           (ub2)0,
+                           (ub4)phs->ora_maxarray_numentries, /* max elements that can fit in allocated array	*/
+                           (ub4 *)&(phs->array_numstruct),	/* (ptr to) current number of elements in array	*/
+                           OCI_DEFAULT,				/* OCI_DATA_AT_EXEC (bind with callbacks) or OCI_DEFAULT  */
+                           status
+                           );
 	if (status != OCI_SUCCESS) {
-	oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
-	return 0;
+        oci_error(sth, imp_sth->errhp, status, "OCIBindByName");
+        return 0;
 	}
 	OCIBindArrayOfStruct_log_stat(imp_sth, phs->bndhp, imp_sth->errhp,
-		(unsigned)phs->maxlen,			/* Skip parameter for the next data value */
-		(unsigned)sizeof(OCIInd),		/* Skip parameter for the next indicator value */
-		(unsigned)sizeof(unsigned short), /* Skip parameter for the next actual length value */
-		0,								/* Skip parameter for the next column-level error code */
-		status);
+                                  (unsigned)phs->maxlen,			/* Skip parameter for the next data value */
+                                  (unsigned)sizeof(OCIInd),		/* Skip parameter for the next indicator value */
+                                  (unsigned)sizeof(unsigned short), /* Skip parameter for the next actual length value */
+                                  0,								/* Skip parameter for the next column-level error code */
+                                  status);
 	if (status != OCI_SUCCESS) {
-	oci_error(sth, imp_sth->errhp, status, "OCIBindArrayOfStruct");
-	return 0;
+        oci_error(sth, imp_sth->errhp, status, "OCIBindArrayOfStruct");
+        return 0;
 	}
 	if (phs->maxdata_size) {
         OCIAttrSet_log_stat(imp_sth, phs->bndhp, (ub4)OCI_HTYPE_BIND,
-		phs->array_buf, (ub4)phs->array_buflen, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
-	if ( status != OCI_SUCCESS ) {
-		oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)"));
-		return 0;
-	}
+                            phs->array_buf, (ub4)phs->array_buflen, (ub4)OCI_ATTR_MAXDATA_SIZE, imp_sth->errhp, status);
+        if ( status != OCI_SUCCESS ) {
+            oci_error(sth, imp_sth->errhp, status, ora_sql_error(imp_sth,"OCIAttrSet (OCI_ATTR_MAXDATA_SIZE)"));
+            return 0;
+        }
 	}
 
 	return 2;
@@ -3882,6 +3882,9 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
              DBIc_LOGPIO(imp_sth),
              "	ora_st_execute_array %d errors in batch.\n",
              num_errs);
+    if (num_errs) {
+        sv_setiv(err_count,num_errs);
+    }
 
 	if(num_errs && tuples_status_av) {
 		OCIError *row_errhp, *tmp_errhp;
@@ -3889,7 +3892,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 		SV *err_svs[3];
 		/*AV *err_av;*/
 		sb4 err_code;
-	    sv_setiv(err_count,num_errs);
+
 		err_svs[0] = newSViv((IV)0);
 		err_svs[1] = newSVpvn("", 0);
 		err_svs[2] = newSVpvn("S1000",5);

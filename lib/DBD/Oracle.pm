@@ -1110,7 +1110,8 @@ SQL
            }
 
            $err_total += $err_count;
-           $tuple_count+=@$tuple_batch_status;
+
+           $tuple_count+=@tuple_batch;
            push @$tuple_status, @$tuple_batch_status
                 if defined($tuple_status);
 
