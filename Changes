@@ -8,6 +8,20 @@ NEXT_VERSION
     can contain the wrong error count. Thanks to Steffen Goeldner for
     RT and patch.
 
+  - Fix RT80375 - no exception when execute_for_fetch fails and
+    ArrayTupleStatus is not specified. Also the tuple count calculation
+    resulted in an undefined warning. Thanks to Steffen Goeldner for
+    RT and patches.
+
+  [MISCELLANEOUS]
+
+  - The original 26exe_array test was replaced some time ago with a
+    copy of the one from DBD::ODBC. Since then I've fixed issues in
+    the DBD::ODBC one and added more tests (like tests for some RTs
+    above). To make keeping them in synch easier I've modularised the
+    tests. Hence new ExecuteArray.pm. (Martin J. Evans)
+
+
 1.52      2012-10-19
 
  - promote 1.51_00 to official release
