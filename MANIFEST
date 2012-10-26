@@ -67,6 +67,7 @@ t/23wide_db_al32utf8.t
 t/24implicit_utf8.t
 t/25plsql.t
 t/26exe_array.t
+t/ExecuteArray.pm
 t/28array_bind.t
 t/30long.t
 t/31lob.t
