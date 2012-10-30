@@ -13,6 +13,9 @@ NEXT_VERSION
     resulted in an undefined warning. Thanks to Steffen Goeldner for
     RT and patches.
 
+  - Fix RT80487. Skip XMLType tests if Oracle less than V9. Thanks to
+    Steffen Goeldner.
+
   [MISCELLANEOUS]
 
   - The original 26exe_array test was replaced some time ago with a

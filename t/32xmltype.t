@@ -13,7 +13,7 @@ require 'nchar_test_lib.pl';
 ## By John Scoles, The Pythian Group
 ## ----------------------------------------------------------------------------
 ##  Just a few checks to see if one can insert small and large xml files
-##  Nothing fancy. 
+##  Nothing fancy.
 ## ----------------------------------------------------------------------------
 
 # create a database handle
@@ -21,11 +21,13 @@ my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $dbh;
 
-eval {$dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1, 
+eval {$dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1,
                                                AutoCommit=>1,
                                                PrintError => 0 })};
 
 if ($dbh) {
+    plan skip_all => "XMLTYPE new in Oracle 9"
+        if $dbh->func('ora_server_version')->[0] < 9;
     plan tests => 3;
 } else {
     plan skip_all => "Unable to connect to Oracle"
@@ -65,7 +67,7 @@ $large_xml=$large_xml."</books>";
 $stmt = "INSERT INTO ".$table." VALUES (1,?)";
 
 $sth =$dbh-> prepare($stmt);
-  
+
 $sth-> bind_param(1, $small_xml, { ora_type => ORA_XMLTYPE });
 
 ok ($sth->execute(), '... execute for small XML return true');
