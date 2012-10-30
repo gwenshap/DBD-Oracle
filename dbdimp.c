@@ -3684,15 +3684,16 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 	STRLEN len;
 	int outparams = (imp_sth->out_params_av) ? AvFILL(imp_sth->out_params_av)+1 : 0;
 	int *utf8_flgs;
-	tuples_utf8_av=newAV();
+	tuples_utf8_av = newAV();
+	sv_2mortal((SV*)tuples_utf8_av);
 
 	if (debug >= 2 || dbd_verbose >= 3 )
 		PerlIO_printf(
-            DBIc_LOGPIO(imp_sth),
-            "  ora_st_execute_array %s count=%d (%s %s %s)...\n",
-            oci_stmt_type_name(imp_sth->stmt_type), exe_count,
-            neatsvpv(tuples,0), neatsvpv(tuples_status,0),
-            neatsvpv(columns, 0));
+			DBIc_LOGPIO(imp_sth),
+			"  ora_st_execute_array %s count=%d (%s %s %s)...\n",
+			oci_stmt_type_name(imp_sth->stmt_type), exe_count,
+			neatsvpv(tuples,0), neatsvpv(tuples_status,0),
+			neatsvpv(columns, 0));
 
 	if (is_select) {
 		croak("ora_st_execute_array(): SELECT statement not supported "
