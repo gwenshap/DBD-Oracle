@@ -9,6 +9,8 @@ use strict;
 use Data::Dumper;
 require 'nchar_test_lib.pl';
 
+use lib './t';
+
 $| = 1;
 
 my $has_test_nowarnings = 1;
