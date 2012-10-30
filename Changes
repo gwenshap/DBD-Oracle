@@ -3,6 +3,8 @@ Revision history for DBD::Oracle
 NEXT_VERSION
 
   [BUG FIXES]
+  
+  - fix memory leak in execute_array (John Scoles, Pierre-Alain Blanc)
 
   - Fix RT80349 - The error message in execute_for_fetch when a row fails
     can contain the wrong error count. Thanks to Steffen Goeldner for
