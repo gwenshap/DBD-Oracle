@@ -16,6 +16,10 @@ NEXT_VERSION
   - Fix RT80487. Skip XMLType tests if Oracle less than V9. Thanks to
     Steffen Goeldner.
 
+  - Fix RT80486 for 31lob_extended.t. In old old Oracle8,
+    SYS_REFCURSOR is not defined. Instead of CREATE/DROP PROCEDURE,
+    use anonymous block. Thanks to Steffen Goeldner.
+
   [MISCELLANEOUS]
 
   - The original 26exe_array test was replaced some time ago with a
