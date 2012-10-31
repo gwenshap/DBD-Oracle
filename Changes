@@ -3,9 +3,7 @@ Revision history for DBD::Oracle
 NEXT_VERSION
 
   [BUG FIXES]
-  
-  - simple code clean up, replacing 3 uses of safemalloc with Newz (John Scoles)
-  
+
   - fix memory leak in execute_array (John Scoles, Pierre-Alain Blanc)
 
   - Fix RT80349 - The error message in execute_for_fetch when a row fails
@@ -24,6 +22,11 @@ NEXT_VERSION
     SYS_REFCURSOR is not defined. Instead of CREATE/DROP PROCEDURE,
     use anonymous block. Thanks to Steffen Goeldner.
 
+  - Fix bug in 39attr.t which could fail if using an Oracle Client >
+    11 but not >= 11.2 (Martin J. Evans)
+
+  - ora_server_version was not documented.
+
   [MISCELLANEOUS]
 
   - The original 26exe_array test was replaced some time ago with a
@@ -31,6 +34,9 @@ NEXT_VERSION
     the DBD::ODBC one and added more tests (like tests for some RTs
     above). To make keeping them in synch easier I've modularised the
     tests. Hence new ExecuteArray.pm. (Martin J. Evans)
+
+  - simple code clean up, replacing 3 uses of safemalloc with Newz
+    (John Scoles)
 
 
 1.52      2012-10-19

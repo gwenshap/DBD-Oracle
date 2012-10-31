@@ -976,30 +976,29 @@ SQL
     }
 
     sub dbms_msgpipe_ack {
-	my $dbh = shift;
-	my $msg = shift;
-	my $sth = $dbh->prepare_cached(q{
-	    begin dbms_msgpipe.acknowledge(:returnpipe, :errormsg, :param); end;
-	}) or return;
-	$sth->bind_param_inout(":returnpipe", \$msg->[0],   30);
-	$sth->bind_param_inout(":proc",       \$msg->[1],   30);
-	$sth->bind_param_inout(":param",      \$msg->[2], 4000);
-	$sth->execute or return undef;
-	return 1;
+        my $dbh = shift;
+        my $msg = shift;
+        my $sth = $dbh->prepare_cached(q{
+	    begin dbms_msgpipe.acknowledge(:returnpipe, :errormsg, :param); end;}) or return;
+        $sth->bind_param_inout(":returnpipe", \$msg->[0],   30);
+        $sth->bind_param_inout(":proc",       \$msg->[1],   30);
+        $sth->bind_param_inout(":param",      \$msg->[2], 4000);
+        $sth->execute or return undef;
+        return 1;
     }
 
     sub ora_server_version {
-	my $dbh = shift;
-	return $dbh->{ora_server_version} if defined $dbh->{ora_server_version};
-	my $banner = $dbh->selectrow_array(<<'SQL', undef, 'Oracle%', 'Personal Oracle%');
+        my $dbh = shift;
+        return $dbh->{ora_server_version} if defined $dbh->{ora_server_version};
+        my $banner = $dbh->selectrow_array(<<'SQL', undef, 'Oracle%', 'Personal Oracle%');
 SELECT banner
   FROM v$version
   WHERE banner LIKE ? OR banner LIKE ?
 SQL
-	if (defined $banner) {
-	    my @version = $banner =~ /(?:^|\s)(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)(?:\s|$)/;
-	    $dbh->{ora_server_version} = \@version if @version;
-	}
+        if (defined $banner) {
+            my @version = $banner =~ /(?:^|\s)(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)(?:\s|$)/;
+            $dbh->{ora_server_version} = \@version if @version;
+        }
     }
 
     sub ora_nls_parameters {
@@ -2187,6 +2186,16 @@ Returns true if the current connection supports TAF events. False if otherise.
 Returns a hash reference containing the current NLS parameters, as given
 by the v$nls_parameters view. The values fetched are cached between calls.
 To cause the latest values to be fetched, pass a true value to the function.
+
+=head1 ORACLE-SPECIFIC DATABASE FUNCTIONS
+
+=head2 B<ora_server_version>
+
+  $versions = $dbh->func('ora_server_version');
+
+Returns an array reference of server version strings e.g.,
+
+  [11,2,0,2,0]
 
 =head1 DATABASE HANDLE METHODS
 
@@ -5350,8 +5359,6 @@ you may not be aware of.
 
 A git mirror of the subversion is also available at
 `https://github.com/yanick/DBD-Oracle`.
-
-=head1 Oracle Related Links
 
 =head1 WHICH VERSION OF DBD::ORACLE IS FOR ME?
 

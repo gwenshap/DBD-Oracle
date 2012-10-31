@@ -33,22 +33,32 @@ sub do_it {
     my $dbh = eval { DBI->connect($dsn, $dbuser, '',) }
         or plan skip_all => "Unable to connect to Oracle";
 
+    diag("Oracle version: " . join(".", @{$dbh->func('ora_server_version')}));
+    diag("client version: " . ORA_OCI());
+
   SKIP: {
         my @attrs = (qw(ora_module_name
-                             ora_driver_name
-                             ora_client_info
-                             ora_client_identifier
-                             ora_action));
-        skip('Oracle OCI too old', 1 + @attrs) if ORA_OCI() < 11;
+                        ora_client_info
+                        ora_client_identifier
+                        ora_action));
+        my @attrs112 = (qw(ora_driver_name));
 
-        like($dbh->{ora_driver_name}, qr/DBD/, 'Default driver name');
-        foreach my $attr (qw(ora_module_name
-                             ora_driver_name
-                             ora_client_info
-                             ora_client_identifier
-                             ora_action)) {
+        skip('Oracle OCI too old', 1 + @attrs + @attrs112) if ORA_OCI() < 11;
+
+        foreach my $attr (@attrs) {
             $dbh->{$attr} = 'fred';
             is($dbh->{$attr}, 'fred', "attribute $attr set and retrieved");
+        }
+
+      SKIP: {
+            skip 'Oracle OCI too old', 1 + @attrs112 if ORA_OCI() < 11.2;
+
+            like($dbh->{ora_driver_name}, qr/DBD/, 'Default driver name');
+
+            foreach my $attr (@attrs) {
+                $dbh->{$attr} = 'fred';
+                is($dbh->{$attr}, 'fred', "attribute $attr set and retrieved");
+            }
         }
     };
 
