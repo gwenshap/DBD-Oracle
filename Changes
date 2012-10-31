@@ -4,6 +4,8 @@ NEXT_VERSION
 
   [BUG FIXES]
   
+  - simple code clean up, replacing 3 uses of safemalloc with Newz (John Scoles)
+  
   - fix memory leak in execute_array (John Scoles, Pierre-Alain Blanc)
 
   - Fix RT80349 - The error message in execute_for_fetch when a row fails
