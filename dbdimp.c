@@ -1411,7 +1411,7 @@ phs_t *phs;
 	/* allocate room for copy of statement with spare capacity	*/
 	/* for editing '?' or ':1' into ':p1' so we can use obndrv.	*/
 	/* XXX should use SV and append to it */
-	imp_sth->statement = (char*)safemalloc(strlen(statement) * 10);
+	Newz(0,imp_sth->statement,strlen(statement) * 10,char);
 
 	/* initialise phs ready to be cloned per placeholder	*/
 	memset(&phs_tpl, 0, sizeof(phs_tpl));
@@ -3746,10 +3746,8 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 	Still ensures proper OCIBindByName*/
 
 	param_count=DBIc_NUM_PARAMS(imp_sth);
-	phs = safemalloc(param_count*sizeof(*phs));
-	utf8_flgs = safemalloc(param_count*sizeof(int));
-	memset(phs, 0, param_count*sizeof(*phs));
-	memset(utf8_flgs, 0, param_count*sizeof(int));
+	Newz(0,phs,param_count*sizeof(*phs),phs_t *);
+	Newz(0,utf8_flgs,param_count*sizeof(int),int);
 
 	for(j = 0; (unsigned int) j < exe_count; j++) {
 		/* Fill in 'unknown' exe count in every element (know not how to get
@@ -3838,8 +3836,6 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 			}
 		}
 	}
-	Safefree(phs);
-	Safefree(utf8_flgs);
 	/* Store array of bind typles, for use in OCIBindDynamic() callback. */
 	imp_sth->bind_tuples = tuples_av;
 	imp_sth->rowwise = (columns_av == NULL);
