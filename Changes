@@ -27,6 +27,10 @@ NEXT_VERSION
 
   - ora_server_version was not documented.
 
+  - Fix RT80566. 70meta.t test fails with Oracle 8 because
+    ALL_TAB_COLUMNS.CHAR_LENGTH is new in Oracle 9. Use DATA_LENGTH
+    instead on pre-9 versions. Thanks to Steffen Goeldner.
+
   [MISCELLANEOUS]
 
   - The original 26exe_array test was replaced some time ago with a

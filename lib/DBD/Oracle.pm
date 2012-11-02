@@ -606,8 +606,9 @@ SQL
 	my $dbh  = shift;
 	my $attr = ( ref $_[0] eq 'HASH') ? $_[0] : {
 	    'TABLE_SCHEM' => $_[1],'TABLE_NAME' => $_[2],'COLUMN_NAME' => $_[3] };
+	my $ora_server_version = ora_server_version($dbh);
 	my($typecase,$typecaseend) = ('','');
-	if (ora_server_version($dbh)->[0] >= 8) {
+	if ($ora_server_version->[0] >= 8) {
 	    $typecase = <<'SQL';
 CASE WHEN tc.DATA_TYPE LIKE 'TIMESTAMP% WITH% TIME ZONE' THEN 95
      WHEN tc.DATA_TYPE LIKE 'TIMESTAMP%'                 THEN 93
@@ -617,6 +618,7 @@ ELSE
 SQL
 	    $typecaseend = 'END';
 	}
+  my $char_length = $ora_server_version->[0] < 9 ? 'DATA_LENGTH':'CHAR_LENGTH';
 	my $SQL = <<"SQL";
 SELECT *
   FROM
@@ -661,10 +663,10 @@ SELECT *
                         )
          , 'FLOAT'    , tc.DATA_PRECISION
          , 'DATE'     , 19
-         , 'VARCHAR2' , tc.CHAR_LENGTH
-         , 'CHAR'     , tc.CHAR_LENGTH
-         , 'NVARCHAR2', tc.CHAR_LENGTH
-         , 'NCHAR'    , tc.CHAR_LENGTH
+         , 'VARCHAR2' , tc.$char_length
+         , 'CHAR'     , tc.$char_length
+         , 'NVARCHAR2', tc.$char_length
+         , 'NCHAR'    , tc.$char_length
          , tc.DATA_LENGTH
          )                   COLUMN_SIZE
        , decode( tc.DATA_TYPE
