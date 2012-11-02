@@ -13,14 +13,14 @@ NEXT_VERSION
   - Fix RT80375 - no exception when execute_for_fetch fails and
     ArrayTupleStatus is not specified. Also the tuple count calculation
     resulted in an undefined warning. Thanks to Steffen Goeldner for
-    RT and patches.
+    RT and patch.
 
   - Fix RT80487. Skip XMLType tests if Oracle less than V9. Thanks to
-    Steffen Goeldner.
+    Steffen Goeldner for RT and patch.
 
   - Fix RT80486 for 31lob_extended.t. In old old Oracle8,
     SYS_REFCURSOR is not defined. Instead of CREATE/DROP PROCEDURE,
-    use anonymous block. Thanks to Steffen Goeldner.
+    use anonymous block. Thanks to Steffen Goeldner for RT and patch.
 
   - Fix bug in 39attr.t which could fail if using an Oracle Client >
     11 but not >= 11.2 (Martin J. Evans)
@@ -29,7 +29,8 @@ NEXT_VERSION
 
   - Fix RT80566. 70meta.t test fails with Oracle 8 because
     ALL_TAB_COLUMNS.CHAR_LENGTH is new in Oracle 9. Use DATA_LENGTH
-    instead on pre-9 versions. Thanks to Steffen Goeldner.
+    instead on pre-9 versions. Thanks to Steffen Goeldner for RT and
+    patch.
 
   [MISCELLANEOUS]
 
