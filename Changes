@@ -36,6 +36,10 @@ NEXT_VERSION
     all Oracles support them (only 9 and above). Thanks to Steffen
     Goeldner for RT and patch.
 
+  - Fix RT81067. 58object.t has some subtype tests and subtypes were
+    introduced in Oracle 9. Skip if < Oracle 9. Thanks to Steffen
+    Goeldner for RT and patch.
+
   [MISCELLANEOUS]
 
   - The original 26exe_array test was replaced some time ago with a
