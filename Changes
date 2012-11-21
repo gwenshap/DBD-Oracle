@@ -51,6 +51,8 @@ NEXT_VERSION
   - simple code clean up, replacing 3 uses of safemalloc with Newz
     (John Scoles)
 
+  - New FAQ entry on Solaris and setting linker library path.
+
 1.52      2012-10-19
 
  - promote 1.51_00 to official release
