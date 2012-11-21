@@ -40,6 +40,10 @@ NEXT_VERSION
     introduced in Oracle 9. Skip if < Oracle 9. Thanks to Steffen
     Goeldner for RT and patch.
 
+  - Fix RT81317. 34pres_lobs.t uses the Data Interface for Persistent
+    LOBs which is new in Oracle 9. Skip if < Oracle 9. Thanks to
+    Steffen Goeldner for RT and patch.
+
   [MISCELLANEOUS]
 
   - The original 26exe_array test was replaced some time ago with a
@@ -51,7 +55,10 @@ NEXT_VERSION
   - simple code clean up, replacing 3 uses of safemalloc with Newz
     (John Scoles)
 
-  - New FAQ entry on Solaris and setting linker library path.
+  - New FAQ entry on Solaris and setting linker library path
+    (Martin J. Evans)
+
+  - Removed ineffective commit in 34pres_lobs.t (Martin J. Evans)
 
 1.52      2012-10-19
 
