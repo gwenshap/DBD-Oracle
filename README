@@ -963,6 +963,14 @@ ORACLE-SPECIFIC DATABASE HANDLE METHODS
     calls. To cause the latest values to be fetched, pass a true value to
     the function.
 
+ORACLE-SPECIFIC DATABASE FUNCTIONS
+  ora_server_version
+      $versions = $dbh->func('ora_server_version');
+
+    Returns an array reference of server version strings e.g.,
+
+      [11,2,0,2,0]
+
 DATABASE HANDLE METHODS
   selectall_arrayref
       $ary_ref = $dbh->selectall_arrayref($sql);
@@ -4110,7 +4118,6 @@ CONTRIBUTING
     A git mirror of the subversion is also available at
     `https://github.com/yanick/DBD-Oracle`.
 
-Oracle Related Links
 WHICH VERSION OF DBD::ORACLE IS FOR ME?
     From version 1.25 onwards DBD::Oracle only support Oracle clients 9.2 or
     greater. Support for ProC connections was dropped in 1.29.
