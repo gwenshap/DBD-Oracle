@@ -24,6 +24,8 @@ eval {$dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1,
                                                AutoCommit=>1,
                                                PrintError => 0 })};
 if ($dbh) {
+    plan skip_all => "Scrollable cursors new in Oracle 9"
+        if $dbh->func('ora_server_version')->[0] < 9;
     plan tests => 36;
 } else {
     plan skip_all => "Unable to connect to Oracle";

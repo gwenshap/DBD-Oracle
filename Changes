@@ -13,19 +13,36 @@ NEXT_VERSION
   - Fix RT80375 - no exception when execute_for_fetch fails and
     ArrayTupleStatus is not specified. Also the tuple count calculation
     resulted in an undefined warning. Thanks to Steffen Goeldner for
-    RT and patches.
+    RT and patch.
 
   - Fix RT80487. Skip XMLType tests if Oracle less than V9. Thanks to
-    Steffen Goeldner.
+    Steffen Goeldner for RT and patch.
 
   - Fix RT80486 for 31lob_extended.t. In old old Oracle8,
     SYS_REFCURSOR is not defined. Instead of CREATE/DROP PROCEDURE,
-    use anonymous block. Thanks to Steffen Goeldner.
+    use anonymous block. Thanks to Steffen Goeldner for RT and patch.
 
   - Fix bug in 39attr.t which could fail if using an Oracle Client >
     11 but not >= 11.2 (Martin J. Evans)
 
   - ora_server_version was not documented.
+
+  - Fix RT80566. 70meta.t test fails with Oracle 8 because
+    ALL_TAB_COLUMNS.CHAR_LENGTH is new in Oracle 9. Use DATA_LENGTH
+    instead on pre-9 versions. Thanks to Steffen Goeldner for RT and
+    patch.
+
+  - Fix RT80704. 51scroll.t test checks scrollable cursors but assumes
+    all Oracles support them (only 9 and above). Thanks to Steffen
+    Goeldner for RT and patch.
+
+  - Fix RT81067. 58object.t has some subtype tests and subtypes were
+    introduced in Oracle 9. Skip if < Oracle 9. Thanks to Steffen
+    Goeldner for RT and patch.
+
+  - Fix RT81317. 34pres_lobs.t uses the Data Interface for Persistent
+    LOBs which is new in Oracle 9. Skip if < Oracle 9. Thanks to
+    Steffen Goeldner for RT and patch.
 
   [MISCELLANEOUS]
 
@@ -40,6 +57,10 @@ NEXT_VERSION
 
   - Add DBI as a configure prereq for the META* files (thanks to Joe Crotty)
 
+  - New FAQ entry on Solaris and setting linker library path
+    (Martin J. Evans)
+
+  - Removed ineffective commit in 34pres_lobs.t (Martin J. Evans)
 
 1.52      2012-10-19
 
