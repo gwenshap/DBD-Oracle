@@ -1028,6 +1028,16 @@ Returns a hash reference containing the current NLS parameters, as given
 by the v$nls\_parameters view. The values fetched are cached between calls.
 To cause the latest values to be fetched, pass a true value to the function.
 
+# ORACLE-SPECIFIC DATABASE FUNCTIONS
+
+## __ora\_server\_version__
+
+    $versions = $dbh->func('ora_server_version');
+
+Returns an array reference of server version strings e.g.,
+
+    [11,2,0,2,0]
+
 # DATABASE HANDLE METHODS
 
 ## __selectall\_arrayref__
@@ -4121,8 +4131,6 @@ you may not be aware of.
 
 A git mirror of the subversion is also available at
 \`https://github.com/yanick/DBD-Oracle\`.
-
-# Oracle Related Links
 
 # WHICH VERSION OF DBD::ORACLE IS FOR ME?
 
