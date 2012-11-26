@@ -9,7 +9,7 @@ use strict;
 use Data::Dumper;
 require 'nchar_test_lib.pl';
 
-use lib './t';
+use lib 't/lib';
 
 $| = 1;
 
