@@ -19,6 +19,7 @@
    "prereqs" : {
       "configure" : {
          "requires" : {
+            "DBI" : "1.51",
             "ExtUtils::MakeMaker" : "6.30"
          }
       },

@@ -18,6 +18,7 @@ build_requires:
   utf8: 0
   vars: 0
 configure_requires:
+  DBI: 1.51
   ExtUtils::MakeMaker: 6.30
 dynamic_config: 0
 generated_by: 'Dist::Zilla version 4.300027, CPAN::Meta::Converter version 2.120921'
