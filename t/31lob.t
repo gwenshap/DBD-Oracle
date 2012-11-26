@@ -123,8 +123,10 @@ sub have_v_session {
     ## test calling PL/SQL with LOB placeholder
         my $plsql_testcount = 4;
 
-        $stmt = "BEGIN ? := DBMS_LOB.GETLENGTH( ? ); END;";
-        $sth = $dbh->prepare( $stmt, { ora_auto_lob => 0 } );
+        my $sth = $dbh->prepare(
+            'BEGIN ? := DBMS_LOB.GETLENGTH( ? ); END;',
+            { ora_auto_lob => 0 } 
+        );
         $sth->bind_param_inout( 1, \$len, 16 );
         $sth->bind_param( 2, $loc, { ora_type => ORA_BLOB } );
         $sth->execute;
