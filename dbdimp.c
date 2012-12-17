@@ -1707,7 +1707,7 @@ dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 						sv_2pv(item, &length);
 					}
 				} else { /* ensure we're at least an SVt_PV (so SvPVX etc work)	 */
-					if(SvUPGRADE(item, SVt_PV)){}
+					(void)SvUPGRADE(item, SVt_PV);
 				}
 			}
 			if( length == 0 ){
@@ -2513,7 +2513,7 @@ dbd_rebind_ph_char(imp_sth_t *imp_sth, phs_t *phs)
 				sv_2pv(phs->sv, &PL_na);
 		}
 		else /* ensure we're at least an SVt_PV (so SvPVX etc work)	*/
-			if(SvUPGRADE(phs->sv, SVt_PV)){} /* For gcc not to warn on unused result)*/;
+			(void) SvUPGRADE(phs->sv, SVt_PV);
 	}
 
 
@@ -3800,7 +3800,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 
 			/*check to see if value sv is a null (undef) if it is upgrade it*/
  			if (!SvOK(sv))	{
-				if(SvUPGRADE(sv, SVt_PV)){} /* For GCC not to warn on unused result */
+				(void)SvUPGRADE(sv, SVt_PV);
 			}
 			else {
 				SvPV(sv, len);
