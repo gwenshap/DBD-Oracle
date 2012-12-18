@@ -64,6 +64,9 @@ NEXT_VERSION
 
   - Removed ineffective commit in 34pres_lobs.t (Martin J. Evans)
 
+  - Remove dead README link in Win32 documentation. (pointed out by Alexandr
+    Ciornii, RT#82040)
+
 1.52      2012-10-19
 
  - promote 1.51_00 to official release
