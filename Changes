@@ -3,8 +3,10 @@ Revision history for DBD::Oracle
 NEXT_VERSION
 
   [BUG FIXES]
+  - Fix RT69350 - 31lob.t was using $lob after destroying its parent $sth 
+        (Rob Davies)
 
-  - fix memory leak in execute_array (John Scoles, Pierre-Alain Blanc)
+  - Fix memory leak in execute_array (John Scoles, Pierre-Alain Blanc)
 
   - Fix RT80349 - The error message in execute_for_fetch when a row fails
     can contain the wrong error count. Thanks to Steffen Goeldner for
@@ -61,6 +63,9 @@ NEXT_VERSION
     (Martin J. Evans)
 
   - Removed ineffective commit in 34pres_lobs.t (Martin J. Evans)
+
+  - Remove dead README link in Win32 documentation. (pointed out by Alexandr
+    Ciornii, RT#82040)
 
   - Changed any use of if SvUPGRADE to remove the if test as per email
     from Dave Mitchell and posting at

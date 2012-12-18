@@ -11,14 +11,12 @@ DBD::Oracle::Troubleshooting::Win32 - Tips and Hints to Troubleshoot DBD::Oracle
 
 =head1 VERSION
 
-version 1.52
+version 1.53_00
 
 =head1 GENERAL INFO
 
 In general, on Windows, it's best to just use ActiveState Perl and the
 PPM package manager to install a pre-built version of DBD::Oracle however only version 1.17 is available there.
-
-If you built Perl with gcc, read README.wingcc.txt as well as this file.
 
 =head1 Oracle Instant Client 11.1.0.6.0 Notes
 
