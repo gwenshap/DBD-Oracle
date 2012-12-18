@@ -50,7 +50,7 @@ mkta.pl
 oci.def
 oci8.c
 ocitrace.h
-t/000-report-versions.t
+t/000-report-versions-tiny.t
 t/00versions.t
 t/01base.t
 t/10general.t
