@@ -67,6 +67,11 @@ NEXT_VERSION
   - Remove dead README link in Win32 documentation. (pointed out by Alexandr
     Ciornii, RT#82040)
 
+  - Changed any use of if SvUPGRADE to remove the if test as per email
+    from Dave Mitchell and posting at
+    http://www.xray.mpe.mpg.de/mailing-lists/perl5-porters/2012-12/msg00424.html
+    (Martin J. Evans)
+
 1.52      2012-10-19
 
  - promote 1.51_00 to official release

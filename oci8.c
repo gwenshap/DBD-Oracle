@@ -1644,7 +1644,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 				sv_2pv(phs->sv, &PL_na);
 		}
 		else { /* ensure we're at least an SVt_PV (so SvPVX etc work)	 */
-			if(SvUPGRADE(phs->sv, SVt_PV)){} /* For GCC not to warn on unused result */
+			(void)SvUPGRADE(phs->sv, SVt_PV);
 		}
 	}
 
@@ -1675,7 +1675,7 @@ dbd_rebind_ph_lob(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		imp_sth->stmt_type == OCI_STMT_DECLARE) {
 		ub4 amtp;
 
-		if(SvUPGRADE(phs->sv, SVt_PV)){/* For GCC not to warn on unused result */};	/* just in case */
+		(void)SvUPGRADE(phs->sv, SVt_PV);
 
 		amtp = SvCUR(phs->sv);		/* XXX UTF8? */
 
@@ -4812,7 +4812,7 @@ post_execute_lobs(SV *sth, imp_sth_t *imp_sth, ub4 row_count)	/* XXX leaks handl
 		phs_t *phs = (phs_t*)fbh->special;
 		ub4 amtp;
 
-		if(SvUPGRADE(phs->sv, SVt_PV)){/* For GCC not to warn on unused result */ };	/* just in case */
+		(void)SvUPGRADE(phs->sv, SVt_PV);
 
 		amtp = SvCUR(phs->sv);		/* XXX UTF8? */
 		if (rc == 1405) {		/* NULL - return undef */
