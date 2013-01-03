@@ -11,7 +11,7 @@ DBD::Oracle::Troubleshooting::Vms - Tips and Hints to Troubleshoot DBD::Oracle o
 
 =head1 VERSION
 
-version 1.53_00
+version 1.54
 
 =head1 General Info
 

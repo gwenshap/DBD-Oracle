@@ -4,7 +4,7 @@ DBD::Oracle - Oracle database driver for the DBI module
 
 # VERSION
 
-version 1.53\_00
+version 1.54
 
 # SYNOPSIS
 
