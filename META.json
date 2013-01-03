@@ -56,18 +56,18 @@
    "provides" : {
       "DBD::Oracle" : {
          "file" : "lib/DBD/Oracle.pm",
-         "version" : "1.53_00"
+         "version" : "1.54"
       },
       "DBD::Oracle::GetInfo" : {
          "file" : "lib/DBD/Oracle/GetInfo.pm",
-         "version" : "1.53_00"
+         "version" : "1.54"
       },
       "DBD::Oracle::Object" : {
          "file" : "lib/DBD/Oracle/Object.pm",
-         "version" : "1.53_00"
+         "version" : "1.54"
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "mailto" : "bug-dbd-oracle at rt.cpan.org",
@@ -80,7 +80,7 @@
          "web" : "https://github.com/yanick/DBD-Oracle"
       }
    },
-   "version" : "1.53_00",
+   "version" : "1.54",
    "x_authority" : "cpan:PYTHIAN",
    "x_help_wanted" : [
       "coder",
