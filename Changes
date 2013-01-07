@@ -1,5 +1,9 @@
 Revision history for DBD::Oracle
 
+{{$NEXT}}
+  - fix t/26exe_array.t in the case of no db connection (RT82506, 
+    reported by Peter Rabbitson)
+
 1.54      2013-01-03
  - promote 1.53_00 to official release
 
