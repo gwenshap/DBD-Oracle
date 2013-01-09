@@ -3,6 +3,8 @@ Revision history for DBD::Oracle
 NEXT_RELEASE
 
   [BUG FIXES]
+  - Adjust the privs needed for the DROP/CREATE table test. [GH#35] 
+    (Joe Crotty)
 
   - Fixed RT84170 - when using scrollable cursors and you've done a
     positioned fetch and then keep fetching until the end of the
