@@ -317,6 +317,10 @@
 	OCIAttrGet_log_stat(imp_sth, imp_sth->stmhp, OCI_HTYPE_STMT,         \
 		(void*)(p1), (l), (a), imp_sth->errhp, stat)
 
+#define OCIAttrGet_stmhp_stat2(imp_sth, stmhp, p1, l, a, stat)              \
+	OCIAttrGet_log_stat(imp_sth, stmhp, OCI_HTYPE_STMT,         \
+		(void*)(p1), (l), (a), imp_sth->errhp, stat)
+
 #define OCIAttrSet_log_stat(impxxh,th,ht,ah,s1,a,eh,stat)   \
 	stat=OCIAttrSet(th,ht,ah,s1,a,eh);				\
 	(DBD_OCI_TRACEON(impxxh)) ? PerlIO_printf(DBD_OCI_TRACEFP(impxxh), \

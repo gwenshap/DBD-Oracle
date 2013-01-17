@@ -4984,13 +4984,23 @@ closes a cursor:
   $sth3->bind_param(":cursor", $sth2, { ora_type => ORA_RSET } );
   $sth3->execute;
 
-It is not normally necessary to close a cursor
-explicitly in this way. Oracle will close the cursor automatically
-at the first client-server interaction after the cursor statement handle is
-destroyed. An explicit close may be desirable if the reference to
-the cursor handle from the PL/SQL statement handle delays the destruction
+It is not normally necessary to close a cursor explicitly in this
+way. Oracle will close the cursor automatically at the first
+client-server interaction after the cursor statement handle is
+destroyed. An explicit close may be desirable if the reference to the
+cursor handle from the PL/SQL statement handle delays the destruction
 of the cursor handle for too long. This reference remains until the
 PL/SQL handle is re-bound, re-executed or destroyed.
+
+NOTE: From DBD::Oracle 1.57 functions or procedures returning
+SYS_REFCURSORs which have not been opened (are still in the
+initialised state) will return undef for the cursor statement handle
+e.g., in the example above if the sp_ListEmp function simply returned l_cursor
+instead of opening it. This means you can have a function/procedure
+which can elect to open the cursor or not, Before this change if you called
+a function/procedure which returned a SYS_REFCURSOR which was not opened
+DBD::Oracle would error in the execute for a OCIAttrGet on the uninitialised
+cursor.
 
 See the C<curref.pl> script in the Oracle.ex directory in the DBD::Oracle
 source distribution for a complete working example.
