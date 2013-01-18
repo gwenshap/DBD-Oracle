@@ -2759,6 +2759,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 				oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
                 return 0;
             }
+            phs->desc_h = NULL;
             phs->sv = newSV(0);                 /* undef */
             return 1;
         }
