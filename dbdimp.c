@@ -2753,6 +2753,12 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
            point in going any further if it is not executed - just return undef.
            See RT 82663 */
         if (stmt_state == OCI_STMT_STATE_INITIALIZED) {
+			OCIHandleFree_log_stat(imp_sth, (OCIStmt *)phs->desc_h,
+                                   OCI_HTYPE_STMT, status);
+			if (status != OCI_SUCCESS) {
+				oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
+                return 0;
+            }
             phs->sv = newSV(0);                 /* undef */
             return 1;
         }
