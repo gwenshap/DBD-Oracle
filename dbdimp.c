@@ -2744,8 +2744,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
             /* initialized=1, executed=2, end of fetch=3 */
             PerlIO_printf(
                 DBIc_LOGPIO(imp_sth),
-                "	returned cursor/statement state: %u, indicator=%d\n",
-                stmt_state, phs->indp2);
+                "	returned cursor/statement state: %u\n", stmt_state);
         }
 
         /* We seem to get an indp of 0 even for a cursor which was never
