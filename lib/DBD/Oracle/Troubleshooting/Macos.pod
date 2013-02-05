@@ -54,36 +54,46 @@ database server on your MacOSX box. See below (Instructions for
 
 =head1 Instructions for 10.7.x (Lion)
 
-Because the 64 bit instantclient (version 10gr2)is currently
-[incompatible with Lion][], DBD::Oracle can only be compiled with the
-32-bit instantclient libraries, and therefore requires 32-bit Perl. If
-your Perl is 64-bit (which, by default, it is on Mac OS X), you will
-not be able to build DBD::Oracle until an updated 64-bit instantclient
-is released.
+Perl on Lion and later is built with 64-bit support, and therefore requiers
+the 64-bit Instant Client. As of this writing, only Instant Client 11.2
+(64-bit) actually works. The 64-bit Instant Client 10.2 is L<incompatible with
+Lion|http://only4left.jpiwowar.com/2011/08/instant-client-osx-lion-32-bit-only/>.
+We therefore recommend the 11.2 client. If you must Instant Client 10.2, you
+may need to recompile Perl with 32-bit support.
 
-[incompatible with Lion]: http://only4left.jpiwowar.com/2011/08/instant-client-osx-lion-32-bit-only/
+Either way, setup and configuration is the same:
 
-If you have a 32-bit Perl, however, then the following steps should work:
+=over
 
-* Download and install the 32-bit basic, sqlplus, and sdk instantclient
-libraries and install them in a central location, such as
-`/usr/oracle_instantclient`. [Downloads here][].
-  
-  [Downloads here]: http://www.oracle.com/technetwork/topics/intel-macsoft-096467.html
+=item *
 
-* Create a symlink from `libclntsh.dylib.10.1` to `libclntsh.dylib`:
+Download and install the basic, sqlplus, and sdk instantclient libraries and
+install them in a central location, such as F</usr/oracle_instantclient>.
+L<Downloads
+here|http://www.oracle.com/technetwork/topics/intel-macsoft-096467.html>
 
-      cd /usr/oracle_instantclient/
-      link -s libclntsh.dylib.10.1 libclntsh.dylib
+=item *
 
-* Update your environment to point to the libraries:
+Create a symlink from F<libclntsh.dylib.10.1> to F<libclntsh.dylib>:
 
-      export ORACLE_HOME=/usr/oracle_instantclient
-      export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/usr/oracle_instantclient
+  cd /usr/oracle_instantclient/
+  ln -s libclntsh.dylib.* libclntsh.dylib
+  ln -s libocci.dylib.* libocci.dylib
 
-* You should now be able to install DBD::Oracle from CPAN:
+=item *
+
+Update your environment to point to the libraries:
+
+  export ORACLE_HOME=/usr/oracle_instantclient
+  export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/usr/oracle_instantclient
+
+=item *
+
+You should now be able to install DBD::Oracle from CPAN:
 
      cpan DBD::Oracle
+
+=back
 
 =head1 Instructions for 10.6.x (Snow Leopard)
 
