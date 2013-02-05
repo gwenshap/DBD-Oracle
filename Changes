@@ -16,6 +16,10 @@ Revision history for DBD::Oracle
     it you'll get undef back instead of a useless statement handle.
     Extended 50cursor.t test to check the above fix.
 
+  [DOCUMENTATION]
+  - Update Lion instructions for 64-bit Instant Client. (GH#37, patch by
+    theory)
+
 1.56      2013-01-08
   - fix t/26exe_array.t in the case of no db connection (RT82506,
     reported by Peter Rabbitson)
