@@ -227,7 +227,7 @@ dbd_fbh_dump(imp_sth_t *imp_sth, imp_fbh_t *fbh, int i, int aidx)
 		fbh->dbtype, fbh->ftype, (long)fbh->dbsize,(long)fbh->disize,
 		fbh->prec, fbh->scale);
 	if (fbh->fb_ary) {
-	PerlIO_printf(DBIc_LOGPIO(imp_sth), "	  out: ftype %d, bufl %d. indp %d, rlen %d, rcode %d\n",
+        PerlIO_printf(DBIc_LOGPIO(imp_sth), "	  out: ftype %d, bufl %d. indp %d, rlen %d, rcode %d\n",
 		fbh->ftype, fbh->fb_ary->bufl, fbh->fb_ary->aindp[aidx],
 		fbh->fb_ary->arlen[aidx], fbh->fb_ary->arcode[aidx]);
 	}
@@ -2665,11 +2665,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 {
     dTHX;
 
-	if (pre_exec) {	/* pre-execute - allocate a statement handle */
-		dSP;
-		D_imp_dbh_from_sth;
-		HV *init_attr = newHV();
-		int count;
+	if (pre_exec) {	/* pre-execute - throw away previous descriptor and rebind */
 		sword status;
 
 		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
@@ -2691,7 +2687,6 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 			OCIHandleAlloc_ok(imp_sth, imp_sth->envhp, &phs->desc_h, phs->desc_t, status);
 		 }
 
-
 		phs->progv = (char*)&phs->desc_h;
 		phs->maxlen = 0;
 
@@ -2701,6 +2696,11 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 			phs->progv,
 			0,
 			(ub2)phs->ftype,
+            /* I, MJE have no evidence that passing an indicator to this func
+               causes ORA-01001 (invalid cursor) errors. Also, without it
+               you cannot test the indicator to check we have a valid output
+               parameter. However, it would seem when you do specify an
+               indicator it always comes back as 0 so it is useless. */
 			NULL, /* using &phs->indp triggers ORA-01001 errors! */
 			NULL,
 			0,
@@ -2714,6 +2714,57 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
 			return 0;
 		}
 
+        /*
+          NOTE: The code used to magic a DBI stmt handle into existence
+          here before even knowing if the output parameter was going to
+          be a valid open cursor. The code to do this moved to post execute
+          below. See RT 82663 - Errors if a returned SYS_REFCURSOR is not opened
+        */
+	}
+	else {		/* post-execute - setup the statement handle */
+		dTHR;
+		dSP;
+		D_imp_dbh_from_sth;
+		HV *init_attr = newHV();
+		int count;
+        ub4 stmt_state = 99;
+        sword status;
+		SV * sth_csr;
+
+        /* Before we go to the bother of attempting to allocate a new sth
+           for this cursor make sure the Oracle sth is executed i.e.,
+           the returned cursor may never have been opened */
+        OCIAttrGet_stmhp_stat2(imp_sth, (OCIStmt*)phs->desc_h, &stmt_state, 0,
+                               OCI_ATTR_STMT_STATE, status);
+        if (status != OCI_SUCCESS) {
+            oci_error(sth, imp_sth->errhp, status, "OCIAttrGet OCI_ATTR_STMT_STATE");
+            return 0;
+        }
+        if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 ) {
+            /* initialized=1, executed=2, end of fetch=3 */
+            PerlIO_printf(
+                DBIc_LOGPIO(imp_sth),
+                "	returned cursor/statement state: %u\n", stmt_state);
+        }
+
+        /* We seem to get an indp of 0 even for a cursor which was never
+           opened and set to NULL. If this is the case we check the stmt state
+           and find the cursor is initialized but not executed - there is no
+           point in going any further if it is not executed - just return undef.
+           See RT 82663 */
+        if (stmt_state == OCI_STMT_STATE_INITIALIZED) {
+			OCIHandleFree_log_stat(imp_sth, (OCIStmt *)phs->desc_h,
+                                   OCI_HTYPE_STMT, status);
+			if (status != OCI_SUCCESS) {
+				oci_error(sth, imp_sth->errhp, status, "OCIHandleFree");
+                return 0;
+            }
+            phs->desc_h = NULL;
+            phs->sv = newSV(0);                 /* undef */
+            return 1;
+        }
+
+        /* Now we know we have an executed cursor create a new sth */
 		ENTER;
 		SAVETMPS;
 		PUSHMARK(SP);
@@ -2738,11 +2789,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
                 "   pp_exec_rset   bind %s - allocated %s...\n",
                 phs->name, neatsvpv(phs->sv, 0));
 
-	}
-	else {		/* post-execute - setup the statement handle */
-		dTHR;
-		SV * sth_csr = phs->sv;
-		D_impdata(imp_sth_csr, imp_sth_t, sth_csr);
+        sth_csr = phs->sv;
 
 		if (DBIc_DBISTATE(imp_sth)->debug >= 3 || dbd_verbose >= 3 )
 			PerlIO_printf(
@@ -2750,32 +2797,36 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
                 "	   bind %s - initialising new %s for cursor 0x%lx...\n",
                 phs->name, neatsvpv(sth_csr,0), (unsigned long)phs->progv);
 
-		/* copy appropriate handles and atributes from parent statement	*/
-		imp_sth_csr->envhp		= imp_sth->envhp;
-		imp_sth_csr->errhp		= imp_sth->errhp;
-		imp_sth_csr->srvhp		= imp_sth->srvhp;
-		imp_sth_csr->svchp		= imp_sth->svchp;
-		imp_sth_csr->auto_lob	= imp_sth->auto_lob;
-		imp_sth_csr->pers_lob	= imp_sth->pers_lob;
-		imp_sth_csr->clbk_lob	= imp_sth->clbk_lob;
-		imp_sth_csr->piece_size	= imp_sth->piece_size;
-		imp_sth_csr->piece_lob	= imp_sth->piece_lob;
-		imp_sth_csr->is_child	= 1; /*no prefetching on a cursor or sp*/
+        {
+            D_impdata(imp_sth_csr, imp_sth_t, sth_csr); /* TO_DO */
+
+            /* copy appropriate handles and atributes from parent statement	*/
+            imp_sth_csr->envhp		= imp_sth->envhp;
+            imp_sth_csr->errhp		= imp_sth->errhp;
+            imp_sth_csr->srvhp		= imp_sth->srvhp;
+            imp_sth_csr->svchp		= imp_sth->svchp;
+            imp_sth_csr->auto_lob	= imp_sth->auto_lob;
+            imp_sth_csr->pers_lob	= imp_sth->pers_lob;
+            imp_sth_csr->clbk_lob	= imp_sth->clbk_lob;
+            imp_sth_csr->piece_size	= imp_sth->piece_size;
+            imp_sth_csr->piece_lob	= imp_sth->piece_lob;
+            imp_sth_csr->is_child	= 1; /*no prefetching on a cursor or sp*/
 
 
-		 /* assign statement handle from placeholder descriptor	*/
-		imp_sth_csr->stmhp = (OCIStmt*)phs->desc_h;
-		phs->desc_h = NULL;		  /* tell phs that we own it now	*/
+            /* assign statement handle from placeholder descriptor	*/
+            imp_sth_csr->stmhp = (OCIStmt*)phs->desc_h;
+            phs->desc_h = NULL;		  /* tell phs that we own it now	*/
 
-	 /* force stmt_type since OCIAttrGet(OCI_ATTR_STMT_TYPE) doesn't work! */
-		imp_sth_csr->stmt_type = OCI_STMT_SELECT;
- 		DBIc_IMPSET_on(imp_sth_csr);
+            /* force stmt_type since OCIAttrGet(OCI_ATTR_STMT_TYPE) doesn't work! */
+            imp_sth_csr->stmt_type = OCI_STMT_SELECT;
+            DBIc_IMPSET_on(imp_sth_csr);
 
-	 /* set ACTIVE so dbd_describe doesn't do explicit OCI describe */
-		DBIc_ACTIVE_on(imp_sth_csr);
-		if (!dbd_describe(sth_csr, imp_sth_csr)) {
-			return 0;
-		}
+            /* set ACTIVE so dbd_describe doesn't do explicit OCI describe */
+            DBIc_ACTIVE_on(imp_sth_csr);
+            if (!dbd_describe(sth_csr, imp_sth_csr)) {
+                return 0;
+            }
+        }
 	}
 
 	return 1;
@@ -3477,7 +3528,7 @@ dbd_st_execute(SV *sth, imp_sth_t *imp_sth) /* <= -2:error, >=0:ok row count, (-
 				PerlIO_printf(
                     DBIc_LOGPIO(imp_sth),
 					"dbd_st_execute(): Analyzing inout  a parameter '%s"
-                    "of type=%d  name=%s'\n",
+                    " of type=%d  name=%s'\n",
 					phs->name,phs->ftype,sql_typecode_name(phs->ftype));
 			}
 			if( phs->ftype == ORA_VARCHAR2_TABLE ){

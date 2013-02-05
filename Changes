@@ -1,7 +1,23 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
-  - fix t/26exe_array.t in the case of no db connection (RT82506, 
+  [BUG FIXES]
+
+  - fix RT46628 - bind_param_inout ORA_RSET causes MSWin32 access
+    violation and RT82663 - Errors if a returned SYS_REFCURSOR is not
+    opened (Martin J. Evans)
+
+    If a procedure/function returns a SYS_REFCURSOR which was never opened
+    DBD::Oracle magics a DBI statement handle into existence and attempts
+    to describe it (which fails). This change examines a returned
+    SYS_REFCURSOR and if it it is initialised but not executed does not
+    create a DBI statement handle and returns undef instead. So now if you
+    have a procedure/function which returns a SYS_REFCURSOR and never open
+    it you'll get undef back instead of a useless statement handle.
+    Extended 50cursor.t test to check the above fix.
+
+1.56      2013-01-08
+  - fix t/26exe_array.t in the case of no db connection (RT82506,
     reported by Peter Rabbitson)
 
 1.54      2013-01-03
@@ -10,7 +26,7 @@ Revision history for DBD::Oracle
 1.53_00      2012-12-18
 
   [BUG FIXES]
-  - Fix RT69350 - 31lob.t was using $lob after destroying its parent $sth 
+  - Fix RT69350 - 31lob.t was using $lob after destroying its parent $sth
         (Rob Davies)
 
   - Fix memory leak in execute_array (John Scoles, Pierre-Alain Blanc)
