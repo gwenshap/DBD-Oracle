@@ -1,6 +1,6 @@
 Revision history for DBD::Oracle
 
-{{$NEXT}}
+1.57_00   2013-02-07
   [BUG FIXES]
 
   - fix RT46628 - bind_param_inout ORA_RSET causes MSWin32 access
