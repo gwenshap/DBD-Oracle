@@ -11,7 +11,7 @@ DBD::Oracle::Troubleshooting::Macos - Tips and Hints to Troubleshoot DBD::Oracle
 
 =head1 VERSION
 
-version 1.57_00
+version 1.58
 
 =head1 General Info 
 
