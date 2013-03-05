@@ -7,6 +7,7 @@ Revision history for DBD::Oracle
     violation and RT82663 - Errors if a returned SYS_REFCURSOR is not
     opened (Martin J. Evans)
 
+    Fix RT82663.
     If a procedure/function returns a SYS_REFCURSOR which was never opened
     DBD::Oracle magics a DBI statement handle into existence and attempts
     to describe it (which fails). This change examines a returned
