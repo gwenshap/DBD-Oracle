@@ -198,7 +198,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
 	/* Oracle's description of the field	*/
 	OCIParam	*parmdp;
 	OCIDefine	*defnp;
-	void 		*desc_h;	/* descriptor if needed (LOBs etc)	*/
+	void 		*desc_h;	/* descriptor if needed (LOBs, cursors etc)	*/
 	ub4			desc_t;	/* OCI type of descriptor		*/
 	ub4 		define_mode; /*the normal case for a define*/
 	int			(*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
