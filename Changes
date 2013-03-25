@@ -1,7 +1,15 @@
 Revision history for DBD::Oracle
 
+NEXT_RELEASE
+
+  [BUG FIXES]
+
+  - Changed 51scroll.t to test you cannot fetch off the end of the
+    result-set with a scrollable cursor - will fail until patch from
+    RT 84170 committed (REMOVE WHEN RELEASED)
+
 1.58      2013-03-05
- - promote 1.57_00 to official release
+  - promote 1.57_00 to official release
 
 1.57_00   2013-02-07
   [BUG FIXES]
@@ -10,9 +18,9 @@ Revision history for DBD::Oracle
     violation and RT82663 - Errors if a returned SYS_REFCURSOR is not
     opened (Martin J. Evans)
 
-   -Fix RT82663. If a procedure/function returns a SYS_REFCURSOR which 
-    was never opened DBD::Oracle magics a DBI statement handle into 
-    existence and attempts to describe it (which fails). This change examines 
+   -Fix RT82663. If a procedure/function returns a SYS_REFCURSOR which
+    was never opened DBD::Oracle magics a DBI statement handle into
+    existence and attempts to describe it (which fails). This change examines
     a returned SYS_REFCURSOR and if it it is initialised but not executed does not
     create a DBI statement handle and returns undef instead. So now if you
     have a procedure/function which returns a SYS_REFCURSOR and never open
