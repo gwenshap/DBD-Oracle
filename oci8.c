@@ -4002,6 +4002,10 @@ dbd_st_fetch(SV *sth, imp_sth_t *imp_sth){
 			OCIStmtFetch_log_stat(imp_sth, imp_sth->stmhp, imp_sth->errhp,1, imp_sth->fetch_orient,imp_sth->fetch_offset, status);
 				/*this will work without a round trip so might as well open it up for all statments handles*/
 				/* default and OCI_FETCH_NEXT are the same so this avoids miscaluation on the next value*/
+			if (status==OCI_NO_DATA){
+                return Nullav;
+            }
+
 			OCIAttrGet_stmhp_stat(imp_sth, &imp_sth->fetch_position, 0, OCI_ATTR_CURRENT_POSITION, status);
 
 			if (DBIc_DBISTATE(imp_sth)->debug >= 4 || dbd_verbose >= 4 )

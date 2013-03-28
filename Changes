@@ -4,9 +4,11 @@ NEXT_RELEASE
 
   [BUG FIXES]
 
-  - Changed 51scroll.t to test you cannot fetch off the end of the
-    result-set with a scrollable cursor - will fail until patch from
-    RT 84170 committed (REMOVE WHEN RELEASED)
+  - Fixed RT84170 - when using scrollable cursors and you've done a
+    positioned fetch and then keep fetching until the end of the
+    result-set calls to fetch never return undef and you keep getting
+    the last row forever. Also added test case to the 51scroll.t test
+    (Martin J. Evans).
 
 1.58      2013-03-05
   - promote 1.57_00 to official release
