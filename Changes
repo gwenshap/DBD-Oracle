@@ -1,7 +1,17 @@
 Revision history for DBD::Oracle
 
-{{$NEXT}}
- - promote 1.57_00 to official release
+NEXT_RELEASE
+
+  [BUG FIXES]
+
+  - Fixed RT84170 - when using scrollable cursors and you've done a
+    positioned fetch and then keep fetching until the end of the
+    result-set calls to fetch never return undef and you keep getting
+    the last row forever. Also added test case to the 51scroll.t test
+    (Martin J. Evans).
+
+1.58      2013-03-05
+  - promote 1.57_00 to official release
 
 1.57_00   2013-02-07
   [BUG FIXES]
@@ -10,14 +20,15 @@ Revision history for DBD::Oracle
     violation and RT82663 - Errors if a returned SYS_REFCURSOR is not
     opened (Martin J. Evans)
 
-   -Fix RT82663. If a procedure/function returns a SYS_REFCURSOR which 
-    was never opened DBD::Oracle magics a DBI statement handle into 
-    existence and attempts to describe it (which fails). This change examines 
-    a returned SYS_REFCURSOR and if it it is initialised but not executed does not
-    create a DBI statement handle and returns undef instead. So now if you
-    have a procedure/function which returns a SYS_REFCURSOR and never open
-    it you'll get undef back instead of a useless statement handle.
-    Extended 50cursor.t test to check the above fix.
+  - Fix RT82663. If a procedure/function returns a SYS_REFCURSOR which
+    was never opened DBD::Oracle magics a DBI statement handle into
+    existence and attempts to describe it (which fails). This change
+    examines a returned SYS_REFCURSOR and if it it is initialised but
+    not executed does not create a DBI statement handle and returns
+    undef instead. So now if you have a procedure/function which
+    returns a SYS_REFCURSOR and never open it you'll get undef back
+    instead of a useless statement handle.  Extended 50cursor.t test
+    to check the above fix. (Martin J. Evans)
 
   [DOCUMENTATION]
   - Update Lion instructions for 64-bit Instant Client. (GH#37, patch by
