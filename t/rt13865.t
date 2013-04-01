@@ -14,7 +14,7 @@ my $dbh = db_handle() or plan skip_all => "can't connect to database";
 my %priv = map { $_ => 1 } get_privs( $dbh );
 
 unless ( $priv{'CREATE TABLE'} ) {
-    plan skip_all => q{requires permissions 'CREATE TABLE' and 'DROP TABLE'};
+    plan skip_all => q{requires permissions 'CREATE TABLE'};
 }
 
 plan tests => 9;
