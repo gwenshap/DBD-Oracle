@@ -10,6 +10,9 @@ NEXT_RELEASE
     the last row forever. Also added test case to the 51scroll.t test
     (Martin J. Evans).
 
+1.60      2013-04-01
+ - Move github repository to github.com/pythian/DBD-Oracle.
+
 1.58      2013-03-05
   - promote 1.57_00 to official release
 
