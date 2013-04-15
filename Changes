@@ -1,6 +1,6 @@
 Revision history for DBD::Oracle
 
-NEXT_RELEASE
+{{$NEXT}}
 
   [BUG FIXES]
   - Adjust the privs needed for the DROP/CREATE table test. [GH#35] 
