@@ -298,7 +298,7 @@ package DBD::Oracle;
 	unless (length $user_only) {
 	    $user_only = $dbh->selectrow_array(q{
 		SELECT SYS_CONTEXT('userenv','session_user') FROM DUAL
-	    });
+	    })||'';
 	    $dbh_inner->{Username} = $user_only;
 	    # these two are just for backwards compatibility
 	    $dbh_inner->{USER} = $dbh_inner->{CURRENT_USER} = uc $user_only;

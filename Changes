@@ -2,6 +2,10 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  [ENHANCEMENTS]
+  - DBD-Oracle: Use of uninitialized value $user_only in uc [RT#84657]
+    (Steffen Goeldner)  
+
   [BUG FIXES]
   - Adjust the privs needed for the DROP/CREATE table test. [GH#35] 
     (Joe Crotty)
