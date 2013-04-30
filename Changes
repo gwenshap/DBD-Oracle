@@ -6,6 +6,15 @@ Revision history for DBD::Oracle
   - DBD-Oracle: Use of uninitialized value $user_only in uc [RT#84657]
     (Steffen Goeldner)  
 
+  [DOCUMENTATION]
+  - Bogus 227 directory no longer required for MacOS. (GH#1, patch
+    by theory)
+
+1.62      2013-04-30
+  - promote 1.61_00 to official release
+
+1.61_00   2013-04-15
+
   [BUG FIXES]
   - Adjust the privs needed for the DROP/CREATE table test. [GH#35] 
     (Joe Crotty)
@@ -15,10 +24,6 @@ Revision history for DBD::Oracle
     result-set calls to fetch never return undef and you keep getting
     the last row forever. Also added test case to the 51scroll.t test
     (Martin J. Evans).
-
-  [DOCUMENTATION]
-  - Bogus 227 directory no longer required for MacOS. (GH#1, patch
-    by theory)
 
 1.60      2013-04-01
  - Move github repository to github.com/pythian/DBD-Oracle.
