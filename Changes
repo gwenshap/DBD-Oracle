@@ -16,6 +16,10 @@ Revision history for DBD::Oracle
     the last row forever. Also added test case to the 51scroll.t test
     (Martin J. Evans).
 
+  [DOCUMENTATION]
+  - Bogus 227 directory no longer required for MacOS. (GH#1, patch
+    by theory)
+
 1.60      2013-04-01
  - Move github repository to github.com/pythian/DBD-Oracle.
 
