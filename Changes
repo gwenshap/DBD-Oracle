@@ -1,6 +1,9 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
+  - promote 1.61_00 to official release
+
+1.61_00   2013-04-15
 
   [BUG FIXES]
   - Adjust the privs needed for the DROP/CREATE table test. [GH#35] 
