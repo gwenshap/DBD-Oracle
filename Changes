@@ -6,6 +6,9 @@ Revision history for DBD::Oracle
   - DBD-Oracle: Use of uninitialized value $user_only in uc [RT#84657]
     (Steffen Goeldner)  
 
+  [BUG FIXES]
+  - Make 50cursor.t Oracle8-friendly. (RT#84660, patch by Steffen Goeldner)
+
   [DOCUMENTATION]
   - Bogus 227 directory no longer required for MacOS. (GH#1, patch
     by theory)
