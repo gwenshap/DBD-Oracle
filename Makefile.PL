@@ -1510,11 +1510,16 @@ sub read_file {
 
 
 sub find_bin{
-    use filetest 'access';
     my $bin = shift;
     my $path_sep = $Config{path_sep};
     foreach (split(/\Q$path_sep/, $ENV{PATH})){
       return "$_/$bin" if -x "$_/$bin";
+      {
+        # let's try harder
+        # see rt#84530 for why we don't go straight for it
+        use filetest 'access'; 
+        return "$_/$bin" if -x "$_/$bin";
+      }
     }
     return undef;
 }

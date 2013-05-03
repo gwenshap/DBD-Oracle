@@ -8,6 +8,8 @@ Revision history for DBD::Oracle
 
   [BUG FIXES]
   - Make 50cursor.t Oracle8-friendly. (RT#84660, patch by Steffen Goeldner)
+  - Makefile.PL's use of ACL tweaked for Suse Enterprise 11 SP2
+        (RT#84530, patch by Alfred Nathaniel)
 
   [DOCUMENTATION]
   - Bogus 227 directory no longer required for MacOS. (GH#1, patch
