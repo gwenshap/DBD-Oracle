@@ -37,7 +37,7 @@ if ($dbh) {
         $limit = 1;
     }
     $limit = 100 if $limit > 100; # lets not be greedy or upset DBA's
-    $tests = 2 + 10 * $limit + 7;
+    $tests = 2 + 10 * $limit + 6;
 
     plan tests => $tests;
 
@@ -83,34 +83,23 @@ foreach ( 1 .. @cursors ) {
 	ok($close_cursor->execute, 'close cursor execute');
 }
 
-$dbh->{RaiseError} = 1;
-eval {
-    $dbh->do(<<'EOT');
-create or replace procedure dbd_oracle_test(aref out sys_refcursor) as
-begin
-   aref := NULL;
-end;
-EOT
-};
+my $PLSQL = <<"PLSQL";
+DECLARE
+  TYPE t IS REF CURSOR;
+  c t;
+BEGIN
+  ? := c;
+END;
+PLSQL
 
-my $ev = $@;
-diag($ev) if $@;
-SKIP: {
-    skip 'failed to create proc for test so skipping', 5 if $ev;
-
-    local $dbh->{RaiseError} = 0;
-
-    ok(my $sth1 = $dbh->prepare(q/begin dbd_oracle_test(?); end;/),
-       'prepare exec of proc for null cursor');
-    ok($sth1->bind_param_inout(1, \my $cursor, 100, {ora_type => ORA_RSET}),
-       'binding cursor for null cursor');
-    ok($sth1->execute, 'execute for null cursor');
-    is($cursor, undef, 'undef returned for null cursor');
-    ok($sth1->execute, 'execute 2 for null cursor');
-    is($cursor, undef, 'undef 2 returned for null cursor');
-    ok($dbh->do(q/drop procedure dbd_oracle_test/),
-      'drop dbd_oracle_test proc');
-};
+ok(my $sth1 = $dbh->prepare($PLSQL),
+   'prepare exec of proc for null cursor');
+ok($sth1->bind_param_inout(1, \my $cursor, 100, {ora_type => ORA_RSET}),
+   'binding cursor for null cursor');
+ok($sth1->execute, 'execute for null cursor');
+is($cursor, undef, 'undef returned for null cursor');
+ok($sth1->execute, 'execute 2 for null cursor');
+is($cursor, undef, 'undef 2 returned for null cursor');
 
 $dbh->disconnect;
 
