@@ -10,6 +10,10 @@ Revision history for DBD::Oracle
   bind_col is called again without attributes. Both of these occur
   when fetchall_arrayref is called with a slice (Martin J. Evans).
 
+  [DOCUMENTATION]
+
+  - Fix a bunch of typos. [GH#5, David Steinbrunner]
+
 1.63_00   2013-05-03
 
   [ENHANCEMENTS]
