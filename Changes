@@ -1,7 +1,6 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
-  - promote 1.63_00 to stable.
 
   [BUG FIXES]
 
@@ -13,6 +12,9 @@ Revision history for DBD::Oracle
   [DOCUMENTATION]
 
   - Fix a bunch of typos. [GH#5, David Steinbrunner]
+
+1.64      2013-05-22
+  - promote 1.63_00 to stable.
 
 1.63_00   2013-05-03
 
