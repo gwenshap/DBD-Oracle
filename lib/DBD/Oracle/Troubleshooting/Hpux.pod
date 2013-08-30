@@ -224,7 +224,7 @@ I use this in my standard build now. (See F<README-files/hpux/Makefile-Lincoln>)
 When asked:
 
     Any additional cc flags? - Answer by prepending: I<+Z> to enable
-    position independant code.
+    position independent code.
 
     For example:
     Any additional cc flags? [-D_HP-UX_SOURCE -Aa] -Ae +Z -z

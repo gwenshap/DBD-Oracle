@@ -161,7 +161,7 @@ else to support this configuration).
 
 	SET ORACLE_SID=xyz123                             <== SID of Production Database
 
-	SET NLS_LANG=.WE8ISO8859P1                        <== Default Language from Database   (preceeding "." Is required)
+	SET NLS_LANG=.WE8ISO8859P1                        <== Default Language from Database   (preceding "." Is required)
 
 	SET PATH=%ORACLE_HOME%\bin;%PATH%                 <== Add 32-bit Oracle Home to beginning of default PATH
 
