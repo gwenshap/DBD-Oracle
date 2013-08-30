@@ -3,7 +3,7 @@ Revision history for DBD::Oracle
 {{$NEXT}}
 
   [DOCUMENTATION]
-  - POD typos (RT#88285, Gregor Herrman).
+  - POD typos (RT#88285, RT#88284, Gregor Herrman).
 
 1.66      2013-08-23
   - promote 1.65_00 to stable.
