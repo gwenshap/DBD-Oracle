@@ -949,6 +949,8 @@ The solution from this page is below;
 
 To work around this problem, complete the following procedure:
 
+=over
+
 =item 1 Log in to your Oracle account: 
 
    su - oracle 
@@ -957,7 +959,7 @@ To work around this problem, complete the following procedure:
 
    $ORACLE_HOME/rdbms/admin/shrept.lst
 
-=itme 3 Add the following line: 
+=item 3 Add the following line: 
    
    rdbms:OCILobLocatorAssign
 
