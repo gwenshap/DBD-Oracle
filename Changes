@@ -2,6 +2,10 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  [BUG FIXES]
+  - Fix RT88135. Add statistics_info support (patch by Steffen Goeldner)
+  - Fix RT89491. Add RULE hint (patch by Steffen Goeldner)
+
   [DOCUMENTATION]
   - POD typos (RT#88285, RT#88284, Gregor Herrman).
   - Grooming of Hpux troubleshooting pod (GH#7, Martin J. Evans, 
