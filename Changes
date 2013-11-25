@@ -356,8 +356,8 @@ Revision history for DBD::Oracle
  [DOCUMENTATION]
  - Mention the release of Oracle Instant Client 64 bit which does not work
     on Lion. (Martin J. Evans)
- - fix DBD::Oracle::GetInfo blurb (patch by Julián Moreno Patiño) [rt74000]
- - fix typos. (patch by Julián Moreno Patiño) [rt73999]
+ - fix DBD::Oracle::GetInfo blurb (patch by JuliÃ¡n Moreno PatiÃ±o) [rt74000]
+ - fix typos. (patch by JuliÃ¡n Moreno PatiÃ±o) [rt73999]
  - add troubleshoot doc and diag for error with bequeather. [rt75263]
 
  [OTHERS]
@@ -372,7 +372,7 @@ Revision history for DBD::Oracle
 
  [ENHANCEMENTS]
   - added SYSASM session mode. [RT651211] (patch from
-  Anthony DeRobertis, reported by Julián Moreno Patiño)
+  Anthony DeRobertis, reported by JuliÃ¡n Moreno PatiÃ±o)
 
  [BUG FIXES]
 
@@ -410,7 +410,7 @@ Changes in DBD-Oracle 1.35_00 (18-11-2011)
  - Added notes to bind_col documenting the fact that setting a TYPE
    does not affect how the column is bound in Oracle, only what
    happens after the column data is retrieved (Martin J. Evans)
- - fix typo (thanks to Julián Moreno Patiño) [RT72038]
+ - fix typo (thanks to JuliÃ¡n Moreno PatiÃ±o) [RT72038]
  - shuffle POD around to improve documentation flow [RT72252]
  - major tidying up of the connect() documentation. (by Gwen Shapira)
  - Moved LONG examples out of POD and into examples/
@@ -549,7 +549,7 @@ Changes in DBD-Oracle 1.29_1
   This release has been prepared specifically for the 'Debian' http://www.debian.org project.  It contains no changes
   to functionality or usage.  The following has been changed
 
-  Fixed some formatting and typos in Pod from Julián Patiño
+  Fixed some formatting and typos in Pod from JuliÃ¡n PatiÃ±o
   The Copyright terms for ora_explain have changed and now read as follows:
     You may distribute under the terms of either the GNU General Public
     License or the Artistic License, as specified in the Perl README file.
@@ -598,7 +598,7 @@ Changes in DBD-Oracle 1.29_1
   Fix for rt.cpan.org Ticket #=21920 Bug with Oracle DBD for Mac OS X Instant Client From boingolover
   Added a few more constants to get rid of magic numbers from John Scoles
   Fix for rt.cpan.org Ticket #=38267 Inserts/Updates to BLOB's via synonyms fails from John Scoles
-  Fix for rt.cpan.org Ticket #=39603 build problem and fix missing functions in oci.def from Zoltán Sebestyén
+  Fix for rt.cpan.org Ticket #=39603 build problem and fix missing functions in oci.def from ZoltÃ¡n SebestyÃ©n
   Fix for rt.cpan.org Ticket #=39374 Makefile.PL: error when reducing echo messages from make from Tippa
   Fix for rt.cpan.org Ticket #=39232 binding large XMLTYPE fails on 64-bit perl from Jeff Klein
   Fix for rt.cpan.org Ticket #=38749 Warning of a NULL column in an aggregate function also added ora_oci_success_warn to display silent OCI warnings from John Scoles
