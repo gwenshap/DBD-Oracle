@@ -1,6 +1,9 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
+  - promote 1.67_00 to stable.
+
+1.67_00   2013-11-05
 
   [BUG FIXES]
   - Fix RT88135. Add statistics_info support (patch by Steffen Goeldner)
