@@ -197,6 +197,10 @@ package DBD::Oracle;
     sub connect {
 	my ($drh, $dbname, $user, $auth, $attr)= @_;
 
+    # Make 'sid=whatever' an alias for 'whatever'.
+    # see  RT91775
+    $dbname =~ s/^sid=([^;]+)$/$1/;
+
 	if ($dbname =~ /;/) {
 	    my ($n,$v);
 	    $dbname =~ s/^\s+//;
