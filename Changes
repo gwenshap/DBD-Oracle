@@ -1,5 +1,13 @@
 Revision history for DBD::Oracle
 
+1.69_02 2014-01-19
+
+    [BUG FIXES]
+
+   - OCI_THREADED setting had been accidentally removed, causing potential
+    crashes when using threads. (RT#92229, Martin J. Evans, reported 
+    by Detlef Lütticke)
+
 1.69_01 2014-01-14
 
   [BUG FIXES]
