@@ -8,6 +8,11 @@ Revision history for DBD::Oracle
     crashes when using threads. (RT#92229, Martin J. Evans, reported 
     by Detlef Lütticke)
 
+  - When using fetch*_hashref the values are decoded but
+    not the keys so if you have unicode column names they were not
+    returned correctly.  (RT#92134, Martin J. Evans, reported by
+    Marcel Montes)
+
 1.69_01 2014-01-14
 
   [BUG FIXES]
