@@ -2,6 +2,11 @@ Revision history for DBD::Oracle
 
 1.69_02 2014-01-19
 
+    [IMPROVEMENTS]
+
+    - The DSN 'dbi:Oracle:sid=foo' is now an alias for 'dbi:Oracle:foo'. 
+        (RT#91775, Yanick Champoux, requested by David Wheeler)
+
     [BUG FIXES]
 
    - OCI_THREADED setting had been accidentally removed, causing potential
@@ -12,6 +17,7 @@ Revision history for DBD::Oracle
     not the keys so if you have unicode column names they were not
     returned correctly.  (RT#92134, Martin J. Evans, reported by
     Marcel Montes)
+
 
 1.69_01 2014-01-14
 
