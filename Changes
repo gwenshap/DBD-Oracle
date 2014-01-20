@@ -7,6 +7,9 @@ Revision history for DBD::Oracle
     - The DSN 'dbi:Oracle:sid=foo' is now an alias for 'dbi:Oracle:foo'. 
         (RT#91775, Yanick Champoux, requested by David Wheeler)
 
+    - Support for ORA_SYSBACKUP, ORA_SYSDG and ORA_SYSKM. (RT#91473, 
+        Kris Lemaire)
+
     [BUG FIXES]
 
    - OCI_THREADED setting had been accidentally removed, causing potential
