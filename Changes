@@ -1,5 +1,8 @@
 Revision history for DBD::Oracle
 
+1.70   2014-02-12
+  - promote 1.69_02 to stable.
+
 1.69_02 2014-01-19
 
     [IMPROVEMENTS]
