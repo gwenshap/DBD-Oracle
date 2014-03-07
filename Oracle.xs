@@ -104,7 +104,7 @@ ora_env_var(name)
 		sv_setpv(sv, p);
 	ST(0) = sv;
 
-#ifdef __CYGWIN32__
+#if defined(__CYGWIN32__) || defined(__CYGWIN64__)
 void
 ora_cygwin_set_env(name, value)
 	char * name
