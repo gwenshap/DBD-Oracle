@@ -1,5 +1,9 @@
 Revision history for DBD::Oracle
 
+{{$NEXT}}
+    - CHOOSE hint is deprecated. (RT91217, reported by Andy Bucksch, 
+        fix by Martin J Evans)
+
 1.70   2014-02-12
   - promote 1.69_02 to stable.
 
