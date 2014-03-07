@@ -1,6 +1,7 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
+    - Recognizes __CYGWIN64__. (RT88709, reported by Witold Petriczek)
     - CHOOSE hint is deprecated. (RT91217, reported by Andy Bucksch, 
         fix by Martin J Evans)
 
