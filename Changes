@@ -7,6 +7,7 @@ Revision history for DBD::Oracle
     - Set UTF8 flag per-connection. (RT88185, reported by Heinrich Mislik, patch by Martin
       J. Evans)
     - Add a CONTRIBUTING.mkd file. (GH#2)
+    - Add SELinux trick. (RT#87003, patch submitted by Mike Doherty)
 
 1.70   2014-02-12
   - promote 1.69_02 to stable.

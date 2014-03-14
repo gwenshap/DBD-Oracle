@@ -1,6 +1,23 @@
 #PODNAME: DBD::Oracle::Troubleshooting::Linux
 #ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle on Linux
 
+=head1 SELinux and httpd
+
+If SELinux is running, it can prevents DBD::Oracle running in 
+an Apache process to load shared libraries it requires (libclntsh.so 
+or libnnz12.so). A typical symptom is a line like the following in
+the Apache error logs:
+
+    [Tue Apr 17 13:22:45 2012] [error] Can't load '.../DBD/Oracle/Oracle.so' for
+    module DBD::Oracle: libnnz11.so: cannot enable executable stack as shared
+    object requires: Permission denied at .../DynaLoader.pm line 190.\n at
+    .../startup.pl line 17\nCompilation failed in require at ...
+
+The fix:
+
+    /usr/sbin/setsebool -P httpd_execmem
+
+
 =head1 Installing with Instantclient .rpm files.
 
 Nothing special with this you just have to set up you permissions as follows;
