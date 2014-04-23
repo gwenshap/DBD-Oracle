@@ -1,6 +1,9 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
+  - Tweak fix for RT-88185. (GH#14, Martin J. Evans)
+
+1.73_00   2014-04-23
   - Reverts current fix for RT-88185, as it causes breakage. (GH#14)
 
 1.72      2014-04-14

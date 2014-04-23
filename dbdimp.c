@@ -4346,6 +4346,7 @@ dbd_st_FETCH_attrib(SV *sth, imp_sth_t *imp_sth, SV *keysv)
 	if (kl==4 && strEQ(key, "NAME")) {
 		AV *av = newAV();
         SV *x;
+        D_imp_dbh_from_sth;
 
 		retsv = newRV(sv_2mortal((SV*)av));
 		while(--i >= 0) {
