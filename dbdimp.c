@@ -44,6 +44,8 @@ int ora_ncs_buff_mtpl = 4; /* a mulitplyer for ncs clob buffers */
 #define ARRAY_BIND_MIXED  (ARRAY_BIND_NATIVE|ARRAY_BIND_UTF8)
 
 
+ub2 charsetid		= 0;
+ub2 ncharsetid		= 0;
 ub2 us7ascii_csid	= 1;
 ub2 utf8_csid		= 871;
 ub2 al32utf8_csid	= 873;
@@ -546,14 +548,14 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		{
 			size_t rsize = 0;
 			/* Get CLIENT char and nchar charset id values */
-			OCINlsEnvironmentVariableGet_log_stat(imp_dbh, &imp_dbh->charsetid,(size_t) 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
+			OCINlsEnvironmentVariableGet_log_stat(imp_dbh, &charsetid,(size_t) 0, OCI_NLS_CHARSET_ID, 0, &rsize ,status );
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, NULL, status,
 					"OCINlsEnvironmentVariableGet(OCI_NLS_CHARSET_ID) Check NLS settings etc.");
 				return 0;
 			}
 
-			OCINlsEnvironmentVariableGet_log_stat(imp_dbh, &imp_dbh->ncharsetid,(size_t)  0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
+			OCINlsEnvironmentVariableGet_log_stat(imp_dbh, &ncharsetid,(size_t)  0, OCI_NLS_NCHARSET_ID, 0, &rsize ,status );
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, NULL, status,
 					"OCINlsEnvironmentVariableGet(OCI_NLS_NCHARSET_ID) Check NLS settings etc.");
@@ -581,7 +583,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			}*/
 
 			OCIEnvNlsCreate_log_stat(imp_dbh, &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
-				imp_dbh->charsetid, imp_dbh->ncharsetid, status );
+				charsetid, ncharsetid, status );
 
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, NULL, status,
@@ -618,11 +620,11 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 			}
 
 			if (new_charsetid || new_ncharsetid) { /* reset the ENV with the new charset  from above*/
-				if (new_charsetid) imp_dbh->charsetid = new_charsetid;
-				if (new_ncharsetid) imp_dbh->ncharsetid = new_ncharsetid;
+				if (new_charsetid) charsetid = new_charsetid;
+				if (new_ncharsetid) ncharsetid = new_ncharsetid;
 				imp_dbh->envhp = NULL;
 				OCIEnvNlsCreate_log_stat(imp_dbh, &imp_dbh->envhp, init_mode, 0, NULL, NULL, NULL, 0, 0,
-							imp_dbh->charsetid, imp_dbh->ncharsetid, status );
+							charsetid, ncharsetid, status );
 				if (status != OCI_SUCCESS) {
 					oci_error(dbh, NULL, status,
 						"OCIEnvNlsCreate. Check ORACLE_HOME (Linux) env var  or PATH (Windows) and or NLS settings, permissions, etc");
@@ -651,7 +653,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 	}
 
 	OCIHandleAlloc_ok(imp_dbh, imp_dbh->envhp, &imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
-	OCIAttrGet_log_stat(imp_dbh, imp_dbh->envhp, OCI_HTYPE_ENV, &imp_dbh->charsetid, (ub4)0 ,
+	OCIAttrGet_log_stat(imp_dbh, imp_dbh->envhp, OCI_HTYPE_ENV, &charsetid, (ub4)0 ,
 			OCI_ATTR_ENV_CHARSET_ID, imp_dbh->errhp, status);
 
 	if (status != OCI_SUCCESS) {
@@ -659,7 +661,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 		return 0;
 	}
 
-	OCIAttrGet_log_stat(imp_dbh, imp_dbh->envhp, OCI_HTYPE_ENV, &imp_dbh->ncharsetid, (ub4)0 ,
+	OCIAttrGet_log_stat(imp_dbh, imp_dbh->envhp, OCI_HTYPE_ENV, &ncharsetid, (ub4)0 ,
 			OCI_ATTR_ENV_NCHARSET_ID, imp_dbh->errhp, status);
 
 	if (status != OCI_SUCCESS) {
@@ -676,13 +678,13 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
     if (DBIc_DBISTATE(imp_dbh)->debug >= 3 || dbd_verbose >= 3 ) {
 		oratext  charsetname[OCI_NLS_MAXBUFSZ];
 		oratext  ncharsetname[OCI_NLS_MAXBUFSZ];
-		OCINlsCharSetIdToName(imp_dbh->envhp,charsetname, sizeof(charsetname),imp_dbh->charsetid );
-		OCINlsCharSetIdToName(imp_dbh->envhp,ncharsetname, sizeof(ncharsetname),imp_dbh->ncharsetid );
+		OCINlsCharSetIdToName(imp_dbh->envhp,charsetname, sizeof(charsetname),charsetid );
+		OCINlsCharSetIdToName(imp_dbh->envhp,ncharsetname, sizeof(ncharsetname),ncharsetid );
 		PerlIO_printf(
             DBIc_LOGPIO(imp_dbh),
             "	   charset id=%d, name=%s, ncharset id=%d, name=%s"
             " (csid: utf8=%d al32utf8=%d)\n",
-            imp_dbh->charsetid,charsetname, imp_dbh->ncharsetid,ncharsetname, utf8_csid, al32utf8_csid);
+            charsetid,charsetname, ncharsetid,ncharsetname, utf8_csid, al32utf8_csid);
 #ifdef ORA_OCI_112
 		if (imp_dbh->using_drcp)
 			PerlIO_printf(DBIc_LOGPIO(imp_dbh)," Using DRCP Connection\n ");
@@ -1649,7 +1651,7 @@ int
 dbd_rebind_ph_varchar2_table(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
 	dTHX;
-    D_imp_dbh_from_sth;
+	/*D_imp_dbh_from_sth ;*/
 	sword status;
 	int trace_level = DBIc_DBISTATE(imp_sth)->debug;
 	AV *arr;
@@ -2931,7 +2933,6 @@ static int
 dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 {
 	dTHX;
-    D_imp_dbh_from_sth;
 	/*ub2 *alen_ptr = NULL;*/
 	sword status;
 	int done = 0;
@@ -3301,7 +3302,6 @@ void
 dbd_phs_sv_complete(imp_sth_t *imp_sth, phs_t *phs, SV *sv, I32 debug)
 {
 	dTHX;
-    D_imp_dbh_from_sth;
 	char *note = "";
 	/* XXX doesn't check arcode for error, caller is expected to */
 
@@ -3595,7 +3595,6 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 	int parma_index;
 	{
 	dTHX;
-    D_imp_dbh_from_sth;
 	sword status;
 	ub1 csform;
 	ub2 csid;
@@ -4018,7 +4017,6 @@ int
 dbd_st_blob_read(SV *sth, imp_sth_t *imp_sth, int field, long offset, long len, SV *destrv, long destoffset)
 {
 	dTHX;
-    D_imp_dbh_from_sth;
 	ub4 retl = 0;
 	SV *bufsv;
 	imp_fbh_t *fbh = &imp_sth->fbh[field];
@@ -4028,7 +4026,7 @@ dbd_st_blob_read(SV *sth, imp_sth_t *imp_sth, int field, long offset, long len, 
 	sv_setpvn(bufsv,"",0);	/* ensure it's writable string	*/
 
 #ifdef UTF8_SUPPORT
-	if (ftype == 112 && CS_IS_UTF8(imp_dbh->ncharsetid) ) {
+	if (ftype == 112 && CS_IS_UTF8(ncharsetid) ) {
 	  return ora_blob_read_mb_piece(sth, imp_sth, fbh, bufsv,
 					offset, len, destoffset);
 	}

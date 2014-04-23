@@ -74,8 +74,6 @@ struct imp_dbh_st {
 	int max_nested_cursors;	 /* limit on cached nested cursors per stmt */
 	int array_chunk_size;  /* the max size for an array bind */
     ub4 server_version; /* version of Oracle server */
-    ub2 charsetid;
-    ub2 ncharsetid;
 };
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
@@ -293,6 +291,8 @@ extern int dbd_verbose;
 extern int oci_warn;
 extern int ora_objects;
 extern int ora_ncs_buff_mtpl;
+extern ub2 charsetid;
+extern ub2 ncharsetid;
 extern ub2 us7ascii_csid;
 extern ub2 utf8_csid;
 extern ub2 al32utf8_csid;
@@ -308,7 +308,7 @@ extern ub2 al16utf16_csid;
 
 
 #define CSFORM_IMPLIED_CSID(csform) \
-	((csform==SQLCS_NCHAR) ? imp_dbh->ncharsetid : imp_dbh->charsetid)
+	((csform==SQLCS_NCHAR) ? ncharsetid : charsetid)
 
 #define CSFORM_IMPLIES_UTF8(csform) \
 	CS_IS_UTF8( CSFORM_IMPLIED_CSID( csform ) )

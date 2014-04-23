@@ -815,7 +815,7 @@ oci_fetch_options(ub4 fetchtype)
 
 
 static sb4
-oci_error_get(imp_sth_t *imp_sth,
+oci_error_get(imp_xxh_t *imp_xxh,
               OCIError *errhp, sword status, char *what, SV *errstr, int debug)
 {
 	dTHX;
@@ -838,12 +838,12 @@ oci_error_get(imp_sth_t *imp_sth,
 	}
 
 	while( ++recno
-           && OCIErrorGet_log_stat(imp_sth, errhp, recno, (text*)NULL, &eg_errcode, errbuf,
+           && OCIErrorGet_log_stat(imp_xxh, errhp, recno, (text*)NULL, &eg_errcode, errbuf,
 		(ub4)sizeof(errbuf), OCI_HTYPE_ERROR, eg_status) != OCI_NO_DATA
 		&& eg_status != OCI_INVALID_HANDLE
 		&& recno < 100) {
 		if (debug >= 4 || recno>1/*XXX temp*/)
-			PerlIO_printf(DBIc_LOGPIO(imp_sth),
+			PerlIO_printf(DBIc_LOGPIO(imp_xxh),
                           "	OCIErrorGet after %s (er%ld:%s): %d, %ld: %s\n",
 			what ? what : "<NULL>", (long)recno,
 			(eg_status==OCI_SUCCESS) ? "ok" : oci_status_name(eg_status),
@@ -870,18 +870,16 @@ oci_error_get(imp_sth_t *imp_sth,
 
 
 int
-oci_error_err(SV *sth, OCIError *errhp, sword status, char *what, sb4 force_err)
+oci_error_err(SV *h, OCIError *errhp, sword status, char *what, sb4 force_err)
 {
 
 	dTHX;
-    D_imp_sth(sth);
-    D_imp_dbh_from_sth;
-
+	D_imp_xxh(h);
 	sb4 errcode;
 	SV *errstr_sv = sv_newmortal();
 	SV *errcode_sv = sv_newmortal();
-	errcode = oci_error_get(imp_sth, errhp, status, what, errstr_sv,
-                            DBIc_DBISTATE(imp_sth)->debug);
+	errcode = oci_error_get(imp_xxh, errhp, status, what, errstr_sv,
+                            DBIc_DBISTATE(imp_xxh)->debug);
 	if (CSFORM_IMPLIES_UTF8(SQLCS_IMPLICIT)) {
 #ifdef sv_utf8_decode
 	sv_utf8_decode(errstr_sv);
@@ -900,7 +898,7 @@ oci_error_err(SV *sth, OCIError *errhp, sword status, char *what, sb4 force_err)
 		errcode = (status != 0) ? status : -10000;
 
 	sv_setiv(errcode_sv, errcode);
-	DBIh_SET_ERR_SV(sth, (imp_xxh_t *)imp_sth, errcode_sv, errstr_sv, &PL_sv_undef, &PL_sv_undef);
+	DBIh_SET_ERR_SV(h, imp_xxh, errcode_sv, errstr_sv, &PL_sv_undef, &PL_sv_undef);
 	return 0; /* always returns 0 */
 
 }
@@ -1747,7 +1745,6 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
   SV *dest_sv, long offset, ub4 len, long destoffset)
 {
 	dTHX;
-    D_imp_dbh_from_sth;
 	ub4 loblen = 0;
 	ub4 buflen;
 	ub4 amtp = 0;
@@ -1864,7 +1861,6 @@ ora_blob_read_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *dest_sv,
 			long offset, UV len, long destoffset)
 {
 	dTHX;
-    D_imp_dbh_from_sth;
 	ub4 loblen	= 0;
 	ub4 buflen;
 	ub4 amtp 	= 0;
@@ -2003,9 +1999,7 @@ static int
 fetch_lob(SV *sth, imp_sth_t *imp_sth, OCILobLocator* lobloc, int ftype, SV *dest_sv, char *name)
 {
 	dTHX;
-    D_imp_dbh_from_sth;
-
-    ub4 loblen	= 0;
+	ub4 loblen	= 0;
 	ub4 buflen	= 0;
 	ub4 amtp 	= 0;
 	sword status;
@@ -2728,7 +2722,6 @@ fetch_clbk_lob(SV *sth, imp_fbh_t *fbh,SV *dest_sv){
 
 	dTHX;
 	D_imp_sth(sth);
-    D_imp_dbh_from_sth;
 	fb_ary_t *fb_ary = fbh->fb_ary;
 
 	ub4 actual_bufl=imp_sth->piece_size*(fb_ary->piece_count)+fb_ary->bufl;
@@ -2772,7 +2765,6 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
 {
 	dTHX;
 	D_imp_sth(sth);
-    D_imp_dbh_from_sth;
 	fb_ary_t *fb_ary = fbh->fb_ary;
 	ub4 buflen		 = fb_ary->bufl;
 	ub4 actual_bufl	 = 0;
@@ -4412,7 +4404,6 @@ static int
 init_lob_refetch(SV *sth, imp_sth_t *imp_sth)
 {
 	dTHX;
-    D_imp_dbh_from_sth;
 	SV *sv;
 	SV *sql_select;
 	HV *lob_cols_hv = NULL;
