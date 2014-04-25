@@ -1964,11 +1964,9 @@ sub check_ldlibpthname {
 
     my $warn_name = $ldlibpthname;
 
-    return 1 if grep { s:[\\/]$::; $_ eq $libdir } @dirs;
-
     # It is also ok if we are using symbolic links
-    return 1 if grep { s:[\\/]$::; $_ eq $libdir }
-        map { Cwd::abs_path ($_) } @dirs;
+    return 1 if grep { s:[\\/]$::; $_ eq $libdir } 
+                map  { $_, Cwd::abs_path($_) } @dirs;
 
     # on solaris, it can be under LD_LIBRARY_PATH_(32|64)
     if ( $^O eq 'solaris' ) {
