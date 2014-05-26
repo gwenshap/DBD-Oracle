@@ -113,7 +113,7 @@ forking).
 
 It looks like this was fixed in 0.012 of Module::Runtime.
 
-=head2 bin_param_inout swapping return values
+=head2 bind_param_inout swapping return values
 
 See RT 71819 (https://rt.cpan.org/Ticket/Display.html?id=71819)
 
