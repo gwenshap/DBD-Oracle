@@ -1,29 +1,23 @@
-#!perl -w
-# vim:ts=8:sw=4
+use strict;
 
 use DBI;
 use DBD::Oracle qw(:ora_types SQLCS_NCHAR SQLCS_IMPLICIT ORA_OCI);
-use strict;
 use Test::More;
-
-*BAILOUT = sub { die "@_\n" } unless defined &BAILOUT;
 
 unshift @INC ,'t';
 require 'nchar_test_lib.pl';
 
-my @test_sets;
-push @test_sets, [ "LONG",	0,		0 ];
-push @test_sets, [ "LONG RAW",	ORA_LONGRAW,	0 ];
+*BAILOUT = sub { die "@_\n" } unless defined &BAILOUT;
+
+my @test_sets = (
+    [ "LONG",	0,		0 ],
+    [ "LONG RAW",	ORA_LONGRAW,	0 ],
+    [ "CLOB",	ORA_CLOB,	0 ],
+    [ "BLOB",	ORA_BLOB,	0 ],
+);
 push @test_sets, [ "NCLOB",	ORA_CLOB,	0 ] unless ORA_OCI() < 9.0 or $ENV{DBD_ALL_TESTS};
-push @test_sets, [ "CLOB",	ORA_CLOB,	0 ] ;
-push @test_sets, [ "BLOB",	ORA_BLOB,	0 ] ;
 
-my $tests_per_set = 96;
-my $tests = @test_sets * $tests_per_set-1; 
-#very odd little thing that took a while to figure out.
-#Seems I now have 479 tests which is 9 more so 96 test then -1 to round it off
 
-$| = 1;
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 my $table = table();
 my $use_utf8_data;	# set per test_set below
@@ -40,40 +34,34 @@ my $sz = 8;
 
 my($p1, $p2, $tmp, @tmp);
 
-#my $dbh = db_handle();
+$dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
 
+my $dbh = DBI->connect( oracle_test_dsn(), $dbuser, '', {
+    PrintError => 0,
+}) or plan skip_all => "Unable to connect to Oracle";
 
- $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-  my $dsn = oracle_test_dsn();  
- my  $dbh = DBI->connect($dsn, $dbuser, '',{
-                               PrintError => 0,
-                       });
-
-if ($dbh) {
-    plan tests => $tests;
-} else {
-    plan skip_all => "Unable to connect to Oracle";
-}
+plan tests => scalar @test_sets;
+my $tests_per_set = 97;
 
 my $ora_server_version = $dbh->func("ora_server_version");
-note("ora_server_version: @$ora_server_version\n");
-show_db_charsets($dbh) if $dbh;
+
+show_db_charsets($dbh);
 
 foreach (@test_sets) {
     my ($type_name, $type_num, $test_no_type) = @$_;
-    $use_utf8_data = use_utf8_data($dbh,$type_name);
-    note( qq(
-    =========================================================================
-    Running long test for $type_name ($type_num) use_utf8_data=$use_utf8_data
-));
-    run_long_tests($dbh, $type_name, $type_num);
-    run_long_tests($dbh, $type_name, 0) if $test_no_type;
+    subtest $type_name => sub {
+        plan tests => $tests_per_set;
+	$use_utf8_data = use_utf8_data($dbh,$type_name);
+	note( qq(
+	=========================================================================
+	Running long test for $type_name ($type_num) use_utf8_data=$use_utf8_data
+    ));
+	run_long_tests($dbh, $type_name, $type_num);
+	run_long_tests($dbh, $type_name, 0) if $test_no_type;
+    }
 }
 
-exit 0;
-
-# end.
-
+### END OF TESTS, ONLY FUNCTIONS BELOW ###
 
 END {
     drop_table( $dbh ) if not $ENV{DBD_SKIP_TABLE_DROP};
@@ -81,15 +69,16 @@ END {
 }
 
 
-sub use_utf8_data
-{
+sub use_utf8_data {
     my ( $dbh, $type_name ) = @_;
-    if (   ($type_name =~ m/^CLOB/i  and db_ochar_is_utf($dbh) && client_ochar_is_utf8())
-        or ($type_name =~ m/^NCLOB/i and db_nchar_is_utf($dbh) && client_nchar_is_utf8()) ) {
-	return 1 unless @skip_unicode;
-	warn "Skipping Unicode data tests: @skip_unicode\n" if !$warnings{use_utf8_data}++;
-    }
-    return 0;
+
+    return 0 
+        unless ($type_name =~ m/^CLOB/i  and db_ochar_is_utf($dbh) && client_ochar_is_utf8())
+	    or ($type_name =~ m/^NCLOB/i and db_nchar_is_utf($dbh) && client_nchar_is_utf8());
+
+    return 1 unless @skip_unicode;
+
+    warn "Skipping Unicode data tests: @skip_unicode\n" if !$warnings{use_utf8_data}++;
 }
 
 sub run_long_tests
@@ -129,31 +118,24 @@ sub run_long_tests
         # special hack for long_data[0] since RAW types need pairs of HEX
         $long_data[0] = "00FF" x (length($long_data[0]) / 2) if $type_name =~ /RAW/i;
 
-        my $len_data0 = length($long_data[0]);
-        my $len_data1 = length($long_data[1]);
-        my $len_data2 = length($long_data[2]);
+	my @len_data = map { length($_) } @long_data;
 
         # warn if some of the key aspects of the data sizing are tampered with
-        warn "long_data[0] is > 64KB: $len_data0\n"
-                if $len_data0 > 65535;
-        warn "long_data[1] is < 64KB: $len_data1\n"
-                if $len_data1 < 65535;
-        warn "long_data[2] is not smaller than $long_data[1] ($len_data2 > $len_data1)\n"
-                if $len_data2 >= $len_data1;
+        warn "long_data[0] is > 64KB: $len_data[0]\n"
+                if $len_data[0] > 65535;
+        warn "long_data[1] is < 64KB: $len_data[1]\n"
+                if $len_data[1] < 65535;
+        warn "long_data[2] is not smaller than $long_data[1] ($len_data[2] > $len_data[1])\n"
+                if $len_data[2] >= $len_data[1];
 
         my $tdata = {
             cols => long_test_cols( $type_name ),
             rows => []
         };
 
-
         skip "Unable to create test table for '$type_name' data ($DBI::err)." ,$tests_per_set
             if (!create_table($dbh, $tdata, 1));
             # typically OCI 8 client talking to Oracle 7 database
-
-        note("long_data[0] length $len_data0\n");
-        note("long_data[1] length $len_data1\n");
-        note("long_data[2] length $len_data2\n");
 
         note(" --- insert some $type_name data (ora_type $type_num)\n");
         my $sqlstr = "insert into $table values (?, ?, SYSDATE)" ;
@@ -194,7 +176,7 @@ sub run_long_tests
                     ." due to an Oracle bug and not a DBD::Oracle problem.\n" , 5 ;
             }
             cmp_ok(@$tmp ,'==' ,4 ,'four rows' );
-            #print "tmp->[0][1] = " .$tmp->[0][1] ."\n" ;
+
 	    for my $i (0..2) {
 		my $v = $tmp->[$i][1];
 		cmp_ok_byte_nice($v, substr($long_data[$i],0,$out_len), "truncated to LongReadLen $out_len");
@@ -208,35 +190,37 @@ sub run_long_tests
 			"$type_name UTF8 setting");
 		}
 	    }
-            # use Data::Dumper; print Dumper($tmp->[3]);
             ok(!defined $tmp->[3][1], "last row undefined"); # NULL # known bug in DBD::Oracle <= 1.13
         }
 
         note(" --- fetch $type_name data back again -- truncated - LongTruncOk == 0\n");
-        $dbh->{LongReadLen} = $len_data1 - 10; # so $long_data[0] fits but long_data[1] doesn't
-        $dbh->{LongReadLen} = $dbh->{LongReadLen} / 2 if $type_name =~ /RAW/i;
-        my $LongReadLen = $dbh->{LongReadLen};
+
+        $dbh->{LongReadLen} = $len_data[1] - 10; # so $long_data[0] fits but long_data[1] doesn't
+        $dbh->{LongReadLen} /= 2 if $type_name =~ /RAW/i;
+
         $dbh->{LongTruncOk} = 0;
-        note("LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n");
+
+        note "LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n";
 
         $sqlstr = "select * from $table order by idx";
-        ok($sth = $dbh->prepare($sqlstr), "prepare $sqlstr" );
-        ok($sth->execute, "execute $sqlstr" );
-        ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
-        ok($tmp->[1] eq $long_data[0], "length tmp->[1] ".length($tmp->[1]) );
+
+        ok $sth = $dbh->prepare($sqlstr), "prepare $sqlstr";
+        ok $sth->execute, "execute $sqlstr";
+        ok $tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr";
+        ok $tmp->[1] eq $long_data[0], "length tmp->[1] ".length($tmp->[1]);
 
         {
             local $sth->{PrintError} = 0;
             ok(!defined $sth->fetchrow_arrayref,
                     "truncation error not triggered "
-                    ."(LongReadLen $LongReadLen, data ".length($tmp->[1]||0).")");
+                    ."(LongReadLen $dbh->{LongReadLen}, data ".length($tmp->[1]||0).")");
             $tmp = $sth->err || 0;
             ok( ($tmp == 1406 || $tmp == 24345) ,"tmp==1406 || tmp==24345 tmp actually=$tmp" );
         }
 	$sth->finish;
 
         note(" --- fetch $type_name data back again -- complete - LongTruncOk == 0\n");
-        $dbh->{LongReadLen} = $len_data1 +1000;
+        $dbh->{LongReadLen} = $len_data[1] +1000;
         $dbh->{LongTruncOk} = 0;
         note("LongReadLen $dbh->{LongReadLen}, LongTruncOk $dbh->{LongTruncOk}\n");
 
@@ -245,16 +229,17 @@ sub run_long_tests
         ok($sth->execute, "execute $sqlstr" );
 
 	for my $i (0..2) {
-	    ok($tmp = $sth->fetchrow_arrayref, "fetchrow_arrayref $sqlstr" );
-	    ok($tmp->[1] eq $long_data[$i],
-                cdif($tmp->[1],$long_data[$i], "Len ".length($tmp->[1])) );
+	    my $result = $sth->fetchrow_arrayref;
+	    ok $result, "fetchrow_arrayref $sqlstr";
+	    is $result->[1] => $long_data[$i],
+                cdif($result->[1],$long_data[$i], "Len ".length($result->[1])) ;
 	}
 	$sth->finish;
 
 
         SKIP: {
-            skip( "blob_read tests for LONGs - not currently supported", 15 )
-                if ($type_name =~ /LONG/i) ;
+            skip "blob_read tests for LONGs - not currently supported", 15 
+                if $type_name =~ /LONG/i;
 
             #$dbh->trace(4);
             note(" --- fetch $type_name data back again -- via blob_read\n\n");
@@ -290,6 +275,7 @@ sub run_long_tests
 	    cmp_ok_byte_nice($p1, $long_data[2], "3rd row via blob_read_all");
 
 	    note("result is ".(utf8::is_utf8($p1) ? "UTF8" : "non-UTF8")."\n");
+	    
 	    if ($be_utf8) {
 	        ok( utf8::is_utf8($p1), "result should be utf8");
 	    }
@@ -300,7 +286,7 @@ sub run_long_tests
 
 
         SKIP: {
-            skip( "ora_auto_lob tests for $type_name" ."s - not supported", 7+(13*3) )
+            skip( "ora_auto_lob tests for $type_name" ."s - not supported", 49 )
                 if not ( $type_name =~ /LOB/i );
 
             note(" --- testing ora_auto_lob to access $type_name LobLocator\n\n");
@@ -311,25 +297,29 @@ sub run_long_tests
                     FOR UPDATE -- needed so lob locator is writable
                 };
             my $ll_sth = $dbh->prepare($sqlstr, { ora_auto_lob => 0 } );  # 0: get lob locator instead of lob contents
-            ok($ll_sth ,"prepare $sqlstr" );
 
-            ok($ll_sth->execute ,"execute $sqlstr" );
+            ok $ll_sth ,"prepare $sqlstr";
+
+            ok $ll_sth->execute ,"execute $sqlstr";
+
             while (my ($lob_locator, $idx) = $ll_sth->fetchrow_array) {
                 note("$idx: ".DBI::neat($lob_locator)."\n");
                 last if !defined($lob_locator) && $idx == 43;
 
-                ok($lob_locator, '$lob_locator is true' );
-                is(ref $lob_locator , 'OCILobLocatorPtr', '$lob_locator is a OCILobLocatorPtr' );
-                ok( (ref $lob_locator and $$lob_locator), '$lob_locator deref ptr is true' ) ;
+                ok $lob_locator, '$lob_locator is true';
+                is ref $lob_locator => 'OCILobLocatorPtr', '$lob_locator is a OCILobLocatorPtr'; 
+                ok( (ref $lob_locator and $$lob_locator), '$lob_locator deref ptr is true' );
                 
                 # check ora_lob_chunk_size:
 		my $chunk_size = $dbh->func($lob_locator, 'ora_lob_chunk_size');
-		ok(!$DBI::err, "DBI::errstr");
+		ok !$DBI::err, "DBI::errstr";
 		
                 my $data = sprintf $data_fmt, $idx; #create a little data
+
                 note("length of data to be written at offset 1: " .length($data) ."\n" );
                 ok($dbh->func($lob_locator, 1, $data, 'ora_lob_write') ,"ora_lob_write" );
             }
+
 	    is($ll_sth->rows, 4);
 
             note(" --- round again to check contents after $type_name write updates...\n");
