@@ -1,6 +1,10 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
+  - Change mentions of READMEs in Makefile.PL to troubleshooting guides.
+        (GH#17, reported by Ken Williams)
+
+1.74      2014-04-24
   - Promote to stable.
 
 1.73_01   2014-04-23
