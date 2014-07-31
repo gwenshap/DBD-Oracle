@@ -1073,6 +1073,9 @@ SQL
             my @version = $banner =~ /(?:^|\s)(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)(?:\s|$)/;
             $dbh->{ora_server_version} = \@version if @version;
         }
+
+        # TODO looks like a bug that we don't return
+        # $dbh->{ora_server_version} here
     }
 
     sub ora_nls_parameters {
