@@ -40,7 +40,6 @@ my $dbh = DBI->connect( oracle_test_dsn(), $dbuser, '', {
     PrintError => 0,
 }) or plan skip_all => "Unable to connect to Oracle";
 
-plan tests => scalar @test_sets;
 my $tests_per_set = 97;
 
 my $ora_server_version = $dbh->func("ora_server_version");
@@ -60,6 +59,8 @@ foreach (@test_sets) {
 	run_long_tests($dbh, $type_name, 0) if $test_no_type;
     }
 }
+
+done_testing();
 
 ### END OF TESTS, ONLY FUNCTIONS BELOW ###
 
