@@ -4,6 +4,9 @@ Revision history for DBD::Oracle
   - Change mentions of READMEs in Makefile.PL to troubleshooting guides.
         (GH#17, reported by Ken Williams)
 
+  - Fix git issues 15 and 21 (the same problem). Previous change for
+    RT91698 broke other things in output parameters.
+
 1.74      2014-04-24
   - Promote to stable.
 

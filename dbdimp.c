@@ -3287,9 +3287,6 @@ dbd_bind_ph(SV *sth, imp_sth_t *imp_sth, SV *ph_namesv, SV *newvalue, IV sql_typ
 
             phs->sv = SvREFCNT_inc(newvalue);	/* point to live var	*/
         }
-        /* Add space for NUL - do it now rather than in rebind as it cause problems
-           in rebind where maxlen continually grows. */
-        phs->maxlen = phs->maxlen + 1;
 	}
 
 	return dbd_rebind_ph(sth, imp_sth, phs);
