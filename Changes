@@ -1,11 +1,24 @@
 Revision history for DBD::Oracle
 
 {{$NEXT}}
-  - Change mentions of READMEs in Makefile.PL to troubleshooting guides.
-        (GH#17, reported by Ken Williams)
 
-  - Fix git issues 15 and 21 (the same problem). Previous change for
-    RT91698 broke other things in output parameters.
+1.75_2    2014-11-19
+
+  [ENHANCEMENT]
+
+  Try and set -l when the build would have failed (H.Merijn Brand)
+
+1.75_1    2014-11-17
+
+  [DOCUMENTATION]
+
+  Change mentions of READMEs in Makefile.PL to troubleshooting guides.
+  (GH#17, reported by Ken Williams)
+
+  [BUG FIXES]
+
+  Fix GH#15 and GH#21 (the same problem). Previous change for
+  RT91698 broke other things in output parameters.
 
 1.74      2014-04-24
   - Promote to stable.
@@ -21,7 +34,7 @@ Revision history for DBD::Oracle
 
 1.71_00   2014-03-31
     - Recognizes __CYGWIN64__. (RT88709, reported by Witold Petriczek)
-    - CHOOSE hint is deprecated. (RT91217, reported by Andy Bucksch, 
+    - CHOOSE hint is deprecated. (RT91217, reported by Andy Bucksch,
         fix by Martin J Evans)
     - Set UTF8 flag per-connection. (RT88185, reported by Heinrich Mislik, patch by Martin
       J. Evans)
@@ -35,16 +48,16 @@ Revision history for DBD::Oracle
 
     [IMPROVEMENTS]
 
-    - The DSN 'dbi:Oracle:sid=foo' is now an alias for 'dbi:Oracle:foo'. 
+    - The DSN 'dbi:Oracle:sid=foo' is now an alias for 'dbi:Oracle:foo'.
         (RT#91775, Yanick Champoux, requested by David Wheeler)
 
-    - Support for ORA_SYSBACKUP, ORA_SYSDG and ORA_SYSKM. (RT#91473, 
+    - Support for ORA_SYSBACKUP, ORA_SYSDG and ORA_SYSKM. (RT#91473,
         Kris Lemaire)
 
     [BUG FIXES]
 
    - OCI_THREADED setting had been accidentally removed, causing potential
-    crashes when using threads. (RT#92229, Martin J. Evans, reported 
+    crashes when using threads. (RT#92229, Martin J. Evans, reported
     by Detlef Lütticke)
 
   - When using fetch*_hashref the values are decoded but
