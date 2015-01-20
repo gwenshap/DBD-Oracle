@@ -63,7 +63,7 @@ my %opts = (
        resources => {
            bugtracker => {
                mailto => 'bug-dbd-oracle at rt.cpan.org',
-               web => 
+               web =>
                 'http://rt.cpan.org/Public/Dist/Display.html?Name=DBD-Oracle',
            },
            homepage => 'http://search.cpan.org/dist/DBD-Oracle',
@@ -222,8 +222,8 @@ Configuring DBD::Oracle for perl $] on $^O ($Config{archname})
 If you encounter any problem, a collection of troubleshooting
 guides are available under lib/DBD/Oracle/Troubleshooting.
 'DBD::Oracle::Troubleshooting' is the general troubleshooting
-guide, while platform-specific troubleshooting hints 
-live in their labelled sub-document (e.g., Win32 
+guide, while platform-specific troubleshooting hints
+live in their labelled sub-document (e.g., Win32
 hints are gathered in 'lib/DBD/Oracle/Troubleshooting/Win32.pod').
 
 END_BLURB
@@ -1161,8 +1161,8 @@ sub find_mkfile {
 	'rdbms/demo/oracle.mk',
 	'rdbms/demo/demo_rdbms.mk',
 	'rdbms/demo/demo_rdbms64.mk',
-	'rdbms/lib/ins_rdbms.mk' #Oracle 11 full client
-
+	'rdbms/lib/ins_rdbms.mk', #Oracle 11 full client
+    'sdk/demo/demo.mk'        # git issue 20 - path on mac os
     );
     my @mk_oci = perl_is_64bit() ? @mk_oci64 : @mk_oci32;
 
@@ -1521,7 +1521,7 @@ sub find_bin{
       {
         # let's try harder
         # see rt#84530 for why we don't go straight for it
-        use filetest 'access'; 
+        use filetest 'access';
         return "$_/$bin" if -x "$_/$bin";
       }
     }
@@ -1971,17 +1971,17 @@ sub check_ldlibpthname {
     my $warn_name = $ldlibpthname;
 
     # It is also ok if we are using symbolic links
-    return 1 if grep { s:[\\/]$::; $_ eq $libdir } 
+    return 1 if grep { s:[\\/]$::; $_ eq $libdir }
                 map  { $_, Cwd::abs_path($_) } @dirs;
 
     # on solaris, it can be under LD_LIBRARY_PATH_(32|64)
     if ( $^O eq 'solaris' ) {
-        my $ld_library_path_name = 'LD_LIBRARY_PATH_' 
+        my $ld_library_path_name = 'LD_LIBRARY_PATH_'
                                  . ( perl_is_64bit() ? '64' : '32' );
 
         $warn_name .= " or $ld_library_path_name";
 
-        my @dirs = split quotemeta($Config{path_sep}), 
+        my @dirs = split quotemeta($Config{path_sep}),
                          $ENV{$ld_library_path_name};
 
         s#[\\/]$## for @dirs;  # cut potential final / or \
