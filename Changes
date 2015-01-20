@@ -2,6 +2,13 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  [ENHANCEMENT]
+
+  Add new path to find 64 bit Oracle client on MAC OSX - (GH#20, Martin J. Evans)
+
+  Ignore constraints which are not enabled in primary/foreign key_info
+  (GH#23, Martin J. Evans)
+
 1.75_2    2014-11-19
 
   [ENHANCEMENT]

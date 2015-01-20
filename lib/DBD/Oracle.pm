@@ -535,6 +535,7 @@ SELECT *
      AND p.TABLE_NAME      = c.TABLE_NAME
      AND p.CONSTRAINT_NAME = c.CONSTRAINT_NAME
      AND p.CONSTRAINT_TYPE = 'P'
+     AND p.STATUS = 'ENABLED'
 )
  WHERE TABLE_SCHEM = ?
    AND TABLE_NAME  = ?
@@ -586,6 +587,7 @@ SELECT *
      AND uk.CONSTRAINT_NAME  = fk.R_CONSTRAINT_NAME
      AND uk.OWNER            = fk.R_OWNER
      AND uc.POSITION         = fc.POSITION
+     AND fk.STATUS           = 'ENABLED'
 )
  WHERE 1              = 1
 SQL
