@@ -287,6 +287,9 @@ my $linkwith = "";
 my $linkwith_msg = "";
 my $need_ldlp_env;
 
+# Do these in advance to enable automatic -l
+my @libclntsh = glob("$OH/libclntsh.$so*");
+
 if ($^O eq 'VMS') {
     my $OCIINCLUDE = join " ",	vmsify("$OH/rdbms/"),
 				vmsify("$OH/rdbms/public"),
@@ -384,7 +387,7 @@ elsif (($^O eq 'MSWin32') or ($^O =~ /cygwin/i)) {
 
 # --- UNIX Variants ---
 
-elsif ($::opt_l and # use -l to enable this direct-link approach
+elsif ($::opt_l || !defined $mkfile and # use -l to enable this direct-link approach
         @_=grep { m:/lib(cl(ie)?ntsh|oracle).\w+$:o } <$OH/lib/lib*>
     ) {
     # --- the simple modern way ---
@@ -412,7 +415,7 @@ elsif ($::opt_l and # use -l to enable this direct-link approach
 
 # --- special case for Oracle 10g instant client (note lack of ../lib/...)
 
-elsif (my @libclntsh = glob("$OH/libclntsh.$so*")) {
+elsif (@libclntsh) {
 
     print "Looks like an Instant Client installation, okay\n";
 
@@ -441,7 +444,7 @@ elsif (my @libclntsh = glob("$OH/libclntsh.$so*")) {
     $opts{INC}  = "$inc -I$dbi_arch_dir";
 }
 
-elsif ($mkfile = find_mkfile() and $mkfile =~ /\bdemo_xe.mk$/) { # Oracle XE
+elsif (defined $mkfile and $mkfile =~ /\bdemo_xe.mk$/) { # Oracle XE
 
     print "Looks like Oracle XE ($mkfile)\n";
 
@@ -1183,7 +1186,9 @@ sub find_mkfile {
 	$mkfile ||= $place;	# use first one found
 	print "Found $place\n";
     }
-    die qq{
+    unless ($^O eq 'MSWin32' || $^O eq 'VMS' || ($mkfile && -f $mkfile) || $::opt_F) {
+	$::opt_l or return ($mkfile = undef);
+	die qq{
 	Unable to locate an oracle.mk or other suitable *.mk
 	file in your Oracle installation.  (I looked in
 	@mkplaces under $OH)
@@ -1199,8 +1204,8 @@ sub find_mkfile {
 		perl Makefile.PL -m /path/to/your.mk
 
 	See the appropriate troubleshooting guide for your OS for more information and some alternatives.
-
-    } unless ($^O eq 'MSWin32') || ($^O eq 'VMS') || ($mkfile && -f $mkfile) || $::opt_F;
+	};
+    }
 
     print "Using $mkfile\n";
     return $mkfile;
