@@ -545,6 +545,7 @@ SELECT *
      AND p.TABLE_NAME      = c.TABLE_NAME
      AND p.CONSTRAINT_NAME = c.CONSTRAINT_NAME
      AND p.CONSTRAINT_TYPE = 'P'
+     AND p.STATUS = 'ENABLED'
 )
  WHERE TABLE_SCHEM = ?
    AND TABLE_NAME  = ?
@@ -596,6 +597,7 @@ SELECT *
      AND uk.CONSTRAINT_NAME  = fk.R_CONSTRAINT_NAME
      AND uk.OWNER            = fk.R_OWNER
      AND uc.POSITION         = fc.POSITION
+     AND fk.STATUS           = 'ENABLED'
 )
  WHERE 1              = 1
 SQL
@@ -2831,7 +2833,7 @@ to change just the type and will be overwriting the value later.
 
 The C<\%attr> hash is used to indicate the data type of the placeholder.
 The default value is "varchar". If you need something else, you must
-use one of the values provided by DBI or by DBD::Pg. To use a SQL value,
+use one of the values provided by DBI or by DBD::Oracle. To use a SQL value,
 modify your "use DBI" statement at the top of your script as follows:
 
   use DBI qw(:sql_types);
@@ -2844,7 +2846,7 @@ encounter are:
 
 To use Oracle SQL data types, import the list of values like this:
 
-  use DBD::Pg qw(:ora_types);
+  use DBD::Oracle qw(:ora_types);
 
 You can then set the data types by setting the value of the C<ora_type>
 key in the hash passed to L</bind_param>.
@@ -2864,7 +2866,7 @@ doing the next execute.
 Examples:
 
   use DBI qw(:sql_types);
-  use DBD::Pg qw(:ora_types);
+  use DBD::Oracle qw(:ora_types);
 
   $SQL = "SELECT id FROM ptable WHERE size > ? AND title = ?";
   $sth = $dbh->prepare($SQL);
