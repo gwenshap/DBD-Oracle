@@ -303,9 +303,19 @@ package DBD::Oracle;
 	}
 
 	unless (length $user_only) {
+	    # It may be we've already encountered a warning by this point,
+	    # such as "ORA-28002: the password will expire within %d days".
+	    # We'll cache it for reinstatement.
+	    my ($err, $errstr, $state) =
+		($dbh->err, $dbh->errstr, $dbh->state);
 	    $user_only = $dbh->selectrow_array(q{
 		SELECT SYS_CONTEXT('userenv','session_user') FROM DUAL
 	    })||'';
+	    # Now we'll reinstate the earlier warning.  We're just
+	    # appending it, so in the extremeley unlikely case that the
+	    # selectrow_array we just issued also issued a warning, the
+	    # 2 warnings will appear out of order.
+	    $dbh->set_err($err, $errstr, $state) if defined $err;
 	    $dbh_inner->{Username} = $user_only;
 	    # these two are just for backwards compatibility
 	    $dbh_inner->{USER} = $dbh_inner->{CURRENT_USER} = uc $user_only;
