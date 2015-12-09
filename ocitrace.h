@@ -71,8 +71,8 @@
     stat =OCISessionPoolCreate(envhp,errhp,ph,pn,pnl,dbn,dbl,sn,sm,si,un,unl,pw,pwl,OCI_DEFAULT);\
     (DBD_OCI_TRACEON(impdbh))                                          \
     ? PerlIO_printf(DBD_OCI_TRACEFP(impdbh),                           \
-					 "%sOCISessionPoolCreate(envhp=%p,ph=%p,pn=%p,pnl=%p,min=%d,max=%d,incr=%d, un=%s,unl=%d,pw=%s,pwl=%d)=%s\n",\
-					 OciTp, envhp,ph,pn,pnl,sn,sm,si,un,unl,pw,pwl,oci_status_name(stat)),stat \
+					 "%sOCISessionPoolCreate(envhp=%p,ph=%p,pn=%p,pnl=%p,min=%d,max=%d,incr=%d, un=%s,unl=%d,pw=%s,pwl=%lu)=%s\n",\
+					 OciTp, envhp,ph,pn,pnl,sn,sm,si,un,(unsigned long)unl,pw,(unsigned long)pwl,oci_status_name(stat)),stat \
 	: stat
 
 #if defined(ORA_OCI_102)
