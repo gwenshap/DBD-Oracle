@@ -1844,7 +1844,8 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
             DBIc_LOGPIO(imp_sth),
             "	blob_read field %d, ftype %d, offset %ld, len %lu, "
             "destoffset %ld, retlen %lu\n",
-			fbh->field_num+1, ftype, offset, len, destoffset, ul_t(amtp));
+			fbh->field_num+1, ftype, offset, (unsigned long) len,
+                        destoffset, ul_t(amtp));
 
 	SvCUR_set(dest_sv, byte_destoffset+amtp);
 	*SvEND(dest_sv) = '\0'; /* consistent with perl sv_setpvn etc	*/
