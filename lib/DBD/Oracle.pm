@@ -299,6 +299,10 @@ package DBD::Oracle;
 	   $attr->{ora_events} = $ENV{ORA_EVENTS};
 	}
 
+	if (exists $ENV{ORA_EVENTS}) {
+	   $attr->{ora_events} = $ENV{ORA_EVENTS};
+	}
+
 	{
 	   local @SIG{ @{ $attr->{ora_connect_with_default_signals} } }
           if $attr->{ora_connect_with_default_signals};
