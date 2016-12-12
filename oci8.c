@@ -156,6 +156,7 @@ sql_typecode_name(int dbtype) {
 		case 97:	return "CHARZ";
 		case 100:	return "BINARY FLOAT oracle-endian";
 		case 101:	return "BINARY DOUBLE oracle-endian";
+                case 104:       return "ROWID";
 		case 106:	return "MLSLABEL";
 		case 102:	return "SQLT_CUR	OCI 7 cursor variable";
 		case 112:	return "SQLT_CLOB / long";
@@ -3661,8 +3662,11 @@ dbd_describe(SV *h, imp_sth_t *imp_sth)
             break;
 
           case	ORA_ROWID:				/* ROWID	*/
-          case	104:				/* ROWID Desc	*/
             fbh->disize = 20;
+            fbh->prec	= fbh->disize;
+            break;
+          case	104:				/* ROWID Desc	*/
+            fbh->disize = 2000;
             fbh->prec	= fbh->disize;
             break;
           case	108:				 /* some sort of embedded object */
