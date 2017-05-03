@@ -2,12 +2,22 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  [BUG FIXES]
+
+  Fix truncation error on ROWIDs from an Index Organized table as they are
+  not a fixed length. Code now allows up to a size of 2000.
+  (GH#31, Martin J. Evans)
+
   [ENHANCEMENT]
+
+  Connection informational messages like "ORA-28002: the password will
+  expire" were lost. Thanks to J.D. Laub.
 
   Add new path to find 64 bit Oracle client on MAC OSX - (GH#20, Martin J. Evans)
 
   Ignore constraints which are not enabled in primary/foreign key_info
   (GH#23, Martin J. Evans)
+
 
 1.75_2    2014-11-19
 
@@ -1787,4 +1797,3 @@ please enjoy.
 19th Sep 1994: DBperl project renamed to DBI.
 
 29th Sep 1992: DBperl project started.
-
