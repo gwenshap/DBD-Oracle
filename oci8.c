@@ -2851,13 +2851,17 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
                 actual_bufl,fb_ary->piece_count,fbh->piece_size,buflen);
 		}
 	}
-	sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
 
-	if (fbh->ftype != SQLT_BIN){
+	if (actual_bufl > 0){
+		sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
+		if (fbh->ftype != SQLT_BIN){
 
-		if (CSFORM_IMPLIES_UTF8(fbh->csform) ){ /* do the UTF 8 magic*/
-			SvUTF8_on(dest_sv);
+			if (CSFORM_IMPLIES_UTF8(fbh->csform) ){ /* do the UTF 8 magic*/
+				SvUTF8_on(dest_sv);
+			}
 		}
+	} else {
+		sv_set_undef(dest_sv);
 	}
 
 	return 1;
