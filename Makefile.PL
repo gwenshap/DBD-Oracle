@@ -1153,7 +1153,8 @@ sub find_mkfile {
     	'rdbms/demo/demo_xe.mk',
         'rdbms/demo/demo_rdbms32.mk',
         'rdbms/demo/demo_rdbms.mk',
-        'rdbms/lib/ins_rdbms.mk' #Oracle 11 full client
+        'rdbms/lib/ins_rdbms.mk', #Oracle 11 full client
+        'sdk/demo/demo.mk' #OIC .mk location
     );
     my @mk_oci64 = (
 	'rdbms/demo/demo_xe.mk',
