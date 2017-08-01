@@ -24,7 +24,9 @@ eval {$dbh = DBI->connect($dsn, $dbuser, '', { RaiseError=>1,
                                                AutoCommit=>1,
                                                PrintError => 0 })};
 if ($dbh) {
-    plan tests => 32;
+    plan skip_all => "Scrollable cursors new in Oracle 9"
+        if $dbh->func('ora_server_version')->[0] < 9;
+    plan tests => 37;
 } else {
     plan skip_all => "Unable to connect to Oracle";
 }
@@ -48,24 +50,25 @@ $sql = "INSERT INTO ".$table." VALUES (?)";
 
 $sth =$dbh-> prepare($sql);
 
-for ($i=1;$i<=10;$i++){
-   $sth-> bind_param(1, $i);
-   $sth->execute();
-}
+$sth->execute($_) foreach (1..10);
 
 $sql="select * from ".$table;
-ok($sth=$dbh->prepare($sql,{ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,ora_prefetch_memory=>200}));
+ok($sth=$dbh->prepare($sql,
+                      {ora_exe_mode=>OCI_STMT_SCROLLABLE_READONLY,
+                       ora_prefetch_memory=>200}));
 ok ($sth->execute());
 
 #first loop all the way forward with OCI_FETCH_NEXT
-for($i=1;$i<=10;$i++){
+foreach (1..10) {
    $value =  $sth->ora_fetch_scroll(OCI_FETCH_NEXT,0);
-   cmp_ok($value->[0], '==', $i, '... we should get the next record');
+   is($value->[0], $_, '... we should get the next record');
 }
-
-
 $value =  $sth->ora_fetch_scroll(OCI_FETCH_CURRENT,0);
 cmp_ok($value->[0], '==', 10, '... we should get the 10th record');
+
+# fetch off the end of the result-set
+$value = $sth->ora_fetch_scroll(OCI_FETCH_NEXT, 0);
+is($value, undef, "end of result-set");
 
 #now loop all the way back
 for($i=1;$i<=9;$i++){
@@ -112,6 +115,21 @@ cmp_ok($value->[0], '==', 1, '... we should get the 1st record');
 #check the ora_scroll_position one more time
 
 cmp_ok($sth->ora_scroll_position(), '==', 1, '... we should get the 1 for the ora_scroll_position');
+
+# rt 76695 - fetch after fetch scroll maintains offset
+# now fetch forward 2 places then just call fetch
+# it should give us the 4th rcord and not the 5th
+
+$value =  $sth->ora_fetch_scroll(OCI_FETCH_RELATIVE,2);
+is($value->[0], 3, '... we should get the 3rd record rt76695');
+($value) = $sth->fetchrow;
+is($value, 4, '... we should get the 4th record rt 76695');
+
+# rt 76410 - fetch after fetch absolute always returns the same row
+$value = $sth->ora_fetch_scroll(OCI_FETCH_ABSOLUTE, 2);
+is($value->[0], 2, "... we should get the 2nd row rt76410_2");
+($value) = $sth->fetchrow;
+is($value, 3, "... we should get the 3rd row rt76410_2");
 
 $sth->finish();
 drop_table($dbh);

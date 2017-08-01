@@ -3,7 +3,6 @@
 use Test::More;
 
 use DBI;
-use Oraperl;
 use Config;
 use DBD::Oracle qw(:ora_types);
 
@@ -32,7 +31,9 @@ eval {$dbh = DBI->connect($dsn, $dbuser, '',
                             AutoCommit=>1,
                             PrintError => 0 ,LongReadLen=>10000000})};
 if ($dbh) {
-    plan tests => 29;
+    plan skip_all => "Data Interface for Persistent LOBs new in Oracle 9"
+        if $dbh->func('ora_server_version')->[0] < 9;
+    plan tests => 28;
 } else {
     plan skip_all => "Unable to connect to Oracle";
 }
@@ -71,9 +72,6 @@ ok($sth->bind_param(3,$in_clob,{ora_type=>SQLT_CHR}), 'bind p3');
 ok($sth->bind_param(4,$in_blob,{ora_type=>SQLT_BIN}), 'bind p4');
 ok($sth->bind_param(5,$in_blob,{ora_type=>SQLT_BIN}), 'bind p5');
 ok($sth->execute(), 'execute');
-
-ok($dbh->commit(), 'commit');
-
 
 $sql='select * from '.$table;
 

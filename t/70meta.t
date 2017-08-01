@@ -12,10 +12,11 @@ $| = 1;
 
 my $dsn = oracle_test_dsn();
 my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect($dsn, $dbuser, '', { PrintError => 0 });
+my $dbh = DBI->connect($dsn, $dbuser, '', {PrintError => 0 });
 
 if ($dbh) {
-    plan tests=>13;
+    plan tests=>21;
+    $dbh->{RaiseError} = 1;
 } else {
     plan skip_all => "Unable to connect to Oracle";
 }
@@ -52,6 +53,34 @@ my $sql_dbms_version = $dbh->get_info(18);
 ok($sql_dbms_version, 'dbms_version');
 note "sql_dbms_version=$sql_dbms_version";
 like($sql_dbms_version, qr/^\d+\.\d+\.\d+$/, 'matched');
+
+# test long DEFAULT from column_info
+SKIP: {
+    my $table = "dbd_ora__drop_me" . ($ENV{DBD_ORACLE_SEQ}||'');
+
+    eval { $dbh->do("DROP TABLE $table") };
+
+    my $created = eval { $dbh->do("CREATE TABLE $table (testcol NUMBER(15) DEFAULT to_number(decode(substrb(userenv('CLIENT_INFO'),1,1),' ', null,substrb(userenv('CLIENT_INFO'),1,10))))") };
+
+    skip 'could not create test table', 8 unless $created;
+
+    is $dbh->{LongReadLen}, 80, 'LongReadLen is at default';
+
+    ok((my $sth = $dbh->column_info(undef, '%', uc($table), '%')), 'column_info sth');
+
+    is $dbh->{LongReadLen}, 80, 'LongReadLen still at default';
+
+    ok((my $info = eval { $sth->fetchrow_hashref }), 'sth->fetchrow_hashref lived')
+        or diag $@;
+
+    is $info->{COLUMN_DEF}, "to_number(decode(substrb(userenv('CLIENT_INFO'),1,1),' ', null,substrb(userenv('CLIENT_INFO'),1,10)))", 'long DEFAULT matched';
+
+    ok($sth->finish, 'sth->finish');
+
+    is $dbh->{LongReadLen}, 80, 'LongReadLen still at default';
+
+    ok($dbh->do("DROP TABLE $table"), 'drop table');
+}
 
 $dbh->disconnect;
 

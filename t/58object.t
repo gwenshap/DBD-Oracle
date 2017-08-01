@@ -72,6 +72,9 @@ my $privs_sth = $dbh->prepare( 'SELECT PRIVILEGE from session_privs' );
 $privs_sth->execute;
 my @privileges = map { $_->[0] } @{ $privs_sth->fetchall_arrayref };
 
+my $ora8 = $dbh->func('ora_server_version')->[0] < 9;
+my $final = $ora8 ? '':'FINAL';
+my $not_final = $ora8 ? '':'NOT FINAL';
 
 SKIP: {
     skip q{don't have permission to create type} => 61
@@ -80,17 +83,20 @@ SKIP: {
 sql_do_ok( $dbh, qq{ CREATE OR REPLACE TYPE $super_type AS OBJECT (
                 num     INTEGER,
                 name    VARCHAR2(20)
-            ) NOT FINAL } );
+            ) $not_final } );
 
+SKIP: {
+    skip 'Subtypes new in Oracle 9' => 1 if $ora8;
 sql_do_ok( $dbh, qq{ CREATE OR REPLACE TYPE $sub_type UNDER $super_type (
                 datetime  DATE,
                 amount    NUMERIC(10,5)
-            ) NOT FINAL } );
-
+            ) $not_final } );
+}
 sql_do_ok( $dbh, qq{ CREATE TABLE $table (id INTEGER, obj $super_type) });
 
 sql_do_ok( $dbh, qq{ INSERT INTO $table VALUES (1, $super_type(13, 'obj1')) });
-
+SKIP: {
+    skip 'Subtypes new in Oracle 9' => 2 if $ora8;
 sql_do_ok( $dbh, qq{ INSERT INTO $table VALUES (2, $sub_type(NULL, 'obj2', 
                     TO_DATE('2004-11-30 14:27:18', 'YYYY-MM-DD HH24:MI:SS'),
                     12345.6789)) }
@@ -98,16 +104,16 @@ sql_do_ok( $dbh, qq{ INSERT INTO $table VALUES (2, $sub_type(NULL, 'obj2',
 
 sql_do_ok( $dbh, qq{ INSERT INTO $table VALUES (3, $sub_type(5, 'obj3', NULL,
     777.666)) } );
-
+}
 sql_do_ok( $dbh, qq{ CREATE OR REPLACE TYPE $inner_type AS OBJECT (
                 num     INTEGER,
                 name    VARCHAR2(20)
-            ) FINAL });
+            ) $final });
 
 sql_do_ok( $dbh, qq{ CREATE OR REPLACE TYPE $outer_type AS OBJECT (
                 num     INTEGER,
                 obj     $inner_type
-            ) FINAL });
+            ) $final });
 
 sql_do_ok( $dbh, qq{ CREATE OR REPLACE TYPE $list_type AS
                             TABLE OF $inner_type });
@@ -134,21 +140,23 @@ my $sth = $dbh->prepare("select * from $table order by id");
 ok ($sth, 'old: Prepare select');
 ok ($sth->execute(), 'old: Execute select');
 
-my @row1 = $sth->fetchrow();
+my ( @row1, @row2, @row3 );
+@row1 = $sth->fetchrow();
 ok (scalar @row1, 'old: Fetch first row');
 cmp_ok(ref $row1[1], 'eq', 'ARRAY', 'old: Row 1 column 2 is an ARRAY');
 cmp_ok(scalar(@{$row1[1]}), '==', 2, 'old: Row 1 column 2 is has 2 elements');
-
-my @row2 = $sth->fetchrow();
+SKIP: {
+    skip 'Subtypes new in Oracle 9' => 6 if $ora8;
+@row2 = $sth->fetchrow();
 ok (scalar @row2, 'old: Fetch second row');
 cmp_ok(ref $row2[1], 'eq', 'ARRAY', 'old: Row 2 column 2 is an ARRAY');
 cmp_ok(scalar(@{$row2[1]}), '==', 2, 'old: Row 2 column 2 is has 2 elements');
 
-my @row3 = $sth->fetchrow();
+@row3 = $sth->fetchrow();
 ok (scalar @row3, 'old: Fetch third row');
 cmp_ok(ref $row3[1], 'eq', 'ARRAY', 'old: Row 3 column 2 is an ARRAY');
 cmp_ok(scalar(@{$row3[1]}), '==', 2, 'old: Row 3 column 2 is has 2 elements');
-
+}
 ok (!$sth->fetchrow(), 'old: No more rows expected');
 
 #print STDERR Dumper(\@row1, \@row2, \@row3);
@@ -169,7 +177,8 @@ ok (scalar @row1, 'new: Fetch first row');
 cmp_ok(ref $row1[1], 'eq', 'DBD::Oracle::Object', 'new: Row 1 column 2 is an DBD:Oracle::Object');
 cmp_ok(uc $row1[1]->type_name, "eq", uc "$schema.$super_type", "new: Row 1 column 2 object type");
 is_deeply([$row1[1]->attributes], ['NUM', 13, 'NAME', 'obj1'], "new: Row 1 column 2 object attributes");
-
+SKIP: {
+    skip 'Subtypes new in Oracle 9' => 8 if $ora8;
 @row2 = $sth->fetchrow();
 ok (scalar @row2, 'new: Fetch second row');
 cmp_ok(ref $row2[1], 'eq', 'DBD::Oracle::Object', 'new: Row 2 column 2 is an DBD::Oracle::Object');
@@ -192,11 +201,13 @@ $attrs{AMOUNT} = sprintf "%6.3f", $attrs{AMOUNT};
 
 is_deeply( \%attrs, {'NUM', 5, 'NAME', 'obj3', 
             'DATETIME', undef, 'AMOUNT', '777.666'}, "new: Row 1 column 2 object attributes");
-
+}
 ok (!$sth->fetchrow(), 'new: No more rows expected');
 
 #print STDERR Dumper(\@row1, \@row2, \@row3);
 
+SKIP: {
+    skip 'Subtypes new in Oracle 9' => 3 if $ora8;
 # Test DBD::Oracle::Object 
 my $obj = $row3[1];
 my $expected_hash = {
@@ -211,7 +222,7 @@ $attrs->{AMOUNT} = sprintf "%6.3f", $attrs->{AMOUNT};
 is_deeply($attrs, $expected_hash, 'DBD::Oracle::Object->attr_hash');
 is_deeply($obj->attr, $expected_hash, 'DBD::Oracle::Object->attr');
 is($obj->attr("NAME"), 'obj3', 'DBD::Oracle::Object->attr("NAME")');
-
+}
 # try the list table
 $sth = $dbh->prepare("select * from $list_table");
 ok ($sth, 'new: Prepare select with nested table of objects');

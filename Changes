@@ -1,6 +1,489 @@
 Revision history for DBD::Oracle
 
-Changes in DBD-Oracle XXX
+{{$NEXT}}
+
+  [BUG FIXES]
+
+  Fix truncation error on ROWIDs from an Index Organized table as they are
+  not a fixed length. Code now allows up to a size of 2000.
+  (GH#31, Martin J. Evans)
+
+  [ENHANCEMENT]
+
+  Connection informational messages like "ORA-28002: the password will
+  expire" were lost. Thanks to J.D. Laub.
+
+  Add new path to find 64 bit Oracle client on MAC OSX - (GH#20, Martin J. Evans)
+
+  Ignore constraints which are not enabled in primary/foreign key_info
+  (GH#23, Martin J. Evans)
+
+
+1.75_2    2014-11-19
+
+  [ENHANCEMENT]
+
+  Try and set -l when the build would have failed (H.Merijn Brand)
+
+1.75_1    2014-11-17
+
+  [DOCUMENTATION]
+
+  Change mentions of READMEs in Makefile.PL to troubleshooting guides.
+  (GH#17, reported by Ken Williams)
+
+  [BUG FIXES]
+
+  Fix GH#15 and GH#21 (the same problem). Previous change for
+  RT91698 broke other things in output parameters.
+
+1.74      2014-04-24
+  - Promote to stable.
+
+1.73_01   2014-04-23
+  - Tweak fix for RT-88185. (GH#14, Martin J. Evans)
+
+1.73_00   2014-04-23
+  - Reverts current fix for RT-88185, as it causes breakage. (GH#14)
+
+1.72      2014-04-14
+  - promote 1.71_00 to stable.
+
+1.71_00   2014-03-31
+    - Recognizes __CYGWIN64__. (RT88709, reported by Witold Petriczek)
+    - CHOOSE hint is deprecated. (RT91217, reported by Andy Bucksch,
+        fix by Martin J Evans)
+    - Set UTF8 flag per-connection. (RT88185, reported by Heinrich Mislik, patch by Martin
+      J. Evans)
+    - Add a CONTRIBUTING.mkd file. (GH#2)
+    - Add SELinux trick. (RT#87003, patch submitted by Mike Doherty)
+
+1.70   2014-02-12
+  - promote 1.69_02 to stable.
+
+1.69_02 2014-01-19
+
+    [IMPROVEMENTS]
+
+    - The DSN 'dbi:Oracle:sid=foo' is now an alias for 'dbi:Oracle:foo'.
+        (RT#91775, Yanick Champoux, requested by David Wheeler)
+
+    - Support for ORA_SYSBACKUP, ORA_SYSDG and ORA_SYSKM. (RT#91473,
+        Kris Lemaire)
+
+    [BUG FIXES]
+
+   - OCI_THREADED setting had been accidentally removed, causing potential
+    crashes when using threads. (RT#92229, Martin J. Evans, reported
+    by Detlef Lütticke)
+
+  - When using fetch*_hashref the values are decoded but
+    not the keys so if you have unicode column names they were not
+    returned correctly.  (RT#92134, Martin J. Evans, reported by
+    Marcel Montes)
+
+
+1.69_01 2014-01-14
+
+  [BUG FIXES]
+
+  - Fix RT91698. If you bound an output parameter to a scalar and
+    repeatedly called execute the memory allocated in your bound
+    scalar could increase each time. (Martin J. Evans)
+
+1.68      2013-11-25
+  - promote 1.67_00 to stable.
+
+1.67_00   2013-11-05
+
+  [BUG FIXES]
+  - Fix RT88135. Add statistics_info support (patch by Steffen Goeldner)
+  - Fix RT89491. Add RULE hint (patch by Steffen Goeldner)
+
+  [DOCUMENTATION]
+  - POD typos (RT#88285, RT#88284, Gregor Herrman).
+  - Grooming of Hpux troubleshooting pod (GH#7, Martin J. Evans,
+    Yanick Champoux)
+
+1.66      2013-08-23
+  - promote 1.65_00 to stable.
+
+1.65_00   2013-07-29
+
+  [BUG FIXES]
+
+  - Fix RT85886. The TYPE passed to bind_col is supposed to be sticky
+  and it wasn't. Attributes passed to bind_col could be lost later if
+  bind_col is called again without attributes. Both of these occur
+  when fetchall_arrayref is called with a slice (Martin J. Evans).
+
+  [DOCUMENTATION]
+
+  - Fix a bunch of typos. [GH#5, David Steinbrunner]
+
+1.64      2013-05-22
+  - promote 1.63_00 to stable.
+
+1.63_00   2013-05-03
+
+  [ENHANCEMENTS]
+  - DBD-Oracle: Use of uninitialized value $user_only in uc [RT#84657]
+    (Steffen Goeldner)
+
+  [BUG FIXES]
+  - Make 50cursor.t Oracle8-friendly. (RT#84660, patch by Steffen Goeldner)
+  - Makefile.PL's use of ACL tweaked for Suse Enterprise 11 SP2
+        (RT#84530, patch by Alfred Nathaniel)
+
+  [DOCUMENTATION]
+  - Bogus 227 directory no longer required for MacOS. (GH#1, patch
+    by theory)
+
+1.62      2013-04-30
+  - promote 1.61_00 to official release
+
+1.61_00   2013-04-15
+
+  [BUG FIXES]
+  - Adjust the privs needed for the DROP/CREATE table test. [GH#35]
+    (Joe Crotty)
+
+  - Fixed RT84170 - when using scrollable cursors and you've done a
+    positioned fetch and then keep fetching until the end of the
+    result-set calls to fetch never return undef and you keep getting
+    the last row forever. Also added test case to the 51scroll.t test
+    (Martin J. Evans).
+
+1.60      2013-04-01
+ - Move github repository to github.com/pythian/DBD-Oracle.
+
+1.58      2013-03-05
+  - promote 1.57_00 to official release
+
+1.57_00   2013-02-07
+  [BUG FIXES]
+
+  - fix RT46628 - bind_param_inout ORA_RSET causes MSWin32 access
+    violation and RT82663 - Errors if a returned SYS_REFCURSOR is not
+    opened (Martin J. Evans)
+
+  - Fix RT82663. If a procedure/function returns a SYS_REFCURSOR which
+    was never opened DBD::Oracle magics a DBI statement handle into
+    existence and attempts to describe it (which fails). This change
+    examines a returned SYS_REFCURSOR and if it it is initialised but
+    not executed does not create a DBI statement handle and returns
+    undef instead. So now if you have a procedure/function which
+    returns a SYS_REFCURSOR and never open it you'll get undef back
+    instead of a useless statement handle.  Extended 50cursor.t test
+    to check the above fix. (Martin J. Evans)
+
+  [DOCUMENTATION]
+  - Update Lion instructions for 64-bit Instant Client. (GH#37, patch by
+    theory)
+
+1.56      2013-01-08
+  - fix t/26exe_array.t in the case of no db connection (RT82506,
+    reported by Peter Rabbitson)
+
+1.54      2013-01-03
+ - promote 1.53_00 to official release
+
+1.53_00      2012-12-18
+
+  [BUG FIXES]
+  - Fix RT69350 - 31lob.t was using $lob after destroying its parent $sth
+        (Rob Davies)
+
+  - Fix memory leak in execute_array (John Scoles, Pierre-Alain Blanc)
+
+  - Fix RT80349 - The error message in execute_for_fetch when a row fails
+    can contain the wrong error count. Thanks to Steffen Goeldner for
+    RT and patch.
+
+  - Fix RT80375 - no exception when execute_for_fetch fails and
+    ArrayTupleStatus is not specified. Also the tuple count calculation
+    resulted in an undefined warning. Thanks to Steffen Goeldner for
+    RT and patch.
+
+  - Fix RT80487. Skip XMLType tests if Oracle less than V9. Thanks to
+    Steffen Goeldner for RT and patch.
+
+  - Fix RT80486 for 31lob_extended.t. In old old Oracle8,
+    SYS_REFCURSOR is not defined. Instead of CREATE/DROP PROCEDURE,
+    use anonymous block. Thanks to Steffen Goeldner for RT and patch.
+
+  - Fix bug in 39attr.t which could fail if using an Oracle Client >
+    11 but not >= 11.2 (Martin J. Evans)
+
+  - ora_server_version was not documented.
+
+  - Fix RT80566. 70meta.t test fails with Oracle 8 because
+    ALL_TAB_COLUMNS.CHAR_LENGTH is new in Oracle 9. Use DATA_LENGTH
+    instead on pre-9 versions. Thanks to Steffen Goeldner for RT and
+    patch.
+
+  - Fix RT80704. 51scroll.t test checks scrollable cursors but assumes
+    all Oracles support them (only 9 and above). Thanks to Steffen
+    Goeldner for RT and patch.
+
+  - Fix RT81067. 58object.t has some subtype tests and subtypes were
+    introduced in Oracle 9. Skip if < Oracle 9. Thanks to Steffen
+    Goeldner for RT and patch.
+
+  - Fix RT81317. 34pres_lobs.t uses the Data Interface for Persistent
+    LOBs which is new in Oracle 9. Skip if < Oracle 9. Thanks to
+    Steffen Goeldner for RT and patch.
+
+  [MISCELLANEOUS]
+
+  - The original 26exe_array test was replaced some time ago with a
+    copy of the one from DBD::ODBC. Since then I've fixed issues in
+    the DBD::ODBC one and added more tests (like tests for some RTs
+    above). To make keeping them in synch easier I've modularised the
+    tests. Hence new ExecuteArray.pm. (Martin J. Evans)
+
+  - simple code clean up, replacing 3 uses of safemalloc with Newz
+    (John Scoles)
+
+  - Add DBI as a configure prereq for the META* files (thanks to Joe Crotty)
+
+  - New FAQ entry on Solaris and setting linker library path
+    (Martin J. Evans)
+
+  - Removed ineffective commit in 34pres_lobs.t (Martin J. Evans)
+
+  - Remove dead README link in Win32 documentation. (pointed out by Alexandr
+    Ciornii, RT#82040)
+
+  - Changed any use of if SvUPGRADE to remove the if test as per email
+    from Dave Mitchell and posting at
+    http://www.xray.mpe.mpg.de/mailing-lists/perl5-porters/2012-12/msg00424.html
+    (Martin J. Evans)
+
+1.52      2012-10-19
+
+ - promote 1.51_00 to official release
+
+1.51_00   2012-09-28
+
+  [BUG FIXES]
+
+  - fix serious memory corruption in TAF support (Martin J. Evans)
+
+  - fix finding client in situation where client and server both
+    installed but different architectures (patch by H.Merijn Brand)
+
+  - fix memory leak in TAF handling - the TAF function was leaked
+    (Martin J. Evans)
+
+  - fix issue with taf_function being set to a scalar which goes
+    out of scope before the callback is made (Martin J. Evans)
+
+  - fix RT46739 if a connection breaks the environment handle is
+    not thrown away (Martin J. Evans)
+
+  - ora_driver_name was not defaulted to the correct DBD::Oracle
+    version (Martin J. Evans)
+
+  - ora_driver_name, ora_client_info, ora_client_identifier,
+    ora_action and ora_oci_success_warn were set twice (if specified)
+    on connect as they were not deleted from the connect attributes
+    once handled. Code now leaves the setting to the later STORE DBI
+    calls (Martin J. Evans)
+
+  - fixed some compiler warnings for %lf (Martin J. Evans)
+
+  - fixed RT78700 - column_info reports wrong size for char semantic
+    char type columns (Douglas Wilson).
+
+  [CHANGE IN BEHAVIOUR]
+
+  - ora_taf and ora_taf_sleep were redundant and have been removed.
+    To enable/disable TAF simply set ora_taf_function and if you
+    want to sleep do it in your callback (Martin J. Evans)
+
+  - ora_taf_function can now be a code reference as well as a string
+    (Martin J. Evans)
+
+  [ENHANCEMENTS]
+
+  - the ora_can_taf method was virtually useless since you can only
+    call it after connecting and to enable TAF you had to do it in the
+    connect call. Now you can enable and disable TAF at any time by
+    simply setting or clearing the ora_taf_function (see RT78811)
+    (Martin J. Evans)
+
+  - the ora_taf_function is now passed a third argument of the
+    connection handle (Martin J. Evans)
+
+  - RT78987 - removed Oraperl.pm and oraperl.ph; these files will be
+    available in a separate distribution named "Oraperl" (David Perry)
+
+  [MISCELLANEOUS]
+
+  - hide dr, db and st packages from PAUSE (Martin J. Evans)
+
+  - added a few more simple TAF tests (Martin J. Evans)
+
+1.50      2012-08-15
+ - RT78965 - Remove Oraperl tests (which were forcing a require on Oraperl)
+
+1.48      2012-08-09
+ - promote 1.47_00 to official release
+
+1.47_00   2012-07-11
+
+  [BUG FIXES]
+
+  - fixed redeclaration of $len in 31lob.t - (Martin J, Evans)
+
+  - RT55028 - stop segfaulting when attempting to read empty lobs
+    (Martin J. Evans)
+
+  - RT69059 - Despite OCIPing being documented as added in 10.2 AIX
+    does not seem to have it in 10.2 leading to undefined symbol -
+    Martin J. Evans
+
+  [DOCUMENTATION]
+  - Promoted the troubleshooting for the different architectures to
+    POD documents, for easier/prettier access.
+
+  - Added a troubleshooting entry for RT71819 - bound output
+    parameters may be returned in the wrong order (Martin J. Evans)
+
+1.46      2012-07-11
+ - promote 1.45_00 to official release
+
+1.45_00   2012-06-21
+
+ [CHANGE IN BEHAVIOUR]
+
+ - In future versions of DBD::Oracle ora_verbose will be changed
+   so that it is simply a switch to turn DBI's DBD tracing on or off.
+   A true value will turn it on and a false value will turn it off.
+   DBI's "DBD" tracing was not available when ora_verbose was created
+   and ora_verbose adds an additional test to every trace test.
+
+ [BUG FIXES]
+
+ - Fixed RT76695 - offset passed to ora_fetch_scroll should not affect
+   normal fetches (Martin J. Evans)
+
+ - Fixed RT76410 - fetch after fetch absolute always returns
+   the same row (Martin J. Evans);
+
+ - Fixed RT75721 - does not build with Oracle 9.2 (Martin J. Evans)
+
+ - Fixed RT71343 - Oracle 9i does not have OCI_ATTR_TAF_ENABLED
+   or OCI_ATTR_RESERVED_15/16 so cannot build (Martin J. Evans)
+
+ - skip 24implicit_utf8.t if chr set is not UTF-8 (Martin J. Evans)
+
+ - Fixed RT76269 - ora_taf_sleep was documented as taf_sleep by
+   accident. There was no way to stop the TAF reconnect attempts.
+   If you want to try another connect attempt in your taf handler you
+   now need to return OCI_FO_RETRY from it. (Martin J. Evans)
+
+ [MISCELLANEOUS]
+
+ - minor change to confusing debug output for input parameters
+   (Martin J. Evans)
+
+ - RT72989 - add note to trouble shooting guide re this RT and
+   Module::Runtime (Martin J. Evans)
+
+1.44      2012-04-23
+ - promote 1.43_00 to official release
+
+1.43_00   2012-03-30
+
+ [BUG FIXES]
+ - Applied patch from Rafael Kitover (Caelum) to column_info to handle
+   DEFAULT columns greater in length than the DBI default of 80. The
+   DEFAULT column is a long and it is a PITA to have to set
+   LongReadLen which you can only do on a connection handle in
+   DBD::Oracle. The default maximum size is now 1Mb; above that you
+   will still have to set LongReadLen (Martin J. Evans)
+
+ - Fixed 70meta and rt74753-utf8-encoded to not die if you cannot
+   connect to Oracle or you cannot install from CPAN if you have not
+   set up a valid Oracle connection.
+
+ - Fixed 75163. Bfile lobs were not being opened before fetching if
+   ora_auto_lobs was disabled (Martin J. Evans).
+
+   Note: this has a minor impact on non bfile lobs when ora_auto_lobs
+   is not in force as an additional call to OCILobFileIsOpen will be
+   made.
+
+ - Removed all DBIS usage fixing and speeding up threaded
+   Perls (Martin J. Evans).
+
+ - Minor fix to avoid use of uninitialised variable in 31lob.t (Martin J. Evans)
+
+ [DOCUMENTATION]
+ - clarification of when StrictlyTyped/DiscardString can be used and
+   LongReadLen (Martin J. Evans)
+
+ - Documented the 3rd type of placeholder and rewrote the existing
+   pod for placeholders (Martin J. Evans).
+
+1.42      2012-03-13
+ - skip rt74753-utf8-encoded.t if db is not unicode
+
+1.40      2012-03-08
+ - promote 1.39_00 to official release
+
+1.39_00   2012-02-24
+
+ [BUG FIXES]
+ - TAF supports now conditional to presence of OCI_ATTR_TAF_ENABLED
+    [RT73798]
+ - detect broken Win32::TieRegistry (patch by Rafael Kitover (Caelum))
+    [RT74544]
+ - PL/SQL out values were not utf8 encoded [RT74753]
+     (Steve Baldwin + Martin J. Evans)
+
+ [DOCUMENTATION]
+ - Mention the release of Oracle Instant Client 64 bit which does not work
+    on Lion. (Martin J. Evans)
+ - fix DBD::Oracle::GetInfo blurb (patch by Julián Moreno Patiño) [rt74000]
+ - fix typos. (patch by Julián Moreno Patiño) [rt73999]
+ - add troubleshoot doc and diag for error with bequeather. [rt75263]
+
+ [OTHERS]
+ - change the shebang line of examples to the more modern '/usr/bin/env perl'
+    [RT74001]
+
+1.38   2012-01-13
+
+ - promote 1.37_00 to official release
+
+1.37_00   2011-12-30
+
+ [ENHANCEMENTS]
+  - added SYSASM session mode. [RT651211] (patch from
+  Anthony DeRobertis, reported by Julián Moreno Patiño)
+
+ [BUG FIXES]
+
+ - applied patch from Charles Jardine avoiding undefined values
+   warnings in ora_server_version when the database is not open
+   [RT72623] (Martin J. Evans)
+ - TNS_ADMIN was ignored [RT73456]
+
+ [DOCUMENTATION]
+
+ - Document possible problem with
+   ora_connect_with_default_signals and connect_cached
+   [RT72716] (Martin J. Evans)
+ - Fix documentation for 'ora_fetch_scroll()'
+
+Changes in DBD-Oracle 1.36 (6-12-2011)
+
+ - promote 1.35_00 to official release
+
+Changes in DBD-Oracle 1.35_00 (18-11-2011)
 
  [BUG FIXES]
  - if bind_col is called with a TYPE but no bind attributes like
@@ -11,13 +494,17 @@ Changes in DBD-Oracle XXX
    DiscardString a warning was not issued that the type is unsupported
    and no data was returned (Martin J. Evans)
  - Fix test so it works with perl compiled with -Duselongdouble [RT71852]
+ - Apply patch from Charles Jardine for better building against a full
+   Oracle 11 install [RT72463] (Martin J. Evans)
 
  [DOCUMENTATION]
  - Added notes to bind_col documenting the fact that setting a TYPE
    does not affect how the column is bound in Oracle, only what
    happens after the column data is retrieved (Martin J. Evans)
- - fix typo (thanks to Juli�n Moreno Pati�o) [RT72038]
- - shuffle POd around to improve documentation flow [RT72252]
+ - fix typo (thanks to Julián Moreno Patiño) [RT72038]
+ - shuffle POD around to improve documentation flow [RT72252]
+ - major tidying up of the connect() documentation. (by Gwen Shapira)
+ - Moved LONG examples out of POD and into examples/
 
  [OTHER]
  - Commented out some functions in oci8.c which were not used to
@@ -53,7 +540,7 @@ Changes in DBD-Oracle 1.31_00
  - don't gag diag() on the tests by default
  - SKIP condition in 10general.t was reversed (reported by Alois) [RT#46761]
  - Check for LD_LIBRARY_PATH_(32|64) as well for solaris [RT#46761]
- - convert a symbolically linked ORACLE_HOME to an absolute path 
+ - convert a symbolically linked ORACLE_HOME to an absolute path
     (patch by H.Merijn Brand, applied by Martin J. Evans) [rt70785]
 
  [DOCUMENTATION]
@@ -153,7 +640,7 @@ Changes in DBD-Oracle 1.29_1
   This release has been prepared specifically for the 'Debian' http://www.debian.org project.  It contains no changes
   to functionality or usage.  The following has been changed
 
-  Fixed some formatting and typos in Pod from Juli�n Pati�o
+  Fixed some formatting and typos in Pod from Julián Patiño
   The Copyright terms for ora_explain have changed and now read as follows:
     You may distribute under the terms of either the GNU General Public
     License or the Artistic License, as specified in the Perl README file.
@@ -202,7 +689,7 @@ Changes in DBD-Oracle 1.29_1
   Fix for rt.cpan.org Ticket #=21920 Bug with Oracle DBD for Mac OS X Instant Client From boingolover
   Added a few more constants to get rid of magic numbers from John Scoles
   Fix for rt.cpan.org Ticket #=38267 Inserts/Updates to BLOB's via synonyms fails from John Scoles
-  Fix for rt.cpan.org Ticket #=39603 build problem and fix missing functions in oci.def from Zolt�n Sebesty�n
+  Fix for rt.cpan.org Ticket #=39603 build problem and fix missing functions in oci.def from Zoltán Sebestyén
   Fix for rt.cpan.org Ticket #=39374 Makefile.PL: error when reducing echo messages from make from Tippa
   Fix for rt.cpan.org Ticket #=39232 binding large XMLTYPE fails on 64-bit perl from Jeff Klein
   Fix for rt.cpan.org Ticket #=38749 Warning of a NULL column in an aggregate function also added ora_oci_success_warn to display silent OCI warnings from John Scoles
@@ -1310,4 +1797,3 @@ please enjoy.
 19th Sep 1994: DBperl project renamed to DBI.
 
 29th Sep 1992: DBperl project started.
-

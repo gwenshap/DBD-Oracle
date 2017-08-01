@@ -30,7 +30,7 @@ my $dbh = DBI->connect($dsn, $dbuser, '',{
                        });
 
 if ($dbh) {
-    plan tests => 31;
+    plan tests => 30;
     $dbh->{LongReadLen} = 7000;
 } else {
     plan skip_all => "Unable to connect to Oracle";
@@ -38,6 +38,14 @@ if ($dbh) {
 }
 
 my ($table, $data0, $data1) = setup_test($dbh);
+
+my $PLSQL = <<"PLSQL";
+BEGIN
+  OPEN ? FOR SELECT x FROM $table;
+END;
+PLSQL
+
+$dbh->{RaiseError} = 1;
 
 #
 # bug in DBD::Oracle 1.21 where if ora_auto_lobs is not set and we attempt to
@@ -49,9 +57,7 @@ my ($table, $data0, $data1) = setup_test($dbh);
 
     my ($sth1, $ev);
 
-    eval {$sth1 = $dbh->prepare(
-        q/begin p_DBD_Oracle_drop_me(?); end;/, {ora_auto_lob => 0});
-      };
+    eval {$sth1 = $dbh->prepare($PLSQL, {ora_auto_lob => 0});};
     ok(!$@, "$testname - prepare call proc");
     my $sth2;
     ok($sth1->bind_param_inout(1, \$sth2, 500, {ora_type => ORA_RSET}),
@@ -80,10 +86,8 @@ my ($table, $data0, $data1) = setup_test($dbh);
 
     my ($sth1, $ev, $lob);
 
-    eval {$sth1 = $dbh->prepare(
-        # ora_auto_lobs is supposed to default to set
-        q/begin p_DBD_Oracle_drop_me(?); end;/);
-      };
+    # ora_auto_lobs is supposed to default to set
+    eval {$sth1 = $dbh->prepare($PLSQL);};
     ok(!$@, "$testname prepare call proc");
     my $sth2;
     ok($sth1->bind_param_inout(1, \$sth2, 500, {ora_type => ORA_RSET}),
@@ -153,20 +157,6 @@ sub setup_test
     BAIL_OUT("Failed to insert test data into $table - $@") if $@;
     ok(!$ev, "created test data");
 
-    my $createproc = << "EOT";
-CREATE OR REPLACE PROCEDURE p_DBD_Oracle_drop_me(pc OUT SYS_REFCURSOR) AS
-l_cursor SYS_REFCURSOR;
-BEGIN
-OPEN l_cursor FOR
-  SELECT x from $table;
-pc := l_cursor;
-END;
-EOT
-
-    eval {$h->do($createproc);};
-    BAIL_OUT("Failed to create test procedure - $@") if $@;
-    ok(!$ev, "created test procedure");
-
     return ($table, $data0, $data1);
 }
 
@@ -175,12 +165,6 @@ END {
 
     local $dbh->{PrintError} = 0;
     local $dbh->{RaiseError} = 1;
-
-    eval {$dbh->do(q/drop procedure p_DBD_Oracle_drop_me/);};
-    if ($@) {
-        diag("procedure p_DBD_Oracle_drop_me possibly not dropped" .
-                    "- check - $@\n") if $dbh->err ne '4043';
-    }
 
     eval {drop_table($dbh);};
     if ($@) {

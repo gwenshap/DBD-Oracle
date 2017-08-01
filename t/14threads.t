@@ -3,7 +3,7 @@ $| = 1;
 
 ## ----------------------------------------------------------------------------
 ## 14threads.t
-## By Jeffrey Klein, 
+## By Jeffrey Klein,
 ## ----------------------------------------------------------------------------
 
 BEGIN { eval "use threads; use threads::shared;" }
@@ -68,13 +68,13 @@ for my $i ( 0 .. 4 ) {
             free_dbh_to_pool($dbh);
         }
     )->join;
-   
+
 
 }
 
 # TESTS: 1
 is scalar(@pool), 1, 'one imp_data in pool';
- 
+
 # get two sessions in same thread
 # TESTS: 2
 threads->create(
@@ -181,7 +181,7 @@ sub connect_dbh {
 
 sub session_id {
     my $dbh = shift;
-    my ($s) = $dbh->selectrow_array("select userenv('sessionid') from dual");
+    my ($s) = $dbh->selectrow_array("select userenv('sid') from dual");
     return $s;
 }
 __END__

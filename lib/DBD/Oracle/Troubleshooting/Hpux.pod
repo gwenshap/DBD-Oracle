@@ -1,3 +1,6 @@
+#PODNAME: DBD::Oracle::Troubleshooting::Hpux
+#ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle on HP-UX
+
 =head1 INTRODUCTION
 
 Building a working dynamically linked version of the Oracle DBD driver
@@ -12,7 +15,7 @@ fact, after resolving some undefined symbol errors, I succeeded where for
 I had previously despaired of finding the time to hack out the right
 incantation.
 
-This F<README.hpux.txt> describes the combined knowledge of a number of
+This document describes the combined knowledge of a number of
 folks who invested many hours discovering a working set of build options.
 The instructions in this file, which include building Perl from source,
 will produce a working dynamically linked DBD-Oracle that can be used
@@ -39,7 +42,7 @@ scope of this document, some information can be found in the section
 L<Compiling on a Client Machine>, or see your friendly Oracle DBA.
 
 One final remark, 3 years after this was first written.  This has been
-updated numberous times over the years.  And some of the new biuld
+updated numerous times over the years.  And some of the new build
 recipe's see simpler than some of the original instructions in this file.
 
 I think one reason the recipe is getting simpler may be that the build
@@ -113,7 +116,7 @@ is preferred on PA-RISC, and when an incantation can be concocted that
 eliminates the noisy warnings the produces at link time, this will
 probably become the default.  Older 64bit versions of GCC, are known to
 be unable to build a good LP64 perl. And these flags will cause gcc to
-barf. On HP-UX 11i (11.11), gcc-3.4.4 or gcc-3.4.5 is prefered over
+barf. On HP-UX 11i (11.11), gcc-3.4.4 or gcc-3.4.5 is preferred over
 gcc-4.0.2 (or older gcc-4 versions) as 64bit builds on PA-RISC with that
 versions of the compiler are unreliable.
 
@@ -179,19 +182,6 @@ instructions provided by Gram Ludlow, using the default /usr/bin/cc
 bundled compiler. Please note that perl itself will I<NOT> build using
 that compiler.
 
-=head2 Just tell me the recipe...
-
-If you are using the softbench compiler, just copy and modify my makefile.
-A copy of this makefile, which I use to build Perl and the DBI interfaces
-(and all other modules I use for that matter) on all platforms (HP, SUN
-and Red Hat) can be found in F<README-files/hpux/Makefile-Lincoln>.  If you
-want to skip reading the rest of this screed, try copying the makefile into
-a directory where you have all your compressed tar balls, editing the macros
-at the top, and running make.
-
-It you are plan to give gcc a go, consider making modifications to this
-makefile, and sending it back to me, as a GCC example.
-
 =head2 Configure (doing it manually)
 
 Once you have downloaded and unpacked the Perl sources (version 5.8.8
@@ -216,17 +206,15 @@ Do not forget the trailing space inside the single quotes. This is also
 described by H.Merijn Brand in the README.hpux from the perl core
 distribution.
 
-I use this in my standard build now. (See F<README-files/hpux/Makefile-Lincoln>)
-
 When asked:
 
     Any additional cc flags? - Answer by prepending: I<+Z> to enable
-    position independant code.
+    position independent code.
 
     For example:
     Any additional cc flags? [-D_HP-UX_SOURCE -Aa] -Ae +Z -z
 
-Though this should be the default inmore recent perl versions.
+Though this should be the default in more recent perl versions.
 
 Lastly, and this is optional, when asked:
 
@@ -430,7 +418,7 @@ is b<NOT> present. and that
 B<is> present.
 
 If the version of Makefile.PL does not include the patch produced at the
-time of this README.hpux,  then the above conditions will likely not be
+time of this document,  then the above conditions will likely not be
 met.
 You can fix this as follows:
 
@@ -563,7 +551,7 @@ caused problems on HP (the user 'www' may need to be created)
 
 =head1 CONTRIBUTORS
 
-The following folks contributed to this README:
+The following folks contributed to this document:
 
    Lincoln A. Baxter <lab@lincolnbaxter.com.Fix.This>
    H.Merijn Brand    <h.m.brand@xs4all.nl>
@@ -584,74 +572,17 @@ And probably others unknown to me.
    Lincoln A. Baxter <lab@lincolnbaxter.com.Fix.This>
    H.Merijn Brand    <h.m.brand@xs4all.nl>
 
-=head1 EXAMPLE FILES
 
-Example files have been split off this document to README-files/hpux/
-
-=head2 Lincoln's Makefile
-
-Lincoln's Makefile can be found in README-files/hpux/Makefile-Lincoln
-
-It contains the text of the makefile Lincoln uses to build Perl on all
-platforms he runs on.
-
-=head2 Perl Configuration Dumps
-
-The following to sections provide full dumps of perl -V for three versions
-of Perl that were successfully built and linked on HP-UX 11.00.
-
-=head3 Lincoln Baxter's DBD-Oracle-1.07 Configuration
-
-See F<README-files/hpux/Conf-Lincoln-1.07>
-
-=head3 Lincoln Baxter's DBD-Oracle-1.06 Configuration
-
-See F<README-files/hpux/Conf-Lincoln-1.06>
-
-=head3 Roger Foskett's Configuration (works with Apache and mod_perl)
-
-See F<README-files/hpux/Conf-Roger>
-
-Roger also provides a link to some threads containing some of his
-DBD-Oracle and HP-UX 11 trials...
-L<http://www.geocrawler.com/search/?config=183&words=Roger+Foskett>
-
-=head3 Mike Shuh's Configuration.
-
-See also appendix C
-
-See F<README-files/hpux/Conf-Mike>
-
-=head3 H.Merijn Brand's Configurations
-
-See
-F<README-files/hpux/Conf-Merijn-580-10.20-cc>,
-F<README-files/hpux/Conf-Merijn-588-10.20-gcc>,
-F<README-files/hpux/Conf-Merijn-585-11.00-cc>,
-F<README-files/hpux/Conf-Merijn-588-11.00-gcc32>,
-F<README-files/hpux/Conf-Merijn-588-11.00-gcc64>,
-F<README-files/hpux/Conf-Merijn-585-11.11-cc>,
-F<README-files/hpux/Conf-Merijn-588-11.11-gcc32>,
-F<README-files/hpux/Conf-Merijn-588-11.11-gcc64>,
-F<README-files/hpux/Conf-Merijn-587-11.23-cc>, and
-F<README-files/hpux/Conf-Merijn-588-11.23-gcc64>
-
-=head3 RE problem with libjava.sl
-
-A copy of the message Lincoln received from Jon Stevenson concerning a
-problem with the libjava.sl can be found in L<README-files/hpux/libjava.eml>.
-Note that the gcc build described in L<Appendix A> also describes a problem
-with libjava.sl, which was solved by putting it in the extra libraries option
-at configure time.  That is probably a preferable solution.
 
 =head1 APPENDICES
 
-=head2 Appendix A (gcc build info from Waldemar Zurowski)
+=head2 Appendix A
+
+(gcc build info from Waldemar Zurowski)
 
 This is pretty much verbatim the build information I received from
 Waldemar Zurowski on building Perl and DBD-Oracle using gcc on HP.  Note
-that this build was on a PA-RISC1.1 machine.  Differences for building on
-PA-RISC2.0 would be welcome and incorporated into the next README.
+that this build was on a PA-RISC1.1 machine.  
 
 =head3 Host
 
@@ -702,7 +633,7 @@ Please note output of ldd command:
     [...]
 
 All of this mess is necessary because of weakness of shl_load(3X),
-explained in current README.hpux and in some discussion forums at HP.com
+explained in this document and in some discussion forums at HP.com
 site. I have learned, that HP issued patch PHSS_24304 for HP-UX 11.11
 and PHSS_24303 for HP-UX 11.00, which introduced variable LD_PRELOAD.
 I haven't tried it yet, but it seems promising that it would allow you
@@ -728,7 +659,9 @@ document.  Using LD_PRELOAD is probably a fragile solution at best.
 Better to do what Waldemar actually did, which is to include libjava in
 the extra link options.
 
-=head2 Appendix B (64 bit build with /usr/bin/cc -- bundled C compiler)
+=head2 Appendix B
+
+(64 bit build with /usr/bin/cc -- bundled C compiler)
 
 Gram M. Ludlow writes:
 
@@ -803,7 +736,7 @@ Then unpack and build:
 
 Note from H.Merijn Brand: In more recent perl distributions using
 HP C-ANSI-C should "just work" (TM), provided your C compiler can be
-found and used, your database is up and running, and your enviroment
+found and used, your database is up and running, and your environment
 variables are set as noted. Example is for a 64bit build, as Oracle
 ships Oracle 9 and up for HP-UX only in 64bit builds.
 
@@ -826,7 +759,9 @@ ships Oracle 9 and up for HP-UX only in 64bit builds.
    make test
    make install
 
-=head2 Appendix C (Miscellaneous links which might be useful)
+=head2 Appendix C
+
+(Miscellaneous links which might be useful)
 
 Michael Schuh writes:
 
@@ -872,11 +807,9 @@ statements, etc.:
 
 The appl_setup sets some Oracle variables (specific to our installation),
 which I then override for the database that I am working on.  The script
-(which I source) also unse some variables specific to other applications
+(which I source) also uses some variables specific to other applications
 (e.g., Tivoli), mostly to unclutter my debugging.  The INSTALL variable
 is related to building libgdbm.
-
-The output of perl -V can be found in README-files/hpux/Conf-Mike
 
 =head2 http://www.mail-archive.com/dbi-users@perl.org/msg18687.html
 
@@ -885,11 +818,13 @@ and DBD-Oracle-1.14 on HPUX 11.0 ( an L2000 machine ) with Oracle 9.0.1
 
 =head2 http://www.sas.com/service/techsup/unotes/SN/001/001875.html
 
-This is a not from from the SAS support people documenting the
+This is a note from the SAS support people documenting the
 LhtStrInsert() and LhtStrCreate() undefined symbols errors, and how to
 fix them in the Oracle makefiles.
 
-=head1 Appendix D (Why Dynamic Linking)
+=head1 Appendix D
+
+(Why Dynamic Linking)
 
 Some one posted to the DBI email list the following question:
 
@@ -913,7 +848,7 @@ or updates  a module.
 =item 3 It eliminates Dynaloader warning (multiply defined).
 
 This occurs with the static build when Perl is run with -w.  I fixed
-this by removing -w from my #! lines, converting the the pragam "use
+this by removing -w from my #! lines, converting the pragam "use
 warnings;". However, it was annoying, since all my scripts had -w in the
 #! line.
 
@@ -927,15 +862,17 @@ Dynamicly linking is what you get by default, so its way better tested.
 
 =back
 
-=head1 Appendix E (WebLogic Driver for Oracle with the Oracle8i Server Lob Bug)
+=head1 Appendix E
 
-Michael Fox reported a bug when you are using DBD-Oracle-1.18 or later and when using older Oracle versions. 
-The bug will result in an error report 
+(WebLogic Driver for Oracle with the Oracle8i Server Lob Bug)
+
+Michael Fox reported a bug when you are using DBD-Oracle-1.18 or later and when using older Oracle versions.
+The bug will result in an error report
 
    'Failed to load Oracle extension and/or shared libraries'.
 
-This problem occurs if you use the WebLogic Driver for Oracle with the Oracle8i Server 
-- Enterprise Edition 8.1.7 and the corresponding Oracle Call Interface (OCI). 
+This problem occurs if you use the WebLogic Driver for Oracle with the Oracle8i Server
+- Enterprise Edition 8.1.7 and the corresponding Oracle Call Interface (OCI).
 This problem occurs only in Oracle 8.1.7; it is fixed in Oracle 9i.
 
 This link details the problem
@@ -946,35 +883,37 @@ The solution from this page is below;
 
 To work around this problem, complete the following procedure:
 
+=over
+
 =item 1 Log in to your Oracle account: 
 
-   su - oracle 
+   su - oracle
 
-=item 2 In a text editor, open the following file:  
+=item 2 In a text editor, open the following file:
 
    $ORACLE_HOME/rdbms/admin/shrept.lst
 
-=itme 3 Add the following line: 
+=item 3 Add the following line: 
    
    rdbms:OCILobLocatorAssign
 
-=item 4 (optional) Add the names of any other missing functions needed by applications, other than WebLogic Server 7.0, that you want to execute. 
+=item 4 (optional) Add the names of any other missing functions needed by applications, other than WebLogic Server 7.0, that you want to execute.
 Note: The OCILobLocatorAssign function is not the only missing function that WebLogic Server 7.0 should be able to call, but it is the only missing function that WebLogic Server 7.0 requires. Other functions that WebLogic Server should be able to call, such as OCIEnvCreate and OCIerminate, are also missing. If these functions are required by other applications that you plan to run, you must add them to your environment by specifying them, too, in $ORACLE_HOME/rdbms/admin/shrept.lst.
 
-=item 5 Rebuild the shared client library: 
-   
-   $ cd $ORACLE_HOME/rdbms/lib 
-   $ make -f ins_rdbms.mk client_sharedlib 
+=item 5 Rebuild the shared client library:
+
+   $ cd $ORACLE_HOME/rdbms/lib
+   $ make -f ins_rdbms.mk client_sharedlib
 
 The make command updates the following files in /opt/oracle/product/8.1.7/lib:
 
-   clntsh.map 
-   ldap.def libclntsh.so 
-   libclntsh.so.8.0 libclntst8.a 
-   network.def 
-   plsql.def 
-   precomp.def 
-   rdbms.def 
+   clntsh.map
+   ldap.def libclntsh.so
+   libclntsh.so.8.0 libclntst8.a
+   network.def
+   plsql.def
+   precomp.def
+   rdbms.def
 
 Because OCILobLocatorAssign is now visible in libclntsh.so, WebLogic Server can call it.
 

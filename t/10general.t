@@ -4,7 +4,6 @@ use warnings;
 use Test::More;
 
 use DBI;
-use Oraperl;
 use Config;
 use DBD::Oracle qw(ORA_OCI);
 
@@ -22,7 +21,7 @@ my $dbh = DBI->connect($dsn, $dbuser, '',
                        });
 
 if ($dbh) {
-    plan tests => 30;
+    plan tests => 28;
 } else {
     plan skip_all => "Unable to connect to Oracle";
 }
@@ -38,8 +37,28 @@ SKIP: {
     # basic check that we can fork subprocesses and wait for the status
     # after having connected to Oracle
 
-    is system("exit 1;"), 1<<8, 'system exit 1 should return 256';
-    is system("exit 0;"),    0, 'system exit 0 should return 0';
+    # at some point, this should become a subtest
+    
+    my $success = is system("exit 1;"), 1<<8, 'system exit 1 should return 256';
+    $success &&= is system("exit 0;"),    0, 'system exit 0 should return 0';
+
+    unless ( $success ) {
+        diag <<END_NOTE;
+The test might have failed because you are using a
+a bequeather to connect to the server.
+
+If you need to continue using a bequeather to connect to a server on the
+same host as the client add
+
+    bequeath_detach = yes
+
+to your sqlnet.ora file or you won't be able to safely use fork/system
+functions in Perl.
+
+END_NOTE
+
+    }
+
 }
 
 $sth = $dbh->prepare(q{
@@ -94,8 +113,6 @@ ok($@    =~ /DBD::Oracle::db do failed:/, "eval error: ``$@'' expected 'do faile
 #print "''$warn''";
 ok($warn =~ /DBD::Oracle::db do failed:/, "warn error: ``$warn'' expected 'do failed:'");
 ok($DBI::err, 'err defined');
-ok($ora_errno, 'ora_errno defined');
-is($ora_errno, $DBI::err, 'ora_errno and err equal');
 $dbh->{RaiseError} = 0;
 $dbh->{PrintError} = 0;
 # ---
