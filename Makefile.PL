@@ -1703,20 +1703,25 @@ sub get_client_version {
     }
 
     if (!$client_version_full) {
-	$client_version_full = "8.0.0.0";
-        print qq{
-WARNING: I could not determine Oracle client version so I\'ll just
-default to version $client_version_full. Some features of DBD::Oracle may not work.
-Oracle version based logic in Makefile.PL may produce erroneous results.
-You can use "perl Makefile.PL -V X.Y.Z" to specify a your client version.\n
+
+      # set a supported client version as default
+      $client_version_full = "9.2.0.4.0";
+
+      print qq{
+WARNING: Could not determine Oracle client version, defaulting to
+version $client_version_full. Some features of DBD::Oracle may not work.
+Oracle version-based logic in Makefile.PL may produce erroneous
+results. You can use "perl Makefile.PL -V X.Y.Z" to specify your
+client version.\n
 };
-	sleep 5;
+      # pause for focus
+      sleep 3;
     }
 
     # hack up a simple floating point form of the version: 8.1.6.2 => 8.1
     ($client_version = $client_version_full) =~ s/^(\d+\.\d+).*/$1/;
 
-    print "Oracle version $client_version_full ($client_version)\n";
+    print "Oracle Version $client_version_full ($client_version)\n";
 
     return $client_version unless wantarray;
     return ($client_version, $client_version_full);
