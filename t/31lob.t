@@ -113,7 +113,7 @@ sub have_v_session {
         done_testing();
     } else {
         is( $len, length($large_value), "returned length" );
-        
+
     }
     is( $dbh->ora_lob_read( $loc, 1, length($large_value) ),
         $large_value, "returned written value" );
@@ -125,7 +125,7 @@ sub have_v_session {
 
         my $sth = $dbh->prepare(
             'BEGIN ? := DBMS_LOB.GETLENGTH( ? ); END;',
-            { ora_auto_lob => 0 } 
+            { ora_auto_lob => 0 }
         );
         $sth->bind_param_inout( 1, \$len, 16 );
         $sth->bind_param( 2, $loc, { ora_type => ORA_BLOB } );
@@ -211,6 +211,8 @@ END_SQL
         is(temp_lob_count($dbh), 0, "no temp lobs left");
     }
 }
+
+undef $sth;
 
 $dbh->do("DROP TABLE $table");
 $dbh->disconnect;
