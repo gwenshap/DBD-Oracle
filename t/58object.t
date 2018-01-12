@@ -182,7 +182,7 @@ qq{ INSERT INTO $list_table VALUES(81,$list_type($inner_type(null, 'listed'))) }
     ok( scalar @row1, 'old: Fetch first row' );
     cmp_ok( ref $row1[1], 'eq', 'ARRAY', 'old: Row 1 column 2 is an ARRAY' );
     cmp_ok( scalar( @{ $row1[1] } ),
-        '==', 2, 'old: Row 1 column 2 is has 2 elements' );
+        '==', 2, 'old: Row 1 column 2 has 2 elements' );
   SKIP: {
         skip 'Subtypes new in Oracle 9' => 6 if $ora8;
         @row2 = $sth->fetchrow();
@@ -190,14 +190,14 @@ qq{ INSERT INTO $list_table VALUES(81,$list_type($inner_type(null, 'listed'))) }
         cmp_ok( ref $row2[1], 'eq', 'ARRAY',
             'old: Row 2 column 2 is an ARRAY' );
         cmp_ok( scalar( @{ $row2[1] } ),
-            '==', 2, 'old: Row 2 column 2 is has 2 elements' );
+            '==', 2, 'old: Row 2 column 2 has 2 elements' );
 
         @row3 = $sth->fetchrow();
         ok( scalar @row3, 'old: Fetch third row' );
         cmp_ok( ref $row3[1], 'eq', 'ARRAY',
             'old: Row 3 column 2 is an ARRAY' );
         cmp_ok( scalar( @{ $row3[1] } ),
-            '==', 2, 'old: Row 3 column 2 is has 2 elements' );
+            '==', 2, 'old: Row 3 column 2 has 2 elements' );
     }
     ok( !$sth->fetchrow(), 'old: No more rows expected' );
 
