@@ -3046,6 +3046,7 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		(text*)phs->name, (sb4)strlen(phs->name),
 		phs->progv,
 		phs->maxlen ? (sb4)phs->maxlen : 1,	/* else bind "" fails	*/
+		(sb4)phs->maxlen,
 		(ub2)phs->ftype, &phs->indp,
 		NULL,	/* ub2 *alen_ptr not needed with OCIBindDynamic */
 		&phs->arcode,
@@ -3924,6 +3925,7 @@ ora_st_execute_array(sth, imp_sth, tuples, tuples_status, columns, exe_count, er
 			/*check to see if value sv is a null (undef) if it is upgrade it*/
  			if (!SvOK(sv))	{
 				(void)SvUPGRADE(sv, SVt_PV);
+				len = 0;
 			}
 			else {
 				SvPV(sv, len);
