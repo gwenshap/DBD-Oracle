@@ -244,7 +244,7 @@ if (1) {
     # compare results with normal execution of query
     my $s1 = $dbh->selectall_arrayref($cur_query, undef, "V%");
     my @s1 = map { @$_ } @$s1;
-    is("@r", "@s1", "ref = sql");
+    is(join(' ',sort@r), join(' ',sort@s2), 'ref = sql');
 
     # --- test re-bind and re-execute of same 'parent' statement
     my $cur1_str = "$cur1";
