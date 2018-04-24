@@ -1845,7 +1845,7 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
 	if (dbis->debug >= 3 || dbd_verbose >= 3 )
 		PerlIO_printf(
             DBIc_LOGPIO(imp_sth),
-            "	blob_read field %d, ftype %d, offset %ld, len %u, "
+            "	blob_read field %d, ftype %d, offset %ld, len %lu, "
             "destoffset %ld, retlen %lu\n",
 			fbh->field_num+1, ftype, offset, (unsigned long) len,
                         destoffset, ul_t(amtp));
