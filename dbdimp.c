@@ -3216,7 +3216,6 @@ dbd_rebind_ph(SV *sth, imp_sth_t *imp_sth, phs_t *phs)
 		(text*)phs->name, (sb4)strlen(phs->name),
 		phs->progv,
 		phs->maxlen ? (sb4)phs->maxlen : 1,	/* else bind "" fails	*/
-		(sb4)phs->maxlen,
 		(ub2)phs->ftype, &phs->indp,
 		NULL,	/* ub2 *alen_ptr not needed with OCIBindDynamic */
 		&phs->arcode,
@@ -3822,7 +3821,7 @@ do_bind_array_exec(sth, imp_sth, phs,utf8,parma_index,tuples_utf8_av,tuples_stat
 	OCIBindByName_log_stat(imp_sth, imp_sth->stmhp, &phs->bndhp, imp_sth->errhp,
 			(text*)phs->name, (sb4)strlen(phs->name),
 			0,
-			phs->maxlen ? (sb4)phs->maxlen : 1, /* else bind "" fails */
+			(sb4)phs->maxlen,
 			(ub2)phs->ftype, 0,
 			NULL, /* ub2 *alen_ptr not needed with OCIBindDynamic */
 			0,
