@@ -3040,7 +3040,7 @@ pp_exec_rset(SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec)
         {
             D_impdata(imp_sth_csr, imp_sth_t, sth_csr); /* TO_DO */
 
-            /* copy appropriate handles and atributes from parent statement	*/
+            /* copy appropriate handles and attributes from parent statement	*/
             imp_sth_csr->envhp		= imp_sth->envhp;
             imp_sth_csr->errhp		= imp_sth->errhp;
             imp_sth_csr->srvhp		= imp_sth->srvhp;

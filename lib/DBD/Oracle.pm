@@ -4972,7 +4972,7 @@ The following code will access the data;
    print $obj1->attr('NAME')."3\n";   # 'Black' is printed
    print $obj2->attr('NAME')."3\n";   # 'Smith' is printed
 
-   # get all atributes as hash reference
+   # get all attributes as hash reference
    my $h1 = $obj1->attr;        # returns {'NAME' => 'Black', 'AGE' => 25}
    my $h2 = $obj2->attr;        # returns {'NAME' => 'Smith', 'AGE' => 44,
                                 #          'SALARY' => 5000 }
