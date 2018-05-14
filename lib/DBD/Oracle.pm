@@ -70,7 +70,7 @@ package DBD::Oracle;
             'Version' => $VERSION,
             'Err'    => \my $err,
             'Errstr' => \my $errstr,
-            'Attribution' => "DBD::Oracle $VERSION using OCI$oci by Tim Bunce",
+            'Attribution' => "DBD::Oracle $VERSION using OCI$oci by Tim Bunce et. al.",
         });
 
         DBD::Oracle::dr::init_oci($drh) ;
