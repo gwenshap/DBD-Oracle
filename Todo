@@ -1,14 +1,15 @@
 [ In no particular order ]
 
-****************************  NOTE: ora_db_shutdown/ora_dv_startup/StrictlyType/DiscardString not documented
+****************************
+
+NOTE: ora_db_shutdown/ora_dv_startup/StrictlyType/DiscardString not documented
 
 User requested a document/link anywhere that details what Oracle client attributes
 are supported and which are not for Oracle 11g and interacting with a RAC
-and using things like TAF, FAN, etc... 
-
+and using things like TAF, FAN, etc...
 
 Seems this file has been neglected for quite a while so I will try to keep it up to date for now
-
+
 For release 1.26 or later
 
 Add support for TAF
@@ -19,7 +20,7 @@ Drop support for ProC connections
 
 For release 1.22 or later
 
---> done 1.22Drop support for Oralce 8 and earlier
+--> done 1.22 Drop support for Oracle 8 and earlier
 
 add support for $dbh->trace('SQL');
 
@@ -31,7 +32,7 @@ Replace OCIInitialize + OCIEnvInit, with OCIEnvCreate
 
 Add support for OCIClientVersion(),OCIPing(),OCIServerVersion()
 
--->done 1.22 Expand support for Data Interface for Persistent LOBs by setting up support 
+--> done 1.22 Expand support for Data Interface for Persistent LOBs by setting up support
 for Piecewise Fetch and Piecewise Fetch with Callback and perhaps  Array Fetch as well
 
 Add support for version 2 of lob functions
@@ -49,8 +50,6 @@ http://www.csis.gvsu.edu/GeneralInfo/Oracle/nav/docindex.htm
 LOBs
 http://www.csis.gvsu.edu/GeneralInfo/Oracle/appdev.920/a96595/dci06mlt.htm
 http://technet.oracle.com/tech/oci/htdocs/faq.html#1000425
-
-Convert most of test.pl into standard t/*.t tests.
 
 Record ORACLE_HOME when building (auto::DBD::Oracle::mk)
 Check emails from Oracle about that.
