@@ -236,4 +236,3 @@ is not set.  If neither module is installed, you must set ORACLE_HOME
 before running Makefile.PL.  Since the registry location of the current
 Oracle Home is in different locations in different Oracle versions,
 it is usually safer to set ORACLE_HOME before running Makefile.PL.
-

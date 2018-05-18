@@ -1,4 +1,4 @@
-#PODNAME: DBD::Oracle::Troubleshooting 
+#PODNAME: DBD::Oracle::Troubleshooting
 #ABSTRACT: Tips and Hints to Troubleshoot DBD::Oracle
 
 =head1 CONNECTING TO ORACLE
@@ -62,8 +62,8 @@ Oracle technical support (and not the dbi-users mailing list).
 =head2 Connecting using a bequeather
 
 If you are using a bequeather to connect to a server
-on the same host as the client, you might have 
-to add 
+on the same host as the client, you might have
+to add
 
     bequeath_detach = yes
 

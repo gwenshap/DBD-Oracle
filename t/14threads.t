@@ -1,4 +1,5 @@
-#!/usr/bin/perl
+#!perl
+
 $| = 1;
 
 ## ----------------------------------------------------------------------------
@@ -6,7 +7,14 @@ $| = 1;
 ## By Jeffrey Klein,
 ## ----------------------------------------------------------------------------
 
-BEGIN { eval "use threads; use threads::shared;" }
+# This needs to be the very very first thing
+BEGIN { eval 'use threads; use threads::shared;' }
+use strict;
+use warnings;
+
+use lib 't/lib';
+use DBDOracleTestLib qw/ oracle_test_dsn db_handle /;
+
 my $use_threads_err = $@;
 use DBI;
 use Config qw(%Config);
@@ -15,31 +23,26 @@ use Test::More;
 BEGIN {
     if ( !$Config{useithreads} || $] < 5.008 ) {
         plan skip_all => "this $^O perl $] not configured to support iThreads";
-    } elsif ($DBI::VERSION <= 1.601){
-      plan skip_all => "DBI version ".$DBI::VERSION." does not support iThreads. Use version 1.602 or later.";
-     }
+    }
+    elsif ( $DBI::VERSION <= 1.601 ) {
+        plan skip_all => 'DBI version '
+          . $DBI::VERSION
+          . ' does not support iThreads. Use version 1.602 or later.';
+    }
     die $use_threads_err if $use_threads_err;    # need threads
 }
 
-use strict;
 use DBI;
 
 use Test::More;
 
-unshift @INC, 't';
-require 'nchar_test_lib.pl';
-
-my $dsn = oracle_test_dsn();
-my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh = DBI->connect($dsn, $dbuser, '',{
-                           PrintError => 0,
-                       });
+my $dbh    = db_handle( { PrintError => 0 } );
 
 if ($dbh) {
-    plan tests => 19;
     $dbh->disconnect;
-} else {
-    plan skip_all => "Unable to connect to Oracle";
+}
+else {
+    plan skip_all => 'Unable to connect to Oracle';
 }
 
 my $last_session : shared;
@@ -60,15 +63,15 @@ for my $i ( 0 .. 4 ) {
             if ( $i > 0 ) {
                 is $session, $last_session,
                   "session $i matches previous session";
-            } else {
-                ok $session, "session $i created",
+            }
+            else {
+                ok $session, "session $i created",;
             }
 
             $last_session = $session;
             free_dbh_to_pool($dbh);
         }
     )->join;
-
 
 }
 
@@ -108,15 +111,15 @@ my @sem;
 use Thread::Semaphore;
 
 # create locked semaphores
-for my $i (0..2) {
-   push @sem, Thread::Semaphore->new(0);
+for my $i ( 0 .. 2 ) {
+    push @sem, Thread::Semaphore->new(0);
 }
 
 undef $last_session;
 
 # 3 threads, 3 iterations
 # TESTS: 9
-for my $t ( 0..2 ) {
+for my $t ( 0 .. 2 ) {
     $thr[$t] = threads->create(
         sub {
             my $partner = ( $t + 1 ) % 3;
@@ -129,9 +132,9 @@ for my $t ( 0..2 ) {
                 if ( defined $last_session ) {
                     is $session, $last_session,
                       "thread $t, loop $i matches previous session";
-                } else {
-                    ok $session,
-                      "thread $t, loop $i created session";
+                }
+                else {
+                    ok $session, "thread $t, loop $i created session";
                 }
                 $last_session = $session;
                 free_dbh_to_pool($dbh);
@@ -152,6 +155,8 @@ $_->join for @thr;
 empty_pool();
 
 is scalar(@pool), 0, 'pool empty';
+
+done_testing;
 
 exit;
 
@@ -174,9 +179,7 @@ sub empty_pool {
 
 sub connect_dbh {
     my $imp_data = shift;
-    my $dsn      = oracle_test_dsn();
-    my $dbuser   = $ENV{ORACLE_USERID} || 'scott/tiger';
-    DBI->connect( $dsn, $dbuser, '', { dbi_imp_data => $imp_data } );
+    return db_handle( { dbi_imp_data => $imp_data } );
 }
 
 sub session_id {

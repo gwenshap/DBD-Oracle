@@ -1,8 +1,12 @@
-package DBD::Oracle::GetInfo;
+#!perl
 # ABSTRACT: Wrapper to get Oracle information
-
 use strict;
-use DBD::Oracle();
+use warnings;
+
+package DBD::Oracle::GetInfo;
+# VERSION
+
+use DBD::Oracle ();
 
 my $sql_driver = 'Oracle';
 my $sql_ver_fmt = '%02d.%02d.%04d';   # ODBC version string: ##.##.#####
@@ -18,7 +22,7 @@ my $sql_driver_ver = sprintf $sql_ver_fmt, $a, $b, $c;
 sub sql_dbms_version {
     my $dbh = shift;
     local $^W; # for ora_server_version having too few parts
-    return sprintf $sql_ver_fmt, @{DBD::Oracle::db::ora_server_version($dbh)};
+    return sprintf $sql_ver_fmt, @{DBD::Oracle::db::ora_server_version($dbh)}[0..2];
 }
 
 my @Keywords = qw(

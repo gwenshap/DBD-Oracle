@@ -127,7 +127,7 @@ versions of the compiler are unreliable.
 Both Roger Foskett, I and most others have been using the HP Softbench
 C compiler normally installed in:
 
-	/opt/softbench/bin/cc.
+    /opt/softbench/bin/cc.
 
 While the DBD-Oracle F<Makefile.PL> checks for some of the conditions
 which, when met, we know will produce a working build, there are many
@@ -318,9 +318,9 @@ If you have trouble, see the L<Trouble Shooting> instructions below, for
 hints of what might be wrong... and send me a note, describing your
 configuration, and what you did to fix it.
 
-=head1	Trouble Shooting
+=head1 Trouble Shooting
 
-=head2	"Unresolved symbol"
+=head2 "Unresolved symbol"
 
 In general, find the symbols, edit the Makefile, and make test.
 
@@ -374,9 +374,9 @@ and add the missing libraries.
 When you add those library files to OTHERLDFLAGS you must convert the
 name from the actual name to the notation that OTHERLDFLAGS uses.
 
-      libclntsh.sl         becomes =>	-lclntsh
-      libagtsh.sl          becomes =>	-lagtsh
-      libwtc8.sl           becomes =>	-lwtc8
+      libclntsh.sl         becomes => -lclntsh
+      libagtsh.sl          becomes => -lagtsh
+      libwtc8.sl           becomes => -lwtc8
 
 That is, you replace the "lib" in the name to "-l" and remove the ".sl"
 (or the .so).
@@ -422,7 +422,7 @@ time of this document,  then the above conditions will likely not be
 met.
 You can fix this as follows:
 
-	perl -pi -e's/-Wl,\+[sn]//' Makefile
+    perl -pi -e's/-Wl,\+[sn]//' Makefile
 
 =head1 Building on a Oracle Client Machine
 
@@ -560,7 +560,7 @@ The following folks contributed to this document:
    Weiguo Sun        <wesun@cisco.com.Fix.This>
    Tony Foiani       <anthony_foiani@non.hp.com.Fix.This>
    Hugh J. Hitchcock <hugh@hitchco.com.Fix.This>
-	Heiko Herms  <Heiko.Herms.extern@HypoVereinsbank.de.Fix.This>
+   Heiko Herms  <Heiko.Herms.extern@HypoVereinsbank.de.Fix.This>
    Waldemar Zurowski <bilbek0@poczta.onet.pl.Fix.This>
    Michael Schuh     <Michael.Schuh@airborne.com.Fix.This>
    Gram M. Ludlow    <LUDLOW_GRAM_M@cat.com.Fix.This>
@@ -572,8 +572,6 @@ And probably others unknown to me.
    Lincoln A. Baxter <lab@lincolnbaxter.com.Fix.This>
    H.Merijn Brand    <h.m.brand@xs4all.nl>
 
-
-
 =head1 APPENDICES
 
 =head2 Appendix A
@@ -582,7 +580,7 @@ And probably others unknown to me.
 
 This is pretty much verbatim the build information I received from
 Waldemar Zurowski on building Perl and DBD-Oracle using gcc on HP.  Note
-that this build was on a PA-RISC1.1 machine.  
+that this build was on a PA-RISC1.1 machine.
 
 =head3 Host
 
@@ -885,7 +883,7 @@ To work around this problem, complete the following procedure:
 
 =over
 
-=item 1 Log in to your Oracle account: 
+=item 1 Log in to your Oracle account:
 
    su - oracle
 
@@ -893,8 +891,8 @@ To work around this problem, complete the following procedure:
 
    $ORACLE_HOME/rdbms/admin/shrept.lst
 
-=item 3 Add the following line: 
-   
+=item 3 Add the following line:
+
    rdbms:OCILobLocatorAssign
 
 =item 4 (optional) Add the names of any other missing functions needed by applications, other than WebLogic Server 7.0, that you want to execute.
