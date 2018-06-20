@@ -8,6 +8,19 @@ Revision history for DBD::Oracle
   not a fixed length. Code now allows up to a size of 2000.
   (GH#31, Martin J. Evans)
 
+  Various fixes for compiler warnings, OCI handle leaks, and OCI programming
+  errors. - (PR#38, Dag Lem)
+
+  Corrections to t/25plsql.t - (GH#56, kjetillll)
+
+  Fix: Invalid binding call for large undef arrays. - (GH#36, GH ghost)
+
+  Fix: compile warnings about int vs long unsigned. - (PR#62, Dean Hamstead)
+
+  Fix: Spelling errors in pod. - (PR#63, Jochen Hayek)
+
+  Fox: Various changes in pod. - (PR#54, Mike O'Regan)
+
   [ENHANCEMENT]
 
   Connection informational messages like "ORA-28002: the password will
@@ -18,6 +31,20 @@ Revision history for DBD::Oracle
   Ignore constraints which are not enabled in primary/foreign key_info
   (GH#23, Martin J. Evans)
 
+  dist.init overhaul. - (PR#62, Dean Hamstead)
+
+  Mailmap and TODO changes. - (PR#62, Dean Hamstead)
+
+  Travis CI testing. - (PR#62, Dean Hamstead)
+  Note: this uses Oracle XE which doesn't provide enough features to test
+  the entire suite. Nor does it test anything other than Linux on Linux.
+  Release tests are also NOT yet run in Travis.
+
+  Rewrite of DRCP session pooling to make it work as intended - (PR#38, Dag Lem)
+
+  Support for Oracle Fast Application Notification (FAN). - (PR#38, Dag Lem)
+
+  Work by Dag Lem was sponsored by EVRY Information Services. Thank you!
 
 1.75_2    2014-11-19
 
