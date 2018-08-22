@@ -4,6 +4,8 @@ Revision history for DBD::Oracle
 
   [BUG FIXES]
 
+  Fix potential buffer overflow in dbdimp.c - (GH#57, Various)
+
   Fix truncation error on ROWIDs from an Index Organized table as they are
   not a fixed length. Code now allows up to a size of 2000.
   (GH#31, Martin J. Evans)
@@ -19,7 +21,7 @@ Revision history for DBD::Oracle
 
   Fix: Spelling errors in pod. - (PR#63, Jochen Hayek)
 
-  Fox: Various changes in pod. - (PR#54, Mike O'Regan)
+  Fix: Various changes in pod. - (PR#54, Mike O'Regan)
 
   [ENHANCEMENT]
 
