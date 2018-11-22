@@ -2,6 +2,12 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+1.76      2018-11-22
+
+  No Changes from 1.75, we just botched up publishing to CPAN
+
+1.75   2018-11-22
+
   No Changes from 1.75_42
 
 1.75_42   2018-08-22
