@@ -65,4 +65,3 @@ this:
 
     my $dbh = DBI->connect('dbi:Oracle:host=oraclehost;sid=oracledb1',
     'username', 'password');
-

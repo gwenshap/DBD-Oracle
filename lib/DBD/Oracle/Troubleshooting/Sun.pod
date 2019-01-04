@@ -29,4 +29,3 @@ root>  crle -u -l /youroracledir/lib/instantclient_11_2
 
 however, make sure you check the crle options as you may need to
 set the architecture etc as well.
-

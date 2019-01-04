@@ -13,6 +13,7 @@
 ^info/
 ^oci8/
 ^oracle/
+^maint/
 ^tags$
 ~$
 ^\.git
