@@ -4776,7 +4776,7 @@ static int enable_taf(
     SV *dbh,
     imp_dbh_t *imp_dbh) {
 
-    bool can_taf = 0;
+    boolean can_taf = 0;
     sword status;
 
 #ifdef OCI_ATTR_TAF_ENABLED
