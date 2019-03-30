@@ -709,7 +709,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 
 			if (status != OCI_SUCCESS) {
 				oci_error(dbh, NULL, status,
-					"OCIEnvNlsCreate. Check ORACLE_HOME (Linux) env var  or PATH (Windows) and or NLS settings, permissions, etc.");
+					"OCIEnvNlsCreate. Check ORACLE_HOME (Linux) env var or PATH (Windows) and or NLS settings, permissions, etc.");
 				return 0;
 			}
 
@@ -761,7 +761,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 							charsetid, ncharsetid, status );
 				if (status != OCI_SUCCESS) {
 					oci_error(dbh, NULL, status,
-						"OCIEnvNlsCreate. Check ORACLE_HOME (Linux) env var  or PATH (Windows) and or NLS settings, permissions, etc");
+						"OCIEnvNlsCreate. Check ORACLE_HOME (Linux) env var or PATH (Windows) and or NLS settings, permissions, etc");
 					return 0;
 				}
 			}
