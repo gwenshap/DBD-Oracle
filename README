@@ -59,10 +59,12 @@ DBD::Oracle  --  an Oracle interface for Perl 5.
     For full Oracle installs: that usually includes Pro*C and SQL*Net.
     (That's not very specific because it varies between Oracle releases.).
     As of release 1.22 support of Oracle clients before 9 was dropped.
-    The main reason for this is that next few versions of DBD::Oracle will introduce a number of new features
-    whicht will required a great deal of extra coding to make the OCI 8 work.
-    As well it is getting harder to find an Oracle client 8 to test against as well
-    Oracle no longer supports clients before 9.
+    The main reason for this is that next few versions of DBD::Oracle will
+    introduce a number of new features which will required a great deal of extra
+    coding to make the OCI 8 work.
+
+    As well it is getting harder to find an Oracle client 8 to test against as
+    well Oracle no longer supports clients before 9.
 
     The ORACLE_HOME environment variable must point to the Oracle Home
     used to create DBD::Oracle. (Not essential under MS Windows).
@@ -252,14 +254,14 @@ directly - use the dbi-users mailing list.
 Regards,
 Tim.
 
-===============================================================================
+================================================================================
 Examples and other info:
 
 README.help.txt     -- READ IT FIRST IF YOU HAVE ANY PROBLEMS
 README.win32.txt    -- building DBD::Oracle under MS Windows
 README.wingcc.txt   -- building DBD::Oracle under MS Windows with gcc
 README.macosx.txt   -- building DBD::Oracle under MacOS X
-README.clients.txt  -- building/using DBD::Oracle on minimally configured systems
+README.clients.txt  -- building/using DBD::Oracle on minimally configured system
 README.login.txt    -- help for login problems
 README.longs.txt    -- examples dealing with LONG types (blobs)
 
@@ -292,7 +294,7 @@ ftp://ftp.bf.rmit.edu.au/pub/Oracle/OS/MS/NT/ntoraperl.zip
 DBI and DBD::Oracle are very portable. If Perl and Oracle run on a platform
 then the chances are that DBD::Oracle will as well.
 
-===============================================================================
+================================================================================
 
 See the large README.help.txt file for lots of hints and advice
 about building and runtime issues.
