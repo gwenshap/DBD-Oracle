@@ -215,11 +215,6 @@ dbd_dr_destroy(SV *drh, imp_drh_t *imp_drh)
 		return;
 	}
 
-	if (imp_drh->envhp) {
-		/* Free cached environment handle. */
-		OCIHandleFree_log_stat(imp_drh, imp_drh->envhp, OCI_HTYPE_ENV, status);
-	}
-
 #ifdef ORA_OCI_112
 	/* Free session pool resources. */
 	if (imp_drh->pool_hv) {
@@ -1256,8 +1251,19 @@ dbd_db_destroy(SV *dbh, imp_dbh_t *imp_dbh)
 			OCIHandleFree_log_stat(imp_dbh, imp_dbh->svchp, OCI_HTYPE_SVCCTX, status);
 			OCIHandleFree_log_stat(imp_dbh, imp_dbh->srvhp, OCI_HTYPE_SERVER, status);
 			OCIHandleFree_log_stat(imp_dbh, imp_dbh->errhp, OCI_HTYPE_ERROR,  status);
+			/* free session environment handle */
 			if (imp_dbh->envhp != imp_drh->envhp) {
 				OCIHandleFree_log_stat(imp_dbh, imp_dbh->envhp, OCI_HTYPE_ENV, status);
+				if ( status == OCI_SUCCESS ) {
+					imp_dbh->envhp = NULL;
+				}
+			/* free global environment handle during destruction of last connection */
+			} else if ( (imp_dbh->envhp == imp_drh->envhp) && (SvTRUE(perl_get_sv("DBI::PERL_ENDING",0))) ) {
+				OCIHandleFree_log_stat(imp_dbh, imp_dbh->envhp, OCI_HTYPE_ENV, status);
+				if ( status == OCI_SUCCESS ) {
+					imp_dbh->envhp = NULL;
+					imp_drh->envhp = NULL;
+				}
 			}
 #ifdef ORA_OCI_112
 		}
