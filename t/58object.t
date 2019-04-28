@@ -316,7 +316,7 @@ qq{ INSERT INTO $list_table VALUES(81,$list_type($inner_type(null, 'listed'))) }
     is_deeply(
         $row1[1]->[0]->attr,
         { NUM => undef, NAME => 'listed' },
-        'Check propertes of first (and only) item in nested table'
+        'Check properties of first (and only) item in nested table'
     );
 
     ok( !$sth->fetchrow(), 'new: No more rows expected (nested table)' );
