@@ -11,6 +11,8 @@ env:
     - AUTOMATED_TESTING=1
     - EXTENDED_TESTING=1
     - RELEASE_TESTING=0
+    - TRAVIS_PERL_DEBUG=1
+    - HELPERS_DEBUG=1
     - CFLAGS="-g -O2 -fstack-protector -Wformat -Werror=format-security"
     - CPPFLAGS="-D_FORTIFY_SOURCE=2"
     - CXXFLAGS="-g -O2 -fstack-protector -Wformat -Werror=format-security"
