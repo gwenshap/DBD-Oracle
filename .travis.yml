@@ -11,8 +11,6 @@ env:
     - AUTOMATED_TESTING=1
     - EXTENDED_TESTING=1
     - RELEASE_TESTING=0
-    - TRAVIS_PERL_DEBUG=1
-    - HELPERS_DEBUG=1
     - CFLAGS="-g -O2 -fstack-protector -Wformat -Werror=format-security"
     - CPPFLAGS="-D_FORTIFY_SOURCE=2"
     - CXXFLAGS="-g -O2 -fstack-protector -Wformat -Werror=format-security"
@@ -184,7 +182,8 @@ before_install:
   - source ~/travis-perl-helpers/init
   - build-perl
   - perl -V
-  - build-dist || dzil build -v --in=/home/travis/build/perl5-dbi/DBD-Oracle/build_dir
+  - dzil authordeps --missing
+  - build-dist
   - cd $BUILD_DIR
 
 install:
