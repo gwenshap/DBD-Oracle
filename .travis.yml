@@ -184,7 +184,7 @@ before_install:
   - source ~/travis-perl-helpers/init
   - build-perl
   - perl -V
-  - build-dist
+  - build-dist || dzil build -v --in=/home/travis/build/perl5-dbi/DBD-Oracle/build_dir
   - cd $BUILD_DIR
 
 install:
