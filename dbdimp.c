@@ -855,7 +855,7 @@ dbd_db_login6(SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *uid, char *pwd, S
 				/* Create and cache new session pool struct. */
 				SV *key_sv = pool_key(imp_dbh, dbname, uid, pwd, charsetid, ncharsetid);
 
-				session_pool_t pool_data = { };
+				session_pool_t pool_data = {0};
 				SV *pool_sv = newSVpvn((char*)&pool_data, sizeof(pool_data));
 				HE *pool_he = hv_store_ent(imp_drh->pool_hv, key_sv, pool_sv, 0);
 				imp_dbh->pool = pool = (session_pool_t*)SvPVX(HeVAL(pool_he));
