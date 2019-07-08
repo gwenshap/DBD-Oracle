@@ -164,7 +164,7 @@ sql_typecode_name(int dbtype) {
 		case 116:	return "SQLT_RSET	OCI 8 cursor variable";
 		case ORA_VARCHAR2_TABLE:return "ORA_VARCHAR2_TABLE";
 		case ORA_NUMBER_TABLE: 	return "ORA_NUMBER_TABLE";
-		case ORA_XMLTYPE:		return "ORA_XMLTYPE or SQLT_NTY";/* SQLT_NTY	must be carefull here as its value (108) is the same for an embedded object Well realy only XML clobs not embedded objects  */
+		case ORA_XMLTYPE:		return "ORA_XMLTYPE or SQLT_NTY";/* SQLT_NTY	must be careful here as its value (108) is the same for an embedded object Well really only XML clobs not embedded objects  */
 
 	}
 	 sv = sv_2mortal(newSVpv("",0));
@@ -289,7 +289,9 @@ oci_mode(ub4  mode)
 	dTHX;
 	SV *sv;
 	switch (mode) {
-		case 3:					return "THREADED | OBJECT";
+		case OCI_THREADED | OCI_OBJECT:	return "THREADED | OBJECT";
+		case OCI_OBJECT | OCI_EVENTS:	return "OBJECT | EVENTS";
+		case OCI_THREADED | OCI_OBJECT | OCI_EVENTS:	return "THREADED | OBJECT | EVENTS";
 		case OCI_DEFAULT:		return "DEFAULT";
 		/* the default value for parameters and attributes */
 		/*-------------OCIInitialize Modes / OCICreateEnvironment Modes -------------*/
@@ -324,10 +326,10 @@ oci_mode(ub4  mode)
 /*case OCI_LOGON2_SPOOL:		return "LOGON2_SPOOL";	  Use session pool */
 		case OCI_LOGON2_CPOOL:		return "LOGON2_CPOOL"; /* Use connection pool */
 /*case OCI_LOGON2_STMTCACHE:	return "LOGON2_STMTCACHE";	  Use Stmt Caching */
-		case OCI_LOGON2_PROXY:		return "LOGON2_PROXY";	 /* Proxy authentiaction */
+		case OCI_LOGON2_PROXY:		return "LOGON2_PROXY";	 /* Proxy authentication */
 		/*------------------------- OCISessionPoolCreate Modes ----------------------*/
 /*case OCI_SPC_REINITIALIZE:		return "SPC_REINITIALIZE";	Reinitialize the session pool */
-/*case OCI_SPC_HOMOGENEOUS: 		return "SPC_HOMOGENEOUS"; "";	Session pool is homogeneneous */
+/*case OCI_SPC_HOMOGENEOUS: 		return "SPC_HOMOGENEOUS"; "";	Session pool is homogeneous */
 /*case OCI_SPC_STMTCACHE:			return "SPC_STMTCACHE";	Session pool has stmt cache */
 /*case OCI_SPC_NO_RLB:			return "SPC_NO_RLB ";  Do not enable Runtime load balancing. */
 		/*--------------------------- OCISessionGet Modes ---------------------------*/
@@ -543,7 +545,7 @@ oci_attr_name(ub4 attr)
 	case OCI_ATTR_TRANS_NAME:			return "OCI_ATTR_TRANS_NAME";		/* string to identify a global transaction */
 	case OCI_ATTR_HEAPALLOC:			return "OCI_ATTR_HEAPALLOC";		/* memory allocated on the heap */
 	case OCI_ATTR_CHARSET_FORM:			return "OCI_ATTR_CHARSET_FORM";		/* Character Set Form */
-	case OCI_ATTR_MAXDATA_SIZE:			return "OCI_ATTR_MAXDATA_SIZE";		/* Maximumsize of data on the server  */
+	case OCI_ATTR_MAXDATA_SIZE:			return "OCI_ATTR_MAXDATA_SIZE";		/* Maximum size of data on the server  */
 	case OCI_ATTR_CACHE_OPT_SIZE:		return "OCI_ATTR_CACHE_OPT_SIZE";	/* object cache optimal size */
 	case OCI_ATTR_CACHE_MAX_SIZE:		return "OCI_ATTR_CACHE_MAX_SIZE";	/* object cache maximum size percentage */
 	case OCI_ATTR_PINOPTION:			return "OCI_ATTR_PINOPTION";		/* object cache default pin option */
@@ -682,8 +684,8 @@ oci_attr_name(ub4 attr)
 	case OCI_ATTR_RESERVED_2:			return "OCI_ATTR_RESERVED_2";		/* reserved */
 
 
-	case OCI_ATTR_SUBSCR_RECPT:			return "OCI_ATTR_SUBSCR_RECPT";		/* recepient of subscription */
-	case OCI_ATTR_SUBSCR_RECPTPROTO:	return "OCI_ATTR_SUBSCR_RECPTPROTO";/* protocol for recepient */
+	case OCI_ATTR_SUBSCR_RECPT:			return "OCI_ATTR_SUBSCR_RECPT";		/* recipient of subscription */
+	case OCI_ATTR_SUBSCR_RECPTPROTO:	return "OCI_ATTR_SUBSCR_RECPTPROTO";/* protocol for recipient */
 
 	/* 8.2 dpapi support of ADTs */
 	case OCI_ATTR_DIRPATH_EXPR_TYPE:	return "OCI_ATTR_DIRPATH_EXPR_TYPE";	/* expr type of OCI_ATTR_NAME */
@@ -698,7 +700,7 @@ oci_attr_name(ub4 attr)
 	case OCI_ATTR_LDAP_CRED:			return "OCI_ATTR_LDAP_CRED";		/* credentials to connect to LDAP */
 	case OCI_ATTR_WALL_LOC:				return "OCI_ATTR_WALL_LOC";			/* client wallet location */
 	case OCI_ATTR_LDAP_AUTH:			return "OCI_ATTR_LDAP_AUTH";		/* LDAP authentication method */
-	case OCI_ATTR_LDAP_CTX:				return "OCI_ATTR_LDAP_CTX";			/* LDAP adminstration context DN */
+	case OCI_ATTR_LDAP_CTX:				return "OCI_ATTR_LDAP_CTX";			/* LDAP administration context DN */
 	case OCI_ATTR_SERVER_DNS:			return "OCI_ATTR_SERVER_DNS";		/* list of registration server DNs */
 
 	case OCI_ATTR_DN_COUNT:				return "OCI_ATTR_DN_COUNT";			/* the number of server DNs */
@@ -741,7 +743,7 @@ oci_attr_name(ub4 attr)
 
 	case OCI_ATTR_BIND_COUNT:			return "OCI_ATTR_BIND_COUNT";		/* number of bind postions */
 	case OCI_ATTR_HANDLE_POSITION:		return "OCI_ATTR_HANDLE_POSITION";	/* pos of bind/define handle */
-	case OCI_ATTR_RESERVED_5:			return "OCI_ATTR_RESERVED_5";		/* reserverd */
+	case OCI_ATTR_RESERVED_5:			return "OCI_ATTR_RESERVED_5";		/* reserved */
 	case OCI_ATTR_SERVER_BUSY:			return "OCI_ATTR_SERVER_BUSY";		/* call in progress on server*/
 
 	case OCI_ATTR_DIRPATH_SID:			return "OCI_ATTR_DIRPATH_SID";		/* loading into an SID col */
@@ -755,7 +757,7 @@ oci_attr_name(ub4 attr)
 	case OCI_ATTR_SCN_BASE:				return "OCI_ATTR_SCN_BASE";			/* snapshot base */
 	case OCI_ATTR_SCN_WRAP:				return "OCI_ATTR_SCN_WRAP";			/* snapshot wrap */
 
-	/* --------------------------- Miscellanous attributes --------------------- */
+	/* --------------------------- Miscellaneous attributes --------------------- */
 	case OCI_ATTR_RESERVED_6:			return "OCI_ATTR_RESERVED_6";		/* reserved */
 	case OCI_ATTR_READONLY_TXN:			return "OCI_ATTR_READONLY_TXN";		/* txn is readonly */
 	case OCI_ATTR_RESERVED_7:			return "OCI_ATTR_RESERVED_7";		/* reserved */
@@ -1128,7 +1130,7 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 			phs->alen = 0;
 			phs->indp = 0;
 		}
-	else
+		else
 			if (SvOK(phs->sv)) {
 				*bufpp  = SvPV(phs->sv, phs_len);
 				phs->alen = (phs->alen_incnull) ? phs_len+1 : phs_len;;
@@ -1139,20 +1141,20 @@ dbd_phs_in(dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 				phs->alen = 0;
 				phs->indp = -1;
 			}
-			*alenp  = phs->alen;
-			*indpp  = &phs->indp;
-			*piecep = OCI_ONE_PIECE;
-            /* MJE commented out as we are avoiding DBIS now but as this is
-               an Oracle callback there is no way to pass something non
-               OCI into this func.
+	*alenp  = phs->alen;
+	*indpp  = &phs->indp;
+	*piecep = OCI_ONE_PIECE;
+	/* MJE commented out as we are avoiding DBIS now but as this is
+	   an Oracle callback there is no way to pass something non
+	   OCI into this func.
 
-			if (DBIS->debug >= 3 || dbd_verbose >= 3 )
-				PerlIO_printf(DBILOGFP, "		in  '%s' [%lu,%lu]: len %2lu, ind %d%s, value=%s\n",
-					phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
-					(phs->desc_h) ? " via descriptor" : "",neatsvpv(phs->sv,10));
-            */
-			if (!tuples_av && (index > 0 || iter > 0))
-				croak(" Arrays and multiple iterations not currently supported by DBD::Oracle (in %d/%d)", index,iter);
+	if (DBIS->debug >= 3 || dbd_verbose >= 3 )
+		PerlIO_printf(DBILOGFP, "		in  '%s' [%lu,%lu]: len %2lu, ind %d%s, value=%s\n",
+			phs->name, ul_t(iter), ul_t(index), ul_t(phs->alen), phs->indp,
+			(phs->desc_h) ? " via descriptor" : "",neatsvpv(phs->sv,10));
+	*/
+	if (!tuples_av && (index > 0 || iter > 0))
+		croak(" Arrays and multiple iterations not currently supported by DBD::Oracle (in %d/%d)", index,iter);
 
 	return OCI_CONTINUE;
 }
@@ -1845,7 +1847,8 @@ ora_blob_read_mb_piece(SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh,
             DBIc_LOGPIO(imp_sth),
             "	blob_read field %d, ftype %d, offset %ld, len %lu, "
             "destoffset %ld, retlen %lu\n",
-			fbh->field_num+1, ftype, offset, len, destoffset, ul_t(amtp));
+			fbh->field_num+1, ftype, offset, (unsigned long) len,
+                        destoffset, ul_t(amtp));
 
 	SvCUR_set(dest_sv, byte_destoffset+amtp);
 	*SvEND(dest_sv) = '\0'; /* consistent with perl sv_setpvn etc	*/
@@ -2563,7 +2566,7 @@ the concept is simple really
 	The the obj_ind is for the entier object not the properties so you call it once it
 	gets all of the indicators for the objects so you pass it into OCIObjectGetAttr and that
 	function will set attr_null_status as in the get below.
- 5. interate over the atributes of the object
+ 5. interate over the attributes of the object
 
 The thing to remember is that OCI and C have no way of representing a DB NULLs so we use the OCIInd find out
 if the object or any of its properties are NULL, This is one little line in a 20 chapter book and even then
@@ -2851,13 +2854,17 @@ fetch_get_piece(SV *sth, imp_fbh_t *fbh,SV *dest_sv)
                 actual_bufl,fb_ary->piece_count,fbh->piece_size,buflen);
 		}
 	}
-	sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
 
-	if (fbh->ftype != SQLT_BIN){
+	if (actual_bufl > 0){
+		sv_setpvn(dest_sv, (char*)fb_ary->cb_abuf,(STRLEN)actual_bufl);
+		if (fbh->ftype != SQLT_BIN){
 
-		if (CSFORM_IMPLIES_UTF8(fbh->csform) ){ /* do the UTF 8 magic*/
-			SvUTF8_on(dest_sv);
+			if (CSFORM_IMPLIES_UTF8(fbh->csform) ){ /* do the UTF 8 magic*/
+				SvUTF8_on(dest_sv);
+			}
 		}
+	} else {
+		sv_set_undef(dest_sv);
 	}
 
 	return 1;
@@ -4264,16 +4271,7 @@ ora_parse_uid(imp_dbh_t *imp_dbh, char **uidp, char **pwdp)
 		return OCI_CRED_EXT;
 	}
 #ifdef ORA_OCI_112
-    if (imp_dbh->using_drcp){
-		OCIAttrSet_log_stat(imp_dbh, imp_dbh->authp, OCI_HTYPE_SESSION,
-			*uidp, strlen(*uidp),
-			(ub4) OCI_ATTR_USERNAME, imp_dbh->errhp, status);
-
-		OCIAttrSet_log_stat(imp_dbh, imp_dbh->authp, OCI_HTYPE_SESSION,
-			(strlen(*pwdp)) ? *pwdp : NULL, strlen(*pwdp),
-			(ub4) OCI_ATTR_PASSWORD, imp_dbh->errhp, status);
-	}
-	else {
+	if (!imp_dbh->using_drcp) {
 #endif
 		OCIAttrSet_log_stat(imp_dbh, imp_dbh->seshp, OCI_HTYPE_SESSION,
 				*uidp, strlen(*uidp),
@@ -4294,6 +4292,11 @@ ora_db_reauthenticate(SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd)
 {
 	dTHX;
 	sword status;
+#ifdef ORA_OCI_112
+	if (imp_dbh->using_drcp) {
+		return 0;
+	}
+#endif
 	/* XXX should possibly create new session before ending the old so	*/
 	/* that if the new one can't be created, the old will still work.	*/
 	OCISessionEnd_log_stat(imp_dbh, imp_dbh->svchp, imp_dbh->errhp,

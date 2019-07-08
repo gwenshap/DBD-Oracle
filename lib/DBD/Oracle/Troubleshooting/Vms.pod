@@ -3,8 +3,8 @@
 
 =head1 General Info
 
-This is related to Oracle RDBMS 9.2 and later, since Oracle 
-made fundamental changes to oracle installation requirements 
+This is related to Oracle RDBMS 9.2 and later, since Oracle
+made fundamental changes to oracle installation requirements
 and factual installation with this release.
 
 Oracle's goal was to make VMS installation be more like on
@@ -26,7 +26,7 @@ table is inserted in LNM$FILE_DEV in LNM$PROCESS_DIRECTORY.
             = "LNM$SYSTEM"
             = "DECW$LOGICAL_NAMES"
 
-This ensures that any process that needs to have access to 
+This ensures that any process that needs to have access to
 oracle gets the environment by just adding one logical name table
 to a central process specific mechanism.
 
@@ -44,14 +44,14 @@ Installing DBI and DBD::Oracle has influence upon this since in
 both cases a few environment variables are read or set in the
 test phase.
 For DBI it is the logical SYS$SCRATCH, which is a JOB logical.
-For DBD-Oracle it is when testing a new feature in the Oracle 
-RDBMS: UTF8 and UTF16 character set functionality, and in order 
-to do this it sets and unsets the related environment variables 
+For DBD-Oracle it is when testing a new feature in the Oracle
+RDBMS: UTF8 and UTF16 character set functionality, and in order
+to do this it sets and unsets the related environment variables
 NLS_NCHAR and NLS_LANG.
 
-If one is not careful this changes the values set in the oracle 
-table - and in the worst case stays active until the next major 
-system reset. It can also be a very hard error to track down 
+If one is not careful this changes the values set in the oracle
+table - and in the worst case stays active until the next major
+system reset. It can also be a very hard error to track down
 since it happens in a place where one normally never looks.
 
 Furthermore, it is very possibly that some or all of the UTF tests
@@ -60,7 +60,7 @@ table, then even though 'mms test' sets it in the wrong table
 it is not invoked as it is overruled by the process logical...
 
 The way to ensure that no logicals are set in the oracle table and
-that the UTF tests get the best environment to test in, and that 
+that the UTF tests get the best environment to test in, and that
 DBI correctly translates the SYS$SCRATCH logical, use the
 logical
 
@@ -78,10 +78,8 @@ LNM$JOB table is read when SYS$SCRATCH is to be translated.
 
 PERL_ENV_TABLES is well documented in the PERLVMS man page.
 
-Oracle8 releases are not affected, as they don't have the 
+Oracle8 releases are not affected, as they don't have the
 oracle table implementation, and no UTF support.
 
 Oracle 9.0 is uncertain, since testing has not been possible yet,
 but the remedy will not hurt :)
-
-

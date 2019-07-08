@@ -1,4 +1,4 @@
-# $Id$
+#!perl
 # Author: Martin J. Evans
 # This should be an exact copy of the same file in DBD::ODBC
 # If you change this file please let me know.
@@ -8,8 +8,8 @@ use Data::Dumper;
 use DBI;
 our $VERSION = '0.01';
 
-my $table = 'PERL_DBD_execute_array';
-my $table2 = 'PERL_DBD_execute_array2';
+my $table = 'PERL_DBD_execute_array'.($ENV{DBD_ORACLE_SEQ}||'');
+my $table2 = 'PERL_DBD_execute_array2'.($ENV{DBD_ORACLE_SEQ}||'');
 my @p1 = (1,2,3,4,5);
 my @p2 = qw(one two three four five);
 my $fetch_row = 0;
@@ -18,7 +18,7 @@ my @captured_error;                  # values captured in error handler
 sub error_handler
 {
     @captured_error = @_;
-    note("***** error handler called *****");
+    note('***** error handler called *****');
     0;                          # pass errors on
 }
 
@@ -476,7 +476,7 @@ sub update
     # NOTE, this also checks you can pass a scalar to bind_param_array
     $sth->bind_param_array(1, 'dave');
     my @pe1 = @p1;
-    $pe1[-1] = 10;              # non-existant row
+    $pe1[-1] = 10;              # non-existent row
     $sth->bind_param_array(2, \@pe1);
     $self->insert($dbh, $sth,
                   {commit => 0, error => 0, sts => 5, affected => 4,
