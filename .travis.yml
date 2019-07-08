@@ -182,6 +182,7 @@ before_install:
   - source ~/travis-perl-helpers/init
   - build-perl
   - perl -V
+  - dzil authordeps --missing
   - build-dist
   - cd $BUILD_DIR
 
