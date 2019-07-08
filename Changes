@@ -2,6 +2,13 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  [BUG FIXES]
+
+  Fix Avoid GCC-ism so that HP-UX can compile (GH#92, Dean Hamstead)
+
+  Destroy envhp with last dbh (GH#93, GH#89, Dean Hamstead, CarstenGrohmann)
+
+
 1.76      2018-11-22
 
   No Changes from 1.75, we just botched up publishing to CPAN

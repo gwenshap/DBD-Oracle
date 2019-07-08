@@ -354,4 +354,3 @@ qq{ INSERT INTO $list_table VALUES(81,$list_type($inner_type(null, 'listed'))) }
 
 #cleanup
 &drop_test_objects unless $ENV{DBD_SKIP_TABLE_DROP};
-$dbh->disconnect if $dbh; # see also GH65
