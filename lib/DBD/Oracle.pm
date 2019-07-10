@@ -3883,7 +3883,7 @@ BLOBs and CLOBs treating them exactly as if they were the same as the legacy LON
 
 With this interface DBD::Oracle handles your data utilizing LOB Locator OCI calls so it only works with CLOB and BLOB datatypes. With this interface DBD::Oracle takes care of the LOB Locator operations for you.
 
-=item L</LOB Locator Method Interface>
+=item LOB Locator Method Interface
 
 This allows the user direct access to the LOB Locator methods, so you have to take care of the LOB Locator operations yourself.
 
