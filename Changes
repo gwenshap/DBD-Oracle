@@ -7,6 +7,11 @@ Revision history for DBD::Oracle
   orphaned test code in t/28_array_bind.t - (GH#64, dzort)
   Made the code run so it is nolonger orphaned
 
+  [MISCELLANEOUS]
+
+  Updated bugtracker to git
+  updated home page to metacpan
+
 1.791     2019-07-22
 
   [BUG FIXES]

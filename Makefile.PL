@@ -61,12 +61,8 @@ my %opts = (
                           "ExtUtils::MakeMaker" => 0,
                           "Test::Simple" => '0.90'},
        resources => {
-           bugtracker => {
-               mailto => 'bug-dbd-oracle at rt.cpan.org',
-               web =>
-                'http://rt.cpan.org/Public/Dist/Display.html?Name=DBD-Oracle',
-           },
-           homepage => 'http://search.cpan.org/dist/DBD-Oracle',
+           bugtracker => 'https://github.com/perl5-dbi/DBD-Oracle/issues',
+           homepage => 'https://metacpan.org/pod/DBD::Oracle',
            repository => {
                type => 'git',
                url => 'git://github.com/yanick/DBD-Oracle.git',
