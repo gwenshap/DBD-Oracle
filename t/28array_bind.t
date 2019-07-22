@@ -326,7 +326,7 @@ SKIP: {
     $dbh = db_connect(0);
 
     if ($dbh) {
-        plan tests => 15;
+        plan tests => 19;
     }
     else {
         plan skip_all => 'Unable to connect to Oracle' if not $dbh;
@@ -335,6 +335,7 @@ SKIP: {
     test_varchar2_table_3_tests($dbh);
     test_number_table_3_tests($dbh);
     test_inout_array_tests($dbh);
+    test_number_SP($dbh);
 
 }
 
