@@ -60,6 +60,7 @@
 
 void	dbd_init _((dbistate_t *dbistate));
 void	dbd_init_oci_drh _((imp_drh_t * imp_drh));
+void	dbd_dr_destroy _((SV *drh, imp_drh_t *imp_drh));
 
 int	 dbd_db_login  _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, char *pwd));
 int	 dbd_db_do _((SV *sv, char *statement));
@@ -119,8 +120,8 @@ ub4	 ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *
 
 /* other Oracle not in noraml API defines
 
-most of these are largly undocumented XML functions that are in the API but not defined
-not noramlly found in the  defines the prototypes of OCI functions in most clients
+most of these are largely undocumented XML functions that are in the API but not defined
+not normally found in the  defines the prototypes of OCI functions in most clients
 Normally can be found in ociap.h (Oracle Call Interface - Ansi Prototypes
 ) and ocikp.h (functions in K&R style)
 

@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 # Short examples of procedure calls from Oracle.pm
 # These PL/SQL examples come from: Eric Bartley <bartley@cc.purdue.edu>.
 
@@ -121,7 +121,7 @@ END;
 $sth->bind_param( ":test_num", $test_num );
 $sth->bind_param_inout( ":is_odd", \$is_odd, 1 );
 
-# The execute will automagically update the value of $is_odd
+# The execute will automatically update the value of $is_odd
 $sth->execute;
 print "$test_num is ", $is_odd ? "odd - ok" : "even - error!", "\n";
 
@@ -130,7 +130,7 @@ print "\nExample 4\n";
 # What about the return value of a PL/SQL function? Well treat it the same
 # as you would a call to a function from SQL*Plus. We add a placeholder
 # for the return value and bind it with a call to bind_param_inout so
-# we can access it's value after execute.
+# we can access its value after execute.
 
 my $whoami = "";
 
