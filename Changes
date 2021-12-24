@@ -2,6 +2,20 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  [BUG FIXES]
+
+  Run nonassigned pl/sql tests based off versions known to have the issue. - (GH#70, Wesley Hinds)
+  Oracle Instant Client 21 support - (Tux)
+  Add rpath to ORACLE_HOME to DBD/Oracle/Oracle.bundle  - (GH#128, hakonhagland)
+  fix materialised views being misclassified as tables in ->table_info - (GH#132, John Smith)
+  Fix bugtracker ref in dist metadata github - (GH#130, John Smith)
+
+  [MISCELLANEOUS]
+
+  Updates to POD and README file
+  Moved old README file to t/TESTING.md
+  Updated links
+
 1.80      2019-07-25
 
   [BUG FIXES]
