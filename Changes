@@ -2,6 +2,8 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+1.81      2021-12-24
+
   [BUG FIXES]
 
   Run nonassigned pl/sql tests based off versions known to have the issue. - (GH#70, Wesley Hinds)
