@@ -83,7 +83,7 @@ sub test_varchar2_table_3_tests($) {
     my $sth = $dbh->prepare($statement);
 
     if ( !defined($sth) ) {
-        BAIL_OUT( 'Prapare(varchar2) error: ' . $dbh->errstr );
+        BAIL_OUT( 'Prepare(varchar2) error: ' . $dbh->errstr );
     }
 
     my @arr = ( 'abc', 'cde', 'lalala' );
@@ -111,16 +111,6 @@ sub test_varchar2_table_3_tests($) {
         BAIL_OUT( 'Execute (at VARCHAR2) failed: ' . $dbh->errstr );
     }
 
-    #        print        "Result: cc=",$cc,"\n",
-    #        "\tarr=",Data::Dumper::Dumper(\@arr),"\n";
-
-    #Result: cc=2, l=3
-    #        arr=$VAR1 = [
-    #          'def',
-    #          'ijk'
-    #        ];
-    #
-
     ok( $cc == 2,          'VARCHAR2_TABLE input count correctness' );
     ok( scalar(@arr) == 2, 'VARCHAR2_TABLE output count correctness' );
     ok( ( ( $arr[0] eq 'def' ) and ( $arr[1] eq 'ijk' ) ),
@@ -146,7 +136,7 @@ sub test_number_table_3_tests {
     my $sth = $dbh->prepare($statement);
 
     if ( !defined($sth) ) {
-        BAIL_OUT( 'Prapare(NUMBER_TABLE) error: ' . $dbh->errstr );
+        BAIL_OUT( 'Prepare(NUMBER_TABLE) error: ' . $dbh->errstr );
     }
 
     my @arr = ( 1, '2E0', '3.5' );
@@ -209,7 +199,20 @@ sub test_number_table_3_tests {
 }
 
 sub test_inout_array_tests {
-    my $dbh     = shift;
+   my $dbh     = shift;
+
+   my $privs_sth = $dbh->prepare('SELECT PRIVILEGE from session_privs');
+   $privs_sth->execute;
+   my @privileges = map { $_->[0] } @{ $privs_sth->fetchall_arrayref };
+
+   SKIP: {
+    skip q{don't have permission to create table} => 9
+      unless grep { $_ eq 'CREATE TABLE' } @privileges;
+    skip q{don't have permission to create sequence} => 9
+      unless grep { $_ eq 'CREATE SEQUENCE' } @privileges;
+    skip q{don't have permission to create trigger} => 9
+      unless grep { $_ eq 'CREATE TRIGGER' } @privileges;
+
     my $table   = 'array_io_test__drop_me' . ( $ENV{DBD_ORACLE_SEQ} || '' );
     my $seq     = 'seq_io_test__drop_me' . ( $ENV{DBD_ORACLE_SEQ} || '' );
     my $trigger = 'trg_io_test__drop_me' . ( $ENV{DBD_ORACLE_SEQ} || '' );
@@ -267,12 +270,20 @@ sub test_inout_array_tests {
 
     $dbh->do("drop table $table")  or warn $dbh->errstr;
     $dbh->do("drop sequence $seq") or die $dbh->errstr;
-
+   }
 }
 
-# FIXME this is orphaned? See https://github.com/pythian/DBD-Oracle/issues/64
 sub test_number_SP {
-    my $dbh = shift;
+   my $dbh = shift;
+
+   my $privs_sth = $dbh->prepare('SELECT PRIVILEGE from session_privs');
+   $privs_sth->execute;
+   my @privileges = map { $_->[0] } @{ $privs_sth->fetchall_arrayref };
+
+   SKIP: {
+    skip q{don't have permission to create procedure} => 4
+      unless grep { $_ eq 'CREATE PROCEDURE' } @privileges;
+
     $dbh->do(
         <<'EOF'
                 create or replace procedure tox_test_proc0(
@@ -319,7 +330,7 @@ EOF
     cmp_ok( $result, '==', '345', '... we should have 345 out string' );
 
     $dbh->do('drop procedure tox_test_proc0') or warn $dbh->errstr;
-
+   }
 }
 
 SKIP: {
