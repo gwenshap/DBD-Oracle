@@ -2,6 +2,7 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  Check permissions for tests in 28array_bind.t - (GH#141, Wesley Hinds)
   Exclude 19.9 and 19.13 from 25plsql.t - (GH#140, Wesley Hinds)
 
 1.83
