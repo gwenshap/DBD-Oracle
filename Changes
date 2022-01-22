@@ -1,5 +1,9 @@
 Revision history for DBD::Oracle
 
+{{$NEXT}}
+
+  Exclude 19.9 and 19.13 from 25plsql.t - (GH#140, Wesley Hinds)
+
 1.83
 
   Build improvements on Debian-ish systems (GH#112, Alex Muntada)
