@@ -4,7 +4,7 @@ Changes
 INSTALL
 LICENSE
 MANIFEST
-META.yml
+META.json
 Makefile.PL
 Oracle.h
 Oracle.xs
