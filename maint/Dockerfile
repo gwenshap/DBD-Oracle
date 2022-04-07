@@ -26,8 +26,8 @@ COPY . /usr/src/DBD-Oracle
 RUN apt-get update && apt-get install -y libaio-dev && \
     apt-get install -y vim less net-tools && \
     cpanm --verbose --notest --installdeps /usr/src/DBD-Oracle && \
-    /usr/src/DBD-Oracle/maint/travis-ci_scripts/01_install_oracle_xe.bash && \
-    /usr/src/DBD-Oracle/maint/travis-ci_scripts/02_install_oracle_instantclient.bash && \
+    /usr/src/DBD-Oracle/maint/scripts/01_install_oracle_xe.bash && \
+    /usr/src/DBD-Oracle/maint/scripts/02_install_oracle_instantclient.bash && \
     sync && /etc/init.d/oracle-xe stop && apt-get clean
 
 WORKDIR /usr/src/DBD-Oracle
