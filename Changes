@@ -2,6 +2,7 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  Update dbdcnx.c - (PR#152, Andrei Voropaev)
   Rewrite of login6. This is an enormous rewrite which should fix many problems - (PR#150, Andrei Voropaev)
   Improvements to Makefile.PL - (PR#150, Andrei Voropaev)
   Have find_headers() also search for header files based off the major version number - (GH#142, Wesley Hinds)
