@@ -2,6 +2,7 @@ Revision history for DBD::Oracle
 
 {{$NEXT}}
 
+  Add DBI to ConfigureRequires, BuildRequires, and Test Requires - (GH#155)
   Move from TravisCI to Github Actions (GHA) - (PR#152, Wesley Hinds)
   Update dbdcnx.c - (PR#152, Andrei Voropaev)
   Rewrite of login6. This is an enormous rewrite which should fix many problems - (PR#150, Andrei Voropaev)
