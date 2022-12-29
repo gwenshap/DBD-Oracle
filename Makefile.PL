@@ -1798,7 +1798,7 @@ sub symbol_search {
         }
         close main::MK_PM or die "Error closing mk.pm: $!\n";
 
-        foreach (qw(mk.pm Oracle.h dbdimp.h ocitrace.h)) {
+        foreach (qw(mk.pm Oracle.h dbdimp.h dbivport.h ocitrace.h)) {
             $self->{PM}->{$_} = '$(INST_ARCHAUTODIR)/'.$_;
         }
 
