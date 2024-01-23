@@ -11,16 +11,42 @@
 typedef struct taf_callback_st taf_callback_t;
 
 struct taf_callback_st {
-	char *function; /*User supplied TAF functiomn*/
-	int  sleep;
+	SV   *function;     /*User supplied TAF function*/
+	SV   *dbh_ref;
 };
 
+
+typedef struct box_st box_t;
 typedef struct imp_fbh_st imp_fbh_t;
 
+/* this structure is used to communicate parameters of login */
+typedef struct dblogin_info_st dblogin_info_t;
+struct dblogin_info_st {
+    SV * dbh;
+    imp_dbh_t * imp_dbh;
+    SV * pool_class; /* this and next SV * is "mortal" */
+    SV * pool_tag;
+    char *dbname;
+    char *uid;
+    char *pwd;
+    char * cset;
+    char * ncset;
+    ub4 mode;
+    ub4 session_mode;
+#ifdef ORA_OCI_112
+	ub4			pool_min;
+	ub4			pool_max;
+	ub4			pool_incr;
+	ub4			pool_rlb;
+    ub4 driver_name_len;
+    char * driver_name;
+#endif
+};
 
+
+/* Define implementation specific driver handle data structure */
 struct imp_drh_st {
 	dbih_drc_t com;		/* MUST be first element in structure	*/
-	OCIEnv *envhp;
 	SV *ora_long;
 	SV *ora_trunc;
 	SV *ora_cache;
@@ -28,56 +54,37 @@ struct imp_drh_st {
 };
 
 
-/* Define dbh implementor data structure */
+/* Define implementation specific database handle data structure */
 struct imp_dbh_st {
 	dbih_dbc_t com;		/* MUST be first element in structure	*/
 
-#ifdef USE_ITHREADS
-	int refcnt ;		/* keep track of duped handles. MUST be first after com */
-	struct imp_dbh_st * shared_dbh ; /* pointer to shared space from which to dup and keep refcnt */
-	SV *				shared_dbh_priv_sv ;
-#endif
-
 	void *(*get_oci_handle) _((imp_dbh_t *imp_dbh, int handle_type, int flags));
-	OCIEnv 		*envhp;		/* copy of drh pointer	*/
+    box_t       *lock;  /* this contains pointer to slot that holds lock */
+	OCIEnv 		*envhp;		/* session environment handler, this is mostly */
+							/* a copy of imp_drh->envhp, see also connect  */
+							/* attr ora_envhp                              */
 	OCIError 	*errhp;
 	OCIServer 	*srvhp;
 	OCISvcCtx 	*svchp;
 	OCISession	*seshp;
-#ifdef ORA_OCI_112
-	OCIAuthInfo *authp;
-	OCISPool    *poolhp;
-	text        *pool_name;
-	ub4			pool_namel;
-	bool		using_drcp;
-	text		*pool_class;
-	ub4			pool_classl;
-	ub4			pool_min;
-	ub4			pool_max;
-	ub4			pool_incr;
-	char		*driver_name;/*driver name user defined*/
-	ub4			driver_namel;
-#endif
-	taf_callback_t  *taf_callback;
-    bool		using_taf; /*TAF stuff*/
-    char		*taf_function; /*User supplied TAF functiomn*/
-    int			taf_sleep;
-    char		*client_info;  /*user defined*/
-    ub4			client_infol;
-	char		*module_name; /*module user defined */
-	ub4			module_namel;
-	char		*client_identifier;  /*user defined*/
-    ub4			client_identifierl;
-    char		*action;  /*user defined*/
-    ub4			actionl;
+    SV          *taf_function; /*User supplied TAF functiomn*/
+    taf_callback_t taf_ctx;
 	int RowCacheSize; /* both of these are defined by DBI spec*/
 	int RowsInCache;	/* this vaue is RO and cannot be set*/
 	int ph_type;		/* default oratype for placeholders */
-	ub1 ph_csform;		/* default charset for placeholders */
 	int parse_error_offset;	/* position in statement of last error */
 	int max_nested_cursors;	 /* limit on cached nested cursors per stmt */
 	int array_chunk_size;  /* the max size for an array bind */
     ub4 server_version; /* version of Oracle server */
+#ifdef ORA_OCI_112
+    SV * session_tag;
+#endif
+    ub2 cset;
+    ub2 ncset;
+	ub1 ph_csform;		/* default charset for placeholders */
+#if defined(USE_ITHREADS) && defined(PERL_MAGIC_shared_scalar)
+    ub1 is_shared;
+#endif
 };
 
 #define DBH_DUP_OFF sizeof(dbih_dbc_t)
@@ -88,7 +95,7 @@ struct imp_dbh_st {
 typedef struct lob_refetch_st lob_refetch_t; /* Define sth implementor data structure */
 
 
-/*statement structure */
+/* Define implementation specific statement data structure */
 struct imp_sth_st {
 
 	dbih_stc_t com;		/* MUST be first element in structure	*/
@@ -134,7 +141,7 @@ struct imp_sth_st {
 	int				eod_errno;
 	int				est_width;	/* est'd avg row width on-the-wire	*/
 	/* (In/)Out Parameter Details */
-	bool			has_inout_params;
+	int 			has_inout_params;
 	/* execute mode*/
 	/* will be using this alot later me thinks  */
 	ub4				exe_mode;
@@ -179,17 +186,17 @@ struct fbh_obj_st {  /* embedded object or table will work recursively*/
 	OCIParam		*parmdp;			/*Describe attributes of the object OCI_DTYPE_PARAM*/
 	OCIParam		*parmap;			/*Describe attributes of the object OCI_ATTR_COLLECTION_ELEMENT OCI_ATTR_PARAM*/
  	OCIType	 		*tdo;				/*object's TDO handle */
-	OCITypeCode 	typecode;			/*object's OOCI_ATTR_TYPECODE */
+	OCITypeCode 	typecode;			/*object's OCI_ATTR_TYPECODE */
 	OCITypeCode 	col_typecode;		/*if collection this is its OCI_ATTR_COLLECTION_TYPECODE */
 	OCITypeCode 	element_typecode;	/*if collection this is its element's OCI_ATTR_TYPECODE*/
-	OCIRef			*obj_ref;			/*if an embeded object this is ref handle to its TDO*/
-	OCIInd			*obj_ind;			/*Null indictator for object */
+	OCIRef			*obj_ref;			/*if an embedded object this is ref handle to its TDO*/
+	OCIInd			*obj_ind;			/*Null indicator for object */
 	OCIComplexObject *obj_value;		/*the actual value from the DB*/
 	OCIType			*obj_type;		 	/*if an embeded object this is the  OCIType returned by a OCIObjectPin*/
 	ub1				is_final_type;		/*object's OCI_ATTR_IS_FINAL_TYPE*/
 	fbh_obj_t		*fields;			/*one object for each field/property*/
 	ub2				field_count;		/*The number of fields Not really needed but nice to have*/
-	fbh_obj_t		*next_subtype;		/*There is strored information about subtypes for inteherited objects*/
+	fbh_obj_t		*next_subtype;		/*There is stored information about subtypes for inherited objects*/
 	AV				*value;				/*The value to send back to Perl This way there are no memory leaks*/
 	SV				*full_type_name;	/*Perl value of full type name = schema_name "." type_name*/
 
@@ -202,7 +209,7 @@ struct imp_fbh_st { 	/* field buffer EXPERIMENTAL */
 	/* Oracle's description of the field	*/
 	OCIParam	*parmdp;
 	OCIDefine	*defnp;
-	void 		*desc_h;	/* descriptor if needed (LOBs etc)	*/
+	void 		*desc_h;	/* descriptor if needed (LOBs, cursors etc)	*/
 	ub4			desc_t;	/* OCI type of descriptor		*/
 	ub4 		define_mode; /*the normal case for a define*/
 	int			(*fetch_func) _((SV *sth, imp_fbh_t *fbh, SV *dest_sv));
@@ -295,8 +302,6 @@ extern int dbd_verbose;
 extern int oci_warn;
 extern int ora_objects;
 extern int ora_ncs_buff_mtpl;
-extern ub2 charsetid;
-extern ub2 ncharsetid;
 extern ub2 us7ascii_csid;
 extern ub2 utf8_csid;
 extern ub2 al32utf8_csid;
@@ -311,17 +316,17 @@ extern ub2 al16utf16_csid;
  #define CS_IS_UTF16( cs ) ( cs == al16utf16_csid )
 
 
-#define CSFORM_IMPLIED_CSID(csform) \
-	((csform==SQLCS_NCHAR) ? ncharsetid : charsetid)
+#define CSFORM_IMPLIED_CSID(imp_xxh, csform) \
+	((csform==SQLCS_NCHAR) ? (imp_xxh)->ncset : (imp_xxh)->cset)
 
-#define CSFORM_IMPLIES_UTF8(csform) \
-	CS_IS_UTF8( CSFORM_IMPLIED_CSID( csform ) )
+#define CSFORM_IMPLIES_UTF8(imp_xxh, csform) \
+	CS_IS_UTF8( CSFORM_IMPLIED_CSID(imp_xxh, csform ) )
 
 
 void dbd_init_oci _((dbistate_t *dbistate));
 void dbd_preparse _((imp_sth_t *imp_sth, char *statement));
-void dbd_fbh_dump(imp_fbh_t *fbh, int i, int aidx);
-void ora_free_fbh_contents _((imp_fbh_t *fbh));
+void dbd_fbh_dump(imp_sth_t *imp_sth, imp_fbh_t *fbh, int i, int aidx);
+void ora_free_fbh_contents _((SV *sth, imp_fbh_t *fbh));
 void ora_free_templob _((SV *sth, imp_sth_t *imp_sth, OCILobLocator *lobloc));
 int ora_dbtype_is_long _((int dbtype));
 fb_ary_t *fb_ary_alloc _((ub4 bufl, int size));
@@ -329,8 +334,8 @@ fb_ary_t *fb_ary_cb_alloc _((ub4 piece_size,ub4 max_len, int size));
 
 int ora_db_reauthenticate _((SV *dbh, imp_dbh_t *imp_dbh, char *uid, char *pwd));
 
-void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
-void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));
+void dbd_phs_sv_complete _((imp_sth_t *imp_sth, phs_t *phs, SV *sv, I32 debug));
+void dbd_phs_avsv_complete _((imp_sth_t *imp_sth, phs_t *phs, I32 index, I32 debug));
 
 int pp_exec_rset _((SV *sth, imp_sth_t *imp_sth, phs_t *phs, int pre_exec));
 int pp_rebind_ph_rset_in _((SV *sth, imp_sth_t *imp_sth, phs_t *phs));
@@ -366,17 +371,16 @@ int ora_st_execute_array _((SV *sth, imp_sth_t *imp_sth, SV *tuples,
 SV * ora_create_xml _((SV *dbh, char *source));
 
 void ora_free_lob_refetch _((SV *sth, imp_sth_t *imp_sth));
-void dbd_phs_avsv_complete _((phs_t *phs, I32 index, I32 debug));
-void dbd_phs_sv_complete _((phs_t *phs, SV *sv, I32 debug));
+void dbd_phs_avsv_complete _((imp_sth_t *imp_sth, phs_t *phs, I32 index, I32 debug));
+void dbd_phs_sv_complete _((imp_sth_t *imp_sth, phs_t *phs, SV *sv, I32 debug));
 int post_execute_lobs _((SV *sth, imp_sth_t *imp_sth, ub4 row_count));
-ub4 ora_parse_uid _((imp_dbh_t *imp_dbh, char **uidp, char **pwdp));
 char *ora_sql_error _((imp_sth_t *imp_sth, char *msg));
 char *ora_env_var(char *name, char *buf, unsigned long size);
 
-#ifdef __CYGWIN32__
+#if defined(__CYGWIN__) || defined(__CYGWIN32__)
 void ora_cygwin_set_env(char *name, char *value);
 
-#endif /* __CYGWIN32__ */
+#endif /* __CYGWIN__ */
 
 sb4 dbd_phs_in _((dvoid *octxp, OCIBind *bindp, ub4 iter, ub4 index,
 			  dvoid **bufpp, ub4 *alenp, ub1 *piecep, dvoid **indpp));
@@ -393,11 +397,43 @@ void fb_ary_free(fb_ary_t *fb_ary);
 void rs_array_init(imp_sth_t *imp_sth);
 
 ub4 ora_db_version _((SV *dbh, imp_dbh_t *imp_dbh));
-sb4 reg_taf_callback _((imp_dbh_t *imp_dbh));
+sb4 reg_taf_callback _((SV *dbh, imp_dbh_t *imp_dbh));
+
+int cnx_establish (pTHX_ dblogin_info_t * );
+void cnx_drop_dr(pTHX_ imp_drh_t *);
+void cnx_clean(pTHX_ imp_dbh_t * );
+void cnx_detach(pTHX_ imp_dbh_t * );
+void ora_shared_release(pTHX_ SV * );
+
+#ifdef ORA_OCI_112
+int cnx_get_pool_mode(pTHX_ SV *, imp_dbh_t * );
+void cnx_pool_mode(pTHX_ SV * , imp_dbh_t * , ub4);
+
+#if OCI_MAJOR_VERSION > 18
+int cnx_get_pool_wait(pTHX_ SV *, imp_dbh_t * );
+void cnx_pool_wait(pTHX_ SV * , imp_dbh_t * , ub4);
+#endif
+
+int cnx_get_pool_used(pTHX_ SV *, imp_dbh_t * );
+
+int cnx_get_pool_rlb(pTHX_ SV *, imp_dbh_t * );
+
+int cnx_get_pool_incr(pTHX_ SV *, imp_dbh_t * );
+void cnx_pool_incr(pTHX_ SV * , imp_dbh_t * , ub4);
+
+int cnx_get_pool_min(pTHX_ SV *, imp_dbh_t * );
+void cnx_pool_min(pTHX_ SV * , imp_dbh_t * , ub4);
+
+int cnx_get_pool_max(pTHX_ SV *, imp_dbh_t * );
+void cnx_pool_max(pTHX_ SV * , imp_dbh_t * , ub4);
+
+int cnx_is_pooled_session(pTHX_ SV *, imp_dbh_t *);
+#endif
 
 /* These defines avoid name clashes for multiple statically linked DBD's	*/
 
 #define dbd_init			ora_init
+#define dbd_dr_destroy		ora_dr_destroy
 #define dbd_db_login		ora_db_login
 #define dbd_db_login6		ora_db_login6
 #define dbd_db_do			ora_db_do
@@ -406,6 +442,7 @@ sb4 reg_taf_callback _((imp_dbh_t *imp_dbh));
 #define dbd_db_cancel		ora_db_cancel
 #define dbd_db_disconnect	ora_db_disconnect
 #define dbd_db_destroy		ora_db_destroy
+#define dbd_take_imp_data	ora_take_imp_data
 #define dbd_db_STORE_attrib	ora_db_STORE_attrib
 #define dbd_db_FETCH_attrib	ora_db_FETCH_attrib
 #define dbd_st_prepare		ora_st_prepare

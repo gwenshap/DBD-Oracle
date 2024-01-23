@@ -1,48 +1,44 @@
-#!perl -w
+#!perl
+
+use strict;
+use warnings;
+
+use lib 't/lib';
+use DBDOracleTestLib qw/ oracle_test_dsn db_handle /;
 
 use DBI;
 use DBD::Oracle(qw(:ora_fail_over));
-use strict;
-use Data::Dumper;
+
+#use Devel::Peek qw(SvREFCNT Dump);
 
 use Test::More;
-unshift @INC ,'t';
-require 'nchar_test_lib.pl';
-
 $| = 1;
 
-
 # create a database handle
-my $dsn = oracle_test_dsn();
-my $dbuser = $ENV{ORACLE_USERID} || 'scott/tiger';
-my $dbh;
-eval {$dbh = DBI->connect($dsn, $dbuser, '',)};
-if ($dbh) {
-    if ($dbh->ora_can_taf()){
-      plan tests => 1;  
-    }
-    else {
-       plan tests =>1;      
-    }
-} else {
-    plan skip_all => "Unable to connect to Oracle";
-}
+my $dbh = db_handle()
+  or plan skip_all => 'Unable to connect to Oracle';
 
 $dbh->disconnect;
 
-if (!$dbh->ora_can_taf()){
-    
-  eval {$dbh = DBI->connect($dsn, $dbuser, '',{ora_taf=>1,taf_sleep=>15,ora_taf_function=>'taf'})};   
-  ok($@    =~ /You are attempting to enable TAF/, "'$@' expected! ");      
-  
-    
+if ( !$dbh->ora_can_taf ) {
+
+    $dbh = db_handle( { PrintError => 0, RaiseError => 0, ora_taf_function => 'taf' } );
+    my $ev = $dbh->errstr;
+    like( $ev, qr/You are attempting to enable TAF/, "'$ev' (expected)" );
 }
 else {
-   ok($dbh = DBI->connect($dsn, $dbuser, '',{ora_taf=>1,taf_sleep=>15,ora_taf_function=>'taf'}),"Well this is all I can test!");         
-    
+    ok $dbh = db_handle( { ora_taf_function => 'taf' } );
+
+    is( $dbh->{ora_taf_function}, 'taf', 'TAF callback' );
+
+    my $x = sub { };
+
+    #   diag(SvREFCNT($x));
+    #   diag(Dump($x));
+    $dbh->{ora_taf_function} = $x;
+    is( ref( $dbh->{ora_taf_function} ), 'CODE', 'TAF code ref' );
+
+    #   diag(SvREFCNT($x));
 }
 
-$dbh->disconnect;
-#not much I can do with taf as I cannot really shut down somones server pephaps later
-
-1;
+done_testing();

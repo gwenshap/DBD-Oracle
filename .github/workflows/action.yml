@@ -1,0 +1,54 @@
+name: build
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+  workflow_dispatch:
+
+##
+# Adjust container-image for different Perl version
+# Adjust services-oracle-image for different OracleXE DB versions
+# Adjust container-env-ORACLEV for different InstantClient versions
+##
+jobs:
+  build-job:
+    name: Build Latest
+    runs-on: ubuntu-latest
+    container:
+      image: perldocker/perl-tester:latest
+    env:
+      ORACLEV: latest
+      ORACLE_USERID: kermit/foobar
+      ORACLE_DSN: 'dbi:Oracle://oracle:1521/XEPDB1'
+    services:
+      # Oracle service (label used to access the service container)
+      oracle:
+        # Docker Hub image (change the tag "latest" to any other available one)
+        image: gvenzl/oracle-xe:latest
+        # Provide passwords and other environment variables to container
+        env:
+          ORACLE_PASSWORD: adminpass
+          APP_USER: kermit
+          APP_USER_PASSWORD: foobar
+        # Forward Oracle port
+        ports:
+          - 1521:1521
+        # Provide healthcheck script options for startup
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v2
+      - run: apt-get update -y
+      - run: apt-get install -y libaio1 libaio-dev bc sudo alien
+      - run: sudo -E maint/scripts/03_install_oracle_instantclient_rpm.bash
+      - run: . /etc/profile
+      - run: perl -V
+      - run: cpanm DBI Test::NoWarnings
+      - run: perl Makefile.PL && make && make test

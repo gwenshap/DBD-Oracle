@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 #
 # Dump the contents of an Oracle table into a set of insert statements.
 # Quoting is controlled by the datatypes of each column. (new with DBI)
