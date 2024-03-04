@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 # Short example using bind_columns() to list a table's values
 
 use DBI;
