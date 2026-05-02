@@ -1,0 +1,63 @@
+name: build
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+  workflow_dispatch:
+
+##
+# Adjust container-image for different Perl version
+# Adjust services-oracle-image for different OracleXE DB versions
+# Adjust container-env-ORACLEV for different InstantClient versions
+##
+jobs:
+  build-job:
+    name: Build Latest
+    runs-on: ubuntu-latest
+    container:
+      image: perldocker/perl-tester:latest
+    env:
+      ORACLEV: latest
+      ORACLE_USERID: kermit/foobar
+      ORACLE_USERID_2: mspiggy/barfoo
+      ORACLE_DSN: 'dbi:Oracle://oracle:1521/FREEPDB1'
+    services:
+      # Oracle service (label used to access the service container)
+      oracle:
+        # Docker Hub image (change the tag "latest" to any other available one)
+        image: gvenzl/oracle-free:latest
+        # Provide passwords and other environment variables to container
+        env:
+          ORACLE_PASSWORD: adminpass
+          APP_USER: kermit
+          APP_USER_PASSWORD: foobar
+        # Forward Oracle port
+        ports:
+          - 1521:1521
+        # Provide healthcheck script options for startup
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v2
+      - run: apt-get update -y
+      - run: apt-get install -y libaio1 libaio-dev bc sudo alien
+      - run: sudo -E maint/scripts/03_install_oracle_instantclient_rpm.bash
+      - run: . /etc/profile
+      - run: |-
+          # Same as createAppUser in oracle image
+          sqlplus -L -S SYSTEM/adminpass@oracle:1521 <<EOF
+            ALTER SESSION SET CONTAINER=FREEPDB1;
+            CREATE USER mspiggy IDENTIFIED BY "barfoo" DEFAULT TABLESPACE USERS QUOTA UNLIMITED ON USERS;
+            GRANT DB_DEVELOPER_ROLE TO mspiggy;
+          EOF
+      - run: perl -V
+      - run: cpanm DBI # DBI must be installed before we can build a DBD.
+      - run: cpanm --installdeps .
+      - run: perl Makefile.PL && make && make test

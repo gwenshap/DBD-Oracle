@@ -26,7 +26,7 @@
 #endif
 
 /* egcs-1.1.2 does not have _int64 */
-#if defined(__MINGW32__) || defined(__CYGWIN32__)
+#if defined(__MINGW32__) || defined(__CYGWIN32__) || defined(__CYGWIN__)
 #define _int64 long long
 #endif
 
@@ -60,6 +60,9 @@
 
 void	dbd_init _((dbistate_t *dbistate));
 void	dbd_init_oci_drh _((imp_drh_t * imp_drh));
+void	dbd_dr_destroy _((SV *drh, imp_drh_t *imp_drh));
+void	dbd_dr_globals_init _(());
+void	dbd_dr_mng _(());
 
 int	 dbd_db_login  _((SV *dbh, imp_dbh_t *imp_dbh, char *dbname, char *user, char *pwd));
 int	 dbd_db_do _((SV *sv, char *statement));
@@ -115,12 +118,19 @@ ub4	 ora_blob_read_mb_piece _((SV *sth, imp_sth_t *imp_sth, imp_fbh_t *fbh, SV *
 #define ORA_XMLTYPE			108
 
 
+/* define some constants from newer OCI versions */
+#ifndef OCI_SPOOL_ATTRVAL_TIMEDWAIT
+#define OCI_SPOOL_ATTRVAL_TIMEDWAIT 3
+#endif
+#ifndef OCI_SPOOL_ATTRVAL_NOWAIT
+#define OCI_SPOOL_ATTRVAL_NOWAIT 1
+#endif
 
 
 /* other Oracle not in noraml API defines
 
-most of these are largly undocumented XML functions that are in the API but not defined
-not noramlly found in the  defines the prototypes of OCI functions in most clients
+most of these are largely undocumented XML functions that are in the API but not defined
+not normally found in the  defines the prototypes of OCI functions in most clients
 Normally can be found in ociap.h (Oracle Call Interface - Ansi Prototypes
 ) and ocikp.h (functions in K&R style)
 

@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 # Sample DBI program to create a new table and load data into it.
 #
 # Author:   Kevin Stock (original oraperl script)
